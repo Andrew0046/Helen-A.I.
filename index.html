@@ -2751,9 +2751,28 @@
 
 
         // --- TTS and Voice Management ---
-        function populateVoiceList() {
-            if (typeof SpeechSynthesis === 'undefined' || voicesLoaded) return;
+ function populateVoiceList() {
+            if (typeof SpeechSynthesis === 'undefined') {
+                console.error("Speech Synthesis not supported.");
+                return;
+            }
+
             const voices = SpeechSynthesis.getVoices().filter(voice => voice.lang.startsWith('en-'));
+
+            // If the list is empty, it means they haven't loaded yet.
+            // We'll just return and wait for the 'onvoiceschanged' event to fire again.
+            if (voices.length === 0) {
+                return; 
+            }
+
+            // If we have voices, but the dropdown is already populated, don't do it again.
+            // This prevents the 'onvoiceschanged' firing multiple times from breaking things.
+            if (voicesLoaded && voiceSelect.options.length > 0) {
+                return;
+            }
+            
+            voiceSelect.innerHTML = ''; // Clear any previous (potentially failed) attempts
+
             voices.forEach((voice) => {
                 const option = document.createElement('option');
                 option.textContent = `${voice.name} (${voice.lang})`;
@@ -2761,14 +2780,18 @@
                 option.value = voice.name;
                 voiceSelect.appendChild(option);
             });
-            voicesLoaded = true;
+
+            voicesLoaded = true; // Mark as successfully loaded
+
+            // Now that we have options, select the saved one.
             const savedVoiceName = loadData(getUserKey(USER_VOICE_PREFERENCE_KEY), 'Google US English');
             const savedVoiceOption = [...voiceSelect.options].find(opt => opt.value === savedVoiceName);
+            
             if (savedVoiceOption) {
                 voiceSelect.value = savedVoiceOption.value;
                 selectedVoice = voices.find(v => v.name === savedVoiceName);
-            } else {
-                voiceSelect.value = voices[0]?.name || '';
+            } else if (voices.length > 0) { // Fallback to first voice
+                voiceSelect.value = voices[0].name;
                 selectedVoice = voices[0];
             }
         }
@@ -5652,4 +5675,5 @@ function exportAllUserData() {
     </script>
 </body>
 </html>
+
 
