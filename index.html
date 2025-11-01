@@ -2784,7 +2784,7 @@
             voicesLoaded = true; // Mark as successfully loaded
 
             // Now that we have options, select the saved one.
-            const savedVoiceName = loadData(getUserKey(USER_VOICE_PREFERENCE_KEY), 'Google US English');
+          //  const savedVoiceName = loadData(getUserKey(USER_VOICE_PREFERENCE_KEY), 'Google US English');
             const savedVoiceOption = [...voiceSelect.options].find(opt => opt.value === savedVoiceName);
             
             if (savedVoiceOption) {
@@ -5674,6 +5674,7 @@ function exportAllUserData() {
     </script>
 </body>
 </html>
+
 
 
 
