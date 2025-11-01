@@ -2564,7 +2564,14 @@
             
             updateLevelDisplay();
             chatDisplay.scrollTop = chatDisplay.scrollHeight;
-            populateVoiceList();
+			
+           populateVoiceList(); 
+            
+            // 2. NOW assign the listener, after currentUser is set.
+            if (SpeechSynthesis.onvoiceschanged !== undefined) {
+                SpeechSynthesis.onvoiceschanged = populateVoiceList;
+            }
+			
             updateThemeSelector();
 			
 			GEMINI_API_KEY = loadData(getUserKey(API_KEY_KEY), ''); // <<< ADD THIS LINE
@@ -2784,7 +2791,7 @@
             voicesLoaded = true; // Mark as successfully loaded
 
             // Now that we have options, select the saved one.
-          //  const savedVoiceName = loadData(getUserKey(USER_VOICE_PREFERENCE_KEY), 'Google US English');
+            const savedVoiceName = loadData(getUserKey(USER_VOICE_PREFERENCE_KEY), 'Google US English');
             const savedVoiceOption = [...voiceSelect.options].find(opt => opt.value === savedVoiceName);
             
             if (savedVoiceOption) {
@@ -2795,10 +2802,7 @@
                 selectedVoice = voices[0];
             }
         }
-        if (SpeechSynthesis.onvoiceschanged !== undefined) {
-            SpeechSynthesis.onvoiceschanged = populateVoiceList;
-        }
-
+      
         voiceSelect.addEventListener('change', () => {
             const newVoiceName = voiceSelect.value;
             selectedVoice = SpeechSynthesis.getVoices().find(v => v.name === newVoiceName);
@@ -5674,6 +5678,7 @@ function exportAllUserData() {
     </script>
 </body>
 </html>
+
 
 
 
