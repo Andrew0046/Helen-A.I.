@@ -2757,6 +2757,8 @@
         });
 
 
+		
+
         // --- TTS and Voice Management ---
  function populateVoiceList() {
             if (typeof SpeechSynthesis === 'undefined') {
@@ -2850,6 +2852,14 @@
             if (audioContext) audioContext.close();
         }
 
+
+
+function isMobileDevice() {
+            return /Mobi|Android|iPhone/i.test(navigator.userAgent);
+        }
+
+
+		
         // --- Speech Recognition Logic ---
         function startListening() {
             if (!SpeechRecognition) {
@@ -2857,21 +2867,93 @@
                 return;
             }
             recognition = new SpeechRecognition();
-            recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = 'en-US';
+
+            const isMobile = isMobileDevice(); // <-- The new check
+
+            if (isMobile) {
+                // --- MOBILE-SPECIFIC LOGIC ---
+                console.log("Using mobile speech recognition logic.");
+                recognition.continuous = false; // Mobile browsers require this
+                
+                recognition.onend = () => {
+                    isListening = false;
+                    micButton.classList.remove('listening');
+                    // Auto-restart loop with a short delay for stability
+                    if (shouldBeListening) {
+                        setTimeout(() => {
+                            if (shouldBeListening) recognition.start();
+                        }, 100); // 100ms delay
+                    } else {
+                        stopAudioProcessing();
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech error (mobile):', event.error);
+                    // Ignore common mobile-only errors and let 'onend' restart
+                    if (event.error === 'no-speech' || event.error === 'audio-capture') {
+                        return; 
+                    }
+                    // Stop on critical errors
+                    isListening = false;
+                    micButton.classList.remove('listening');
+                    shouldBeListening = false;
+                    showNotification(`Speech error: ${event.error}`, 'error');
+                    userActivatedAudio = false;
+                };
+
+            } else {
+                // --- DESKTOP-SPECIFIC LOGIC ---
+                console.log("Using desktop speech recognition logic.");
+                recognition.continuous = true; // This works well on desktop
+                
+                recognition.onend = () => {
+                    isListening = false;
+                    micButton.classList.remove('listening');
+                    // Simple restart. If 'shouldBeListening' is true, just start again.
+                    if (shouldBeListening) {
+                        recognition.start();
+                    } else {
+                        stopAudioProcessing();
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech error (desktop):', event.error);
+                    // 'no-speech' is common if you're quiet. Just let 'onend' restart.
+                    if (event.error === 'no-speech') {
+                        return;
+                    }
+                    // Stop on critical errors
+                    isListening = false;
+                    micButton.classList.remove('listening');
+                    shouldBeListening = false;
+                    showNotification(`Speech recognition error: ${event.error}`, 'error');
+                    userActivatedAudio = false;
+                };
+            }
+
+            // --- SHARED LOGIC (Works for both) ---
             recognition.onstart = () => {
                 isListening = true;
                 micButton.classList.add('listening');
                 userActivatedAudio = true;
             };
+
             recognition.onresult = (event) => {
                 let interimTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) finalTranscript += transcript.trim() + ' ';
-                    else interimTranscript += transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript.trim() + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
                 }
+                
+                // We only process final transcripts
                 const now = Date.now();
                 if (finalTranscript.trim() !== '' && now - lastProcessedTime > DEBOUNCE_MS) {
                     handleMessage(finalTranscript.trim(), 'voice');
@@ -2879,30 +2961,8 @@
                     lastProcessedTime = now;
                 }
             };
-            recognition.onend = () => {
-                isListening = false;
-                micButton.classList.remove('listening');
-                if (shouldBeListening) recognition.start();
-                else stopAudioProcessing();
-            };
-			
-			
-            recognition.onerror = (event) => {
-    console.error('Speech recognition error:', event.error);
 
-    // Don't stop the loop for a simple timeout
-    if (event.error === 'no-speech') {
-        return; // Just ignore it and let onend handle the restart
-    }
-
-    // For all OTHER errors, stop listening
-    isListening = false;
-    micButton.classList.remove('listening');
-    shouldBeListening = false;
-    showNotification(`Speech recognition error: ${event.error}`, 'error');
-    userActivatedAudio = false;
-
-            };
+            // --- START RECOGNITION ---
             shouldBeListening = true;
             recognition.start();
             setupAudioProcessing();
@@ -5678,6 +5738,7 @@ function exportAllUserData() {
     </script>
 </body>
 </html>
+
 
 
 
