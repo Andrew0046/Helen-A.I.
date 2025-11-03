@@ -2705,9 +2705,17 @@
 			
             chatDisplay.scrollTop = chatDisplay.scrollHeight;
 			
-            //populateVoiceList();
-			
             updateThemeSelector();
+
+        // --- VOICE BUG FIX ---
+        // 1. Try to populate the list immediately.
+        populateVoiceList(); 
+
+        // 2. Set the listener IN CASE the voices weren't ready.
+        if (SpeechSynthesis.onvoiceschanged !== undefined) {
+            SpeechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+        // --- END OF FIX ---
 			
 			GEMINI_API_KEY = loadData(getUserKey(API_KEY_KEY), ''); // <<< ADD THIS LINE
         }
@@ -2961,9 +2969,7 @@
             }
         }
 		
-        if (SpeechSynthesis.onvoiceschanged !== undefined) {
-            SpeechSynthesis.onvoiceschanged = populateVoiceList;
-        }
+        
 
         voiceSelect.addEventListener('change', () => {
             const newVoiceName = voiceSelect.value;
