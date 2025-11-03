@@ -2702,8 +2702,11 @@
             }
             
             updateLevelDisplay();
+			
             chatDisplay.scrollTop = chatDisplay.scrollHeight;
-            populateVoiceList();
+			
+            //populateVoiceList();
+			
             updateThemeSelector();
 			
 			GEMINI_API_KEY = loadData(getUserKey(API_KEY_KEY), ''); // <<< ADD THIS LINE
@@ -2721,7 +2724,7 @@
             return html.replace(/\n/g, '<br>');
         };
 
-function displayMessage(message, sender, timestamp, isError = false, allowSpeech = true, attachment = null) {
+        function displayMessage(message, sender, timestamp, isError = false, allowSpeech = true, attachment = null) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'helen-message');
             
@@ -2921,27 +2924,18 @@ function displayMessage(message, sender, timestamp, isError = false, allowSpeech
 
 
         // --- TTS and Voice Management ---
- function populateVoiceList() {
-            if (typeof SpeechSynthesis === 'undefined') {
-                console.error("Speech Synthesis not supported.");
-                return;
+      function populateVoiceList() {
+            if (typeof SpeechSynthesis === 'undefined' || voicesLoaded) {
+                return; // Stop if not supported or if we've already run this
             }
 
             const voices = SpeechSynthesis.getVoices().filter(voice => voice.lang.startsWith('en-'));
 
-            // If the list is empty, it means they haven't loaded yet.
-            // We'll just return and wait for the 'onvoiceschanged' event to fire again.
             if (voices.length === 0) {
-                return; 
-            }
-
-            // If we have voices, but the dropdown is already populated, don't do it again.
-            // This prevents the 'onvoiceschanged' firing multiple times from breaking things.
-            if (voicesLoaded && voiceSelect.options.length > 0) {
-                return;
+                return; // Voices aren't ready yet, wait for the event to fire again
             }
             
-            voiceSelect.innerHTML = ''; // Clear any previous (potentially failed) attempts
+            voiceSelect.innerHTML = ''; // Clear dropdown
 
             voices.forEach((voice) => {
                 const option = document.createElement('option');
@@ -2951,9 +2945,10 @@ function displayMessage(message, sender, timestamp, isError = false, allowSpeech
                 voiceSelect.appendChild(option);
             });
 
-            voicesLoaded = true; // Mark as successfully loaded
+            // Mark as loaded so we don't run this multiple times
+            voicesLoaded = true; 
 
-            // Now that we have options, select the saved one.
+            // NOW, select the saved voice
             const savedVoiceName = loadData(getUserKey(USER_VOICE_PREFERENCE_KEY), 'Google US English');
             const savedVoiceOption = [...voiceSelect.options].find(opt => opt.value === savedVoiceName);
             
@@ -2965,6 +2960,7 @@ function displayMessage(message, sender, timestamp, isError = false, allowSpeech
                 selectedVoice = voices[0];
             }
         }
+		
         if (SpeechSynthesis.onvoiceschanged !== undefined) {
             SpeechSynthesis.onvoiceschanged = populateVoiceList;
         }
