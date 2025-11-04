@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1571,6 +1572,232 @@
             background: var(--accent);
             color: white;
         }
+		
+		
+		.sidebar-left {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 200px;
+        flex-shrink: 0;
+        flex-direction: column; /* This new rule stacks the items vertically */
+    }
+
+   /* --- AI Orb Button Styles --- */
+
+/* This makes the avatar and orb stack vertically */
+.sidebar-left {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 200px;
+    flex-shrink: 0;
+    flex-direction: column; 
+}
+
+/* This is the main button/orb element */
+.go-live-toggle {
+    /* Initial State: Normal Button */
+    margin-top: 1.5rem;
+    padding: 0.5rem 1.5rem;
+    width: 120px; /* Fixed width for a button */
+    height: 40px; /* Fixed height for a button */
+    background-color: var(--accent);
+    color: white;
+    border-radius: 8px; 
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden; /* This is key to the animation */
+    
+    /* Transition for all properties */
+    transition: all 0.4s ease-in-out;
+}
+
+.go-live-toggle:hover {
+    background-color: var(--accent-hover);
+}
+
+/* Text for the "Go Live" button state */
+.go-live-text {
+    opacity: 1;
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* Container for all the orb parts */
+.ai-orb-visuals {
+    width: 140px; /* Bigger orb */
+    height: 140px; /* Bigger orb */
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* Initially hidden */
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity 0.3s 0.1s ease, transform 0.3s 0.1s ease;
+}
+
+
+
+/* "larger pulsing white dot" */
+.ai-orb-visuals::before {
+    content: '';
+    width: 10px; /* Increased from 6px */
+    height: 10px; /* Increased from 6px */
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2; /* Make sure it's above the pulse */
+    animation: pulse-dot 1.5s ease-in-out infinite;
+    animation-play-state: paused; /* Paused by default */
+}
+
+/* "gentle pulse of light" */
+.ai-orb-visuals .ai-orb-pulse {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    border-radius: 50%;
+    background: var(--accent);
+    z-index: 1;
+    opacity: 0;
+    animation: pulse-light 3s ease-out infinite;
+    animation-play-state: paused; /* Paused by default */
+}
+
+/* "soft outer glow ripples outward" */
+.ai-orb-visuals .ai-orb-glow {
+    width: 140%;
+    height: 140%;
+    position: absolute;
+    border-radius: 50%;
+    background: var(--accent);
+    z-index: 0;
+    opacity: 0.1;
+    filter: blur(20px);
+    animation: ripple-glow 3s ease-out infinite;
+    animation-play-state: paused; /* Paused by default */
+}
+
+/* --- CLICKED "LIVE" STATE --- */
+.go-live-toggle.live {
+    /* Transforms into the orb */
+   width: 140px; /* Bigger orb */
+    height: 140px; /* Bigger orb */
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--accent) 20%, var(--accent-hover) 100%);
+    box-shadow: 0 0 20px var(--accent), inset 0 0 10px rgba(255,255,255,0.2);
+    
+    /* Starts the floating animation */
+    animation: float 6s ease-in-out infinite;
+}
+
+/* Hide the "Go Live" text */
+.go-live-toggle.live .go-live-text {
+    opacity: 0;
+}
+
+/* Show the orb visuals */
+.go-live-toggle.live .ai-orb-visuals {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Play all the orb's internal animations */
+.go-live-toggle.live .ai-orb-visuals::before,
+.go-live-toggle.live .ai-orb-visuals .ai-orb-pulse,
+.go-live-toggle.live .ai-orb-visuals .ai-orb-glow {
+    animation-play-state: running;
+}
+
+/* --- Keyframe Animations (For the Orb) --- */
+
+/* "floats up and down rhythmically" */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+/* "tiny pulsing white dot" */
+@keyframes pulse-dot {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.7; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* "pulse of light expands and contracts" */
+@keyframes pulse-light {
+    0% { transform: scale(0.9); opacity: 0; }
+    50% { transform: scale(1.1); opacity: 0.2; }
+    100% { transform: scale(1.3); opacity: 0; }
+}
+
+/* "soft outer glow ripples outward" */
+@keyframes ripple-glow {
+    0% { opacity: 0.1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 0.1; }
+}
+		
+		
+		/* --- Focus Mode Styles --- */
+
+/* Hide these elements when in focus mode with a fade-out */
+body.focus-mode .main-content,
+body.focus-mode .centered-image {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.95);
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+}
+
+/* By default, they are visible and fade-in */
+.main-content,
+.centered-image {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+    transition: opacity 0.3s ease 0.1s, visibility 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+}
+
+/* Center the sidebar-left when in focus mode */
+/* Make the sidebar fill the space and center the orb */
+body.focus-mode .sidebar-left {
+    width: 100%; 
+    height: 100%;
+    justify-content: center; /* This centers the orb vertically */
+}
+
+
+/* Center the sidebar-left when in focus mode */
+body.focus-mode .sidebar-left {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%; /* Use 100% to allow vertical centering */
+    height: 100%;
+    justify-content: center;
+    margin-top: 0;
+}
+
+/* Remove the top margin from the button when in focus mode */
+body.focus-mode .go-live-toggle {
+    margin-top: 0;
+}
+		
+		
+		
 
     </style>
 </head>
@@ -1647,7 +1874,18 @@
     <div class="container hidden" id="main-app">
         <div class="sidebar-left">
             <img src="https://64.media.tumblr.com/53870087409ae9fcc1005f9538267b88/0d22bfbcc408c1f5-2b/s400x600/2f414563b4190cd5d36aa73f0ff0cd489f23c4a0.gifv" alt="Helen Assistant Avatar" class="centered-image">
+       
+	    <div id="go-live-btn" class="go-live-toggle" title="Go Live">
+        <span class="go-live-text">Go Live</span>
+        <div class="ai-orb-visuals">
+            <div class="ai-orb-pulse"></div>
+            <div class="ai-orb-glow"></div>
         </div>
+    </div>
+        
+		
+
+	   </div>
         <div class="main-content">
             <div id="level-status-container">
                 <div id="level-status-text">Level: 1 | Points: 0/100</div>
@@ -1895,7 +2133,7 @@
             <label for="synthesis-input" class="block text-sm font-medium text-[var(--text-secondary)]">Your Request:</label>
             <textarea id="synthesis-input" rows="4" class="w-full mt-1 p-2 border rounded-md bg-[var(--bg-secondary)] border-[var(--border)]" placeholder="e.g., Analyze my notes and journal entries to find common themes..."></textarea>
         </div>
-        <button id="run-synthesis-btn" class="w-full bg-[var(--accent)] text-white py-2 rounded-md hover:bg-[var(--accent-hover)]">✨ Run Analysis</button>
+        <button id="run-synthesis-btn" class="w-full bg-[var(--accent)] text-white py-2 rounded-md hover:bg-[var(--accent-hover)]">? Run Analysis</button>
     </div>
 </div>
 
@@ -2356,7 +2594,10 @@
 		
 		const REVIEW_KEY = 'helenReviewItems';
 		
+		
         //  /// like and dislike  --- END OF ADDITION ---
+		
+		const goLiveBtn = document.getElementById('go-live-btn');
 
 
         // --- Global Variables & Constants ---
@@ -2435,6 +2676,8 @@
         const BACKGROUND_COLOR_KEY = 'helenBackgroundColor';
         const USER_MESSAGE_COLOR_KEY = 'helenUserMessageColor';
         const CURRENT_USER_KEY = 'helenCurrentUser';
+		
+		
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition;
@@ -3051,6 +3294,11 @@
             isListening = true;
             micButton.classList.add('listening');
             userActivatedAudio = true;
+			
+			// --- ADD THESE LINES ---
+    goLiveBtn.classList.add('live');
+    goLiveBtn.title = "Stop Live Conversation";
+			
         };
 
         // --- THIS IS THE CORRECT "GEMINI LIVE" FIX ---
@@ -3106,6 +3354,14 @@
     }
 
         function stopListening() {
+		
+		
+		
+		// --- ADD THESE LINES ---
+    goLiveBtn.classList.remove('live');
+    goLiveBtn.title = "Go Live";
+		
+		
             if (recognition) {
                 shouldBeListening = false;
                 recognition.stop();
@@ -3485,7 +3741,7 @@
         chatDisplay.removeChild(typingIndicatorDiv);
         avatar.classList.remove('thinking');
         addMessageToChat(
-            "I'm missing my API key. Please go to the **Settings** menu (⚙️) to add your Google Gemini API key.", 
+            "I'm missing my API key. Please go to the **Settings** menu (??) to add your Google Gemini API key.", 
             'helen', 
             true
         );
@@ -3618,7 +3874,7 @@
                     <div class="chat-summary" id="summary-${index}"></div>
                     <div class="chat-timestamp text-xs text-[var(--text-secondary)]">${firstMessageTime}</div>
                     <div class="past-chat-actions">
-                        <button class="summarize-btn" data-index="${index}">✨ Summarize</button>
+                        <button class="summarize-btn" data-index="${index}">? Summarize</button>
                     </div>
                 `;
                 chatItem.querySelector('.chat-title').addEventListener('click', () => loadSpecificChat(index));
@@ -3670,7 +3926,7 @@
                 summaryDiv.textContent = `Error: ${error.message}`;
                 console.error("Summarization error:", error);
             } finally {
-                button.textContent = "✨ Summarize";
+                button.textContent = "? Summarize";
                 button.disabled = false;
             }
         }
@@ -3919,14 +4175,31 @@ if (pendingQuestion) {
 			
         });
 
+
+         goLiveBtn.addEventListener('click', () => {
+    userActivatedAudio = true;
+
+    // This is the new line that toggles the focus mode
+    document.body.classList.toggle('focus-mode'); 
+
+    if (isListening) {
+        // It's currently live, so stop it
+        stopListening();
+    } else {
+        // It's not live, so start it
+        startListening();
+    }
+});
+
         micButton.addEventListener('click', () => {
-            userActivatedAudio = true;
-            if (isListening) stopListening();
-			
-			
-			
-            else startListening();
-        });
+    userActivatedAudio = true;
+
+    // This is the new line that toggles the focus mode
+    document.body.classList.toggle('focus-mode'); 
+
+    if (isListening) stopListening();
+    else startListening();
+});
 
         sendButton.addEventListener('click', () => {
             handleMessage(textInput.value, 'text');
@@ -4871,7 +5144,7 @@ runSynthesisBtn.addEventListener('click', () => {
                 habitItem.innerHTML = `
                     <input type="checkbox" data-habit-id="${habit.id}" ${isCompletedToday ? 'checked' : ''}>
                     <span class="habit-text">${habit.text}</span>
-                    <span class="habit-streak">🔥 ${streak}</span>
+                    <span class="habit-streak">?? ${streak}</span>
                     <button class="delete-habit-btn" data-habit-id="${habit.id}" title="Delete Habit">&times;</button>
                 `;
                 habitsList.appendChild(habitItem);
@@ -5006,7 +5279,7 @@ function renderIdeaBoard(boardData) {
         columnEl.innerHTML = `
             <div class="idea-column-header">
                 <span>${column.title}</span>
-                <button class="suggest-idea-btn" title="Ask Helen to suggest an idea">✨</button>
+                <button class="suggest-idea-btn" title="Ask Helen to suggest an idea">?</button>
             </div>
             <div class="idea-cards">${cardsHtml}</div>
             <button class="add-card-btn">+ Add Idea</button>
@@ -5063,7 +5336,7 @@ async function suggestNewIdea(columnId, buttonElement) {
         console.error("Error suggesting new idea:", error);
         showNotification("Sorry, I had trouble coming up with an idea.", "error");
     } finally {
-        buttonElement.textContent = '✨'; // Reset button
+        buttonElement.textContent = '?'; // Reset button
         buttonElement.disabled = false;
     }
 }
@@ -5485,10 +5758,10 @@ async function suggestNewIdea(columnId, buttonElement) {
 
         // --- Level System Logic ---
         const ALL_BADGES = {
-            chatterbox: { icon: '💬', title: 'Chatterbox', description: 'Send 100 messages' },
-            memoryMaster: { icon: '🧠', title: 'Memory Master', description: 'Save 10 memories' },
-            goalGetter: { icon: '🎯', title: 'Goal-Getter', description: 'Complete your first project' },
-            peoplePerson: { icon: '👨‍👩‍👧‍👦', title: 'People Person', description: 'Add 5 people' }
+            chatterbox: { icon: '??', title: 'Chatterbox', description: 'Send 100 messages' },
+            memoryMaster: { icon: '??', title: 'Memory Master', description: 'Save 10 memories' },
+            goalGetter: { icon: '??', title: 'Goal-Getter', description: 'Complete your first project' },
+            peoplePerson: { icon: '???????????', title: 'People Person', description: 'Add 5 people' }
         };
 
         function calculatePointsForNextLevel(level) {
@@ -5531,7 +5804,7 @@ async function suggestNewIdea(columnId, buttonElement) {
             levelupAnimation.style.display = 'flex';
             setTimeout(() => {
                 levelupAnimation.style.display = 'none';
-                addMessageToChat(`🎉 Congrats! You've leveled up to Level ${level}!`, 'helen', false, true);
+                addMessageToChat(`?? Congrats! You've leveled up to Level ${level}!`, 'helen', false, true);
             }, 3000);
         }
 
@@ -5940,6 +6213,5 @@ function exportAllUserData() {
     </script>
 </body>
 </html>
-
 
 
