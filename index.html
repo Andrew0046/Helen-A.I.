@@ -1644,35 +1644,42 @@
 }
 
 
-
-/* "larger pulsing white dot" */
-.ai-orb-visuals::before {
-    content: '';
-    width: 10px; /* Increased from 6px */
-    height: 10px; /* Increased from 6px */
-    background: white;
-    border-radius: 50%;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 2; /* Make sure it's above the pulse */
-    animation: pulse-dot 1.5s ease-in-out infinite;
-    animation-play-state: paused; /* Paused by default */
-}
-
-/* "gentle pulse of light" */
+/* "gentle pulse of light" - NOW A RING */
 .ai-orb-visuals .ai-orb-pulse {
     width: 100%;
     height: 100%;
     position: absolute;
     border-radius: 50%;
-    background: var(--accent);
+    /* NEW: Changed from background to a glowing border */
+    background: none;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
     z-index: 1;
     opacity: 0;
     animation: pulse-light 3s ease-out infinite;
+    animation-play-state: paused;
+}
+
+
+/* NEW: This is the shine/glint element */
+.ai-orb-visuals::after {
+    content: '';
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    border-radius: 50%;
+    background: linear-gradient(100deg, 
+        transparent 30%, 
+        rgba(255, 255, 255, 0.25) 50%, 
+        transparent 70%);
+    z-index: 3; /* On top of the dot and ring */
+    background-size: 200% 100%; /* Wide gradient */
+    animation: shine-wipe 4s ease-in-out infinite;
+    animation-delay: 1s; /* Offset from other animations */
     animation-play-state: paused; /* Paused by default */
 }
+
+
 
 /* "soft outer glow ripples outward" */
 .ai-orb-visuals .ai-orb-glow {
@@ -1689,17 +1696,58 @@
 }
 
 /* --- CLICKED "LIVE" STATE --- */
+
+
+
+
+
+/* --- CLICKED "LIVE" STATE (MODIFIED) --- */
 .go-live-toggle.live {
-    /* Transforms into the orb */
-   width: 140px; /* Bigger orb */
-    height: 140px; /* Bigger orb */
+    width: 140px; 
+    height: 140px;
     border-radius: 50%;
     background: radial-gradient(circle, var(--accent) 20%, var(--accent-hover) 100%);
-    box-shadow: 0 0 20px var(--accent), inset 0 0 10px rgba(255,255,255,0.2);
     
-    /* Starts the floating animation */
+    /* MODIFIED: The 'pulse-shadow' is now in its own selector */
     animation: float 6s ease-in-out infinite;
+    /* STILL: Add the base shadow */
+    box-shadow: 0 0 20px var(--accent), inset 0 0 10px rgba(255,255,255,0.2);
+    /* NEW: Smooth transition for the shadow */
+    transition: box-shadow 0.5s ease-in-out;
 }
+
+/* --- NEW: Orb Speaking State --- */
+
+/* When .speaking is added, make the main shadow pulse */
+.go-live-toggle.live.speaking {
+    animation: float 6s ease-in-out infinite, 
+               pulse-shadow 2s ease-in-out infinite; /* Faster shadow pulse */
+}
+
+/* Play ALL animations when .speaking is added */
+.go-live-toggle.live.speaking .ai-orb-visuals::after,  /* Shine */
+.go-live-toggle.live.speaking .ai-orb-visuals .ai-orb-pulse, /* Ring */
+.go-live-toggle.live.speaking .ai-orb-visuals .ai-orb-glow, /* Glow */
+.go-live-toggle.live.speaking .ai-orb-visuals::before { /* Dot */
+    animation-play-state: running;
+}
+
+/* And use the NEW, more active animations for the dot and glow */
+.go-live-toggle.live.speaking .ai-orb-visuals::before {
+    animation-name: speak-pulse-dot;
+    animation-duration: 1.5s;
+}
+.go-live-toggle.live.speaking .ai-orb-visuals .ai-orb-glow {
+    animation-name: speak-ripple-glow;
+    animation-duration: 1.5s;
+}
+
+
+
+
+
+
+
 
 /* Hide the "Go Live" text */
 .go-live-toggle.live .go-live-text {
@@ -1712,11 +1760,7 @@
     transform: scale(1);
 }
 
-/* Play all the orb's internal animations */
-.go-live-toggle.live .ai-orb-visuals::before,
-.go-live-toggle.live .ai-orb-visuals .ai-orb-pulse,
-.go-live-toggle.live .ai-orb-visuals .ai-orb-glow {
-    animation-play-state: running;
+
 }
 
 /* --- Keyframe Animations (For the Orb) --- */
@@ -1728,73 +1772,165 @@
     100% { transform: translateY(0px); }
 }
 
-/* "tiny pulsing white dot" */
+/* NEW: Added this animation for the main orb's shadow */
+@keyframes pulse-shadow {
+    0%, 100% { box-shadow: 0 0 20px var(--accent), inset 0 0 10px rgba(255,255,255,0.2); }
+    50% { box-shadow: 0 0 35px var(--accent), inset 0 0 14px rgba(255,255,255,0.3); }
+}
+
+/* "tiny pulsing white dot" - MODIFIED to throb its own glow */
 @keyframes pulse-dot {
-    0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-    50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.7; }
-    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    0%, 100% { 
+        transform: translate(-50%, -50%) scale(1); 
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.7); 
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.1); 
+        box-shadow: 0 0 25px rgba(255, 255, 255, 1); 
+    }
 }
 
-/* "pulse of light expands and contracts" */
+/* "pulse of light expands and contracts" - MODIFIED to be an expanding ring */
 @keyframes pulse-light {
-    0% { transform: scale(0.9); opacity: 0; }
-    50% { transform: scale(1.1); opacity: 0.2; }
-    100% { transform: scale(1.3); opacity: 0; }
+    0% { transform: scale(0.5); opacity: 0; }
+    80% { opacity: 0.5; }
+    100% { transform: scale(1.2); opacity: 0; }
 }
 
-/* "soft outer glow ripples outward" */
+/* "soft outer glow ripples outward" - MODIFIED to be a bit stronger */
 @keyframes ripple-glow {
     0% { opacity: 0.1; }
-    50% { opacity: 0.3; }
+    50% { opacity: 0.4; } /* Was 0.3 */
     100% { opacity: 0.1; }
 }
-		
+
+
+
 		
 		/* --- Focus Mode Styles --- */
 
-/* Hide these elements when in focus mode with a fade-out */
+
+/* Add z-index and transition to the orb's container */
+.sidebar-left {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 200px;
+    flex-shrink: 0;
+    flex-direction: column; 
+    position: relative; /* Required for z-index */
+    z-index: 101; /* On top of the body::before dimmer */
+    /* NEW: Animate the container's movement and scale */
+    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Hide these elements with a faster fade and slide-down */
 body.focus-mode .main-content,
 body.focus-mode .centered-image {
     opacity: 0;
     visibility: hidden;
-    transform: scale(0.95);
-    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+    filter: blur(8px);
+    transform: scale(0.9) translateY(40px); /* Slide down further */
+    transition: opacity 0.3s ease-out, visibility 0.3s ease-out, 
+                transform 0.4s ease-out, filter 0.4s ease-out;
 }
 
-/* By default, they are visible and fade-in */
+/* By default, they slide up from the bottom when returning */
 .main-content,
 .centered-image {
     opacity: 1;
     visibility: visible;
-    transform: scale(1);
-    transition: opacity 0.3s ease 0.1s, visibility 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+    filter: blur(0px);
+    transform: scale(1) translateY(0px);
+    /* NEW: Changed transform to slide up from below */
+    transition: opacity 0.4s ease-in 0.1s, visibility 0.4s ease-in 0.1s, 
+                transform 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0.1s, 
+                filter 0.4s ease-in 0.1s;
 }
 
-/* Center the sidebar-left when in focus mode */
-/* Make the sidebar fill the space and center the orb */
-body.focus-mode .sidebar-left {
-    width: 100%; 
-    height: 100%;
-    justify-content: center; /* This centers the orb vertically */
-}
-
-
-/* Center the sidebar-left when in focus mode */
+/* This block centers the orb container AND scales it up */
 body.focus-mode .sidebar-left {
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100%; /* Use 100% to allow vertical centering */
+    /* NEW: Scale up to 110% while centering */
+    transform: translate(-50%, -50%) scale(1.1); 
+    width: 100%; 
     height: 100%;
     justify-content: center;
     margin-top: 0;
+    z-index: 101; /* Ensure it stays on top */
 }
 
-/* Remove the top margin from the button when in focus mode */
+/* NEW: Add a transition to the orb button itself */
+.go-live-toggle {
+    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Remove the top margin AND scale up the orb in focus mode */
 body.focus-mode .go-live-toggle {
     margin-top: 0;
+    /* NEW: Make the orb 25% larger in focus mode */
+    transform: scale(1.25); 
 }
+
+
+
+
+		
+	/* --- NEW: Focus Mode Dimmer --- */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0); /* Start transparent */
+    backdrop-filter: blur(0px); /* Start with no blur */
+    z-index: 100; /* Will sit below the orb, above the content */
+    transition: background 0.5s ease, backdrop-filter 0.5s ease, opacity 0.5s ease;
+    pointer-events: none; /* Make it unclickable */
+    opacity: 0;
+}
+
+/* When in focus mode, fade in the dimmer */
+body.focus-mode::before {
+    background: rgba(0, 0, 0, 0.3); /* Dim to 30% black */
+    backdrop-filter: blur(5px); /* Add a 5px blur */
+    opacity: 1;
+}	
+		
+		
+		
+		
+		
+		/* --- NEW: Orb Speaking Animations --- */
+
+/* A more rapid pulse for the central dot when speaking */
+@keyframes speak-pulse-dot {
+    0%, 100% { 
+        transform: translate(-50%, -50%) scale(1.1); 
+        box-shadow: 0 0 25px rgba(255, 255, 255, 1); 
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.3); 
+        box-shadow: 0 0 35px rgba(255, 255, 255, 1); 
+    }
+}
+
+/* A faster, stronger ripple for the outer glow when speaking */
+@keyframes speak-ripple-glow {
+    0% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.05); }
+    100% { opacity: 0.3; transform: scale(1); }
+}
+
+/* We'll reuse the existing 'pulse-light' (ring) and 'shine-wipe' animations */
+		
+		
+		
+		
 		
 		
 		
@@ -3118,11 +3254,6 @@ body.focus-mode .go-live-toggle {
             notificationCloseBtn.onclick = hideNotification;
         }
 
-        function hideNotification() {
-            document.getElementById('notification-popup').classList.remove('show');
-            clearTimeout(notificationTimeout);
-        }
-        
         function speakText(text) {
             if (!SpeechSynthesis || isSpeaking || !userActivatedAudio) {
                 return;
@@ -3131,13 +3262,24 @@ body.focus-mode .go-live-toggle {
             utterance.voice = selectedVoice;
             utterance.rate = 1.1;
             utterance.pitch = 1.0;
-			document.querySelector('.centered-image').classList.add('speaking');
+
+            // NEW: Add this 'onstart' event
+            utterance.onstart = () => {
+                document.querySelector('.centered-image').classList.add('speaking');
+                goLiveBtn.classList.add('speaking'); // <-- This is the key line
+                isSpeaking = true;
+            };
+            
+            // This line is now handled by the onstart event
+			// document.querySelector('.centered-image').classList.add('speaking');
             SpeechSynthesis.speak(utterance);
-            isSpeaking = true;
+            // This line is also handled by the onstart event
+            // isSpeaking = true; 
         }
 
         utterance.onend = () => {
 		    document.querySelector('.centered-image').classList.remove('speaking');
+            goLiveBtn.classList.remove('speaking'); // <-- This is the key line
             isSpeaking = false;
         };
 
@@ -3280,7 +3422,7 @@ body.focus-mode .go-live-toggle {
         }
 
         // --- Speech Recognition Logic ---
-            function startListening() {
+            function startListening(isLiveMode = false) { // <-- MODIFICATION: Added parameter
         if (!SpeechRecognition) {
             addMessageToChat("Speech recognition is not supported in this browser.", "helen", false, false);
             return;
@@ -3295,11 +3437,12 @@ body.focus-mode .go-live-toggle {
             micButton.classList.add('listening');
             userActivatedAudio = true;
 			
-			// --- ADD THESE LINES ---
-    goLiveBtn.classList.add('live');
-    goLiveBtn.title = "Stop Live Conversation";
 			
-        };
+			if (isLiveMode) { // <-- MODIFICATION: Added this check
+                    goLiveBtn.classList.add('live');
+                    goLiveBtn.title = "Stop Live Conversation";
+                }
+            };
 
         // --- THIS IS THE CORRECT "GEMINI LIVE" FIX ---
         // This fires when the browser *detects your voice*
@@ -3353,20 +3496,22 @@ body.focus-mode .go-live-toggle {
         setupAudioProcessing();
     }
 
-        function stopListening() {
+       function stopListening(isLiveMode = false) { // <-- MODIFICATION: Added parameter
 		
 		
 		
-		// --- ADD THESE LINES ---
-    goLiveBtn.classList.remove('live');
-    goLiveBtn.title = "Go Live";
 		
-		
-            if (recognition) {
-                shouldBeListening = false;
-                recognition.stop();
-                stopAudioProcessing();
+            if (isLiveMode) { // <-- MODIFICATION: Added this check
+                goLiveBtn.classList.remove('live');
+                goLiveBtn.title = "Go Live";
             }
+		
+		
+                if (recognition) {
+                    shouldBeListening = false;
+                    recognition.stop();
+                    stopAudioProcessing();
+                }
 
         }
 
@@ -4175,31 +4320,30 @@ if (pendingQuestion) {
 			
         });
 
+           goLiveBtn.addEventListener('click', () => {
+            userActivatedAudio = true;
 
-         goLiveBtn.addEventListener('click', () => {
-    userActivatedAudio = true;
+            // This is the new line that toggles the focus mode
+            document.body.classList.toggle('focus-mode'); 
 
-    // This is the new line that toggles the focus mode
-    document.body.classList.toggle('focus-mode'); 
-
-    if (isListening) {
-        // It's currently live, so stop it
-        stopListening();
-    } else {
-        // It's not live, so start it
-        startListening();
-    }
-});
+            if (isListening) {
+                // It's currently live, so stop it
+                stopListening(true); // <-- MODIFICATION: Pass true
+            } else {
+                // It's not live, so start it
+                startListening(true); // <-- MODIFICATION: Pass true
+            }
+        });
 
         micButton.addEventListener('click', () => {
-    userActivatedAudio = true;
+            userActivatedAudio = true;
 
-    // This is the new line that toggles the focus mode
-    document.body.classList.toggle('focus-mode'); 
+            // This is the new line that toggles the focus mode
+            // document.body.classList.toggle('focus-mode'); // <-- MODIFICATION: This line is removed
 
-    if (isListening) stopListening();
-    else startListening();
-});
+            if (isListening) stopListening(false); // <-- MODIFICATION: Pass false
+            else startListening(false); // <-- MODIFICATION: Pass false
+        });
 
         sendButton.addEventListener('click', () => {
             handleMessage(textInput.value, 'text');
