@@ -3230,7 +3230,7 @@ body.focus-mode::before {
                 speakText(message);
             }
         }
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       function addMessageToChat(message, sender, isError = false, allowSpeech = true, attachment = null) {
             const timestamp = new Date().toISOString();
             displayMessage(message, sender, timestamp, isError, allowSpeech, attachment);
@@ -3238,19 +3238,25 @@ body.focus-mode::before {
             saveCurrentChat();
         }
 
-        let notificationTimeout;
+       let notificationTimeout;
         function showNotification(message, type = 'default', duration = 3000) {
             const notificationPopup = document.getElementById('notification-popup');
             const notificationMessage = document.getElementById('notification-message');
             const notificationCloseBtn = document.getElementById('notification-close-btn');
 
-            clearTimeout(notificationTimeout);
+            // --- THIS IS THE FIX ---
+            // We must clear the *existing* timeout before setting a new one
+            if (notificationTimeout) {
+                clearTimeout(notificationTimeout);
+            }
+            // --- END OF FIX ---
+
             notificationMessage.textContent = message;
             notificationPopup.className = 'notification-popup';
             notificationPopup.classList.add(type);
             notificationPopup.classList.add('show');
 
-            notificationTimeout = setTimeout(() => hideNotification(), duration);
+            notificationTimeout = setTimeout(hideNotification, duration); // Simplified this line
             notificationCloseBtn.onclick = hideNotification;
         }
 
@@ -3333,7 +3339,7 @@ body.focus-mode::before {
             }
         });
 
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // --- TTS and Voice Management ---
       function populateVoiceList() {
             if (typeof SpeechSynthesis === 'undefined' || voicesLoaded) {
@@ -3372,7 +3378,7 @@ body.focus-mode::before {
             }
         }
 		
-        
+ ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////     
 
         voiceSelect.addEventListener('change', () => {
             const newVoiceName = voiceSelect.value;
@@ -3608,11 +3614,14 @@ body.focus-mode::before {
             }
             return '';
         }
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // --- Core Chat Logic ---
         async function handleMessage(message, source) {
             if (!message.trim() && !window.uploadedFileObject) return; // MODIFIED: Allow sending if only a file is attached
             
+			userActivatedAudio = true; // <-- MOVED THIS LINE UP
+            textInput.value = ''; // <-- MOVED THIS LINE UP
+			
 			  // --- START MODIFICATION ---
             // Create a temporary attachment object to display, if a file is present
             let attachmentForDisplay = null;
@@ -3642,23 +3651,30 @@ body.focus-mode::before {
                 triggerWeeklyReview();
                 return;
             }
-            
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////			
+ /////////////////// //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             // Handle "remember that" command
             if (REMEMBER_COMMANDS.find(c => normalizedMessage.startsWith(c))) {
                 const command = REMEMBER_COMMANDS.find(c => normalizedMessage.startsWith(c));
                 const memoryContent = message.substring(command.length).trim();
                 if (memoryContent) {
-                    addMessageToChat(message, 'user');
+                   // addMessageToChat(message, 'user');
                     const memories = loadData(getUserKey(MEMORIES_KEY), []);
                     memories.unshift({ content: memoryContent, timestamp: new Date().toISOString() });
                     saveData(getUserKey(MEMORIES_KEY), memories);
                     addMessageToChat(`Got it, I'll remember that: "${memoryContent}"`, 'helen');
                     showNotification("New memory saved!", "success");
                 } else {
-                    addMessageToChat(message, 'user');
+                  //  addMessageToChat(message, 'user');
                     addMessageToChat("What would you like me to remember? Just say 'remember that' followed by the fact.", 'helen');
                 }
+				
+				
+				
                 return;
+				
+				
+				
             }
 
             // Handle preference commands
@@ -3666,17 +3682,23 @@ body.focus-mode::before {
             if (preferenceTrigger) {
                 const preferenceContent = message.substring(preferenceTrigger.length).trim();
                 if (preferenceContent) {
-                    addMessageToChat(message, 'user');
+                   // addMessageToChat(message, 'user');
                     const preferences = loadData(getUserKey(PREFERENCES_KEY), []);
                     preferences.unshift({ content: preferenceContent, timestamp: new Date().toISOString() });
                     saveData(getUserKey(PREFERENCES_KEY), preferences);
                     addMessageToChat(`That's cool! I'll remember that you like ${preferenceContent}.`, 'helen');
                     showNotification("New preference saved!", "success");
                 } else {
-                    addMessageToChat(message, 'user');
+                   // addMessageToChat(message, 'user');
                     addMessageToChat("What is it that you like? Please tell me!", 'helen');
                 }
+				
+				
+				
                 return;
+				
+				
+				
             }
 
             // Handle people commands
@@ -3684,7 +3706,7 @@ body.focus-mode::before {
             if (peopleTrigger) {
                 const personContent = message.substring(peopleTrigger.length).trim();
                 if (personContent) {
-                    addMessageToChat(message, 'user');
+                    //addMessageToChat(message, 'user');
                     const people = loadData(getUserKey(PEOPLE_KEY), []);
                     const firstPersonBonusAwarded = loadData(getUserKey(BONUS_FIRST_PERSON_KEY), false);
                     const fullFact = `${peopleTrigger.replace("my ", "").replace("'s name is", "")} is ${personContent}`;
@@ -3699,10 +3721,17 @@ body.focus-mode::before {
                         saveData(getUserKey(BONUS_FIRST_PERSON_KEY), true);
                     }
                 } else {
-                    addMessageToChat(message, 'user');
+                  //  addMessageToChat(message, 'user');
                     addMessageToChat("Who are you referring to?", 'helen');
                 }
+				
+				
+				
+				
                 return;
+				
+				
+				
             }
 
             // Handle goal commands
@@ -3710,7 +3739,7 @@ body.focus-mode::before {
             if (goalTrigger) {
                 const goalContent = message.substring(goalTrigger.length).trim();
                 if (goalContent) {
-                    addMessageToChat(message, 'user');
+                    //addMessageToChat(message, 'user');
                     const goals = loadData(getUserKey(GOALS_KEY), []);
                     const firstGoalBonusAwarded = loadData(getUserKey(BONUS_FIRST_GOAL_KEY), false);
                     goals.unshift({ id: `goal_${Date.now()}`, title: goalContent, todos: [] });
@@ -3724,10 +3753,17 @@ body.focus-mode::before {
                         saveData(getUserKey(BONUS_FIRST_GOAL_KEY), true);
                     }
                 } else {
-                    addMessageToChat(message, 'user');
+                   // addMessageToChat(message, 'user');
                     addMessageToChat("What goal are you setting for yourself?", 'helen');
                 }
+				
+				
+				
+				
                 return;
+				
+				
+				
             }
 
             // Handle journal commands
@@ -3735,7 +3771,7 @@ body.focus-mode::before {
             if (journalTrigger) {
                 const journalContent = message.substring(journalTrigger.length).trim();
                 if (journalContent) {
-                    addMessageToChat(message, 'user');
+                  //  addMessageToChat(message, 'user');
                     const journal = loadData(getUserKey(JOURNAL_KEY), []);
                     const firstJournalBonusAwarded = loadData(getUserKey(BONUS_FIRST_JOURNAL_KEY), false);
                     journal.unshift({ id: `journal_${Date.now()}`, content: journalContent, timestamp: new Date().toISOString() });
@@ -3749,10 +3785,17 @@ body.focus-mode::before {
                         saveData(getUserKey(BONUS_FIRST_JOURNAL_KEY), true);
                     }
                 } else {
-                    addMessageToChat(message, 'user');
+                  //  addMessageToChat(message, 'user');
                     addMessageToChat("What would you like to add to your journal?", 'helen');
                 }
+				
+				
+				
+				
                 return;
+				
+				
+				
             }
 
             // Handle knowledge base commands
@@ -3760,17 +3803,24 @@ body.focus-mode::before {
             if (knowledgeTrigger) {
                 const knowledgeContent = message.substring(knowledgeTrigger.length).trim();
                 if (knowledgeContent) {
-                    addMessageToChat(message, 'user');
+                   // addMessageToChat(message, 'user');
                     const knowledge = loadData(getUserKey(KNOWLEDGE_KEY), []);
                     knowledge.unshift({ id: `knowledge_${Date.now()}`, content: knowledgeContent, timestamp: new Date().toISOString() });
                     saveData(getUserKey(KNOWLEDGE_KEY), knowledge);
                     addMessageToChat(`Interesting! I've added that to your knowledge base.`, 'helen');
                     showNotification("New fact added to knowledge base!", "success");
                 } else {
-                    addMessageToChat(message, 'user');
+                  //  addMessageToChat(message, 'user');
                     addMessageToChat("What would you like to add to your knowledge base?", 'helen');
                 }
+				
+				
+				
+				
                 return;
+				
+				
+				
             }
 
             // Handle Idea Board command
@@ -3778,7 +3828,7 @@ body.focus-mode::before {
             if (ideaBoardTrigger) {
                 const boardName = message.substring(ideaBoardTrigger.length).trim();
                 if (boardName) {
-                    addMessageToChat(message, 'user');
+                 //   addMessageToChat(message, 'user');
                     const newBoard = {
                         id: `board_${Date.now()}`,
                         title: boardName,
@@ -3795,12 +3845,18 @@ body.focus-mode::before {
                     addMessageToChat(`Okay, I've created a new brainstorming board called "${boardName}". You can find it in the Idea Hub.`, 'helen');
                     showNotification("New idea board created!", "success");
                 } else {
-                    addMessageToChat(message, 'user');
+                   // addMessageToChat(message, 'user');
                     addMessageToChat("What would you like to name the new board?", 'helen');
                 }
+				
+				
+				
+				
                 return;
+				
+				
             }
-            
+ /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////           
             if (normalizedMessage === BROWSER_BACK_COMMAND) {
                 addMessageToChat(message, 'user');
                 addMessageToChat("Going back to the previous page.", 'helen');
