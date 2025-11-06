@@ -3237,18 +3237,16 @@ body.focus-mode::before {
             chatHistory.push({ role: sender === 'user' ? "user" : "model", parts: [{ text: message }], timestamp: timestamp });
             saveCurrentChat();
         }
-
-       let notificationTimeout;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////		
+        let notificationTimeout;
         function showNotification(message, type = 'default', duration = 3000) {
             const notificationPopup = document.getElementById('notification-popup');
             const notificationMessage = document.getElementById('notification-message');
             const notificationCloseBtn = document.getElementById('notification-close-btn');
 
             // --- THIS IS THE FIX ---
-            // We must clear the *existing* timeout before setting a new one
-            if (notificationTimeout) {
-                clearTimeout(notificationTimeout);
-            }
+            // Clear any existing timer, no matter what.
+            clearTimeout(notificationTimeout);
             // --- END OF FIX ---
 
             notificationMessage.textContent = message;
@@ -3256,10 +3254,20 @@ body.focus-mode::before {
             notificationPopup.classList.add(type);
             notificationPopup.classList.add('show');
 
-            notificationTimeout = setTimeout(hideNotification, duration); // Simplified this line
+            notificationTimeout = setTimeout(hideNotification, duration); // Set the new timer
             notificationCloseBtn.onclick = hideNotification;
         }
-
+		
+		function hideNotification() {
+            document.getElementById('notification-popup').classList.remove('show');
+            if (notificationTimeout) {
+                clearTimeout(notificationTimeout);
+                notificationTimeout = null; // IMPORTANT: Clear the variable
+            }
+        }
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////		
+		
+		
         function speakText(text) {
             if (!SpeechSynthesis || isSpeaking || !userActivatedAudio) {
                 return;
@@ -3387,7 +3395,7 @@ body.focus-mode::before {
             if (userActivatedAudio) speakText("I've updated my voice to this one.");
             else showNotification("Voice preference saved!", "success");
         });
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // --- Web Audio API for Visual Indicator ---
         async function setupAudioProcessing() {
             try {
@@ -3420,13 +3428,13 @@ body.focus-mode::before {
                 userActivatedAudio = false;
             }
         }
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         function stopAudioProcessing() {
             if (microphone) microphone.disconnect();
             if (scriptProcessor) scriptProcessor.disconnect();
             if (audioContext) audioContext.close();
         }
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // --- Speech Recognition Logic ---
             function startListening(isLiveMode = false) { // <-- MODIFICATION: Added parameter
         if (!SpeechRecognition) {
@@ -3501,7 +3509,7 @@ body.focus-mode::before {
         recognition.start();
         setupAudioProcessing();
     }
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
        function stopListening(isLiveMode = false) { // <-- MODIFICATION: Added parameter
 		
 		
@@ -3520,7 +3528,7 @@ body.focus-mode::before {
                 }
 
         }
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // --- UPDATED Function for Contextual Awareness ---
         function getContextForMessage(message) {
             let contextPieces = [];
@@ -3635,9 +3643,7 @@ body.focus-mode::before {
             // Display the user's message and attachment immediately
             addMessageToChat(message, 'user', false, true, attachmentForDisplay);
             // --- END MODIFICATION ---
-			
-			
-			
+						
             const normalizedMessage = message.toLowerCase().trim();
 
             const briefingTrigger = BRIEFING_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
