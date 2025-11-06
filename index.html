@@ -1641,6 +1641,9 @@
     opacity: 0;
     transform: scale(0);
     transition: opacity 0.3s 0.1s ease, transform 0.3s 0.1s ease;
+	
+	animation: water-warp 10s ease-in-out infinite;
+	
 }
 
 
@@ -1701,6 +1704,7 @@
 
 
 
+
 /* --- CLICKED "LIVE" STATE (MODIFIED) --- */
 .go-live-toggle.live {
     width: 140px; 
@@ -1708,20 +1712,21 @@
     border-radius: 50%;
     background: radial-gradient(circle, var(--accent) 20%, var(--accent-hover) 100%);
     
-    /* MODIFIED: The 'pulse-shadow' is now in its own selector */
-    animation: float 6s ease-in-out infinite;
-    /* STILL: Add the base shadow */
-    box-shadow: 0 0 20px var(--accent), inset 0 0 10px rgba(255,255,255,0.2);
+    /* MODIFIED: Using new 8s float and 3s pulse */
+    animation: float 8s ease-in-out infinite,
+               pulse-shadow 3s ease-in-out infinite;
+    
     /* NEW: Smooth transition for the shadow */
     transition: box-shadow 0.5s ease-in-out;
 }
 
 /* --- NEW: Orb Speaking State --- */
 
-/* When .speaking is added, make the main shadow pulse */
+/* When .speaking is added, make the main shadow pulse faster */
 .go-live-toggle.live.speaking {
-    animation: float 6s ease-in-out infinite, 
-               pulse-shadow 2s ease-in-out infinite; /* Faster shadow pulse */
+    /* MODIFIED: Using new 8s float and a faster 2s pulse */
+    animation: float 8s ease-in-out infinite, 
+               pulse-shadow 2s ease-in-out infinite; 
 }
 
 /* Play ALL animations when .speaking is added */
@@ -1763,19 +1768,32 @@
 
 }
 
+
+
+
 /* --- Keyframe Animations (For the Orb) --- */
 
-/* "floats up and down rhythmically" */
+/* "floats up and down rhythmically" - MODIFIED with horizontal drift */
 @keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0px); }
+    0%   { transform: translateY(0px) translateX(0px); }
+    25%  { transform: translateY(-8px) translateX(2px); }
+    50%  { transform: translateY(-12px) translateX(0px); }
+    75%  { transform: translateY(-8px) translateX(-2px); }
+    100% { transform: translateY(0px) translateX(0px); }
 }
 
-/* NEW: Added this animation for the main orb's shadow */
+/* NEW: Added this animation for the main orb's shadow - MODIFIED with 3D inset shadow */
 @keyframes pulse-shadow {
-    0%, 100% { box-shadow: 0 0 20px var(--accent), inset 0 0 10px rgba(255,255,255,0.2); }
-    50% { box-shadow: 0 0 35px var(--accent), inset 0 0 14px rgba(255,255,255,0.3); }
+    0%, 100% { 
+        box-shadow: 0 0 20px var(--accent), 
+                    inset 0 0 10px rgba(255,255,255,0.2), 
+                    inset 0 0 30px rgba(0,0,0,0.3); 
+    }
+    50% { 
+        box-shadow: 0 0 35px var(--accent), 
+                    inset 0 0 14px rgba(255,255,255,0.3), 
+                    inset 0 0 40px rgba(0,0,0,0.5); 
+    }
 }
 
 /* "tiny pulsing white dot" - MODIFIED to throb its own glow */
@@ -1789,6 +1807,35 @@
         box-shadow: 0 0 25px rgba(255, 255, 255, 1); 
     }
 }
+
+/* "pulse of light expands and contracts" - MODIFIED to be an expanding ring */
+@keyframes pulse-light {
+    0% { transform: scale(0.5); opacity: 0; }
+    80% { opacity: 0.5; }
+    100% { transform: scale(1.2); opacity: 0; }
+}
+
+/* "soft outer glow ripples outward" - MODIFIED to be a bit stronger */
+@keyframes ripple-glow {
+    0% { opacity: 0.1; }
+    50% { opacity: 0.4; } /* Was 0.3 */
+    100% { opacity: 0.1; }
+}
+
+/* NEW: Added this animation for the shine wipe */
+@keyframes shine-wipe {
+    0% { background-position: 150% 0; }
+    100% { background-position: -50% 0; }
+}
+
+
+
+
+
+
+
+
+
 
 /* "pulse of light expands and contracts" - MODIFIED to be an expanding ring */
 @keyframes pulse-light {
@@ -1927,7 +1974,6 @@ body.focus-mode::before {
 }
 
 /* We'll reuse the existing 'pulse-light' (ring) and 'shine-wipe' animations */
-		
 		
 		
 		
@@ -2839,6 +2885,8 @@ body.focus-mode::before {
         const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=';
         let GEMINI_API_KEY = ""; // This will be loaded from localStorage
         const API_KEY_KEY = 'helenApiKey';
+		
+		const INTERRUPT_SENSITIVITY = 50; // How loud (RMS) user must be to interrupt. Higher = less sensitive.
 
         // --- Landing Page Logic ---
         const quotes = [
@@ -3396,7 +3444,7 @@ body.focus-mode::before {
             else showNotification("Voice preference saved!", "success");
         });
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        // --- Web Audio API for Visual Indicator ---
+      // --- Web Audio API for Visual Indicator ---
         async function setupAudioProcessing() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -3409,12 +3457,26 @@ body.focus-mode::before {
                 scriptProcessor = audioContext.createScriptProcessor(BUFFER_SIZE, 1, 1);
                 analyser.connect(scriptProcessor);
                 scriptProcessor.connect(audioContext.destination);
+                
                 scriptProcessor.onaudioprocess = () => {
                     if (!isListening) return;
                     const array = new Uint8Array(analyser.frequencyBinCount);
                     analyser.getByteFrequencyData(array);
                     let sum = array.reduce((acc, val) => acc + val * val, 0);
-                    const rms = Math.sqrt(sum / array.length);
+                    const rms = Math.sqrt(sum / array.length); // This is our volume level
+
+                    // --- NEW INTERRUPTION LOGIC ---
+                    if (isSpeaking && rms > INTERRUPT_SENSITIVITY) {
+                        SpeechSynthesis.cancel(); // Stop Helen from talking
+                        
+                        // Manually clear all speaking states
+                        isSpeaking = false;
+                        document.querySelector('.centered-image').classList.remove('speaking');
+                        goLiveBtn.classList.remove('speaking');
+                    }
+                    // --- END OF NEW LOGIC ---
+
+                    // This is the original visualizer code
                     const normalizedVolume = Math.min(1, rms / 128);
                     const scaleFactor = 0.8 + (normalizedVolume * 0.4);
                     const opacityFactor = 0.5 + (normalizedVolume * 0.5);
@@ -3459,17 +3521,7 @@ body.focus-mode::before {
             };
 
         // --- THIS IS THE CORRECT "GEMINI LIVE" FIX ---
-        // This fires when the browser *detects your voice*
-        recognition.onspeechstart = () => {
-            if (isSpeaking) {
-                SpeechSynthesis.cancel(); // Stop Helen from talking
-
-                // Manually clear the speaking state
-                isSpeaking = false;
-                document.querySelector('.centered-image').classList.remove('speaking');
-            }
-        };
-        // --- END OF FIX ---
+        
 
         recognition.onresult = (event) => {
             let interimTranscript = '';
@@ -4371,14 +4423,14 @@ body.focus-mode::before {
             }
 			
 			// Inside the load event listener
-const pendingQuestion = loadData(getUserKey('pending_thought_provoker_question'), null);
+        const pendingQuestion = loadData(getUserKey('pending_thought_provoker_question'), null);
 
-if (pendingQuestion) {
+        if (pendingQuestion) {
     // If a question was generated in the background, add it to the chat
-    addMessageToChat(pendingQuestion, 'helen', false, true);
+             addMessageToChat(pendingQuestion, 'helen', false, true);
     // Clear it so it doesn't appear again
-    localStorage.removeItem(getUserKey('pending_thought_provoker_question'));
-}
+            localStorage.removeItem(getUserKey('pending_thought_provoker_question'));
+                             }
 			
         });
 
