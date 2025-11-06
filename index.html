@@ -2018,6 +2018,8 @@ body.focus-mode::before {
 		
 		
 		
+		
+		
 
     </style>
 </head>
@@ -3150,7 +3152,7 @@ body.focus-mode::before {
                 return defaultValue;
             }
         }
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         function loadUserData() {
             allChatSessions = loadData(getUserKey(ALL_CHATS_KEY), []);
             const savedTheme = loadData(getUserKey(THEME_PREFERENCE_KEY), 'light');
@@ -3202,6 +3204,7 @@ body.focus-mode::before {
 			
 			GEMINI_API_KEY = loadData(getUserKey(API_KEY_KEY), ''); // <<< ADD THIS LINE
         }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////		
 
         function formatTimestamp(timestamp) {
             const date = new Date(timestamp);
@@ -3536,13 +3539,19 @@ body.focus-mode::before {
         }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // --- Speech Recognition Logic ---
-            function startListening(isLiveMode = false) { // <-- MODIFICATION: Added parameter
+
+            function startListening(isLiveMode = false) { 
         if (!SpeechRecognition) {
             addMessageToChat("Speech recognition is not supported in this browser.", "helen", false, false);
             return;
         }
         recognition = new SpeechRecognition();
-        recognition.continuous = true;
+        
+        // --- MOBILE FIX 1: Set continuous to false ---
+        // This is the most common cause of mobile mic issues.
+        // We will manually restart it in the onend event.
+        recognition.continuous = false; 
+        
         recognition.interimResults = true;
         recognition.lang = 'en-US';
 
@@ -3552,7 +3561,7 @@ body.focus-mode::before {
             userActivatedAudio = true;
 			
 			
-			if (isLiveMode) { // <-- MODIFICATION: Added this check
+			if (isLiveMode) { 
                     goLiveBtn.classList.add('live');
                     goLiveBtn.title = "Stop Live Conversation";
                 }
@@ -3579,15 +3588,38 @@ body.focus-mode::before {
         recognition.onend = () => {
             isListening = false;
             micButton.classList.remove('listening');
-            if (shouldBeListening) recognition.start();
-            else stopAudioProcessing();
+            
+            // --- MOBILE FIX 2: Manually restart recognition ---
+            // If we are *supposed* to be listening, start it again.
+            // This avoids the mobile browser's buggy continuous mode.
+            if (shouldBeListening) {
+                // Add a tiny delay to prevent it from failing
+                setTimeout(() => {
+                    if (shouldBeListening) { // Check again in case stopListening was called
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.error("Error restarting recognition:", e);
+                        }
+                    }
+                }, 100); // 100ms delay
+            } else {
+                 // Only stop audio processing if we *meant* to stop
+                stopAudioProcessing();
+            }
         };
 
         recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
-            if (event.error === 'no-speech') {
-                return; // Just ignore it and let onend handle the restart
+            
+            // --- MOBILE FIX 3: Handle 'no-speech' error ---
+            // On mobile, this error happens all the time.
+            // We'll just ignore it and let onend handle the restart.
+            if (event.error === 'no-speech' || event.error === 'audio-capture') {
+                console.log("Recognition error, letting onend restart.");
+                return; 
             }
+            
             isListening = false;
             micButton.classList.remove('listening');
             shouldBeListening = false;
@@ -3599,6 +3631,7 @@ body.focus-mode::before {
         recognition.start();
         setupAudioProcessing();
     }
+    
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
        function stopListening(isLiveMode = false) { // <-- MODIFICATION: Added parameter
 		
