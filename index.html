@@ -1705,29 +1705,10 @@
 
 
 
-/* --- CLICKED "LIVE" STATE (MODIFIED) --- */
-.go-live-toggle.live {
-    width: 140px; 
-    height: 140px;
-    border-radius: 50%;
-    background: radial-gradient(circle, var(--accent) 20%, var(--accent-hover) 100%);
-    
-    /* MODIFIED: Using new 8s float and 3s pulse */
-    animation: float 8s ease-in-out infinite,
-               pulse-shadow 3s ease-in-out infinite;
-    
-    /* NEW: Smooth transition for the shadow */
-    transition: box-shadow 0.5s ease-in-out;
-}
+
 
 /* --- NEW: Orb Speaking State --- */
 
-/* When .speaking is added, make the main shadow pulse faster */
-.go-live-toggle.live.speaking {
-    /* MODIFIED: Using new 8s float and a faster 2s pulse */
-    animation: float 8s ease-in-out infinite, 
-               pulse-shadow 2s ease-in-out infinite; 
-}
 
 /* Play ALL animations when .speaking is added */
 .go-live-toggle.live.speaking .ai-orb-visuals::after,  /* Shine */
@@ -1771,15 +1752,17 @@
 
 
 
+
 /* --- Keyframe Animations (For the Orb) --- */
 
-/* "floats up and down rhythmically" - MODIFIED with horizontal drift */
+/* "floats up and down rhythmically" - MODIFIED with crazier drift */
 @keyframes float {
-    0%   { transform: translateY(0px) translateX(0px); }
-    25%  { transform: translateY(-8px) translateX(2px); }
-    50%  { transform: translateY(-12px) translateX(0px); }
-    75%  { transform: translateY(-8px) translateX(-2px); }
-    100% { transform: translateY(0px) translateX(0px); }
+    0%   { transform: translateY(0px) translateX(0px) rotate(0deg); }
+    20%  { transform: translateY(-15px) translateX(8px) rotate(2deg); }
+    40%  { transform: translateY(-10px) translateX(-10px) rotate(-3deg); }
+    60%  { transform: translateY(-18px) translateX(5px) rotate(1deg); }
+    80%  { transform: translateY(-10px) translateX(-5px) rotate(-1deg); }
+    100% { transform: translateY(0px) translateX(0px) rotate(0deg); }
 }
 
 /* NEW: Added this animation for the main orb's shadow - MODIFIED with 3D inset shadow */
@@ -1790,9 +1773,9 @@
                     inset 0 0 30px rgba(0,0,0,0.3); 
     }
     50% { 
-        box-shadow: 0 0 35px var(--accent), 
-                    inset 0 0 14px rgba(255,255,255,0.3), 
-                    inset 0 0 40px rgba(0,0,0,0.5); 
+        box-shadow: 0 0 45px var(--accent), 
+                    inset 0 0 20px rgba(255,255,255,0.4), 
+                    inset 0 0 60px rgba(0,0,0,0.6); 
     }
 }
 
@@ -1822,15 +1805,22 @@
     100% { opacity: 0.1; }
 }
 
-/* NEW: Added this animation for the shine wipe */
+/* NEW: Added this animation for the shine wipe - MODIFIED to be faster */
 @keyframes shine-wipe {
-    0% { background-position: 150% 0; }
-    100% { background-position: -50% 0; }
+    0% { background-position: 200% 0; } /* Start further off-screen */
+    100% { background-position: -100% 0; } /* End further off-screen */
 }
 
 
 
-
+/* --- NEW: Add this keyframe --- */
+@keyframes water-warp {
+    0%, 100% { transform: scale(1, 1) rotate(0deg); }
+    25% { transform: scale(1.1, 0.9) rotate(3deg); } /* Squish and rotate */
+    50% { transform: scale(1, 1) rotate(0deg); }
+    75% { transform: scale(0.9, 1.1) rotate(-3deg); } /* Stretch and rotate */
+}
+/* --- End of new keyframe --- */
 
 
 
@@ -1974,6 +1964,54 @@ body.focus-mode::before {
 }
 
 /* We'll reuse the existing 'pulse-light' (ring) and 'shine-wipe' animations */
+		
+		
+		
+		
+		
+		
+		
+		/* Container for all the orb parts */
+.ai-orb-visuals {
+    width: 140px; /* Bigger orb */
+    height: 140px; /* Bigger orb */
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* Initially hidden */
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity 0.3s 0.1s ease, transform 0.3s 0.1s ease;
+
+    /* MODIFIED: Faster, "crazier" wobble */
+    animation: water-warp 6s ease-in-out infinite; 
+}
+
+/* --- CLICKED "LIVE" STATE (MODIFIED) --- */
+.go-live-toggle.live {
+    width: 140px; 
+    height: 140px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--accent) 20%, var(--accent-hover) 100%);
+    
+    /* MODIFIED: Faster 5s float and 3s pulse */
+    animation: float 5s ease-in-out infinite,
+               pulse-shadow 3s ease-in-out infinite;
+    
+    /* NEW: Smooth transition for the shadow */
+    transition: box-shadow 0.5s ease-in-out;
+}
+
+/* --- NEW: Orb Speaking State --- */
+
+/* When .speaking is added, make the main shadow pulse faster */
+.go-live-toggle.live.speaking {
+    /* MODIFIED: Using new 5s float and a faster 1.5s pulse */
+    animation: float 5s ease-in-out infinite, 
+               pulse-shadow 1.5s ease-in-out infinite; 
+}
 		
 		
 		
