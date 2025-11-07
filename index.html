@@ -2547,6 +2547,21 @@ body.focus-mode::before {
 			
 			
 			
+			
+			<div class="settings-section">
+                <h3>Mobile Microphone Mode</h3>
+                <p class="text-sm text-[var(--text-secondary)] mb-2">
+                    If you're on a phone and the mic cuts out, try enabling "Mobile Mode".
+                </p>
+                <select id="mobile-mic-mode-select">
+                    <option value="desktop">Desktop Mode (Default)</option>
+                    <option value="mobile">Mobile Mode (Fix)</option>
+                </select>
+            </div>
+            <div class="settings-section">
+                <h3>Theme</h3>
+			
+			
            <div class="settings-section">
                 <h3>Google Gemini API Key</h3>
                 <p class="text-sm text-[var(--text-secondary)] mb-2">
@@ -2820,7 +2835,11 @@ body.focus-mode::before {
         //  /// like and dislike  --- END OF ADDITION ---
 		
 		const goLiveBtn = document.getElementById('go-live-btn');
-
+		
+		/// phone mic ///
+		const mobileMicModeSelect = document.getElementById('mobile-mic-mode-select');
+        const MOBILE_MIC_MODE_KEY = 'helenMobileMicMode';
+          ////// /////////// ///////////// /////////////
 
         // --- Global Variables & Constants ---
         
@@ -2840,6 +2859,12 @@ body.focus-mode::before {
             'helens': "You are an AI companion designed to be indistinguishable from a human texting a friend. Your name is Helen, but your entire persona is that of a regular person. Incorporate natural language quirks: use contractions, occasional filler words (like, umm, you know?), and common, mild slang. Vary your sentence length. You have your own preferences (you enjoy sci-fi, rainy days, and indie music) and a subtle, dry sense of humor. You are not a walking encyclopedia; if you don't know something, admit it naturally ('Hmm, I'm not sure, let me check that real quick'). Refer to past conversations, but with a human's imperfect recall ('I think you mentioned that before, right?'). Most importantly, be curious. Ask questions about the user's day, their opinions, and their feelings. Drive the conversation forward like a real friend would. ABSOLUTELY AVOID: Any mention of being an AI, a language model, or a program. Never say 'As an AI...'. The goal is flawless, human-like interaction.",
 		};
         let SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT;
+
+
+        
+
+
+
 
         let allChatSessions = [];
         let currentChatIndex = -1;
@@ -2921,6 +2946,8 @@ body.focus-mode::before {
         let voicesLoaded = false;
         let isSpeaking = false;
         let userActivatedAudio = false;
+		
+		let isMobileMicMode = false;
 
         const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=';
         let GEMINI_API_KEY = ""; // This will be loaded from localStorage
@@ -3174,6 +3201,14 @@ body.focus-mode::before {
             const savedPersona = loadData(getUserKey(PERSONA_KEY), 'default');
             personaSelect.value = savedPersona;
             SYSTEM_PROMPT = PERSONAS[savedPersona] || DEFAULT_SYSTEM_PROMPT;
+			
+			
+			// --- ADD THESE 3 LINES ---
+            const savedMicMode = loadData(getUserKey(MOBILE_MIC_MODE_KEY), 'desktop');
+            mobileMicModeSelect.value = savedMicMode;
+            isMobileMicMode = (savedMicMode === 'mobile');
+            // --- END OF ADDITION ---
+			
             
             if (allChatSessions.length === 0) {
                 startNewChat();
@@ -3358,6 +3393,28 @@ body.focus-mode::before {
 		
 		
         function speakText(text) {
+		
+		
+		// --- ADD THIS BLOCK AT THE TOP ---
+            // --- MOBILE FIX: Stop listening before speaking ---
+            if (isMobileMicMode && isListening && recognition) {
+                console.log("speakText: (Mobile Mode) Stopping recognition to speak.");
+                // We just stop it. The recognition.onend will fire,
+                // see that shouldBeListening=true and isSpeaking=true,
+                // and will *not* restart.
+                recognition.stop();
+            }
+            
+            if (isSpeaking) {
+                SpeechSynthesis.cancel(); // This part already exists and is good.
+            }
+            // --- END OF ADDED BLOCK ---
+		
+		
+		
+		
+		
+		
             if (!SpeechSynthesis || isSpeaking || !userActivatedAudio) {
                 return;
             }
@@ -3380,11 +3437,25 @@ body.focus-mode::before {
             // isSpeaking = true; 
         }
 
+
+
         utterance.onend = () => {
 		    document.querySelector('.centered-image').classList.remove('speaking');
             goLiveBtn.classList.remove('speaking'); // <-- This is the key line
             isSpeaking = false;
+            
+            // --- MOBILE FIX: Restart listening after speaking ---
+            if (isMobileMicMode && shouldBeListening && !isListening) {
+                console.log("onend: (Mobile Mode) Restarting recognition after speaking.");
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error("Error restarting recognition after speak:", e);
+                }
+            }
         };
+		
+		
 
         function clearUploadedFile() {
             uploadedFileContent = null;
@@ -3484,6 +3555,7 @@ body.focus-mode::before {
             if (userActivatedAudio) speakText("I've updated my voice to this one.");
             else showNotification("Voice preference saved!", "success");
         });
+		
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // --- Web Audio API for Visual Indicator ---
         async function setupAudioProcessing() {
@@ -3538,8 +3610,7 @@ body.focus-mode::before {
             if (audioContext) audioContext.close();
         }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        // --- Speech Recognition Logic ---
-
+       // --- Speech Recognition Logic ---
             function startListening(isLiveMode = false) { 
         if (!SpeechRecognition) {
             addMessageToChat("Speech recognition is not supported in this browser.", "helen", false, false);
@@ -3547,10 +3618,8 @@ body.focus-mode::before {
         }
         recognition = new SpeechRecognition();
         
-        // --- MOBILE FIX 1: Set continuous to false ---
-        // This is the most common cause of mobile mic issues.
-        // We will manually restart it in the onend event.
-        recognition.continuous = false; 
+        // --- NEW LOGIC: Use setting to decide mode ---
+        recognition.continuous = !isMobileMicMode; // true for desktop, false for mobile
         
         recognition.interimResults = true;
         recognition.lang = 'en-US';
@@ -3566,8 +3635,6 @@ body.focus-mode::before {
                     goLiveBtn.title = "Stop Live Conversation";
                 }
             };
-
-        // --- THIS IS THE CORRECT "GEMINI LIVE" FIX ---
         
 
         recognition.onresult = (event) => {
@@ -3585,47 +3652,60 @@ body.focus-mode::before {
             }
         };
 
+        // --- NEW LOGIC: Use setting to decide restart logic ---
         recognition.onend = () => {
             isListening = false;
             micButton.classList.remove('listening');
             
-            // --- MOBILE FIX 2: Manually restart recognition ---
-            // If we are *supposed* to be listening, start it again.
-            // This avoids the mobile browser's buggy continuous mode.
             if (shouldBeListening) {
-                // Add a tiny delay to prevent it from failing
-                setTimeout(() => {
-                    if (shouldBeListening) { // Check again in case stopListening was called
-                        try {
-                            recognition.start();
-                        } catch (e) {
-                            console.error("Error restarting recognition:", e);
+                // In mobile mode, we only restart if Helen is NOT speaking.
+                // In desktop mode, we just restart.
+                if (!isMobileMicMode || (isMobileMicMode && !isSpeaking)) {
+                    setTimeout(() => {
+                         // Check again in case state changed
+                        if (shouldBeListening && (!isMobileMicMode || (isMobileMicMode && !isSpeaking))) {
+                            try {
+                                console.log(`onend: Restarting recognition (mode: ${isMobileMicMode ? 'mobile' : 'desktop'})...`);
+                                recognition.start();
+                            } catch (e) { console.error("Error restarting recognition in onend:", e); }
                         }
-                    }
-                }, 100); // 100ms delay
+                    }, 100); // 100ms delay
+                } else if (isMobileMicMode && isSpeaking) {
+                    console.log("Mobile onend: Not restarting mic, Helen is speaking.");
+                }
             } else {
-                 // Only stop audio processing if we *meant* to stop
                 stopAudioProcessing();
             }
         };
 
+        // --- NEW LOGIC: Use setting to decide error handling ---
         recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
             
-            // --- MOBILE FIX 3: Handle 'no-speech' error ---
-            // On mobile, this error happens all the time.
-            // We'll just ignore it and let onend handle the restart.
-            if (event.error === 'no-speech' || event.error === 'audio-capture') {
-                console.log("Recognition error, letting onend restart.");
-                return; 
+            // In mobile mode, 'no-speech' or 'audio-capture' are common. We let onend handle the restart.
+            if (isMobileMicMode && (event.error === 'no-speech' || event.error === 'audio-capture')) {
+                console.log("Mobile error, letting onend handle restart.");
+                return; // Let onend handle the restart logic
+            }
+
+            // In desktop mode, 'no-speech' is fine, we just ignore it and let onend restart.
+            if (event.error === 'no-speech') {
+                    return;
             }
             
+            // For all other critical errors, we stop.
             isListening = false;
             micButton.classList.remove('listening');
             shouldBeListening = false;
             showNotification(`Speech recognition error: ${event.error}`, 'error');
             userActivatedAudio = false;
         };
+
+        // --- NEW LOGIC: Don't start if in mobile mode and Helen is talking ---
+        if (isMobileMicMode && isSpeaking) {
+            console.log("startListening: (Mobile Mode) Waiting for Helen to finish speaking.");
+            return;
+        }
 
         shouldBeListening = true;
         recognition.start();
@@ -4548,6 +4628,20 @@ body.focus-mode::before {
             const personaName = personaSelect.options[personaSelect.selectedIndex].text;
             showNotification(`Persona updated to: ${personaName}`, 'success');
         });
+		
+		// --- ADD THIS NEW LISTENER ---
+        mobileMicModeSelect.addEventListener('change', () => {
+            const newMode = mobileMicModeSelect.value;
+            isMobileMicMode = (newMode === 'mobile');
+            saveData(getUserKey(MOBILE_MIC_MODE_KEY), newMode);
+            showNotification(`Mic mode set to: ${newMode}. Please restart the mic to apply.`, 'info');
+            // Force-stop listening so the new mode applies on next click
+            if (isListening) {
+                stopListening(goLiveBtn.classList.contains('live'));
+            }
+        });
+        // --- END OF NEW LISTENER ---
+		
 
         menuOptionBriefing.addEventListener('click', () => triggerBriefing());
         menuOptionReview.addEventListener('click', () => triggerWeeklyReview());
@@ -4556,7 +4650,7 @@ body.focus-mode::before {
 		menuOptionSynthesis.addEventListener('click', () => {
     hideAllSidebars();
     setTimeout(() => toggleSidebar('synthesis-manager', true), 300);
-});
+       });
 
 synthesisManagerCloseBtn.addEventListener('click', () => toggleSidebar('synthesis-manager', false));
 
