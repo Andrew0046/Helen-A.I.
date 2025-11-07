@@ -3628,9 +3628,8 @@ body.focus-mode::before {
             isListening = true;
             micButton.classList.add('listening');
             userActivatedAudio = true;
-			
-			
-			if (isLiveMode) { 
+            
+            if (isLiveMode) { 
                     goLiveBtn.classList.add('live');
                     goLiveBtn.title = "Stop Live Conversation";
                 }
@@ -3707,7 +3706,11 @@ body.focus-mode::before {
             return;
         }
 
-        shouldBeListening = true;
+        // --- THIS IS THE CRITICAL FIX ---
+        // `shouldBeListening` is now set by the *parameter*, not hard-coded to true.
+        shouldBeListening = isLiveMode;
+        // --- END OF CRITICAL FIX ---
+        
         recognition.start();
         setupAudioProcessing();
     }
