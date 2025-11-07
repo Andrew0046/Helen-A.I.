@@ -3393,48 +3393,34 @@ body.focus-mode::before {
 		
 		
         function speakText(text) {
-		
-		
-		// --- ADD THIS BLOCK AT THE TOP ---
             // --- MOBILE FIX: Stop listening before speaking ---
             if (isMobileMicMode && isListening && recognition) {
                 console.log("speakText: (Mobile Mode) Stopping recognition to speak.");
-                // We just stop it. The recognition.onend will fire,
-                // see that shouldBeListening=true and isSpeaking=true,
-                // and will *not* restart.
                 recognition.stop();
             }
             
+            // If she is already speaking, cancel the old one and start the new one.
             if (isSpeaking) {
-                SpeechSynthesis.cancel(); // This part already exists and is good.
+                SpeechSynthesis.cancel();
             }
-            // --- END OF ADDED BLOCK ---
-		
-		
-		
-		
-		
-		
-            if (!SpeechSynthesis || isSpeaking || !userActivatedAudio) {
+
+            // This is the check that was buggy before. It should NOT include 'isSpeaking'.
+            if (!SpeechSynthesis || !userActivatedAudio) {
                 return;
             }
+            
             utterance.text = text;
             utterance.voice = selectedVoice;
             utterance.rate = 1.1;
             utterance.pitch = 1.0;
 
-            // NEW: Add this 'onstart' event
             utterance.onstart = () => {
                 document.querySelector('.centered-image').classList.add('speaking');
-                goLiveBtn.classList.add('speaking'); // <-- This is the key line
+                goLiveBtn.classList.add('speaking'); 
                 isSpeaking = true;
             };
             
-            // This line is now handled by the onstart event
-			// document.querySelector('.centered-image').classList.add('speaking');
             SpeechSynthesis.speak(utterance);
-            // This line is also handled by the onstart event
-            // isSpeaking = true; 
         }
 
 
