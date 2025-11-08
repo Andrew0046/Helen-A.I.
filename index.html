@@ -2948,6 +2948,7 @@ body.focus-mode::before {
         let userActivatedAudio = false;
 		
 		let isMobileMicMode = false;
+		let globalMicStream = null; // <-- ADD THIS LINE
 
         const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=';
         let GEMINI_API_KEY = ""; // This will be loaded from localStorage
@@ -3404,10 +3405,12 @@ body.focus-mode::before {
                 SpeechSynthesis.cancel();
             }
 
-            // This is the check that was buggy before. It should NOT include 'isSpeaking'.
+            // --- THIS IS THE FIX ---
+            // The 'isSpeaking' check was removed from this line.
             if (!SpeechSynthesis || !userActivatedAudio) {
                 return;
             }
+            // --- END OF FIX ---
             
             utterance.text = text;
             utterance.voice = selectedVoice;
@@ -3423,7 +3426,7 @@ body.focus-mode::before {
             SpeechSynthesis.speak(utterance);
         }
 
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         utterance.onend = () => {
 		    document.querySelector('.centered-image').classList.remove('speaking');
@@ -3546,7 +3549,7 @@ body.focus-mode::before {
       // --- Web Audio API for Visual Indicator ---
         async function setupAudioProcessing() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+               // const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioContext.createAnalyser();
                 analyser.smoothingTimeConstant = 0.8;
@@ -3596,12 +3599,29 @@ body.focus-mode::before {
             if (audioContext) audioContext.close();
         }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-       // --- Speech Recognition Logic ---
-            function startListening(isLiveMode = false) { 
+      // --- Speech Recognition Logic ---
+            async function startListening(isLiveMode = false) { // <-- 1. Make function async
         if (!SpeechRecognition) {
             addMessageToChat("Speech recognition is not supported in this browser.", "helen", false, false);
             return;
         }
+
+        // --- HELEN'S FIX: Get stream ONCE at the top ---
+        try {
+            if (!globalMicStream || globalMicStream.getAudioTracks().length === 0 || globalMicStream.getAudioTracks()[0].readyState === 'ended') {
+                console.log("Requesting new mic stream...");
+                globalMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
+            // We have a stream, now set up the visualizer
+            await setupAudioProcessing(globalMicStream);
+        } catch (err) {
+            console.error('Error getting or setting up mic stream:', err);
+            showNotification("Microphone access denied or error!", "error", 5000);
+            userActivatedAudio = false;
+            return; // Stop if we can't get the mic
+        }
+        // --- END OF HELEN'S FIX ---
+
         recognition = new SpeechRecognition();
         
         // --- NEW LOGIC: Use setting to decide mode ---
@@ -3659,7 +3679,14 @@ body.focus-mode::before {
                     console.log("Mobile onend: Not restarting mic, Helen is speaking.");
                 }
             } else {
+                // --- HELEN'S FIX: Stop stream here ---
                 stopAudioProcessing();
+                if (globalMicStream) {
+                    globalMicStream.getTracks().forEach(track => track.stop());
+                    globalMicStream = null;
+                    console.log("Stream stopped.");
+                }
+                // --- END OF FIX ---
             }
         };
 
@@ -3667,18 +3694,15 @@ body.focus-mode::before {
         recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
             
-            // In mobile mode, 'no-speech' or 'audio-capture' are common. We let onend handle the restart.
             if (isMobileMicMode && (event.error === 'no-speech' || event.error === 'audio-capture')) {
                 console.log("Mobile error, letting onend handle restart.");
-                return; // Let onend handle the restart logic
+                return; 
             }
 
-            // In desktop mode, 'no-speech' is fine, we just ignore it and let onend restart.
             if (event.error === 'no-speech') {
                     return;
             }
             
-            // For all other critical errors, we stop.
             isListening = false;
             micButton.classList.remove('listening');
             shouldBeListening = false;
@@ -3686,39 +3710,36 @@ body.focus-mode::before {
             userActivatedAudio = false;
         };
 
-        // --- NEW LOGIC: Don't start if in mobile mode and Helen is talking ---
         if (isMobileMicMode && isSpeaking) {
             console.log("startListening: (Mobile Mode) Waiting for Helen to finish speaking.");
             return;
         }
 
-        // --- THIS IS THE CRITICAL FIX ---
-        // `shouldBeListening` is now set by the *parameter*, not hard-coded to true.
         shouldBeListening = isLiveMode;
-        // --- END OF CRITICAL FIX ---
-        
         recognition.start();
-        setupAudioProcessing();
+        // setupAudioProcessing(); // <-- THIS IS NOW AT THE TOP
     }
     
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-       function stopListening(isLiveMode = false) { // <-- MODIFICATION: Added parameter
-		
-		
-		
-		
-            if (isLiveMode) { // <-- MODIFICATION: Added this check
+    function stopListening(isLiveMode = false) { 
+            if (isLiveMode) { 
                 goLiveBtn.classList.remove('live');
                 goLiveBtn.title = "Go Live";
             }
 		
-		
-                if (recognition) {
-                    shouldBeListening = false;
-                    recognition.stop();
-                    stopAudioProcessing();
+            if (recognition) {
+                shouldBeListening = false;
+                recognition.stop(); 
+                // recognition.onend will fire, see shouldBeListening=false,
+                // and will call stopAudioProcessing() and kill the stream.
+            } else {
+                // Fallback in case recognition wasn't running but stream was
+                stopAudioProcessing();
+                if (globalMicStream) {
+                    globalMicStream.getTracks().forEach(track => track.stop());
+                    globalMicStream = null;
                 }
-
+            }
         }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // --- UPDATED Function for Contextual Awareness ---
