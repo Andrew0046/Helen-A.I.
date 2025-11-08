@@ -3600,33 +3600,38 @@ body.focus-mode::before {
         }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // --- Speech Recognition Logic ---
-            async function startListening(isLiveMode = false) { // <-- 1. Make function async
+            // --- Speech Recognition Logic ---
+            async function startListening(isLiveMode = false) { 
         if (!SpeechRecognition) {
             addMessageToChat("Speech recognition is not supported in this browser.", "helen", false, false);
             return;
         }
 
-        // --- HELEN'S FIX: Get stream ONCE at the top ---
+        // --- NEW MOBILE STRATEGY: Get stream ONLY IF NOT in mobile mode ---
         try {
-            if (!globalMicStream || globalMicStream.getAudioTracks().length === 0 || globalMicStream.getAudioTracks()[0].readyState === 'ended') {
-                console.log("Requesting new mic stream...");
-                globalMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            if (!isMobileMicMode) { // <-- NEW CHECK
+                // Desktop mode: Get stream for visualizer
+                if (!globalMicStream || globalMicStream.getAudioTracks().length === 0 || globalMicStream.getAudioTracks()[0].readyState === 'ended') {
+                    console.log("Requesting new mic stream for VISUALIZER...");
+                    globalMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                }
+                await setupAudioProcessing(globalMicStream); // Setup visualizer
+            } else {
+                // Mobile mode: Do NOT set up the visualizer.
+                // We will let SpeechRecognition handle its own stream.
+                console.log("Mobile Mode: Skipping visualizer to prevent conflict.");
             }
-            // We have a stream, now set up the visualizer
-            await setupAudioProcessing(globalMicStream);
         } catch (err) {
-            console.error('Error getting or setting up mic stream:', err);
-            showNotification("Microphone access denied or error!", "error", 5000);
-            userActivatedAudio = false;
-            return; // Stop if we can't get the mic
+            // This error is now only for the visualizer stream
+            console.error('Error getting or setting up visualizer mic stream:', err);
+            showNotification("Visualizer failed, but mic should still work.", "error");
         }
-        // --- END OF HELEN'S FIX ---
+        // --- END OF NEW STRATEGY ---
 
         recognition = new SpeechRecognition();
         
-        // --- NEW LOGIC: Use setting to decide mode ---
+        // This logic remains the same
         recognition.continuous = !isMobileMicMode; // true for desktop, false for mobile
-        
         recognition.interimResults = true;
         recognition.lang = 'en-US';
 
@@ -3657,40 +3662,34 @@ body.focus-mode::before {
             }
         };
 
-        // --- NEW LOGIC: Use setting to decide restart logic ---
         recognition.onend = () => {
             isListening = false;
             micButton.classList.remove('listening');
             
             if (shouldBeListening) {
-                // In mobile mode, we only restart if Helen is NOT speaking.
-                // In desktop mode, we just restart.
                 if (!isMobileMicMode || (isMobileMicMode && !isSpeaking)) {
                     setTimeout(() => {
-                         // Check again in case state changed
                         if (shouldBeListening && (!isMobileMicMode || (isMobileMicMode && !isSpeaking))) {
                             try {
                                 console.log(`onend: Restarting recognition (mode: ${isMobileMicMode ? 'mobile' : 'desktop'})...`);
                                 recognition.start();
                             } catch (e) { console.error("Error restarting recognition in onend:", e); }
                         }
-                    }, 100); // 100ms delay
+                    }, 100); 
                 } else if (isMobileMicMode && isSpeaking) {
                     console.log("Mobile onend: Not restarting mic, Helen is speaking.");
                 }
             } else {
-                // --- HELEN'S FIX: Stop stream here ---
+                // This logic is now only for the visualizer/desktop stream
                 stopAudioProcessing();
                 if (globalMicStream) {
                     globalMicStream.getTracks().forEach(track => track.stop());
                     globalMicStream = null;
-                    console.log("Stream stopped.");
+                    console.log("Desktop visualizer stream stopped.");
                 }
-                // --- END OF FIX ---
             }
         };
 
-        // --- NEW LOGIC: Use setting to decide error handling ---
         recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
             
@@ -3717,7 +3716,6 @@ body.focus-mode::before {
 
         shouldBeListening = isLiveMode;
         recognition.start();
-        // setupAudioProcessing(); // <-- THIS IS NOW AT THE TOP
     }
     
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3731,9 +3729,9 @@ body.focus-mode::before {
                 shouldBeListening = false;
                 recognition.stop(); 
                 // recognition.onend will fire, see shouldBeListening=false,
-                // and will call stopAudioProcessing() and kill the stream.
+                // and will call stopAudioProcessing() and kill the stream if it exists.
             } else {
-                // Fallback in case recognition wasn't running but stream was
+                // Fallback in case recognition wasn't running
                 stopAudioProcessing();
                 if (globalMicStream) {
                     globalMicStream.getTracks().forEach(track => track.stop());
