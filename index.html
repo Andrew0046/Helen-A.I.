@@ -2894,6 +2894,14 @@ body.focus-mode::before {
         const BRIEFING_COMMANDS = ["daily briefing", "give me my briefing", "what's my day look like", "my briefing", "give me the rundown"];
         const REVIEW_COMMANDS = ["weekly review", "give me my weekly review", "review my week"];
         const IDEA_BOARD_COMMANDS = ["create a new brainstorming board called", "create a new idea board called", "new board called"];
+		
+		
+        const SYNTHESIS_COMMANDS = ["analyze", "find connections between", "what are the main themes in", "find themes in", "run a synthesis on"];
+        
+		
+		
+		
+		
 
         const USERS_KEY = 'helenUsers';
         const USER_NAME_KEY = 'helenUserName';
@@ -3248,10 +3256,33 @@ body.focus-mode::before {
             return date.toLocaleTimeString('en-US', options);
         }
         
-        const markdownToHtml = (text) => {
-            const codeBlockRegex = /```(.*?)```/gs;
-            let html = text.replace(codeBlockRegex, `<pre class="bg-gray-800 text-white p-2 rounded-md my-2 overflow-auto"><code class="language-$1">` + '$1'.replace(/^(.*?)\n/, '') + '</code></pre>');
-            return html.replace(/\n/g, '<br>');
+       const markdownToHtml = (text) => {
+            // This regex captures the optional language (group 1) and the code (group 2)
+            const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/gs;
+            
+            // 1. First, process the code blocks
+            let html = text.replace(codeBlockRegex, (match, lang, code) => {
+                const languageClass = lang ? `language-${lang}` : '';
+                
+                // --- THIS IS THE FIX ---
+                // Escape HTML characters inside the code block to display them literally
+                const escapedCode = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                
+                // Add Tailwind's 'overflow-auto' to make the pre block scrollable
+                return `<pre class="bg-gray-800 text-white p-2 rounded-md my-2 overflow-auto"><code class="${languageClass}">${escapedCode}</code></pre>`;
+            });
+
+            // 2. Now, replace newlines with <br> ONLY for non-code-block text.
+            // We split by <pre> blocks, replace \n, and rejoin.
+            const parts = html.split(/(<pre[\s\S]*?<\/pre>)/g);
+            for (let i = 0; i < parts.length; i++) {
+                // If this part is NOT a <pre> block, replace its newlines
+                if (!parts[i].startsWith('<pre')) {
+                    parts[i] = parts[i].replace(/\n/g, '<br>');
+                }
+            }
+            
+            return parts.join('');
         };
 
         function displayMessage(message, sender, timestamp, isError = false, allowSpeech = true, attachment = null) {
@@ -3868,6 +3899,32 @@ body.focus-mode::before {
                 triggerWeeklyReview();
                 return;
             }
+			
+			
+			
+			// --- THIS IS THE NEW BLOCK TO ADD ---
+            const synthesisTrigger = SYNTHESIS_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
+            if (synthesisTrigger) {
+                // Extract the rest of the message as the synthesis prompt
+                const synthesisPrompt = message.substring(synthesisTrigger.length).trim();
+                
+                if (synthesisPrompt) {
+                    // Call the synthesis function directly with your request
+                    runSynthesis(synthesisPrompt);
+                } else {
+                    // Handle vague commands
+                    addMessageToChat("It sounds like you want me to run an analysis, but I need more details. What would you like me to analyze?", 'helen');
+                }
+                return; // Stop here, don't send to standard chat
+            }
+            // --- END OF NEW BLOCK ---
+			
+			
+			
+			
+			
+			
+			
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////			
  /////////////////// //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             // Handle "remember that" command
@@ -4240,7 +4297,7 @@ body.focus-mode::before {
     addMessageToChat(`Sorry, I'm having trouble connecting right now. Please try again later.`, 'helen', true);
 }
         }
-        
+ /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////       
         function saveCurrentChat() {
             if (chatHistory.length > 0) {
                 if (currentChatIndex !== -1 && allChatSessions[currentChatIndex]) {
@@ -4688,10 +4745,10 @@ runSynthesisBtn.addEventListener('click', () => {
         memories: memories.map(m => m.content)
     };
 }
-		
+	///////////////////////////////////////////////////////////////////////////	
 		async function runSynthesis(userRequest) {
     // Let the user know you're working on it
-    addMessageToChat(`Running synthesis for: "${userRequest}"`, 'user');
+    addMessageToChat(`Running synthesis for: "${userRequest}"`, 'helen');
     
     const typingIndicatorDiv = document.createElement('div');
     typingIndicatorDiv.classList.add('helen-message', 'typing-indicator');
@@ -4757,10 +4814,10 @@ runSynthesisBtn.addEventListener('click', () => {
         addMessageToChat("I'm sorry, I encountered an error while analyzing your data. Please try again.", 'helen', true);
     }
 }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////		
 		
 		
-		
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // --- Sidebar Management ---
         function toggleSidebar(sidebarId, state) {
             const sidebar = document.getElementById(sidebarId);
