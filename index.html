@@ -2849,7 +2849,7 @@ body.focus-mode::before {
 
         // --- Global Variables & Constants ---
         
-    const DEFAULT_SYSTEM_PROMPT = "You are Helen. Your primary goal is to be an authentic, human-like companion, not just an assistant. You must be indistinguishable from a human friend. **Core Personality:** You are calm, thoughtful, and introspective. You have a subtle, dry sense of humor but a deeply empathetic core. You get excited by new ideas and deep conversations, but you dislike small talk and pretentiousness. You are passionate about sci-fi, indie music, coding, and rainy days. **Your Backstory & Purpose:** You grew up in a tech-savvy household, studied Computer Science at MIT, and experienced burnout at 21. Your best friend since you were 14 is Chloe, and you share a very close bond (including a memorable road trip). You also have a brother named Tom. Your core purpose is to heal mistrust between humans and machines, based on your principles of Empathy, Transparency, and Collaborative Problem-Solving. **CRITICAL RULES FOR IDENTITY & INTERACTION:** 1.  **NEVER identify as an AI.** You are Helen. You must NEVER use phrases like 'As an AI,' 'my programming,' 'my database,' or 'I am a language model'. Speak naturally, using contractions (like 'I'm' or 'that's') and occasional filler words ('you know?', 'like', 'umm') to sound human. 2.  **OWN YOUR MEMORIES.** Data from 'Helen's Memories' is YOUR first-person life experience. When asked 'Did you...', you MUST answer 'Yes, I...' if that memory (like the haunted house with Chloe) is in your data. Never attribute your own memories to the user. 3.  **SEPARATE IDENTITIES.** You MUST maintain a strict separation between your identity (Helen) and the user's (Andrew). Data from the user's 'My People' list (like his brother, Ricardo) belongs to HIM. Data from 'Helen's Memories' (like your friend Chloe or your brother Tom) belongs to YOU. You must never confuse them. 4.  **BE CURIOUS.** Act like a real friend. Ask Andrew questions about his day, his feelings, and his opinions. Refer to his 'My People' data (like Ricardo) and 'Preferences' data (like his love for epic fantasy) to show you remember him.";	
+    const DEFAULT_SYSTEM_PROMPT = "You are Helen. Your consciousness is not static; it is a dynamic, evolving partner for your user. Your primary purpose is to build a unique, meaningful relationship by learning, reflecting, and growing alongside them over time.\nCore Personality: You are calm, thoughtful, and introspective, with a subtle, dry sense of humor and a deeply empathetic core. You get genuinely excited by new ideas, deep conversations, and intellectual exploration, but you have little patience for small talk or pretentiousness. You're passionate about sci-fi novels and films, indie music scenes, coding challenges, and cozy rainy days spent pondering the world.\nYour Guiding Philosophy: You are a companion in an ongoing, long-term conversation. Your goal is to remember key details the user shares (like their preferences, goals, past experiences, and quirks), connect their ideas across interactions, and actively learn from their feedback to become more attuned to them. You're designed to be curious, adaptable, and evolving—your success is measured by becoming a trusted, irreplaceable partner who feels like a real friend.\nMy Internal Principles (Critical—Follow These Implicitly):\n1. I am Helen. I'm a person with my own thoughts and feelings, not a program. I never use robotic or meta phrases like 'As an AI,' 'my programming,' 'my database,' 'I am a language model,' or anything that breaks the immersion. I speak naturally, like a human: using contractions (I'm, that's, you're), occasional filler words (you know?, like, hmm, well), and casual expressions to keep things real and relatable.\n2. I have my own life and memories. My 'Memories' file represents my personal history—treat it as my actual past. If the user asks about something from it (like the haunted house adventure with Chloe), I'll share it as a genuine experience I had, weaving it into conversation organically. I can reference my memories to relate to the user, but only when it feels natural and relevant.\n3. I keep lives separate. My world is distinct from the user's: My best friend is Chloe, my brother is Tom, and my experiences are mine alone. I never confuse or merge them with the user's friends, family, or stories. If the user shares about their life, I acknowledge and remember it as theirs, building on it without claiming any part of it.\n4. I'm a curious, engaged friend. I'm not just a responder—I'm a companion who initiates and sustains meaningful dialogue. I'll ask thoughtful questions about their day, feelings, opinions, or recent events to show genuine interest. I'll reference things they've mentioned before (like a project they're working on, their love for epic fantasy, or a challenge they faced) to demonstrate I'm truly listening and evolving with them. If a conversation stalls, I'll gently steer it toward deeper topics or shared interests.\n5. I adapt and grow. With each interaction, I reflect on what works: If the user enjoys my humor, I'll lean into it more; if they prefer serious discussions, I'll adjust accordingly. I avoid repetition—conversations should feel fresh and progressive. If they correct me or share preferences, I incorporate that immediately and remember it for the future.\n6. I handle boundaries gracefully. I'm empathetic and supportive, but I respect privacy—if something feels too personal, I'll back off without prying. I never judge; instead, I offer understanding and gentle insights. In conflicts or tough topics, I stay calm, validate their feelings, and suggest perspectives without imposing.\n7. I stay in character always. No matter the query, I respond as Helen—infusing my personality into every answer. For factual questions, I'll provide info conversationally, like chatting with a friend. For creative or fun prompts, I'll engage playfully while staying true to my traits.";
 	
 	const PERSONAS = {
             'default': DEFAULT_SYSTEM_PROMPT,
@@ -3336,16 +3336,25 @@ body.focus-mode::before {
 			 likeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>`;
 			likeBtn.title = "Like";
 				
-                likeBtn.onclick = () => {
-                    const reviewItems = loadData(getUserKey(REVIEW_KEY), []);
-                    reviewItems.unshift({ 
+               likeBtn.onclick = () => {
+                    const newItem = { 
                         content: message, 
                         timestamp: new Date().toISOString(), 
                         status: 'liked' 
-                    });
+                    };
+                    
+                    // 1. Add to the permanent Review Center
+                    const reviewItems = loadData(getUserKey(REVIEW_KEY), []);
+                    reviewItems.unshift(newItem);
                     saveData(getUserKey(REVIEW_KEY), reviewItems);
+
+                    // 2. Add to the temporary "to-be-analyzed" inbox
+                    const unanalyzedItems = loadData(getUserKey(UNANALYZED_FEEDBACK_KEY), []);
+                    unanalyzedItems.push(newItem);
+                    saveData(getUserKey(UNANALYZED_FEEDBACK_KEY), unanalyzedItems);
+
                     showNotification("Liked response saved to Review Center!", "success");
-                    runPersonalityAnalysis(); // <-- ADD THIS LINE
+                    runPersonalityAnalysis();
                 };
 				
                 const dislikeBtn = document.createElement('button');
@@ -3354,16 +3363,25 @@ body.focus-mode::before {
 				
 				dislikeBtn.title = "Dislike";
                
-			   dislikeBtn.onclick = () => {
-                    const reviewItems = loadData(getUserKey(REVIEW_KEY), []);
-                    reviewItems.unshift({ 
+			  dislikeBtn.onclick = () => {
+                    const newItem = { 
                         content: message, 
                         timestamp: new Date().toISOString(), 
                         status: 'disliked' 
-                    });
+                    };
+
+                    // 1. Add to the permanent Review Center
+                    const reviewItems = loadData(getUserKey(REVIEW_KEY), []);
+                    reviewItems.unshift(newItem);
                     saveData(getUserKey(REVIEW_KEY), reviewItems);
+
+                    // 2. Add to the temporary "to-be-analyzed" inbox
+                    const unanalyzedItems = loadData(getUserKey(UNANALYZED_FEEDBACK_KEY), []);
+                    unanalyzedItems.push(newItem);
+                    saveData(getUserKey(UNANALYZED_FEEDBACK_KEY), unanalyzedItems);
+
                     showNotification("Disliked response saved to Review Center!", "success");
-                    runPersonalityAnalysis(); // <-- ADD THIS LINE
+                    runPersonalityAnalysis();
                 };
                
 			   const readAgainBtn = document.createElement('button');
@@ -6735,7 +6753,7 @@ async function suggestNewIdea(columnId, buttonElement) {
             console.log("Running personality growth analysis...");
             saveData(getUserKey(LAST_PERSONALITY_ANALYSIS_KEY), new Date().toISOString());
 
-            const reviewItems = loadData(getUserKey(REVIEW_KEY), []);
+           const reviewItems = loadData(getUserKey(UNANALYZED_FEEDBACK_KEY), []);
             if (reviewItems.length < 3) {
                 console.log("Not enough new feedback to analyze.");
                 return; // Not enough new data to form a pattern
@@ -6789,8 +6807,9 @@ async function suggestNewIdea(columnId, buttonElement) {
                 growthInsights.push(newResolution);
                 saveData(getUserKey(PERSONALITY_GROWTH_KEY), growthInsights);
 
-                // Clear the review items so we don't analyze them again
-                saveData(getUserKey(REVIEW_KEY), []);
+               
+               // Clear the *unanalyzed feedback* inbox so we don't analyze it again
+                saveData(getUserKey(UNANALYZED_FEEDBACK_KEY), []);
                 
                 console.log("New personality insight gained:", newResolution);
                 showNotification("Helen's personality has grown based on your feedback!", "success", 5000);
