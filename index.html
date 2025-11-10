@@ -2832,9 +2832,10 @@ body.focus-mode::before {
 		const REVIEW_KEY = 'helenReviewItems';
 		
 		
-		// --- ADD THESE TWO LINES ---
+		// --- ADD THESE THREE LINES ---
         const PERSONALITY_GROWTH_KEY = 'helenPersonalityGrowth';
         const LAST_PERSONALITY_ANALYSIS_KEY = 'helenLastPersonalityAnalysis';
+        const UNANALYZED_FEEDBACK_KEY = 'helenUnanalyzedFeedback'; // <-- THIS IS THE MISSING LINE
         // --- END OF ADDITION ---
 		
 		
@@ -6812,7 +6813,15 @@ async function suggestNewIdea(columnId, buttonElement) {
                 saveData(getUserKey(UNANALYZED_FEEDBACK_KEY), []);
                 
                 console.log("New personality insight gained:", newResolution);
-                showNotification("Helen's personality has grown based on your feedback!", "success", 5000);
+                
+                // --- THIS IS THE FIX ---
+                // Delay this notification so it doesn't run over the first "Liked" message
+				
+                setTimeout(() => {
+                    showNotification("Helen's personality has grown based on your feedback!", "success", 9000);
+                }, 3100); // 3.1 seconds, just after the first notification (3s) disappears.
+               
+			   // --- END OF FIX ---
 
             } catch (error) {
                 console.error("Error during personality analysis:", error);
