@@ -2134,8 +2134,10 @@ body.focus-mode::before {
 				
 				<input id="import-file-input" type="file" class="hidden" accept="application/json">
                 <input id="file-input" type="file" class="hidden" accept=".txt,.md,.csv,image/*">
-                <input id="text-input" type="text" class="flex-1 bg-transparent outline-none text-sm text-[var(--text-primary)]" placeholder="Type your message..." aria-label="Type your message">
-                <button id="send-button" title="Send message" aria-label="Send message">
+                
+				<textarea id="text-input" class="flex-1 bg-transparent outline-none text-sm text-[var(--text-primary)]" placeholder="Type your message..." aria-label="Type your message" rows="1"></textarea>
+
+			   <button id="send-button" title="Send message" aria-label="Send message">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                 </button>
                 <button id="menu-button" title="Open menu" aria-label="Open menu">
