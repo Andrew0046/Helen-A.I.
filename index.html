@@ -3545,7 +3545,7 @@ body.focus-mode::before {
         };
 		
 		
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         function clearUploadedFile() {
             uploadedFileContent = null;
             window.uploadedFileObject = null; // MODIFIED: Clear the file object too
@@ -3557,7 +3557,7 @@ body.focus-mode::before {
         attachmentButton.addEventListener('click', () => fileInput.click());
 
         clearFileBtn.addEventListener('click', () => {
-            clearUploadedFile();
+          //  clearUploadedFile();
             showNotification("Attachment cleared.", "info");
         });
 
@@ -4350,7 +4350,7 @@ body.focus-mode::before {
                 }
 
                 const cleanedApiHistory = tempApiHistory.map(({ role, parts }) => ({ role, parts }));
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                 const payload = {
                     contents: cleanedApiHistory,
                      systemInstruction: {
