@@ -3852,7 +3852,8 @@ body.focus-mode::before {
                 memories.forEach(memory => {
                     const lowerCaseMemory = memory.content.toLowerCase();
                     if (messageKeywords.some(keyword => lowerCaseMemory.includes(keyword))) {
-                         contextPieces.push(`- A key fact to remember about the user: "${memory.content}"`);
+                         // FIX: Change "the user" to "Helen"
+            contextPieces.push(`- A key fact to remember about Helen: "${memory.content}"`);
                     }
                 });
             }
