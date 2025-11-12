@@ -3268,9 +3268,17 @@ body.focus-mode::before {
                 currentChatIndex = allChatSessions.length - 1;
                 chatHistory = [...allChatSessions[currentChatIndex].history];
                 chatDisplay.innerHTML = '';
-                chatHistory.forEach(msg => {
-                    displayMessage(msg.parts[0].text, msg.role, msg.timestamp, false, false);
-                });
+               chatHistory.forEach(msg => {
+    // --- START FIX ---
+    // 1. Translate 'model' back to 'helen' so buttons appear
+    const sender = msg.role === 'model' ? 'helen' : 'user'; 
+
+    // 2. Pass the saved attachment (or null if it doesn't exist)
+    const attachment = msg.attachment || null; 
+
+    displayMessage(msg.parts[0].text, sender, msg.timestamp, false, false, attachment);
+    // --- END FIX ---
+});
             }
             
             updateLevelDisplay();
@@ -3462,12 +3470,22 @@ body.focus-mode::before {
             }
         }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      function addMessageToChat(message, sender, isError = false, allowSpeech = true, attachment = null) {
-            const timestamp = new Date().toISOString();
-            displayMessage(message, sender, timestamp, isError, allowSpeech, attachment);
-            chatHistory.push({ role: sender === 'user' ? "user" : "model", parts: [{ text: message }], timestamp: timestamp });
-            saveCurrentChat();
-        }
+     function addMessageToChat(message, sender, isError = false, allowSpeech = true, attachment = null) {
+    const timestamp = new Date().toISOString();
+    displayMessage(message, sender, timestamp, isError, allowSpeech, attachment);
+
+    // --- START FIX ---
+    // Save the attachment object to the chat history
+    chatHistory.push({ 
+        role: sender === 'user' ? "user" : "model", 
+        parts: [{ text: message }], 
+        timestamp: timestamp,
+        attachment: attachment // <-- THIS IS THE NEW LINE
+    });
+    // --- END FIX ---
+
+    saveCurrentChat();
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////		
         let notificationTimeout;
         function showNotification(message, type = 'default', duration = 3000) {
