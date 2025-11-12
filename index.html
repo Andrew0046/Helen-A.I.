@@ -3350,8 +3350,18 @@ body.focus-mode::before {
                 if (attachment.type.startsWith('image/')) {
                     attachmentDiv.innerHTML = `<img src="${attachment.content}" alt="User attachment">`;
                 } else {
-                    const snippet = attachment.content.substring(0, 500) + (attachment.content.length > 500 ? '...' : '');
-                    attachmentDiv.innerHTML = `<pre>${snippet}</pre>`;
+                    
+					const snippet = attachment.content.substring(0, 500) + (attachment.content.length > 500 ? '...' : '');
+                   
+
+                         // --- START FIX ---
+                    const pre = document.createElement('pre'); // 1. Create the <pre> tag
+                       pre.textContent = snippet;                  // 2. Set its text content (this is safe)
+                        attachmentDiv.appendChild(pre);             // 3. Add the <pre> tag to the attachment div
+                        // --- END FIX ---
+                    
+				   
+				   
                 }
                 if (sender === 'user') {
                      messageDiv.insertBefore(attachmentDiv, contentDiv);
