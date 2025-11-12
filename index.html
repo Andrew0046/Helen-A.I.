@@ -4448,9 +4448,18 @@ body.focus-mode::before {
                 currentChatIndex = chatIndex;
                 chatHistory = [...allChatSessions[currentChatIndex].history];
                 chatDisplay.innerHTML = '';
-                chatHistory.forEach(msg => {
-                    displayMessage(msg.parts[0].text, msg.role, msg.timestamp, false, false);
-                });
+				
+               chatHistory.forEach(msg => {
+    // --- START FIX ---
+    // 1. Translate 'model' back to 'helen' so buttons appear
+    const sender = msg.role === 'model' ? 'helen' : 'user'; 
+
+    // 2. Pass the saved attachment (or null if it doesn't exist)
+    const attachment = msg.attachment || null; 
+
+    displayMessage(msg.parts[0].text, sender, msg.timestamp, false, false, attachment);
+    // --- END FIX ---
+});
             }
         }
         
