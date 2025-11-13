@@ -3626,42 +3626,51 @@ body.focus-mode::before {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // --- TTS and Voice Management ---
-      function populateVoiceList() {
-            if (typeof SpeechSynthesis === 'undefined' || voicesLoaded) {
-                return; // Stop if not supported or if we've already run this
-            }
+      // --- THIS IS THE FIXED FUNCTION ---
+function populateVoiceList() {
+    // --- MODIFICATION: Only check for SpeechSynthesis support here ---
+    if (typeof SpeechSynthesis === 'undefined') {
+        return;
+    }
+    
+    // --- NEW: If already loaded, just exit ---
+    if (voicesLoaded) {
+        return;
+    }
 
-            const voices = SpeechSynthesis.getVoices().filter(voice => voice.lang.startsWith('en-'));
+    const voices = SpeechSynthesis.getVoices().filter(voice => voice.lang.startsWith('en-'));
 
-            if (voices.length === 0) {
-                return; // Voices aren't ready yet, wait for the event to fire again
-            }
-            
-            voiceSelect.innerHTML = ''; // Clear dropdown
+    if (voices.length === 0) {
+        console.log("populateVoiceList: No voices found yet, will try again later.");
+        return; // Voices aren't ready yet, wait for the event to fire again
+    }
+    
+    console.log("populateVoiceList: Voices found, populating list.");
+    voiceSelect.innerHTML = ''; // Clear dropdown
 
-            voices.forEach((voice) => {
-                const option = document.createElement('option');
-                option.textContent = `${voice.name} (${voice.lang})`;
-                option.setAttribute('data-name', voice.name);
-                option.value = voice.name;
-                voiceSelect.appendChild(option);
-            });
+    voices.forEach((voice) => {
+        const option = document.createElement('option');
+        option.textContent = `${voice.name} (${voice.lang})`;
+        option.setAttribute('data-name', voice.name);
+        option.value = voice.name;
+        voiceSelect.appendChild(option);
+    });
 
-            // Mark as loaded so we don't run this multiple times
-            voicesLoaded = true; 
+    // --- MOVED: Only set this to true if we succeed! ---
+    voicesLoaded = true; 
 
-            // NOW, select the saved voice
-            const savedVoiceName = loadData(getUserKey(USER_VOICE_PREFERENCE_KEY), 'Google US English');
-            const savedVoiceOption = [...voiceSelect.options].find(opt => opt.value === savedVoiceName);
-            
-            if (savedVoiceOption) {
-                voiceSelect.value = savedVoiceOption.value;
-                selectedVoice = voices.find(v => v.name === savedVoiceName);
-            } else if (voices.length > 0) { // Fallback to first voice
-                voiceSelect.value = voices[0].name;
-                selectedVoice = voices[0];
-            }
-        }
+    // NOW, select the saved voice
+    const savedVoiceName = loadData(getUserKey(USER_VOICE_PREFERENCE_KEY), 'Google US English');
+    const savedVoiceOption = [...voiceSelect.options].find(opt => opt.value === savedVoiceName);
+    
+    if (savedVoiceOption) {
+        voiceSelect.value = savedVoiceOption.value;
+        selectedVoice = voices.find(v => v.name === savedVoiceName);
+    } else if (voices.length > 0) { // Fallback to first voice
+        voiceSelect.value = voices[0].name;
+        selectedVoice = voices[0];
+    }
+}
 		
  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////     
 
@@ -5007,6 +5016,7 @@ runSynthesisBtn.addEventListener('click', () => {
 
         menuOptionSettings.addEventListener('click', () => {
             hideAllSidebars();
+			populateVoiceList();
             setTimeout(() => toggleSidebar('settings-manager', true), 300);
         });
         settingsManagerCloseBtn.addEventListener('click', () => toggleSidebar('settings-manager', false));
