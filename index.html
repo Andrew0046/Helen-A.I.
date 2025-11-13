@@ -5013,13 +5013,32 @@ runSynthesisBtn.addEventListener('click', () => {
             }, 300);
         });
         remindersManagerCloseBtn.addEventListener('click', () => toggleSidebar('reminders-manager', false));
+		
+		
 
-        menuOptionSettings.addEventListener('click', () => {
-            hideAllSidebars();
-			populateVoiceList();
-            setTimeout(() => toggleSidebar('settings-manager', true), 300);
-        });
+        // --- THIS IS THE FIXED CODE ---
+menuOptionSettings.addEventListener('click', () => {
+    hideAllSidebars();
+    
+    // --- NEW FIX: Call this every time settings is opened ---
+    // This is crucial for mobile, where voices may only load
+    // after a user interaction (like this click).
+    populateVoiceList(); 
+    // --- END OF FIX ---
+
+    setTimeout(() => {
+        // Load the saved key into the input field when settings are opened
+        apiKeyInput.value = loadData(getUserKey(API_KEY_KEY), '');
+        toggleApiKeyBtn.querySelector('#api-key-svg-show').classList.remove('hidden');
+        toggleApiKeyBtn.querySelector('#api-key-svg-hide').classList.add('hidden');
+        apiKeyInput.type = 'password';
+        toggleSidebar('settings-manager', true);
+    }, 300);
+});
         settingsManagerCloseBtn.addEventListener('click', () => toggleSidebar('settings-manager', false));
+		
+		
+		
 
         menuOptionMemory.addEventListener('click', () => {
             hideAllSidebars();
