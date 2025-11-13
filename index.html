@@ -6152,7 +6152,7 @@ async function suggestNewIdea(columnId, buttonElement) {
             saveData(getUserKey(IDEA_BOARDS_KEY), boards);
             renderIdeaBoard(board);
         }
-        
+ ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////       
         function deleteCardFromBoard(cardId) {
             const boards = loadData(getUserKey(IDEA_BOARDS_KEY), []);
             const board = boards.find(b => b.id === currentIdeaBoardId);
@@ -6165,7 +6165,7 @@ async function suggestNewIdea(columnId, buttonElement) {
             saveData(getUserKey(IDEA_BOARDS_KEY), boards);
             renderIdeaBoard(board);
         }
-        
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////        
         function saveCurrentBoardState() {
             const boards = loadData(getUserKey(IDEA_BOARDS_KEY), []);
             const board = boards.find(b => b.id === currentIdeaBoardId);
@@ -6183,12 +6183,22 @@ async function suggestNewIdea(columnId, buttonElement) {
                         text: cardEl.querySelector('p').textContent
                     });
                 });
-                newColumns.push({ id: columnId, title: columnTitle, cards: cards });
+                // --- START FIX ---
+const tag = cardEl.querySelector('.idea-tag');
+let tagColor = 'default'; // Default
+if (tag) {
+    // Find the class that starts with 'tag-' but isn't 'idea-tag'
+    const colorClass = Array.from(tag.classList).find(c => c.startsWith('tag-') && c !== 'idea-tag');
+    if (colorClass) {
+        tagColor = colorClass.replace('tag-', ''); // e.g., 'red'
+    }
+}
+cards.push({ id: cardId, text: text, tagColor: tagColor });
             });
             board.columns = newColumns;
             saveData(getUserKey(IDEA_BOARDS_KEY), boards);
         }
-        
+ ///////////////////////////////////////////////////////////////////////////////////////////////////////////       
         function convertIdeaToGoal(ideaText) {
             const goals = loadData(getUserKey(GOALS_KEY), []);
             goals.unshift({ id: `goal_${Date.now()}`, title: ideaText, todos: [] });
