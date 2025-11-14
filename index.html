@@ -3684,7 +3684,7 @@ function populateVoiceList() {
 		
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // --- Web Audio API for Visual Indicator ---
-        async function setupAudioProcessing() {
+        async function setupAudioProcessing(stream) {
             try {
                // const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -7005,6 +7005,7 @@ cards.push({ id: cardId, text: text, tagColor: tagColor });
     </script>
 </body>
 </html>
+
 
 
 
