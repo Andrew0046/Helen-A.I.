@@ -2457,6 +2457,14 @@ body.focus-mode::before {
             </div>
 			
 			
+			<div class="settings-section" id="camera-settings-section">
+                <h3>Camera Selection</h3>
+                <p class="text-sm text-[var(--text-secondary)] mb-2">Choose your preferred camera for scans.</p>
+                <select id="camera-select">
+                    <option value="">Loading cameras...</option>
+                </select>
+            </div>
+			
 			
 			
 			<div class="settings-section">
@@ -2806,6 +2814,8 @@ body.focus-mode::before {
         // --- END OF ADDITION ---
 		
 		
+		const cameraSelect = document.getElementById('camera-select'); // --- ADD THIS LINE ---
+		
 		
 		
           ////// /////////// ///////////// /////////////
@@ -2908,6 +2918,7 @@ body.focus-mode::before {
         const USER_MESSAGE_COLOR_KEY = 'helenUserMessageColor';
         const CURRENT_USER_KEY = 'helenCurrentUser';
 		
+		const CAMERA_PREFERENCE_KEY = 'helenCameraPreference'; // --- ADD THIS LINE ---
 		
         const HELEN_DIARY_KEY = 'helenDiary';
         
@@ -4927,8 +4938,25 @@ runSynthesisBtn.addEventListener('click', () => {
 		// ===== START: MODIFIED openCamera FUNCTION =====
 async function openCamera(isAutoScan = false) { // <-- Modified signature
     hideAllSidebars();
+    
+    // --- NEW: Load the preferred camera ID from settings ---
+    const preferredCameraId = loadData(getUserKey(CAMERA_PREFERENCE_KEY), '');
+    
+    // Build the "constraints" object to tell the browser which camera we want
+    const constraints = {
+        video: {
+            // If we have a preferred ID, use it (and be "exact"). 
+            // Otherwise, 'undefined' lets the browser pick its default.
+            deviceId: preferredCameraId ? { exact: preferredCameraId } : undefined
+        },
+        audio: false
+    };
+    // --- END NEW BLOCK ---
+    
     try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        // --- MODIFIED: Use the new 'constraints' object ---
+        // The original code had '{ video: true, audio: false }' here by mistake
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints); 
         cameraView.srcObject = cameraStream;
         
         // Use 'onloadedmetadata' to ensure video is ready before playing/capturing
@@ -5019,6 +5047,71 @@ function captureImage() {
     // --- END: NEW AUTO-SEND LOGIC ---
 }
 // ===== END: MODIFIED captureImage FUNCTION =====
+
+
+
+
+
+
+// --- ADD THIS ENTIRE NEW FUNCTION ---
+async function populateCameraList() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        console.warn("enumerateDevices() is not supported.");
+        // Hide the setting if the browser doesn't support this
+        document.getElementById('camera-settings-section').classList.add('hidden');
+        return;
+    }
+
+    try {
+        // --- PERMISSION TRICK ---
+        // We must get *some* permission first to get meaningful device labels.
+        // We'll request a stream, get the devices, then immediately stop the stream.
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        // Stop the temporary stream now that we have the list
+        tempStream.getTracks().forEach(track => track.stop());
+
+        cameraSelect.innerHTML = ''; // Clear "Loading..."
+
+        if (videoDevices.length === 0) {
+            cameraSelect.innerHTML = '<option value="">No cameras found</option>';
+            return;
+        }
+
+        videoDevices.forEach((device, index) => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            // Use the device's label, or a fallback "Camera 1", "Camera 2", etc.
+            option.textContent = device.label || `Camera ${index + 1}`; 
+            cameraSelect.appendChild(option);
+        });
+
+        // Now that the list is populated, load the user's saved preference
+        const savedCameraId = loadData(getUserKey(CAMERA_PREFERENCE_KEY), '');
+        
+        // Check if the saved camera ID is still in the list
+        if (savedCameraId && cameraSelect.querySelector(`option[value="${savedCameraId}"]`)) {
+            cameraSelect.value = savedCameraId;
+        } else if (videoDevices.length > 0) {
+            // If no preference is saved or the saved one is gone, default to the first camera
+            cameraSelect.value = videoDevices[0].deviceId;
+            saveData(getUserKey(CAMERA_PREFERENCE_KEY), videoDevices[0].deviceId);
+        }
+
+    } catch (err) {
+        console.error("Error populating camera list:", err);
+        // Let the user know if permission was denied
+        if (err.name === "NotAllowedError") {
+             cameraSelect.innerHTML = '<option value="">Camera permission denied</option>';
+        } else {
+             cameraSelect.innerHTML = '<option value="">Error finding cameras</option>';
+        }
+    }
+}
+// --- END OF NEW FUNCTION ---
 		
 		
 		
@@ -5048,7 +5141,7 @@ function captureImage() {
         }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-          /// Event Listener Start ///
+//////////////////////////// Event Listener Start //////////////////////////////////////////////////////
 
         menuButton.addEventListener('click', () => toggleSidebar('menu-manager', true));
         menuManagerCloseBtn.addEventListener('click', () => toggleSidebar('menu-manager', false));
@@ -5098,7 +5191,11 @@ menuOptionSettings.addEventListener('click', () => {
     // after a user interaction (like this click).
     populateVoiceList(); 
 	attemptToLoadVoices(); // <-- CHANGE THIS LINE
-    // --- END OF FIX ---
+   
+   
+   populateCameraList(); // --- ADD THIS LINE ---
+
+   // --- END OF FIX ---
 
     setTimeout(() => {
         // Load the saved key into the input field when settings are opened
@@ -5242,6 +5339,27 @@ menuOptionSettings.addEventListener('click', () => {
         });
         helenDiaryManagerCloseBtn.addEventListener('click', () => toggleSidebar('helen-diary-manager', false));
         // --- END OF ADDITION ---
+		
+		
+		
+		
+		// --- ADD THIS NEW LISTENER ---
+        cameraSelect.addEventListener('change', () => {
+            const selectedCameraId = cameraSelect.value;
+            saveData(getUserKey(CAMERA_PREFERENCE_KEY), selectedCameraId);
+            showNotification("Default camera saved!", "success");
+
+            // Optional: If the camera is live, switch it immediately
+            if (cameraStream) {
+                closeCamera();
+                // Re-open the camera modal (it will now use the new ID)
+                // We assume it's not an auto-scan if we're just switching
+                openCamera(false); 
+            }
+        });
+		
+		
+		
 		
 		
 		
