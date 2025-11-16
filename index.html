@@ -754,6 +754,15 @@
             transition: background-color 0.3s ease;
             border: none;
         }
+		
+		
+		
+		/* ===== START: NEW CAMERA STYLE ===== */
+        #camera-view {
+            transform: scaleX(-1); /* Flip video horizontally (mirror mode) */
+        }
+        /* ===== END: NEW CAMERA STYLE ===== */
+		
 
         #modal-save-btn {
             background-color: var(--accent);
@@ -1583,437 +1592,320 @@
         flex-direction: column; /* This new rule stacks the items vertically */
     }
 
-   /* --- AI Orb Button Styles --- */
+   /* ========================================
+   HELEN ORB AI v9 – SUPREME ORB ENHANCEMENT
+   FLUID MOTION • LAYERED GLOW • GLASS DEPTH
+   ======================================== */
 
-/* This makes the avatar and orb stack vertically */
-.sidebar-left {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 200px;
-    flex-shrink: 0;
-    flex-direction: column; 
+:root {
+  --accent: #00eeff;
+  --accent-hover: #00aadd;
+  --glow-primary: rgba(0, 238, 255, 0.6);
+  --glow-secondary: rgba(0, 170, 221, 0.4);
+  --shine: rgba(255, 255, 255, 0.4);
+  --shadow: rgba(0, 0, 0, 0.55);
+  --focus-blur: 14px;
+  --focus-dark: 0.35;
 }
 
-/* This is the main button/orb element */
+/* ========================================
+   LAYOUT & SIDEBAR
+   ======================================== */
+.sidebar-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 101;
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* ========================================
+   GO-LIVE TOGGLE (BUTTON → ORB)
+   ======================================== */
 .go-live-toggle {
-    /* Initial State: Normal Button */
-    margin-top: 1.5rem;
-    padding: 0.5rem 1.5rem;
-    width: 120px; /* Fixed width for a button */
-    height: 40px; /* Fixed height for a button */
-    background-color: var(--accent);
-    color: white;
-    border-radius: 8px; 
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden; /* This is key to the animation */
-    
-    /* Transition for all properties */
-    transition: all 0.4s ease-in-out;
+  margin-top: 1.5rem;
+  padding: 0.5rem 1.5rem;
+  width: 120px;
+  height: 40px;
+  background-color: var(--accent);
+  color: white;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .go-live-toggle:hover {
-    background-color: var(--accent-hover);
+  background-color: var(--accent-hover);
 }
 
 /* Text for the "Go Live" button state */
 .go-live-text {
-    opacity: 1;
-    transition: opacity 0.2s ease-in-out;
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
 }
 
 /* Container for all the orb parts */
 .ai-orb-visuals {
-    width: 140px; /* Bigger orb */
-    height: 140px; /* Bigger orb */
-    position: absolute;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    
-    /* Initially hidden */
-    opacity: 0;
-    transform: scale(0);
-    transition: opacity 0.3s 0.1s ease, transform 0.3s 0.1s ease;
-	
-	animation: water-warp 10s ease-in-out infinite;
-	
+  width: 160px;
+  height: 160px;
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity 0.4s 0.1s ease, transform 0.4s 0.1s ease;
+  animation: water-warp 9s ease-in-out infinite;
 }
 
-
-/* "gentle pulse of light" - NOW A RING */
+/* Gentle pulse ring */
 .ai-orb-visuals .ai-orb-pulse {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    border-radius: 50%;
-    /* NEW: Changed from background to a glowing border */
-    background: none;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-    z-index: 1;
-    opacity: 0;
-    animation: pulse-light 3s ease-out infinite;
-    animation-play-state: paused;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  border-radius: 50%;
+  background: none;
+  border: 2.5px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
+  z-index: 1;
+  opacity: 0;
+  animation: pulse-light 3.2s ease-out infinite paused;
 }
 
-
-/* NEW: This is the shine/glint element */
+/* Shine glint */
 .ai-orb-visuals::after {
-    content: '';
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    border-radius: 50%;
-    background: linear-gradient(100deg, 
-        transparent 30%, 
-        rgba(255, 255, 255, 0.25) 50%, 
-        transparent 70%);
-    z-index: 3; /* On top of the dot and ring */
-    background-size: 200% 100%; /* Wide gradient */
-    animation: shine-wipe 4s ease-in-out infinite;
-    animation-delay: 1s; /* Offset from other animations */
-    animation-play-state: paused; /* Paused by default */
+  content: '';
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  border-radius: 50%;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.3) 50%, transparent 70%);
+  background-size: 220% 100%;
+  z-index: 3;
+  animation: shine-wipe 4.2s ease-in-out infinite paused;
+  animation-delay: 1s;
 }
 
-
-
-/* "soft outer glow ripples outward" */
+/* Soft outer glow */
 .ai-orb-visuals .ai-orb-glow {
-    width: 140%;
-    height: 140%;
-    position: absolute;
-    border-radius: 50%;
-    background: var(--accent);
-    z-index: 0;
-    opacity: 0.1;
-    filter: blur(20px);
-    animation: ripple-glow 3s ease-out infinite;
-    animation-play-state: paused; /* Paused by default */
+  width: 150%;
+  height: 150%;
+  position: absolute;
+  border-radius: 50%;
+  background: var(--accent);
+  z-index: 0;
+  opacity: 0.12;
+  filter: blur(25px);
+  animation: ripple-glow 3.2s ease-out infinite paused;
 }
 
-/* --- CLICKED "LIVE" STATE --- */
-
-
-
-
-
-
-
-
-/* --- NEW: Orb Speaking State --- */
-
-
-/* Play ALL animations when .speaking is added */
-.go-live-toggle.live.speaking .ai-orb-visuals::after,  /* Shine */
-.go-live-toggle.live.speaking .ai-orb-visuals .ai-orb-pulse, /* Ring */
-.go-live-toggle.live.speaking .ai-orb-visuals .ai-orb-glow, /* Glow */
-.go-live-toggle.live.speaking .ai-orb-visuals::before { /* Dot */
-    animation-play-state: running;
+/* CLICKED "LIVE" STATE */
+.go-live-toggle.live {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent) 20%, var(--accent-hover) 100%);
+  animation: float 6s ease-in-out infinite, pulse-shadow 3.5s ease-in-out infinite;
+  transition: box-shadow 0.6s ease-in-out;
 }
 
-/* And use the NEW, more active animations for the dot and glow */
+.go-live-toggle.live .go-live-text {
+  opacity: 0;
+}
+
+.go-live-toggle.live .ai-orb-visuals {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* NEW: Orb Speaking State */
+.go-live-toggle.live.speaking {
+  animation: float 6s ease-in-out infinite, pulse-shadow 1.6s ease-in-out infinite;
+}
+
+.go-live-toggle.live.speaking .ai-orb-visuals::after,
+.go-live-toggle.live.speaking .ai-orb-visuals .ai-orb-pulse,
+.go-live-toggle.live.speaking .ai-orb-visuals .ai-orb-glow,
 .go-live-toggle.live.speaking .ai-orb-visuals::before {
-    animation-name: speak-pulse-dot;
-    animation-duration: 1.5s;
+  animation-play-state: running;
+}
+
+.go-live-toggle.live.speaking .ai-orb-visuals::before {
+  animation-name: speak-pulse-dot;
+  animation-duration: 1.6s;
 }
 .go-live-toggle.live.speaking .ai-orb-visuals .ai-orb-glow {
-    animation-name: speak-ripple-glow;
-    animation-duration: 1.5s;
+  animation-name: speak-ripple-glow;
+  animation-duration: 1.6s;
 }
 
-
-
-
-
-
-
-
-/* Hide the "Go Live" text */
-.go-live-toggle.live .go-live-text {
-    opacity: 0;
+/* NEW: Orb Thinking State */
+.go-live-toggle.live.thinking .ai-orb-visuals::after,
+.go-live-toggle.live.thinking .ai-orb-visuals .ai-orb-pulse,
+.go-live-toggle.live.thinking .ai-orb-visuals .ai-orb-glow,
+.go-live-toggle.live.thinking .ai-orb-visuals::before {
+  animation-play-state: running;
 }
 
-/* Show the orb visuals */
-.go-live-toggle.live .ai-orb-visuals {
-    opacity: 1;
-    transform: scale(1);
+.go-live-toggle.live.thinking .ai-orb-visuals .ai-orb-glow {
+  animation-name: thinking-ripple-glow;
+  animation-duration: 0.9s;
+  animation-timing-function: ease-in-out;
 }
 
-
-
-
-
-
-
-
-/* --- Keyframe Animations (For the Orb) --- */
-
-/* "floats up and down rhythmically" - MODIFIED with crazier drift */
-@keyframes float {
-    0%   { transform: translateY(0px) translateX(0px) rotate(0deg); }
-    20%  { transform: translateY(-15px) translateX(8px) rotate(2deg); }
-    40%  { transform: translateY(-10px) translateX(-10px) rotate(-3deg); }
-    60%  { transform: translateY(-18px) translateX(5px) rotate(1deg); }
-    80%  { transform: translateY(-10px) translateX(-5px) rotate(-1deg); }
-    100% { transform: translateY(0px) translateX(0px) rotate(0deg); }
+.go-live-toggle.live.thinking .ai-orb-visuals .ai-orb-pulse {
+  animation-name: thinking-pulse-light;
+  animation-duration: 1.3s;
+  animation-timing-function: linear;
 }
 
-/* NEW: Added this animation for the main orb's shadow - MODIFIED with 3D inset shadow */
-@keyframes pulse-shadow {
-    0%, 100% { 
-        box-shadow: 0 0 20px var(--accent), 
-                    inset 0 0 10px rgba(255,255,255,0.2), 
-                    inset 0 0 30px rgba(0,0,0,0.3); 
-    }
-    50% { 
-        box-shadow: 0 0 45px var(--accent), 
-                    inset 0 0 20px rgba(255,255,255,0.4), 
-                    inset 0 0 60px rgba(0,0,0,0.6); 
-    }
+.go-live-toggle.live.thinking .ai-orb-visuals::after {
+  animation-duration: 3.2s;
 }
 
-/* "tiny pulsing white dot" - MODIFIED to throb its own glow */
-@keyframes pulse-dot {
-    0%, 100% { 
-        transform: translate(-50%, -50%) scale(1); 
-        box-shadow: 0 0 15px rgba(255, 255, 255, 0.7); 
-    }
-    50% { 
-        transform: translate(-50%, -50%) scale(1.1); 
-        box-shadow: 0 0 25px rgba(255, 255, 255, 1); 
-    }
-}
-
-/* "pulse of light expands and contracts" - MODIFIED to be an expanding ring */
-@keyframes pulse-light {
-    0% { transform: scale(0.5); opacity: 0; }
-    80% { opacity: 0.5; }
-    100% { transform: scale(1.2); opacity: 0; }
-}
-
-/* "soft outer glow ripples outward" - MODIFIED to be a bit stronger */
-@keyframes ripple-glow {
-    0% { opacity: 0.1; }
-    50% { opacity: 0.4; } /* Was 0.3 */
-    100% { opacity: 0.1; }
-}
-
-/* NEW: Added this animation for the shine wipe - MODIFIED to be faster */
-@keyframes shine-wipe {
-    0% { background-position: 200% 0; } /* Start further off-screen */
-    100% { background-position: -100% 0; } /* End further off-screen */
-}
-
-
-
-/* --- NEW: Add this keyframe --- */
-@keyframes water-warp {
-    0%, 100% { transform: scale(1, 1) rotate(0deg); }
-    25% { transform: scale(1.1, 0.9) rotate(3deg); } /* Squish and rotate */
-    50% { transform: scale(1, 1) rotate(0deg); }
-    75% { transform: scale(0.9, 1.1) rotate(-3deg); } /* Stretch and rotate */
-}
-/* --- End of new keyframe --- */
-
-
-
-
-
-
-/* "pulse of light expands and contracts" - MODIFIED to be an expanding ring */
-@keyframes pulse-light {
-    0% { transform: scale(0.5); opacity: 0; }
-    80% { opacity: 0.5; }
-    100% { transform: scale(1.2); opacity: 0; }
-}
-
-/* "soft outer glow ripples outward" - MODIFIED to be a bit stronger */
-@keyframes ripple-glow {
-    0% { opacity: 0.1; }
-    50% { opacity: 0.4; } /* Was 0.3 */
-    100% { opacity: 0.1; }
-}
-
-
-
-		
-		/* --- Focus Mode Styles --- */
-
-
-/* Add z-index and transition to the orb's container */
-.sidebar-left {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 200px;
-    flex-shrink: 0;
-    flex-direction: column; 
-    position: relative; /* Required for z-index */
-    z-index: 101; /* On top of the body::before dimmer */
-    /* NEW: Animate the container's movement and scale */
-    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-/* Hide these elements with a faster fade and slide-down */
+/* ========================================
+   FOCUS MODE STYLES
+   ======================================== */
 body.focus-mode .main-content,
 body.focus-mode .centered-image {
-    opacity: 0;
-    visibility: hidden;
-    filter: blur(8px);
-    transform: scale(0.9) translateY(40px); /* Slide down further */
-    transition: opacity 0.3s ease-out, visibility 0.3s ease-out, 
-                transform 0.4s ease-out, filter 0.4s ease-out;
+  opacity: 0;
+  visibility: hidden;
+  filter: blur(8px);
+  transform: scale(0.9) translateY(40px);
+  transition: opacity 0.3s ease-out, visibility 0.3s ease-out, transform 0.4s ease-out, filter 0.4s ease-out;
 }
 
-/* By default, they slide up from the bottom when returning */
 .main-content,
 .centered-image {
-    opacity: 1;
-    visibility: visible;
-    filter: blur(0px);
-    transform: scale(1) translateY(0px);
-    /* NEW: Changed transform to slide up from below */
-    transition: opacity 0.4s ease-in 0.1s, visibility 0.4s ease-in 0.1s, 
-                transform 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0.1s, 
-                filter 0.4s ease-in 0.1s;
+  opacity: 1;
+  visibility: visible;
+  filter: blur(0);
+  transform: scale(1) translateY(0);
+  transition: opacity 0.4s ease-in 0.1s, visibility 0.4s ease-in 0.1s, transform 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0.1s, filter 0.4s ease-in 0.1s;
 }
 
-/* This block centers the orb container AND scales it up */
 body.focus-mode .sidebar-left {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    /* NEW: Scale up to 110% while centering */
-    transform: translate(-50%, -50%) scale(1.1); 
-    width: 100%; 
-    height: 100%;
-    justify-content: center;
-    margin-top: 0;
-    z-index: 101; /* Ensure it stays on top */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1.1);
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+  margin-top: 0;
+  z-index: 101;
 }
 
-/* NEW: Add a transition to the orb button itself */
 .go-live-toggle {
-    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-/* Remove the top margin AND scale up the orb in focus mode */
 body.focus-mode .go-live-toggle {
-    margin-top: 0;
-    /* NEW: Make the orb 25% larger in focus mode */
-    transform: scale(1.25); 
+  margin-top: 0;
+  transform: scale(1.25);
 }
 
-
-
-
-		
-	/* --- NEW: Focus Mode Dimmer --- */
+/* Focus Mode Dimmer */
 body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0); /* Start transparent */
-    backdrop-filter: blur(0px); /* Start with no blur */
-    z-index: 100; /* Will sit below the orb, above the content */
-    transition: background 0.5s ease, backdrop-filter 0.5s ease, opacity 0.5s ease;
-    pointer-events: none; /* Make it unclickable */
-    opacity: 0;
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  z-index: 100;
+  transition: background 0.5s ease, backdrop-filter 0.5s ease, opacity 0.5s ease;
+  pointer-events: none;
+  opacity: 0;
 }
 
-/* When in focus mode, fade in the dimmer */
 body.focus-mode::before {
-    background: rgba(0, 0, 0, 0.3); /* Dim to 30% black */
-    backdrop-filter: blur(5px); /* Add a 5px blur */
-    opacity: 1;
-}	
-		
-		
-		
-		
-		
-		/* --- NEW: Orb Speaking Animations --- */
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(5px);
+  opacity: 1;
+}
 
-/* A more rapid pulse for the central dot when speaking */
+/* ========================================
+   KEYFRAME ANIMATIONS
+   ======================================== */
+@keyframes float {
+  0%   { transform: translateY(0px) translateX(0px) rotate(0deg); }
+  20%  { transform: translateY(-15px) translateX(8px) rotate(2deg); }
+  40%  { transform: translateY(-10px) translateX(-10px) rotate(-3deg); }
+  60%  { transform: translateY(-18px) translateX(5px) rotate(1deg); }
+  80%  { transform: translateY(-10px) translateX(-5px) rotate(-1deg); }
+  100% { transform: translateY(0px) translateX(0px) rotate(0deg); }
+}
+
+@keyframes pulse-shadow {
+  0%, 100% { box-shadow: 0 0 20px var(--accent), inset 0 0 10px rgba(255,255,255,0.2), inset 0 0 30px rgba(0,0,0,0.3); }
+  50% { box-shadow: 0 0 45px var(--accent), inset 0 0 20px rgba(255,255,255,0.4), inset 0 0 60px rgba(0,0,0,0.6); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 15px rgba(255, 255, 255, 0.7); }
+  50% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 25px rgba(255, 255, 255, 1); }
+}
+
+@keyframes pulse-light {
+  0% { transform: scale(0.5); opacity: 0; }
+  80% { opacity: 0.5; }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+
+@keyframes ripple-glow {
+  0% { opacity: 0.1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 0.1; }
+}
+
+@keyframes shine-wipe {
+  0% { background-position: 200% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@keyframes water-warp {
+  0%, 100% { transform: scale(1, 1) rotate(0deg); }
+  25% { transform: scale(1.1, 0.9) rotate(3deg); }
+  50% { transform: scale(1, 1) rotate(0deg); }
+  75% { transform: scale(0.9, 1.1) rotate(-3deg); }
+}
+
 @keyframes speak-pulse-dot {
-    0%, 100% { 
-        transform: translate(-50%, -50%) scale(1.1); 
-        box-shadow: 0 0 25px rgba(255, 255, 255, 1); 
-    }
-    50% { 
-        transform: translate(-50%, -50%) scale(1.3); 
-        box-shadow: 0 0 35px rgba(255, 255, 255, 1); 
-    }
+  0%, 100% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 25px rgba(255,255,255,1); }
+  50% { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 35px rgba(255,255,255,1); }
 }
 
-/* A faster, stronger ripple for the outer glow when speaking */
 @keyframes speak-ripple-glow {
-    0% { opacity: 0.3; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(1.05); }
-    100% { opacity: 0.3; transform: scale(1); }
+  0% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+  100% { opacity: 0.3; transform: scale(1); }
 }
 
-/* We'll reuse the existing 'pulse-light' (ring) and 'shine-wipe' animations */
-		
-		
-		
-		
-		
-		
-		
-		/* Container for all the orb parts */
-.ai-orb-visuals {
-    width: 140px; /* Bigger orb */
-    height: 140px; /* Bigger orb */
-    position: absolute;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    
-    /* Initially hidden */
-    opacity: 0;
-    transform: scale(0);
-    transition: opacity 0.3s 0.1s ease, transform 0.3s 0.1s ease;
-
-    /* MODIFIED: Faster, "crazier" wobble */
-    animation: water-warp 6s ease-in-out infinite; 
+@keyframes thinking-ripple-glow {
+  0% { opacity: 0.6; transform: scale(1); }
+  15% { opacity: 0.2; transform: scale(0.95); }
+  30% { opacity: 0.8; transform: scale(1.05); }
+  100% { opacity: 0.6; transform: scale(1); }
 }
 
-/* --- CLICKED "LIVE" STATE (MODIFIED) --- */
-.go-live-toggle.live {
-    width: 140px; 
-    height: 140px;
-    border-radius: 50%;
-    background: radial-gradient(circle, var(--accent) 20%, var(--accent-hover) 100%);
-    
-    /* MODIFIED: Faster 5s float and 3s pulse */
-    animation: float 5s ease-in-out infinite,
-               pulse-shadow 3s ease-in-out infinite;
-    
-    /* NEW: Smooth transition for the shadow */
-    transition: box-shadow 0.5s ease-in-out;
+@keyframes thinking-pulse-light {
+  0% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+  100% { transform: scale(1) rotate(360deg); opacity: 0.8; }
 }
-
-/* --- NEW: Orb Speaking State --- */
-
-/* When .speaking is added, make the main shadow pulse faster */
-.go-live-toggle.live.speaking {
-    /* MODIFIED: Using new 5s float and a faster 1.5s pulse */
-    animation: float 5s ease-in-out infinite, 
-               pulse-shadow 1.5s ease-in-out infinite; 
-}
-		
-		
 		
 		
 		
@@ -2657,6 +2549,26 @@ body.focus-mode::before {
             </div>
         </div>
     </div>
+	
+	
+	
+	
+	
+	
+	<div id="camera-modal" class="modal-container hidden">
+        <div class="modal-content" style="max-width: 800px; padding: 0.5rem; background-color: #000;">
+            <video id="camera-view" style="width: 100%; height: auto; border-radius: 8px;" autoplay playsinline></video>
+            <canvas id="camera-canvas" class="hidden"></canvas>
+
+            <div id="camera-countdown" class="hidden" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 15rem; color: white; font-weight: bold; -webkit-text-stroke: 4px black; opacity: 0.8;"></div>
+            <div class="modal-actions" style="justify-content: center; gap: 1rem; padding-top: 0.5rem;">
+                <button id="camera-cancel-btn" style="background-color: #555;">Cancel</button>
+                <button id="capture-btn" style="background-color: var(--accent);">Capture Photo</button>
+            </div>
+        </div>
+    </div>
+	
+	
 
     <div id="levelup-animation" class="fixed inset-0 bg-black bg-opacity-50 z-[1006] hidden items-center justify-center" style="display: none;">
         <div class="text-center text-white p-8 rounded-lg" style="background: radial-gradient(circle, var(--accent), var(--accent-hover));">
@@ -2838,6 +2750,23 @@ body.focus-mode::before {
         const levelupLevel = document.getElementById('levelup-level');
 		
 		
+		
+		
+		// ===== START: NEW CAMERA VARS =====
+        const cameraModal = document.getElementById('camera-modal');
+        const cameraView = document.getElementById('camera-view');
+        const cameraCanvas = document.getElementById('camera-canvas');
+        const captureBtn = document.getElementById('capture-btn');
+        const cameraCancelBtn = document.getElementById('camera-cancel-btn');
+        let cameraStream = null; // To hold the active stream
+        // ===== END: NEW CAMERA VARS =====
+		
+		// ===== START: NEW SCAN VARS =====
+        const cameraCountdown = document.getElementById('camera-countdown');
+        let autoScanPrompt = null;
+        // ===== END: NEW SCAN VARS =====
+		
+		
 		const menuOptionExportAll = document.getElementById('menu-option-export-all');
         const importDataBtn = document.getElementById('import-data-btn');
         const importFileInput = document.getElementById('import-file-input');
@@ -2935,6 +2864,13 @@ body.focus-mode::before {
         const REVIEW_COMMANDS = ["weekly review", "give me my weekly review", "review my week"];
         const IDEA_BOARD_COMMANDS = ["create a new brainstorming board called", "create a new idea board called", "new board called"];
 		
+		// ===== START: NEW CAMERA COMMAND =====
+        const CAMERA_COMMANDS = ["open camera", "take a picture", "show me what you see", "capture this"];
+        // ===== END: NEW CAMERA COMMAND =====
+		
+		// ===== START: NEW SCAN COMMAND =====
+        const SCAN_COMMANDS = ["scan this", "analyze my surroundings", "what do you see", "look at this"];
+        // ===== END: NEW SCAN COMMAND =====
 		
         const SYNTHESIS_COMMANDS = ["analyze", "find connections between", "what are the main themes in", "find themes in", "run a synthesis on"];
         
@@ -3625,7 +3561,35 @@ body.focus-mode::before {
         });
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        // --- TTS and Voice Management ---
+ let voiceLoadAttempts = 0;
+const MAX_VOICE_ATTEMPTS = 5; // We will try 5 times (for 5 seconds)
+
+function attemptToLoadVoices() {
+    // Only log if we haven't loaded them yet
+    if (!voicesLoaded) {
+        console.log(`Voice Load Attempt #${voiceLoadAttempts + 1}`);
+    }
+    
+    // Call your existing function to check for voices
+    populateVoiceList(); 
+
+    // If it's still not loaded (found 0 voices), and we haven't given up...
+    if (!voicesLoaded && voiceLoadAttempts < MAX_VOICE_ATTEMPTS) {
+        voiceLoadAttempts++;
+        setTimeout(attemptToLoadVoices, 1000); // Wait 1 second and try again
+    } else if (voicesLoaded) {
+        console.log("Voices successfully loaded on attempt.", voiceLoadAttempts + 1);
+        voiceLoadAttempts = 0; // Reset for next time
+    } else if (voiceLoadAttempts >= MAX_VOICE_ATTEMPTS) {
+        console.error("Max voice load attempts reached. Giving up.");
+        voiceLoadAttempts = 0; // Reset for next time
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+	  // --- TTS and Voice Management ---
+		
+		
       // --- THIS IS THE FIXED FUNCTION ---
 function populateVoiceList() {
     // --- MODIFICATION: Only check for SpeechSynthesis support here ---
@@ -3684,7 +3648,7 @@ function populateVoiceList() {
 		
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // --- Web Audio API for Visual Indicator ---
-        async function setupAudioProcessing(stream) {
+        async function setupAudioProcessing() {
             try {
                // const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -3855,7 +3819,7 @@ function populateVoiceList() {
         recognition.start();
     }
 	
-	///runSynthesis
+	
     
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     function stopListening(isLiveMode = false) { 
@@ -3973,15 +3937,55 @@ function populateVoiceList() {
             }
             return '';
         }
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // --- Core Chat Logic ---
         async function handleMessage(message, source) {
-            if (!message.trim() && !window.uploadedFileObject) return; // MODIFIED: Allow sending if only a file is attached
+            if (!message.trim() && !window.uploadedFileObject) return; // Allow sending if only a file is attached
             
-			userActivatedAudio = true; // <-- MOVED THIS LINE UP
-            textInput.value = ''; // <-- MOVED THIS LINE UP
-			
-			  // --- START MODIFICATION ---
+			userActivatedAudio = true; 
+            textInput.value = ''; 
+            
+            const normalizedMessage = message.toLowerCase().trim();
+
+            // --- FIX: ALL COMMANDS THAT SHOULD *NOT* POST A USER MESSAGE FIRST GO HERE ---
+
+            const scanTrigger = SCAN_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
+            if (scanTrigger) {
+                // This logic determines the *actual* prompt to be sent with the image
+                let prompt = message; // Default to the full message, e.g., "scan this document for keywords"
+                if (SCAN_COMMANDS.includes(normalizedMessage)) { 
+                    // If it's an exact, short command like "what do you see" or "scan this"
+                    prompt = "Please describe what you see in this image."; // Use a clear, default prompt
+                }
+                autoScanPrompt = prompt; // Set the global prompt
+                openCamera(true); // Open camera for auto-scan
+                return; // Return *before* adding the "what do you see" message to the chat
+            }
+            
+            // ===== START: NEW CAMERA COMMAND CHECK =====
+            // ===== START: MODIFIED CAMERA/SCAN COMMANDS =====
+            const cameraTrigger = CAMERA_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
+            if (cameraTrigger) {
+                // This is just a manual "open camera"
+                autoScanPrompt = null; // Ensure it's null
+                openCamera(false); // Pass 'false' for manual
+                return; // Return *before* adding the "open camera" message to the chat
+            }
+            // ===== END: MODIFIED CAMERA/SCAN COMMANDS =====
+            // ===== END: NEW CAMERA COMMAND CHECK =====
+
+            // --- IF IT'S NOT A SCAN COMMAND, *NOW* WE ADD THE USER MESSAGE TO THE CHAT ---
+            
             // Create a temporary attachment object to display, if a file is present
             let attachmentForDisplay = null;
             if (uploadedFileContent && window.uploadedFileObject) {
@@ -3992,10 +3996,12 @@ function populateVoiceList() {
             }
             
             // Display the user's message and attachment immediately
+            // This is the *only* place a user message should be added.
+            // The auto-scan will call handleMessage again, and *that* call will run this line.
             addMessageToChat(message, 'user', false, true, attachmentForDisplay);
-            // --- END MODIFICATION ---
+            // --- END OF CHAT ADDITION ---
 						
-            const normalizedMessage = message.toLowerCase().trim();
+            // --- CHECK FOR ALL *OTHER* COMMANDS (that should return after posting) ---
 
             const briefingTrigger = BRIEFING_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
             if (briefingTrigger) {
@@ -4008,8 +4014,6 @@ function populateVoiceList() {
                 triggerWeeklyReview();
                 return;
             }
-			
-			
 			
 			// --- THIS IS THE NEW BLOCK TO ADD ---
             const synthesisTrigger = SYNTHESIS_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
@@ -4026,16 +4030,7 @@ function populateVoiceList() {
                 }
                 return; // Stop here, don't send to standard chat
             }
-            // --- END OF NEW BLOCK ---
-			
-			
-			
-			
-			
-			
-			
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////			
- /////////////////// //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
             // Handle "remember that" command
             if (REMEMBER_COMMANDS.find(c => normalizedMessage.startsWith(c))) {
                 const command = REMEMBER_COMMANDS.find(c => normalizedMessage.startsWith(c));
@@ -4051,13 +4046,7 @@ function populateVoiceList() {
                   //  addMessageToChat(message, 'user');
                     addMessageToChat("What would you like me to remember? Just say 'remember that' followed by the fact.", 'helen');
                 }
-				
-				
-				
                 return;
-				
-				
-				
             }
 
             // Handle preference commands
@@ -4075,13 +4064,7 @@ function populateVoiceList() {
                    // addMessageToChat(message, 'user');
                     addMessageToChat("What is it that you like? Please tell me!", 'helen');
                 }
-				
-				
-				
                 return;
-				
-				
-				
             }
 
             // Handle people commands
@@ -4107,14 +4090,7 @@ function populateVoiceList() {
                   //  addMessageToChat(message, 'user');
                     addMessageToChat("Who are you referring to?", 'helen');
                 }
-				
-				
-				
-				
                 return;
-				
-				
-				
             }
 
             // Handle goal commands
@@ -4139,14 +4115,7 @@ function populateVoiceList() {
                    // addMessageToChat(message, 'user');
                     addMessageToChat("What goal are you setting for yourself?", 'helen');
                 }
-				
-				
-				
-				
                 return;
-				
-				
-				
             }
 
             // Handle journal commands
@@ -4171,14 +4140,7 @@ function populateVoiceList() {
                   //  addMessageToChat(message, 'user');
                     addMessageToChat("What would you like to add to your journal?", 'helen');
                 }
-				
-				
-				
-				
                 return;
-				
-				
-				
             }
 
             // Handle knowledge base commands
@@ -4196,14 +4158,7 @@ function populateVoiceList() {
                   //  addMessageToChat(message, 'user');
                     addMessageToChat("What would you like to add to your knowledge base?", 'helen');
                 }
-				
-				
-				
-				
                 return;
-				
-				
-				
             }
 
             // Handle Idea Board command
@@ -4231,38 +4186,32 @@ function populateVoiceList() {
                    // addMessageToChat(message, 'user');
                     addMessageToChat("What would you like to name the new board?", 'helen');
                 }
-				
-				
-				
-				
                 return;
-				
-				
             }
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////           
             if (normalizedMessage === BROWSER_BACK_COMMAND) {
-                addMessageToChat(message, 'user');
+                // addMessageToChat(message, 'user'); // Already added
                 addMessageToChat("Going back to the previous page.", 'helen');
                 window.history.back();
                 return;
             }
 
             if (normalizedMessage === BROWSER_FORWARD_COMMAND) {
-                addMessageToChat(message, 'user');
+                // addMessageToChat(message, 'user'); // Already added
                 addMessageToChat("Going forward to the next page.", 'helen');
                 window.history.forward();
                 return;
             }
 
             if (normalizedMessage === BROWSER_SCROLL_DOWN_COMMAND) {
-                addMessageToChat(message, 'user');
+                // addMessageToChat(message, 'user'); // Already added
                 addMessageToChat("Scrolling down.", 'helen');
                 window.scrollBy(0, window.innerHeight / 2);
                 return;
             }
 
             if (normalizedMessage === BROWSER_SCROLL_UP_COMMAND) {
-                addMessageToChat(message, 'user');
+                // addMessageToChat(message, 'user'); // Already added
                 addMessageToChat("Scrolling up.", 'helen');
                 window.scrollBy(0, -window.innerHeight / 2);
                 return;
@@ -4272,18 +4221,18 @@ function populateVoiceList() {
                 const command = BROWSER_GOTO_COMMANDS.find(c => normalizedMessage.startsWith(c));
                 const website = message.substring(command.length).trim().replace(/\s/g, '');
                 if (website) {
-                    addMessageToChat(message, 'user');
+                    // addMessageToChat(message, 'user'); // Already added
                     addMessageToChat(`Navigating to ${website}`, 'helen');
                     window.open(`https://${website}`, '_blank');
                 } else {
-                    addMessageToChat(message, 'user');
+                    // addMessageToChat(message, 'user'); // Already added
                     addMessageToChat("Please specify a website to go to, for example: 'go to google.com'", 'helen');
                 }
                 return;
             }
 
             if (OPEN_WHATSAPP_COMMANDS.find(c => normalizedMessage.includes(c))) {
-                addMessageToChat(message, 'user');
+                // addMessageToChat(message, 'user'); // Already added
                 addMessageToChat(`Opening WhatsApp Web for you now.`, 'helen');
                 window.open("https://web.whatsapp.com/", "_blank");
                 textInput.value = '';
@@ -4294,25 +4243,27 @@ function populateVoiceList() {
                 const command = SEARCH_COMMANDS.find(c => normalizedMessage.startsWith(c));
                 const query = message.substring(command.length).trim();
                 if (query) {
-                    addMessageToChat(message, 'user');
+                    // addMessageToChat(message, 'user'); // Already added
                     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
                     window.open(googleSearchUrl, "_blank");
                     addMessageToChat(`Searching Google for "${query}".`, 'helen');
                 } else {
-                    addMessageToChat(message, 'user');
+                    // addMessageToChat(message, 'user'); // Already added
                     addMessageToChat(`What would you like me to search for? Please say "search this" followed by your query.`, 'helen');
                 }
                 textInput.value = '';
                 return;
             }
 
-           // addMessageToChat(message, 'user');
+           // --- IF NO COMMANDS MATCHED, IT'S A NORMAL CHAT. PROCEED TO API ---
             addPoints(10);
             textInput.value = '';
             userActivatedAudio = true;
             
             const avatar = document.querySelector('.centered-image'); // Define avatar first
             avatar.classList.add('thinking'); // Start the 'thinking' pulse
+			
+			goLiveBtn.classList.add('thinking'); // <-- 1. ADD THIS LINE
 
             const typingIndicatorDiv = document.createElement('div');
             typingIndicatorDiv.classList.add('helen-message', 'typing-indicator');
@@ -4322,14 +4273,14 @@ function populateVoiceList() {
 			
 			
 			if (!GEMINI_API_KEY) {
-        chatDisplay.removeChild(typingIndicatorDiv);
-        avatar.classList.remove('thinking');
-        addMessageToChat(
-            "I'm missing my API key. Please go to the **Settings** menu (??) to add your Google Gemini API key.", 
-            'helen', 
-            true
-        );
-        return; // Stop the function
+                chatDisplay.removeChild(typingIndicatorDiv);
+                avatar.classList.remove('thinking');
+                addMessageToChat(
+                    "I'm missing my API key. Please go to the **Settings** menu (??) to add your Google Gemini API key.", 
+                    'helen', 
+                    true
+                );
+                return; // Stop the function
             }
 			
 			
@@ -4406,24 +4357,40 @@ function populateVoiceList() {
 				
                 const result = await response.json();
     
-    chatDisplay.removeChild(typingIndicatorDiv);
-    // This line was missing, now it's here.
-    avatar.classList.remove('thinking'); // <<< FIX for the successful case
+                chatDisplay.removeChild(typingIndicatorDiv);
+                // This line was missing, now it's here.
+                avatar.classList.remove('thinking'); // <<< FIX for the successful case
+                goLiveBtn.classList.remove('thinking'); // <-- **ADD THIS LINE**
 
-    if (!response.ok || !result.candidates || result.candidates.length === 0) {
-        throw new Error(result.error?.message || 'API call failed with no error message.');
-    }
+                if (!response.ok || !result.candidates || result.candidates.length === 0) {
+                    // Check for a specific "blocked" error
+                    if (result.candidates && result.candidates[0].finishReason === 'SAFETY') {
+                        throw new Error('The response was blocked due to safety settings.');
+                    }
+                    throw new Error(result.error?.message || 'API call failed with no error message.');
+                }
 
-    const geminiResponse = result.candidates[0].content.parts[0].text;
-    addMessageToChat(geminiResponse, 'helen');
-    
-} catch (error) {
-    console.error('Error fetching from Gemini API:', error);
-    chatDisplay.removeChild(typingIndicatorDiv);
-    avatar.classList.remove('thinking'); // This part you already fixed correctly.
-    addMessageToChat(`Sorry, I'm having trouble connecting right now. Please try again later.`, 'helen', true);
-}
+                const geminiResponse = result.candidates[0].content.parts[0].text;
+                addMessageToChat(geminiResponse, 'helen');
+                
+            } catch (error) {
+                console.error('Error fetching from Gemini API:', error);
+                chatDisplay.removeChild(typingIndicatorDiv);
+                avatar.classList.remove('thinking'); // This part you already fixed correctly.
+                goLiveBtn.classList.remove('thinking'); // <-- **ADD THIS LINE**
+                
+                let errorMessage = "Sorry, I'm having trouble connecting right now. Please try again later.";
+                if (error.message.includes('safety')) {
+                    errorMessage = "I'm sorry, I can't provide a response to that.";
+                } else if (error.message.includes('API key')) {
+                     errorMessage = "My API key seems to be invalid. Please check it in the settings.";
+                }
+                
+                addMessageToChat(errorMessage, 'helen', true);
+            }
         }
+		
+		
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////       
         function saveCurrentChat() {
             if (chatHistory.length > 0) {
@@ -4879,8 +4846,12 @@ runSynthesisBtn.addEventListener('click', () => {
         goals: goals.map(g => ({ title: g.title, todos: g.todos.map(t => t.text) })),
         preferences: preferences.map(p => p.content),
         memories: memories.map(m => m.content)
-    };
-}
+    };  
+  }
+ 
+
+
+
 	///////////////////////////////////////////////////////////////////////////	
 		async function runSynthesis(userRequest) {
     // Let the user know you're working on it
@@ -4951,6 +4922,108 @@ runSynthesisBtn.addEventListener('click', () => {
     }
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////		
+		
+		
+		// ===== START: MODIFIED openCamera FUNCTION =====
+async function openCamera(isAutoScan = false) { // <-- Modified signature
+    hideAllSidebars();
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        cameraView.srcObject = cameraStream;
+        
+        // Use 'onloadedmetadata' to ensure video is ready before playing/capturing
+        cameraView.onloadedmetadata = () => {
+            cameraView.play();
+            cameraModal.classList.remove('hidden');
+
+            if (isAutoScan) {
+                // Start the countdown
+                cameraCountdown.classList.remove('hidden');
+                cameraCountdown.textContent = '3';
+                setTimeout(() => { cameraCountdown.textContent = '2'; }, 1000);
+                setTimeout(() => { cameraCountdown.textContent = '1'; }, 2000);
+                setTimeout(() => {
+                    cameraCountdown.textContent = '';
+                    cameraCountdown.classList.add('hidden');
+                    captureImage(); // Automatically capture after 3s
+                }, 3000);
+            }
+        };
+
+    } catch (err) {
+        console.error("Error accessing camera:", err);
+        if (err.name === "NotAllowedError") {
+            addMessageToChat("It looks like you've denied camera permission. You'll need to enable it in your browser settings to use this feature.", 'helen', true);
+        } else {
+            addMessageToChat("Sorry, I couldn't access your camera. Make sure it's not being used by another app.", 'helen', true);
+        }
+    }
+}
+// ===== END: MODIFIED openCamera FUNCTION =====
+
+function closeCamera() {
+    if (cameraStream) {
+        // Stop all tracks in the stream
+        cameraStream.getTracks().forEach(track => track.stop());
+    }
+    cameraView.srcObject = null;
+    cameraStream = null;
+    cameraModal.classList.add('hidden');
+}
+
+// ===== START: MODIFIED captureImage FUNCTION =====
+function captureImage() {
+    // Set canvas dimensions to match the video
+    const videoWidth = cameraView.videoWidth;
+    const videoHeight = cameraView.videoHeight;
+    cameraCanvas.width = videoWidth;
+    cameraCanvas.height = videoHeight;
+
+    const context = cameraCanvas.getContext('2d');
+    
+    // Flip the canvas context horizontally to match the mirrored video
+    context.translate(videoWidth, 0);
+    context.scale(-1, 1);
+    
+    // Draw the current video frame onto the canvas
+    context.drawImage(cameraView, 0, 0, videoWidth, videoHeight);
+
+    // Get the image as a Base64 data URL
+    const imageData = cameraCanvas.toDataURL('image/jpeg');
+
+    // --- Attach the image to the chat input ---
+    uploadedFileContent = imageData;
+    // We create a "fake" file object for the system to process
+    window.uploadedFileObject = { 
+        type: 'image/jpeg', 
+        name: `webcam-capture-${Date.now()}.jpg` 
+    };
+    
+    fileStatusIndicator.textContent = `File: ${window.uploadedFileObject.name}`;
+    fileStatusContainer.classList.remove('hidden');
+
+    // Close the camera
+    closeCamera();
+    
+    // --- START: NEW AUTO-SEND LOGIC ---
+    if (autoScanPrompt) {
+        // This was an auto-scan, so send the message
+        showNotification("Capture successful! Sending to Helen...", "success");
+        handleMessage(autoScanPrompt, 'text'); // Send with the stored prompt
+        autoScanPrompt = null; // Reset the flag
+    } else {
+        // This was a manual capture, just notify
+        showNotification("Image captured! Now, what would you like me to do with it?", "success");
+        textInput.focus();
+    }
+    // --- END: NEW AUTO-SEND LOGIC ---
+}
+// ===== END: MODIFIED captureImage FUNCTION =====
+		
+		
+		
+		
+		
 		
 		
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5024,6 +5097,7 @@ menuOptionSettings.addEventListener('click', () => {
     // This is crucial for mobile, where voices may only load
     // after a user interaction (like this click).
     populateVoiceList(); 
+	attemptToLoadVoices(); // <-- CHANGE THIS LINE
     // --- END OF FIX ---
 
     setTimeout(() => {
@@ -5627,6 +5701,13 @@ menuOptionSettings.addEventListener('click', () => {
             // A proper save would find the original timestamp, this is a simplification
             saveData(getUserKey(JOURNAL_KEY), journal);
         }
+
+
+        // ===== START: NEW CAMERA LISTENERS =====
+        captureBtn.addEventListener('click', captureImage);
+        cameraCancelBtn.addEventListener('click', closeCamera);
+        // ===== END: NEW CAMERA LISTENERS =====
+
 
         // --- Knowledge Base Logic ---
         function loadKnowledge() {
@@ -7005,7 +7086,6 @@ cards.push({ id: cardId, text: text, tagColor: tagColor });
     </script>
 </body>
 </html>
-
 
 
 
