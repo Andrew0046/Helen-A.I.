@@ -4942,6 +4942,19 @@ runSynthesisBtn.addEventListener('click', () => {
 async function openCamera(isAutoScan = false) { // <-- Modified signature
     hideAllSidebars();
     
+	
+	// --- NEW FIX: Pause recognition ---
+    if (isListening) {
+        console.log("Camera opening, pausing recognition.");
+        // We just stop it. 'onend' will fire, see `isListening = false`, 
+        // but `shouldBeListening` (the flag for Live Mode) is still true.
+        recognition.stop(); 
+    }
+    // --- END FIX ---
+	
+	
+	
+	
     // --- NEW: Load the preferred camera ID from settings ---
     const preferredCameraId = loadData(getUserKey(CAMERA_PREFERENCE_KEY), '');
     
@@ -5003,7 +5016,8 @@ function closeCamera() {
 }
 
 // ===== START: MODIFIED captureImage FUNCTION =====
-function captureImage() {
+// ===== START: MODIFIED captureImage FUNCTION =====
+async function captureImage() { // --- ADD 'async' ---
     // Set canvas dimensions to match the video
     const videoWidth = cameraView.videoWidth;
     const videoHeight = cameraView.videoHeight;
@@ -5036,19 +5050,28 @@ function captureImage() {
     // Close the camera
     closeCamera();
     
-    // --- START: NEW AUTO-SEND LOGIC ---
+    // --- START: MODIFIED AUTO-SEND LOGIC ---
     if (autoScanPrompt) {
         // This was an auto-scan, so send the message
         showNotification("Capture successful! Sending to Helen...", "success");
-        handleMessage(autoScanPrompt, 'text'); // Send with the stored prompt
+        await handleMessage(autoScanPrompt, 'text'); // --- ADD 'await' ---
         autoScanPrompt = null; // Reset the flag
     } else {
         // This was a manual capture, just notify
         showNotification("Image captured! Now, what would you like me to do with it?", "success");
         textInput.focus();
     }
-    // --- END: NEW AUTO-SEND LOGIC ---
+    
+    // --- NEW FIX: Restart recognition if it was in Live Mode ---
+    if (shouldBeListening && !isListening) {
+        console.log("Camera capture complete, restarting recognition.");
+        try {
+            recognition.start();
+        } catch(e) { console.error("Error restarting recognition after capture:", e); }
+    }
+    // --- END FIX ---
 }
+// ===== END: MODIFIED captureImage FUNCTION =====
 // ===== END: MODIFIED captureImage FUNCTION =====
 
 
@@ -5186,19 +5209,19 @@ async function populateCameraList() {
 		
 
         // --- THIS IS THE FIXED CODE ---
-menuOptionSettings.addEventListener('click', () => {
-    hideAllSidebars();
+        menuOptionSettings.addEventListener('click', () => {
+              hideAllSidebars();
     
-    // --- NEW FIX: Call this every time settings is opened ---
-    // This is crucial for mobile, where voices may only load
-    // after a user interaction (like this click).
-    populateVoiceList(); 
-	attemptToLoadVoices(); // <-- CHANGE THIS LINE
+        // --- NEW FIX: Call this every time settings is opened ---
+        // This is crucial for mobile, where voices may only load
+        // after a user interaction (like this click).
+            populateVoiceList(); 
+         	attemptToLoadVoices(); // <-- CHANGE THIS LINE
    
    
-   populateCameraList(); // --- ADD THIS LINE ---
+               populateCameraList(); // --- ADD THIS LINE ---
 
-   // --- END OF FIX ---
+                  // --- END OF FIX ---
 
     setTimeout(() => {
         // Load the saved key into the input field when settings are opened
@@ -5362,7 +5385,24 @@ menuOptionSettings.addEventListener('click', () => {
         });
 		
 		
-		
+		      // ===== START: NEW CAMERA LISTENERS =====
+        captureBtn.addEventListener('click', captureImage);
+        
+        // --- MODIFY THIS LISTENER ---
+        cameraCancelBtn.addEventListener('click', () => {
+            closeCamera(); // Close the modal
+            
+            // --- NEW FIX: Restart recognition if it was in Live Mode ---
+            if (shouldBeListening && !isListening) {
+                console.log("Camera cancelled, restarting recognition.");
+                try {
+                    recognition.start();
+                } catch(e) { console.error("Error restarting recognition after cancel:", e); }
+            }
+            // --- END FIX ---
+        });
+        // --- END OF MODIFICATION ---
+
 		
 		
 		
@@ -5824,10 +5864,6 @@ menuOptionSettings.addEventListener('click', () => {
         }
 
 
-        // ===== START: NEW CAMERA LISTENERS =====
-        captureBtn.addEventListener('click', captureImage);
-        cameraCancelBtn.addEventListener('click', closeCamera);
-        // ===== END: NEW CAMERA LISTENERS =====
 
 
         // --- Knowledge Base Logic ---
