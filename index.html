@@ -3746,8 +3746,9 @@ function populateVoiceList() {
         recognition = new SpeechRecognition();
         
         // This logic remains the same
-        recognition.continuous = !isMobileMicMode; // true for desktop, false for mobile
-        recognition.interimResults = true;
+        recognition.continuous = !isMobileMicMode && isLiveMode;
+       
+	   recognition.interimResults = true;
         recognition.lang = 'en-US';
 
         recognition.onstart = () => {
