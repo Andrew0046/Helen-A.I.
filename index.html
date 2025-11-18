@@ -12,8 +12,8 @@
  <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/xlsx.full.min.js"></script>
 <style>
-       /* ========================================
-   MODERN GLASS THEME - IMPROVED
+     /* ========================================
+   MODERN GLASS THEME - IMPROVED & MORE ANIMATED
    ======================================== */
 
 /* Import Fonts */
@@ -85,6 +85,12 @@ body {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    animation: fadeInBackground 1s ease-in-out;
+}
+
+@keyframes fadeInBackground {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .hidden {
@@ -108,6 +114,12 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
+    animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
 .landing-nav .logo-text {
@@ -122,11 +134,12 @@ body {
     padding: 0.5rem 1.5rem;
     border-radius: 8px;
     font-weight: 500;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
 #show-login-btn:hover {
     background-color: var(--accent-hover);
+    transform: scale(1.05);
 }
 
 .landing-section {
@@ -134,6 +147,12 @@ body {
     text-align: center;
     max-width: 1200px;
     margin: 0 auto;
+    animation: fadeInUp 0.8s ease-out;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 #about {
@@ -151,6 +170,13 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 1.5rem;
+    animation: gradientShift 5s ease infinite;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
 #about p {
@@ -170,7 +196,7 @@ body {
 }
 
 #discover-btn:hover {
-    transform: translateY(-3px);
+    transform: translateY(-3px) rotate(2deg);
     box-shadow: 0 10px 20px rgba(0,0,0,0.1);
 }
 
@@ -193,6 +219,12 @@ body {
     border-radius: 12px;
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-10px) rotate(1deg);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.1);
 }
 
 .feature-card .icon {
@@ -200,6 +232,12 @@ body {
     height: 48px;
     color: var(--accent);
     margin-bottom: 1rem;
+    animation: iconBounce 2s infinite;
+}
+
+@keyframes iconBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
 }
 
 .feature-card h3 {
@@ -229,6 +267,7 @@ body {
     color: var(--text-primary);
     margin-bottom: 2rem;
     min-height: 50px;
+    transition: opacity 0.5s ease;
 }
 
 #new-quote-btn {
@@ -237,11 +276,12 @@ body {
     padding: 0.5rem 1.5rem;
     border-radius: 8px;
     font-weight: 500;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
 #new-quote-btn:hover {
     background-color: var(--accent-hover);
+    transform: scale(1.05) rotate(3deg);
 }
 
 /* ========================================
@@ -281,7 +321,7 @@ body {
 }
 
 .centered-image:hover {
-    transform: scale(1.05);
+    transform: scale(1.05) rotate(2deg);
 }
 
 /* Image Animations - Improved smoothness */
@@ -339,6 +379,11 @@ body {
     box-shadow: var(--shadow);
     border: 1px solid var(--glass-border);
     z-index: 10;
+    transition: box-shadow 0.3s ease;
+}
+
+.input-container:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
 }
 
 #mic-button,
@@ -363,7 +408,7 @@ body {
 #menu-button:hover,
 #attachment-button:hover {
     background-color: var(--accent-hover);
-    transform: translateY(-2px);
+    transform: translateY(-2px) rotate(10deg);
 }
 
 #mic-button:active,
@@ -398,6 +443,13 @@ body {
 
 #mic-button.listening #audio-indicator {
     opacity: 1;
+    animation: pulseAudio 1s infinite;
+}
+
+@keyframes pulseAudio {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.2); }
+    100% { transform: translate(-50%, -50%) scale(1); }
 }
 
 /* ========================================
@@ -443,6 +495,11 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
+    transition: transform 0.3s ease;
+}
+
+.message:hover {
+    transform: scale(1.02);
 }
 
 .message .content {
@@ -455,6 +512,12 @@ body {
     border-radius: 8px;
     border: 1px solid var(--border);
     background-color: var(--bg-secondary);
+    animation: fadeInAttachment 0.5s ease;
+}
+
+@keyframes fadeInAttachment {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 .message-attachment img {
@@ -592,7 +655,7 @@ body {
 }
 
 .manager-close-btn:hover {
-    transform: rotate(90deg);
+    transform: rotate(90deg) scale(1.1);
 }
 
 #menu-options {
@@ -631,7 +694,7 @@ body {
 }
 
 .menu-option:hover {
-    transform: translateY(-2px);
+    transform: translateY(-2px) rotate(1deg);
     background-color: var(--bg-secondary);
 }
 
@@ -639,11 +702,6 @@ body {
     width: 20px;
     height: 20px;
     color: var(--accent);
-}
-
-.menu-option span {
-    font-weight: 500;
-    color: var(--text-primary);
 }
 
 /* List Styles - Consolidated */
@@ -661,15 +719,12 @@ body {
     border-radius: 8px;
     padding: 12px;
     box-shadow: var(--shadow);
-}
-
-.past-chat-item .chat-title, .goal-item-title, .journal-entry-title, .idea-board-item .board-title {
-    font-weight: 600;
-    cursor: pointer;
+    transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .past-chat-item:hover, .idea-board-item:hover {
     background: var(--bg-secondary);
+    transform: scale(1.03);
 }
 
 .note-item p, .reminder-item p, .past-chat-item .chat-title, .journal-entry-content {
@@ -709,12 +764,13 @@ body {
     border-radius: 8px;
     font-size: 0.85rem;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .note-item-actions button:hover, .reminder-item-actions button:hover, #add-new-note-btn:hover, .past-chat-actions button:hover, #add-new-memory-btn:hover, #add-new-preference-btn:hover, #add-new-person-btn:hover, #add-new-goal-btn:hover, .goal-item-actions button:hover, #add-new-journal-entry-btn:hover, .journal-entry-actions button:hover, #add-new-knowledge-btn:hover, #add-new-routine-btn:hover, .email-actions button:hover, #add-new-habit-btn:hover, #add-new-idea-board-btn:hover, .idea-board-actions button:hover, .review-item-actions button:hover {
     background: var(--accent);
     color: white;
+    transform: scale(1.1);
 }
 
 .note-item p[contenteditable="true"], .journal-entry-content[contenteditable="true"] {
@@ -766,6 +822,12 @@ body {
     box-shadow: var(--shadow);
     width: 90%;
     max-width: 500px;
+    animation: modalPop 0.4s ease-out;
+}
+
+@keyframes modalPop {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
 }
 
 .modal-content h3 {
@@ -785,6 +847,11 @@ body {
     color: var(--text-primary);
     background: var(--bg-secondary);
     resize: vertical;
+    transition: border-color 0.2s ease;
+}
+
+.modal-content textarea:focus {
+    border-color: var(--accent);
 }
 
 .modal-actions {
@@ -798,7 +865,7 @@ body {
     padding: 0.5rem 1.5rem;
     border-radius: 8px;
     font-weight: 500;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.3s ease;
     border: none;
 }
 
@@ -809,6 +876,7 @@ body {
 
 #modal-save-btn:hover {
     background-color: var(--accent-hover);
+    transform: scale(1.05);
 }
 
 #modal-cancel-btn {
@@ -818,6 +886,7 @@ body {
 
 #modal-cancel-btn:hover {
     background-color: var(--border);
+    transform: scale(1.05);
 }
 
 /* ========================================
@@ -835,6 +904,11 @@ body {
     padding: 12px;
     box-shadow: var(--shadow);
     margin-bottom: 16px;
+    transition: transform 0.3s ease;
+}
+
+.settings-section:hover {
+    transform: translateY(-5px);
 }
 
 .settings-section h3 {
@@ -853,6 +927,11 @@ body {
     font-size: 0.9rem;
     cursor: pointer;
     color: var(--text-primary);
+    transition: border-color 0.2s ease;
+}
+
+#voice-select:focus, #theme-toggle:focus, #persona-select:focus {
+    border-color: var(--accent);
 }
 
 #button-color-picker, #background-color-picker, #user-message-color-picker {
@@ -862,6 +941,11 @@ body {
     border: 1px solid var(--border);
     cursor: pointer;
     background: var(--bg-secondary);
+    transition: transform 0.2s ease;
+}
+
+#button-color-picker:hover, #background-color-picker:hover, #user-message-color-picker:hover {
+    transform: scale(1.05);
 }
 
 #clear-local-storage-btn, #logout-btn {
@@ -873,11 +957,12 @@ body {
     cursor: pointer;
     font-size: 0.9rem;
     width: 100%;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 #clear-local-storage-btn:hover, #logout-btn:hover {
     background: #b91c1c;
+    transform: scale(1.05);
 }
 
 /* ========================================
@@ -895,7 +980,7 @@ body {
     box-shadow: var(--shadow);
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease-in-out;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
     z-index: 1001;
     display: flex;
     align-items: center;
@@ -906,6 +991,7 @@ body {
 .notification-popup.show {
     opacity: 1;
     visibility: visible;
+    transform: translateX(-50%) translateY(-10px);
 }
 
 .notification-close-btn {
@@ -915,6 +1001,11 @@ body {
     font-size: 1.2rem;
     cursor: pointer;
     opacity: 0.7;
+    transition: transform 0.2s ease;
+}
+
+.notification-close-btn:hover {
+    transform: rotate(90deg);
 }
 
 .notification-popup.success { background: #22c55e; color: white; }
@@ -937,11 +1028,12 @@ body {
     color: var(--text-secondary);
     cursor: pointer;
     padding: 4px;
-    transition: color 0.2s ease;
+    transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .message-actions button:hover {
     color: var(--accent);
+    transform: scale(1.2);
 }
 
 .message-actions button svg {
@@ -976,6 +1068,7 @@ body {
     width: 100%;
     max-width: 900px;
     margin: 2rem;
+    animation: fadeInUp 0.6s ease-out;
 }
 
 .login-welcome {
@@ -1038,13 +1131,14 @@ body {
     border-radius: 8px;
     font-size: 1rem;
     color: var(--text-primary);
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, transform 0.2s;
 }
 
 .input-group input:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    transform: scale(1.02);
 }
 
 #login-submit-btn {
@@ -1057,11 +1151,12 @@ body {
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, transform 0.2s;
 }
 
 #login-submit-btn:hover {
     background-color: var(--accent-hover);
+    transform: scale(1.05);
 }
 
 .toggle-auth {
@@ -1075,10 +1170,12 @@ body {
     color: var(--accent);
     font-weight: 500;
     cursor: pointer;
+    transition: color 0.2s ease;
 }
 
 .toggle-auth .toggle-link:hover {
     text-decoration: underline;
+    color: var(--accent-hover);
 }
 
 /* ========================================
@@ -1102,6 +1199,11 @@ body {
     gap: 0.5rem;
     font-size: 0.85rem;
     padding: 0.25rem 0;
+    transition: transform 0.2s ease;
+}
+
+.todo-item:hover {
+    transform: translateX(5px);
 }
 
 .todo-item input[type="checkbox"] {
@@ -1120,10 +1222,12 @@ body {
     cursor: pointer;
     margin-left: auto;
     padding: 2px;
+    transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .todo-item .delete-todo-btn:hover {
     color: #dc2626;
+    transform: scale(1.2);
 }
 
 /* Level Status */
@@ -1159,6 +1263,13 @@ body {
     background-color: var(--accent);
     border-radius: 9999px;
     transition: width 0.5s ease;
+    animation: progressPulse 2s infinite;
+}
+
+@keyframes progressPulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
 }
 
 .badge-grid {
@@ -1172,6 +1283,11 @@ body {
     flex-direction: column;
     align-items: center;
     text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.badge:hover {
+    transform: scale(1.1) rotate(5deg);
 }
 
 .badge .icon {
@@ -1198,6 +1314,11 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    transition: transform 0.3s ease;
+}
+
+.habit-item:hover {
+    transform: translateY(-3px);
 }
 
 .habit-item input[type="checkbox"] {
@@ -1227,10 +1348,12 @@ body {
     color: var(--text-secondary);
     cursor: pointer;
     padding: 4px;
+    transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .habit-item .delete-habit-btn:hover {
     color: #dc2626;
+    transform: rotate(15deg);
 }
 
 /* ========================================
@@ -1282,6 +1405,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+#close-idea-hub-btn:hover {
+    transform: rotate(180deg);
 }
 
 #idea-board {
@@ -1302,6 +1430,11 @@ body {
     flex-direction: column;
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
+    transition: transform 0.3s ease;
+}
+
+.idea-column:hover {
+    transform: scale(1.02);
 }
 
 .idea-column-header {
@@ -1346,6 +1479,11 @@ body {
     border: 1px solid var(--border);
     cursor: grab;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease;
+}
+
+.idea-card:hover {
+    transform: translateY(-2px);
 }
 
 .idea-card.dragging {
@@ -1371,6 +1509,11 @@ body {
     padding: 4px 8px;
     font-size: 0.75rem;
     cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.idea-card-actions button:hover {
+    transform: scale(1.1);
 }
 
 .add-card-btn {
@@ -1382,6 +1525,12 @@ body {
     border-radius: 8px;
     cursor: pointer;
     color: var(--text-secondary);
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.add-card-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 #add-column-btn {
@@ -1393,6 +1542,11 @@ body {
     cursor: pointer;
     border: 2px dashed var(--border);
     color: var(--text-secondary);
+    transition: transform 0.3s ease;
+}
+
+#add-column-btn:hover {
+    transform: scale(1.05);
 }
 
 /* Idea Card Tags */
@@ -1414,6 +1568,11 @@ body {
     flex-shrink: 0;
     margin-top: 4px;
     border: 1px solid rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.idea-tag:hover {
+    transform: scale(1.3);
 }
 
 .tag-default { background-color: #d1d5db; }
@@ -1440,6 +1599,11 @@ body {
     flex-direction: column;
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
+    transition: transform 0.3s ease;
+}
+
+.roadmap-column:hover {
+    transform: scale(1.02);
 }
 
 .roadmap-column-header {
@@ -1464,6 +1628,11 @@ body {
     border: 1px solid var(--border);
     cursor: grab;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease;
+}
+
+.roadmap-goal-card:hover {
+    transform: translateY(-2px);
 }
 
 .roadmap-goal-card.dragging {
@@ -1475,6 +1644,7 @@ body {
    ======================================== */
 .review-item {
     border-left: 4px solid var(--text-secondary); /* Default border */
+    transition: border-left-color 0.3s ease;
 }
 
 .review-item.liked {
@@ -1517,6 +1687,7 @@ body {
 
 .go-live-toggle:hover {
     background-color: var(--accent-hover);
+    transform: scale(1.05);
 }
 
 .go-live-text {
@@ -1770,6 +1941,13 @@ body.focus-mode::before {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     border-radius: 4px;
+    animation: focusPulse 1s infinite;
+}
+
+@keyframes focusPulse {
+    0% { outline-color: var(--accent); }
+    50% { outline-color: transparent; }
+    100% { outline-color: var(--accent); }
 }
 
 #mic-button:focus-visible,
@@ -1790,6 +1968,12 @@ body.focus-mode::before {
     gap: 6px;
     box-shadow: var(--shadow);
     z-index: 10;
+    animation: popIn 0.3s ease-out;
+}
+
+@keyframes popIn {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
 }
 
 .color-swatch {
@@ -1802,7 +1986,7 @@ body.focus-mode::before {
 }
 
 .color-swatch:hover {
-    transform: scale(1.2);
+    transform: scale(1.2) rotate(10deg);
     border-color: var(--accent);
 }
 
@@ -1870,8 +2054,6 @@ body.focus-mode::before {
 #camera-view {
     transform: scaleX(-1); /* Mirror mode */
 }
-		
-		
 		
 		
 		
@@ -6394,7 +6576,7 @@ async function suggestNewIdea(columnId, buttonElement) {
             renderIdeaBoard(board);
         }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////        
-        function saveCurrentBoardState() {
+     function saveCurrentBoardState() {
             const boards = loadData(getUserKey(IDEA_BOARDS_KEY), []);
             const board = boards.find(b => b.id === currentIdeaBoardId);
             if (!board) return;
@@ -6402,27 +6584,35 @@ async function suggestNewIdea(columnId, buttonElement) {
             const newColumns = [];
             document.querySelectorAll('.idea-column').forEach(columnEl => {
                 const columnId = columnEl.dataset.columnId;
-                // CORRECT
                 const columnTitle = columnEl.querySelector('.idea-column-header span').textContent;
                 const cards = [];
+
+                // --- THIS IS THE CORRECTED PART ---
                 columnEl.querySelectorAll('.idea-card').forEach(cardEl => {
-                    cards.push({
-                        id: cardEl.dataset.cardId,
-                        text: cardEl.querySelector('p').textContent
-                    });
+                    const cardId = cardEl.dataset.cardId;
+                    const text = cardEl.querySelector('p').textContent;
+                    
+                    // All this logic must be INSIDE the loop
+                    const tag = cardEl.querySelector('.idea-tag');
+                    let tagColor = 'default'; // Default
+                    if (tag) {
+                        const colorClass = Array.from(tag.classList).find(c => c.startsWith('tag-') && c !== 'idea-tag');
+                        if (colorClass) {
+                            tagColor = colorClass.replace('tag-', ''); // e.g., 'red'
+                        }
+                    }
+                    // Add the complete card object to the cards array
+                    cards.push({ id: cardId, text: text, tagColor: tagColor });
                 });
-                // --- START FIX ---
-const tag = cardEl.querySelector('.idea-tag');
-let tagColor = 'default'; // Default
-if (tag) {
-    // Find the class that starts with 'tag-' but isn't 'idea-tag'
-    const colorClass = Array.from(tag.classList).find(c => c.startsWith('tag-') && c !== 'idea-tag');
-    if (colorClass) {
-        tagColor = colorClass.replace('tag-', ''); // e.g., 'red'
-    }
-}
-cards.push({ id: cardId, text: text, tagColor: tagColor });
+                // --- END OF FIX ---
+
+                newColumns.push({
+                    id: columnId,
+                    title: columnTitle,
+                    cards: cards
+                });
             });
+
             board.columns = newColumns;
             saveData(getUserKey(IDEA_BOARDS_KEY), boards);
         }
