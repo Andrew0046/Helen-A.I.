@@ -2054,6 +2054,31 @@ body.focus-mode::before {
 #camera-view {
     transform: scaleX(-1); /* Mirror mode */
 }
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////		
+		
+		
+		/* Styling for new Research Modal inputs */
+#research-topic-input, #research-questions-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    resize: vertical;
+    box-sizing: border-box; /* Ensures padding doesn't break layout */
+}
+
+#research-questions-input {
+    min-height: 100px;
+    font-family: inherit; /* Make textarea use the same font */
+    line-height: 1.5;
+}
+		
+		
 		
 		
 		
@@ -2234,7 +2259,22 @@ body.focus-mode::before {
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25a2.25 2.25 0 0 1-2.25 2.25h-2.25A2.25 2.25 0 0 1 13.5 8.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
                 </svg>
                 <span>Past Chats</span>			
-            </div>			
+            </div>
+
+
+
+                <div id="menu-option-research" class="menu-option">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="icon">
+             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+            </svg>
+             <span>Deep Research</span>
+                    </div>
+ 
+
+
+
+
+			
             <div id="menu-option-journal" class="menu-option">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="icon">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
@@ -2534,6 +2574,22 @@ body.focus-mode::before {
         <div id="idea-hub-list"></div>
     </div>
 	
+	
+	
+	<div id="research-manager" class="manager-sidebar">
+    <div id="research-manager-header" class="manager-header">
+        <span>Deep Research</span>
+        <button id="research-manager-close-btn" class="manager-close-btn" aria-label="Close research manager">&times;</button>
+    </div>
+    <div class="p-4">
+         <button id="add-new-research-btn" class="w-full">Start New Research Project</button>
+    </div>
+    <div id="research-list">
+        </div>
+</div>
+	
+	
+	
 	<div id="review-manager" class="manager-sidebar">
         <div id="review-manager-header" class="manager-header">
             <span>Review Center (Liked/Disliked)</span>
@@ -2720,6 +2776,28 @@ body.focus-mode::before {
             </div>
         </div>
     </div>
+	
+	
+	
+	
+	<div id="research-modal" class="modal-container hidden">
+    <div class="modal-content">
+        <h3 id="research-modal-title">Start New Research Project</h3>
+        
+        <label for="research-topic-input" class="block text-sm font-medium text-[var(--text-secondary)] mb-1">Topic:</label>
+        <input type="text" id="research-topic-input" class="w-full p-2 border rounded-md bg-[var(--bg-secondary)] border-[var(--border)] mb-4" placeholder="e.g., The History of Stoicism">
+        
+        <label for="research-questions-input" class="block text-sm font-medium text-[var(--text-secondary)] mb-1">Key Questions (Optional, one per line):</label>
+        <textarea id="research-questions-input" placeholder="e.g., Who were the key figures?&#10;What are its core principles?" class="w-full" rows="4"></textarea>
+        
+        <div class="modal-actions">
+            <button id="research-modal-cancel-btn">Cancel</button>
+            <button id="research-modal-start-btn">Start Research</button>
+        </div>
+    </div>
+</div>
+	
+	
 	
 	
 
@@ -2963,6 +3041,24 @@ body.focus-mode::before {
 		
 		
 		
+		
+		 // ... after const reviewList
+       const menuOptionResearch = document.getElementById('menu-option-research');
+       const researchManager = document.getElementById('research-manager');
+       const researchManagerCloseBtn = document.getElementById('research-manager-close-btn');
+       const addNewResearchBtn = document.getElementById('add-new-research-btn');
+       const researchList = document.getElementById('research-list');
+
+       const researchModal = document.getElementById('research-modal');
+       const researchModalTitle = document.getElementById('research-modal-title');
+       const researchTopicInput = document.getElementById('research-topic-input');
+       const researchQuestionsInput = document.getElementById('research-questions-input');
+       const researchModalCancelBtn = document.getElementById('research-modal-cancel-btn');
+       const researchModalStartBtn = document.getElementById('research-modal-start-btn');
+		
+		
+		
+		
           ////// /////////// ///////////// /////////////
 
         // --- Global Variables & Constants ---
@@ -3067,6 +3163,8 @@ body.focus-mode::before {
 		
         const HELEN_DIARY_KEY = 'helenDiary';
         
+		// ... after const REVIEW_KEY
+        const RESEARCH_KEY = 'helenResearch';
 		
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -5302,7 +5400,8 @@ async function populateCameraList() {
         }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////        
        function hideAllSidebars() {
-            ['menu-manager', 'past-chats-manager', 'notes-manager', 'reminders-manager', 'settings-manager', 'memory-manager', 'preferences-manager', 'people-manager', 'goals-manager', 'journal-manager', 'knowledge-manager', 'profile-manager', 'routines-manager', 'email-manager', 'habits-manager', 'idea-hub-manager', 'roadmap-manager', 'review-manager', 'helen-diary-manager'] // <-- ADD 'helen-diary-manager'
+            // ... add 'research-manager' to this list
+             ['menu-manager', 'past-chats-manager', 'notes-manager', 'reminders-manager', 'settings-manager', 'memory-manager', 'preferences-manager', 'people-manager', 'goals-manager', 'journal-manager', 'knowledge-manager', 'profile-manager', 'routines-manager', 'email-manager', 'habits-manager', 'idea-hub-manager', 'roadmap-manager', 'review-manager', 'helen-diary-manager', 'research-manager'] // <-- ADD 'helen-diary-manager'
             .forEach(id => {
                 document.getElementById(id).classList.remove('active');
             });
@@ -5546,6 +5645,41 @@ async function populateCameraList() {
         });
         // --- END OF MODIFICATION ---
 
+
+
+// --- ADD THESE NEW LISTENERS ---
+           menuOptionResearch.addEventListener('click', () => {
+             hideAllSidebars();
+                setTimeout(() => {
+                toggleSidebar('research-manager', true);
+        loadResearchProjects();
+    }, 300);
+       });
+         researchManagerCloseBtn.addEventListener('click', () => toggleSidebar('research-manager', false));
+
+         addNewResearchBtn.addEventListener('click', () => {
+    researchTopicInput.value = '';
+    researchQuestionsInput.value = '';
+    researchModal.classList.remove('hidden');
+       });
+
+           researchModalCancelBtn.addEventListener('click', () => {
+           researchModal.classList.add('hidden');
+           researchModalStartBtn.classList.remove('hidden'); // <-- Add this line
+		   
+		    
+});
+			researchModalStartBtn.addEventListener('click', () => {
+    hideAllSidebars(); // <-- This line hides the sidebar
+    runDeepResearch(); // This line starts the research
+});
+			
+            
+			 
+			 
+			 
+			 
+// --- END OF NEW LISTENERS ---
 		
 		
 		
@@ -7387,6 +7521,176 @@ async function suggestNewIdea(columnId, buttonElement) {
                 // Don't clear feedback, try again next time
             }
         }
+
+
+            function loadResearchProjects() {
+    const projects = loadData(getUserKey(RESEARCH_KEY), []);
+    researchList.innerHTML = '';
+    if (projects.length === 0) {
+        researchList.innerHTML = `<p class="p-4 text-[var(--text-secondary)]">No research projects yet. Start a new one!</p>`;
+        return;
+    }
+
+    projects.forEach(project => {
+        const projectItem = document.createElement('div');
+        projectItem.classList.add('note-item'); // Reuse note-item style
+        projectItem.innerHTML = `
+            <p style="font-weight: 600; font-size: 1.1em;">${project.topic}</p>
+            <span class="timestamp">${new Date(project.timestamp).toLocaleString()}</span>
+            <div class="note-item-actions">
+                <button class="view-research-btn">View</button>
+                <button class="delete-research-btn">Delete</button>
+            </div>
+        `;
+
+        projectItem.querySelector('.view-research-btn').addEventListener('click', () => {
+            // Open the report in the modal for viewing
+            researchModalTitle.textContent = "View Research: " + project.topic;
+            researchTopicInput.value = project.topic;
+            researchQuestionsInput.value = project.report; // Show the report in the textarea
+            researchModalStartBtn.classList.add('hidden'); // Hide start button
+            researchModal.classList.remove('hidden');
+        });
+
+        projectItem.querySelector('.delete-research-btn').addEventListener('click', () => {
+            if (confirm(`Are you sure you want to delete the research on "${project.topic}"?`)) {
+                let allProjects = loadData(getUserKey(RESEARCH_KEY), []);
+                allProjects = allProjects.filter(p => p.id !== project.id);
+                saveData(getUserKey(RESEARCH_KEY), allProjects);
+                loadResearchProjects();
+                showNotification("Research project deleted.", "success");
+            }
+        });
+        researchList.appendChild(projectItem);
+    });
+}
+/////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+/**
+ * Saves a new research project to localStorage.
+ */
+function saveResearchProject(projectData) {
+    const projects = loadData(getUserKey(RESEARCH_KEY), []);
+    projects.unshift(projectData);
+    saveData(getUserKey(RESEARCH_KEY), projects);
+}
+
+/**
+ * Main function to start the AI research process.
+ */
+/**
+ * Main function to start the AI research process.
+ */
+async function runDeepResearch() {
+
+
+
+// --- NEW FIX FOR SPEECH ---
+    // Add this line to tell Helen she is allowed to speak
+    userActivatedAudio = true; 
+    // --- END OF NEW FIX ---
+
+
+
+
+    const topic = researchTopicInput.value.trim();
+    const questions = researchQuestionsInput.value.trim();
+    if (!topic) {
+        showNotification("Please enter a research topic.", "error");
+        return;
+    }
+
+    // Close modal and show loading state
+    researchModal.classList.add('hidden');
+    addMessageToChat(`Starting deep research on: "${topic}"... This may take a moment.`, 'helen', false, false);
+
+    const typingIndicatorDiv = document.createElement('div');
+    typingIndicatorDiv.classList.add('helen-message', 'typing-indicator');
+    typingIndicatorDiv.innerHTML = '<span></span><span></span><span></span>';
+    chatDisplay.appendChild(typingIndicatorDiv);
+    chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+    try {
+        // *** IMPORTANT NOTE ***
+        // Your current script only calls the Gemini API. It does not have a tool
+        // to actually browse the web. A true "Deep Research" feature would first
+        // ask the AI to generate search queries, then use a Google Search API
+        // to get live results, and *then* feed those results back to the AI for
+        // synthesis.
+        //
+        // For now, we will SIMULATE this by asking the AI to generate a comprehensive
+        // report from its own vast knowledge. This is a powerful foundation.
+
+        let prompt = `You are a professional research assistant. Your user wants a detailed research report on the topic: "${topic}".`;
+
+        if (questions) {
+            prompt += `\n\nPlease focus on answering the following key questions:\n${questions}`;
+        }
+
+        prompt += `\n\nGenerate a comprehensive report in structured Markdown format. The report must include:
+        1.  **Executive Summary:** A concise 2-3 sentence overview.
+        2.  **Key Findings:** A bulleted list of the most important facts or conclusions.
+        3.  **Detailed Analysis:** In-depth sections addressing the main topic and each key question.
+        4.  **Sources:** A list of 5-10 *hypothetical* (but realistic-looking) source URLs for further reading.
+        `;
+
+        const payload = {
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            systemInstruction: {
+                role: "system",
+                parts: [{ text: SYSTEM_PROMPT }]
+            }
+        };
+
+        // --- FIX 1: Removed stray backslash ---
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        // --- FIX 2: Moved response.json() *before* the error check ---
+        const result = await response.json();
+        chatDisplay.removeChild(typingIndicatorDiv);
+
+        if (!response.ok) {
+            // Now we can safely use 'result' here
+            throw new Error(result.error?.message || 'API call failed.');
+        }
+
+        const reportMarkdown = result.candidates[0].content.parts[0].text;
+
+        // Save the new project
+        const newProject = {
+            // --- FIX 3: Removed stray backslash ---
+            id: `research_${Date.now()}`,
+            topic: topic,
+            questions: questions,
+            report: reportMarkdown,
+            timestamp: new Date().toISOString()
+        };
+        saveResearchProject(newProject);
+
+        // --- FIX 4: Removed stray backslash ---
+        // --- This is the new code ---
+        addMessageToChat(`Research on "${topic}" is complete! Here is the full report:`, 'helen');
+        addMessageToChat(reportMarkdown, 'helen'); // This line adds the report to the chat
+        //hideAllSidebars(); // <-- THIS IS THE NEW LINE TO ADD
+
+	   // --- End of new code ---
+
+        loadResearchProjects(); // Refresh the list
+
+    } catch (error) {
+        console.error('Deep Research Error:', error);
+        chatDisplay.removeChild(typingIndicatorDiv);
+        // --- FIX 5: Removed stray backslash ---
+        addMessageToChat(`I'm sorry, I encountered an error during the research on "${topic}". Please try again.`, 'helen', true);
+    }
+}
+
 
 
 
