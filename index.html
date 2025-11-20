@@ -3123,7 +3123,25 @@ body.focus-mode::before {
         const SCAN_COMMANDS = ["scan this", "analyze my surroundings", "what do you see", "look at this"];
         // ===== END: NEW SCAN COMMAND =====
 		
+		
+		// ... existing constants
+
+        // ===== VISION MODE VARIABLES =====
+        let isVisionMode = false; 
+        let visionTimeoutId = null; // Changed from IntervalId to TimeoutId
+        const VISION_SEQUENCE = [15000, 30000, 60000]; // The 15s -> 30s -> 60s sequence
+        const VISION_MODE_PROMPT = "What are the most notable things I am currently seeing? Speak conversationally and keep it brief.";
+        const VISION_OPEN_COMMAND = ["helen open eyes", "open your eyes", "start vision"];
+        const VISION_CLOSE_COMMAND = ["helen close eyes", "close your eyes", "stop vision"];
+        
+		
+		
+		
+		
         const SYNTHESIS_COMMANDS = ["analyze", "find connections between", "what are the main themes in", "find themes in", "run a synthesis on"];
+		
+		
+        
         
 		
 		
@@ -4205,16 +4223,30 @@ function populateVoiceList() {
 		
 		
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        // --- Core Chat Logic ---
+ // --- Core Chat Logic ---
         async function handleMessage(message, source) {
             if (!message.trim() && !window.uploadedFileObject) return; // Allow sending if only a file is attached
             
-			userActivatedAudio = true; 
+            userActivatedAudio = true; 
             textInput.value = ''; 
             
             const normalizedMessage = message.toLowerCase().trim();
 
             // --- FIX: ALL COMMANDS THAT SHOULD *NOT* POST A USER MESSAGE FIRST GO HERE ---
+
+            // --- NEW VISION COMMANDS ---
+            const visionOpenTrigger = VISION_OPEN_COMMAND.find(cmd => normalizedMessage.includes(cmd));
+            if (visionOpenTrigger) {
+                toggleVisionMode(true);
+                return; 
+            }
+
+            const visionCloseTrigger = VISION_CLOSE_COMMAND.find(cmd => normalizedMessage.includes(cmd));
+            if (visionCloseTrigger) {
+                toggleVisionMode(false);
+                return; 
+            }
+            // --- END NEW VISION COMMANDS ---
 
             const scanTrigger = SCAN_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
             if (scanTrigger) {
@@ -4229,7 +4261,6 @@ function populateVoiceList() {
                 return; // Return *before* adding the "what do you see" message to the chat
             }
             
-            // ===== START: NEW CAMERA COMMAND CHECK =====
             // ===== START: MODIFIED CAMERA/SCAN COMMANDS =====
             const cameraTrigger = CAMERA_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
             if (cameraTrigger) {
@@ -4239,7 +4270,6 @@ function populateVoiceList() {
                 return; // Return *before* adding the "open camera" message to the chat
             }
             // ===== END: MODIFIED CAMERA/SCAN COMMANDS =====
-            // ===== END: NEW CAMERA COMMAND CHECK =====
 
             // --- IF IT'S NOT A SCAN COMMAND, *NOW* WE ADD THE USER MESSAGE TO THE CHAT ---
             
@@ -4254,10 +4284,13 @@ function populateVoiceList() {
             
             // Display the user's message and attachment immediately
             // This is the *only* place a user message should be added.
-            // The auto-scan will call handleMessage again, and *that* call will run this line.
-            addMessageToChat(message, 'user', false, true, attachmentForDisplay);
+            
+            // --- MODIFIED: Skip displaying the user message if it came from the VISION loop
+            if (source !== 'vision') { // <-- NEW CHECK
+                addMessageToChat(message, 'user', false, true, attachmentForDisplay);
+            }
             // --- END OF CHAT ADDITION ---
-						
+                        
             // --- CHECK FOR ALL *OTHER* COMMANDS (that should return after posting) ---
 
             const briefingTrigger = BRIEFING_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
@@ -4271,8 +4304,8 @@ function populateVoiceList() {
                 triggerWeeklyReview();
                 return;
             }
-			
-			// --- THIS IS THE NEW BLOCK TO ADD ---
+            
+            // --- THIS IS THE NEW BLOCK TO ADD ---
             const synthesisTrigger = SYNTHESIS_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
             if (synthesisTrigger) {
                 // Extract the rest of the message as the synthesis prompt
@@ -4293,14 +4326,12 @@ function populateVoiceList() {
                 const command = REMEMBER_COMMANDS.find(c => normalizedMessage.startsWith(c));
                 const memoryContent = message.substring(command.length).trim();
                 if (memoryContent) {
-                   // addMessageToChat(message, 'user');
                     const memories = loadData(getUserKey(MEMORIES_KEY), []);
                     memories.unshift({ content: memoryContent, timestamp: new Date().toISOString() });
                     saveData(getUserKey(MEMORIES_KEY), memories);
                     addMessageToChat(`Got it, I'll remember that: "${memoryContent}"`, 'helen');
                     showNotification("New memory saved!", "success");
                 } else {
-                  //  addMessageToChat(message, 'user');
                     addMessageToChat("What would you like me to remember? Just say 'remember that' followed by the fact.", 'helen');
                 }
                 return;
@@ -4311,14 +4342,12 @@ function populateVoiceList() {
             if (preferenceTrigger) {
                 const preferenceContent = message.substring(preferenceTrigger.length).trim();
                 if (preferenceContent) {
-                   // addMessageToChat(message, 'user');
                     const preferences = loadData(getUserKey(PREFERENCES_KEY), []);
                     preferences.unshift({ content: preferenceContent, timestamp: new Date().toISOString() });
                     saveData(getUserKey(PREFERENCES_KEY), preferences);
                     addMessageToChat(`That's cool! I'll remember that you like ${preferenceContent}.`, 'helen');
                     showNotification("New preference saved!", "success");
                 } else {
-                   // addMessageToChat(message, 'user');
                     addMessageToChat("What is it that you like? Please tell me!", 'helen');
                 }
                 return;
@@ -4329,7 +4358,6 @@ function populateVoiceList() {
             if (peopleTrigger) {
                 const personContent = message.substring(peopleTrigger.length).trim();
                 if (personContent) {
-                    //addMessageToChat(message, 'user');
                     const people = loadData(getUserKey(PEOPLE_KEY), []);
                     const firstPersonBonusAwarded = loadData(getUserKey(BONUS_FIRST_PERSON_KEY), false);
                     const fullFact = `${peopleTrigger.replace("my ", "").replace("'s name is", "")} is ${personContent}`;
@@ -4344,7 +4372,6 @@ function populateVoiceList() {
                         saveData(getUserKey(BONUS_FIRST_PERSON_KEY), true);
                     }
                 } else {
-                  //  addMessageToChat(message, 'user');
                     addMessageToChat("Who are you referring to?", 'helen');
                 }
                 return;
@@ -4355,7 +4382,6 @@ function populateVoiceList() {
             if (goalTrigger) {
                 const goalContent = message.substring(goalTrigger.length).trim();
                 if (goalContent) {
-                    //addMessageToChat(message, 'user');
                     const goals = loadData(getUserKey(GOALS_KEY), []);
                     const firstGoalBonusAwarded = loadData(getUserKey(BONUS_FIRST_GOAL_KEY), false);
                     goals.unshift({ id: `goal_${Date.now()}`, title: goalContent, todos: [] });
@@ -4369,7 +4395,6 @@ function populateVoiceList() {
                         saveData(getUserKey(BONUS_FIRST_GOAL_KEY), true);
                     }
                 } else {
-                   // addMessageToChat(message, 'user');
                     addMessageToChat("What goal are you setting for yourself?", 'helen');
                 }
                 return;
@@ -4380,7 +4405,6 @@ function populateVoiceList() {
             if (journalTrigger) {
                 const journalContent = message.substring(journalTrigger.length).trim();
                 if (journalContent) {
-                  //  addMessageToChat(message, 'user');
                     const journal = loadData(getUserKey(JOURNAL_KEY), []);
                     const firstJournalBonusAwarded = loadData(getUserKey(BONUS_FIRST_JOURNAL_KEY), false);
                     journal.unshift({ id: `journal_${Date.now()}`, content: journalContent, timestamp: new Date().toISOString() });
@@ -4394,7 +4418,6 @@ function populateVoiceList() {
                         saveData(getUserKey(BONUS_FIRST_JOURNAL_KEY), true);
                     }
                 } else {
-                  //  addMessageToChat(message, 'user');
                     addMessageToChat("What would you like to add to your journal?", 'helen');
                 }
                 return;
@@ -4405,14 +4428,12 @@ function populateVoiceList() {
             if (knowledgeTrigger) {
                 const knowledgeContent = message.substring(knowledgeTrigger.length).trim();
                 if (knowledgeContent) {
-                   // addMessageToChat(message, 'user');
                     const knowledge = loadData(getUserKey(KNOWLEDGE_KEY), []);
-                    knowledge.unshift({ id: `knowledge_${Date.now()}`, content: knowledgeContent, timestamp: new Date().toISOString() });
+                    knowledge.unshift({ id: `knowledge_${Date.now()}`, content: knowledgeContent.trim(), timestamp: new Date().toISOString() });
                     saveData(getUserKey(KNOWLEDGE_KEY), knowledge);
                     addMessageToChat(`Interesting! I've added that to your knowledge base.`, 'helen');
                     showNotification("New fact added to knowledge base!", "success");
                 } else {
-                  //  addMessageToChat(message, 'user');
                     addMessageToChat("What would you like to add to your knowledge base?", 'helen');
                 }
                 return;
@@ -4423,7 +4444,6 @@ function populateVoiceList() {
             if (ideaBoardTrigger) {
                 const boardName = message.substring(ideaBoardTrigger.length).trim();
                 if (boardName) {
-                 //   addMessageToChat(message, 'user');
                     const newBoard = {
                         id: `board_${Date.now()}`,
                         title: boardName,
@@ -4440,35 +4460,30 @@ function populateVoiceList() {
                     addMessageToChat(`Okay, I've created a new brainstorming board called "${boardName}". You can find it in the Idea Hub.`, 'helen');
                     showNotification("New idea board created!", "success");
                 } else {
-                   // addMessageToChat(message, 'user');
                     addMessageToChat("What would you like to name the new board?", 'helen');
                 }
                 return;
             }
- /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////           
+            
             if (normalizedMessage === BROWSER_BACK_COMMAND) {
-                // addMessageToChat(message, 'user'); // Already added
                 addMessageToChat("Going back to the previous page.", 'helen');
                 window.history.back();
                 return;
             }
 
             if (normalizedMessage === BROWSER_FORWARD_COMMAND) {
-                // addMessageToChat(message, 'user'); // Already added
                 addMessageToChat("Going forward to the next page.", 'helen');
                 window.history.forward();
                 return;
             }
 
             if (normalizedMessage === BROWSER_SCROLL_DOWN_COMMAND) {
-                // addMessageToChat(message, 'user'); // Already added
                 addMessageToChat("Scrolling down.", 'helen');
                 window.scrollBy(0, window.innerHeight / 2);
                 return;
             }
 
             if (normalizedMessage === BROWSER_SCROLL_UP_COMMAND) {
-                // addMessageToChat(message, 'user'); // Already added
                 addMessageToChat("Scrolling up.", 'helen');
                 window.scrollBy(0, -window.innerHeight / 2);
                 return;
@@ -4478,18 +4493,15 @@ function populateVoiceList() {
                 const command = BROWSER_GOTO_COMMANDS.find(c => normalizedMessage.startsWith(c));
                 const website = message.substring(command.length).trim().replace(/\s/g, '');
                 if (website) {
-                    // addMessageToChat(message, 'user'); // Already added
                     addMessageToChat(`Navigating to ${website}`, 'helen');
                     window.open(`https://${website}`, '_blank');
                 } else {
-                    // addMessageToChat(message, 'user'); // Already added
                     addMessageToChat("Please specify a website to go to, for example: 'go to google.com'", 'helen');
                 }
                 return;
             }
 
             if (OPEN_WHATSAPP_COMMANDS.find(c => normalizedMessage.includes(c))) {
-                // addMessageToChat(message, 'user'); // Already added
                 addMessageToChat(`Opening WhatsApp Web for you now.`, 'helen');
                 window.open("https://web.whatsapp.com/", "_blank");
                 textInput.value = '';
@@ -4500,12 +4512,10 @@ function populateVoiceList() {
                 const command = SEARCH_COMMANDS.find(c => normalizedMessage.startsWith(c));
                 const query = message.substring(command.length).trim();
                 if (query) {
-                    // addMessageToChat(message, 'user'); // Already added
                     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
                     window.open(googleSearchUrl, "_blank");
                     addMessageToChat(`Searching Google for "${query}".`, 'helen');
                 } else {
-                    // addMessageToChat(message, 'user'); // Already added
                     addMessageToChat(`What would you like me to search for? Please say "search this" followed by your query.`, 'helen');
                 }
                 textInput.value = '';
@@ -4519,17 +4529,17 @@ function populateVoiceList() {
             
             const avatar = document.querySelector('.centered-image'); // Define avatar first
             avatar.classList.add('thinking'); // Start the 'thinking' pulse
-			
-			goLiveBtn.classList.add('thinking'); // <-- 1. ADD THIS LINE
+            
+            goLiveBtn.classList.add('thinking'); // <-- 1. ADD THIS LINE
 
             const typingIndicatorDiv = document.createElement('div');
             typingIndicatorDiv.classList.add('helen-message', 'typing-indicator');
             typingIndicatorDiv.innerHTML = '<span></span><span></span><span></span>';
             chatDisplay.appendChild(typingIndicatorDiv);
             chatDisplay.scrollTop = chatDisplay.scrollHeight;
-			
-			
-			if (!GEMINI_API_KEY) {
+            
+            
+            if (!GEMINI_API_KEY) {
                 chatDisplay.removeChild(typingIndicatorDiv);
                 avatar.classList.remove('thinking');
                 addMessageToChat(
@@ -4539,17 +4549,13 @@ function populateVoiceList() {
                 );
                 return; // Stop the function
             }
-			
-			
 
             try {
                 const context = getContextForMessage(message);
                 let tempApiHistory = JSON.parse(JSON.stringify(chatHistory));
                 const lastMessage = tempApiHistory[tempApiHistory.length - 1];
-				
-				
-				
-				// --- NEW: Load personality growth and add it to the system prompt ---
+                
+                // --- NEW: Load personality growth and add it to the system prompt ---
                 const growthInsights = loadData(getUserKey(PERSONALITY_GROWTH_KEY), []);
                 let finalSystemPrompt = SYSTEM_PROMPT; // This is her base persona
                 
@@ -4563,12 +4569,11 @@ function populateVoiceList() {
             [END LOG]`;
                 }
                 // --- END OF NEW BLOCK ---
-				
-				
 
                 // MODIFIED: This is the core logic for multimodal input
                 if (uploadedFileContent && window.uploadedFileObject) {
                     const file = window.uploadedFileObject;
+                    const isVisionModeCapture = isVisionMode; // Capture state at time of message handling
 
                     if (file.type.startsWith('image/')) {
                         // For images, construct a multi-part message
@@ -4586,16 +4591,26 @@ function populateVoiceList() {
                         const fileContextPrompt = `[START OF UPLOADED DOCUMENT]\n\n${uploadedFileContent}\n\n[END OF UPLOADED DOCUMENT]\n\nBased on the document provided above, please answer the following user prompt:\n\n`;
                         lastMessage.parts[0].text = fileContextPrompt + lastMessage.parts[0].text;
                     }
-                    // Clear the file after preparing the payload
-                    clearUploadedFile();
-                }
+                    
+                    // --- MODIFIED: Clear the file differently in Vision Mode ---
+                    if (!isVisionModeCapture) {
+                        clearUploadedFile(); // Clear ALL globals for non-vision modes
+                    } else {
+                        // In Vision Mode, only clear the Base64 content/status for the next cycle
+                        // The file object and stream MUST remain active.
+                        uploadedFileContent = null; 
+                        fileStatusContainer.classList.add('hidden');
+                        fileStatusIndicator.textContent = '';
+                        // Do NOT clear window.uploadedFileObject or fileInput.value
+                    }
+                } // <--- THIS BRACKET WAS MISSING
 
                 if (context && lastMessage.role === 'user') {
                     lastMessage.parts[0].text = context + lastMessage.parts[0].text;
                 }
 
                 const cleanedApiHistory = tempApiHistory.map(({ role, parts }) => ({ role, parts }));
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                
                 const payload = {
                     contents: cleanedApiHistory,
                      systemInstruction: {
@@ -4604,22 +4619,22 @@ function populateVoiceList() {
                     }
                 };
                 
-              const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
                 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-				
+                
                 const result = await response.json();
     
                 if (typingIndicatorDiv.parentNode === chatDisplay) {
                     chatDisplay.removeChild(typingIndicatorDiv);
                 }
-                // This line was missing, now it's here.
-                avatar.classList.remove('thinking'); // <<< FIX for the successful case
-                goLiveBtn.classList.remove('thinking'); // <-- **ADD THIS LINE**
+                
+                avatar.classList.remove('thinking'); 
+                goLiveBtn.classList.remove('thinking'); 
 
                 if (!response.ok || !result.candidates || result.candidates.length === 0) {
                     // Check for a specific "blocked" error
@@ -4635,10 +4650,10 @@ function populateVoiceList() {
             } catch (error) {
                 console.error('Error fetching from Gemini API:', error);
                 if (typingIndicatorDiv.parentNode === chatDisplay) {
-             chatDisplay.removeChild(typingIndicatorDiv);
-        }
-                avatar.classList.remove('thinking'); // This part you already fixed correctly.
-                goLiveBtn.classList.remove('thinking'); // <-- **ADD THIS LINE**
+                     chatDisplay.removeChild(typingIndicatorDiv);
+                }
+                avatar.classList.remove('thinking'); 
+                goLiveBtn.classList.remove('thinking'); 
                 
                 let errorMessage = "Sorry, I'm having trouble connecting right now. Please try again later.";
                 if (error.message.includes('safety')) {
@@ -5263,12 +5278,27 @@ function closeCamera() {
     }
     cameraView.srcObject = null;
     cameraStream = null;
-    cameraModal.classList.add('hidden');
+    cameraModal.classList.add('hidden'); // <-- ADDED THIS LINE
+    
+    // --- NEW FIX: Resume listening if Live Mode was on ---
+    if (shouldBeListening && !isListening) {
+        console.log("Camera closed, restarting recognition.");
+        try {
+            recognition.start();
+        } catch(e) { console.error("Error restarting recognition after camera closed:", e); }
+    }
+    // --- END FIX ---
 }
 
 // ===== START: MODIFIED captureImage FUNCTION =====
 // ===== START: MODIFIED captureImage FUNCTION =====
-async function captureImage() { // --- ADD 'async' ---
+async function captureImage(isVisionTask = false, visionPrompt = null) { // <-- MODIFIED SIGNATURE
+    // Check if the stream is active before capturing
+    if (!cameraStream) {
+        if (isVisionTask) toggleVisionMode(false); // Shut down if stream is unexpectedly gone
+        return;
+    }
+
     // Set canvas dimensions to match the video
     const videoWidth = cameraView.videoWidth;
     const videoHeight = cameraView.videoHeight;
@@ -5287,31 +5317,44 @@ async function captureImage() { // --- ADD 'async' ---
     // Get the image as a Base64 data URL
     const imageData = cameraCanvas.toDataURL('image/jpeg');
 
-    // --- Attach the image to the chat input ---
+    // --- Attach the image to the chat input (Temporary Globals) ---
     uploadedFileContent = imageData;
-    // We create a "fake" file object for the system to process
     window.uploadedFileObject = { 
         type: 'image/jpeg', 
-        name: `webcam-capture-${Date.now()}.jpg` 
+        name: isVisionTask ? `vision-capture-${Date.now()}.jpg` : `webcam-capture-${Date.now()}.jpg`
     };
-    
+
+    // --- VISION MODE ROUTING ---
+    if (isVisionTask) {
+        // In Vision Mode, we don't need to show the file status bar or close the camera
+        fileStatusContainer.classList.add('hidden');
+        await handleMessage(visionPrompt, 'vision'); // Send the conversational prompt
+        // Crucially, it does NOT close the camera!
+        return; // Exit the function
+    }
+    // --- END VISION MODE ROUTING ---
+
+
+    // --- STANDARD CAPTURE LOGIC (Manual/Auto-Scan) ---
+
+    // Display file status
     fileStatusIndicator.textContent = `File: ${window.uploadedFileObject.name}`;
     fileStatusContainer.classList.remove('hidden');
 
     // Close the camera
     closeCamera();
     
-    // --- START: MODIFIED AUTO-SEND LOGIC ---
+    // --- MODIFIED AUTO-SEND LOGIC ---
     if (autoScanPrompt) {
-        // This was an auto-scan, so send the message
         showNotification("Capture successful! Sending to Helen...", "success");
-        await handleMessage(autoScanPrompt, 'text'); // --- ADD 'await' ---
-        autoScanPrompt = null; // Reset the flag
+        await handleMessage(autoScanPrompt, 'text'); 
+        autoScanPrompt = null; 
     } else {
-        // This was a manual capture, just notify
         showNotification("Image captured! Now, what would you like me to do with it?", "success");
         textInput.focus();
     }
+}
+// ===== END: MODIFIED captureImage FUNCTION =====
     
     // --- NEW FIX: Restart recognition if it was in Live Mode ---
     if (shouldBeListening && !isListening) {
@@ -5321,7 +5364,7 @@ async function captureImage() { // --- ADD 'async' ---
         } catch(e) { console.error("Error restarting recognition after capture:", e); }
     }
     // --- END FIX ---
-}
+
 // ===== END: MODIFIED captureImage FUNCTION =====
 // ===== END: MODIFIED captureImage FUNCTION =====
 
@@ -5640,18 +5683,16 @@ async function populateCameraList() {
 		      // ===== START: NEW CAMERA LISTENERS =====
         captureBtn.addEventListener('click', captureImage);
         
-        // --- MODIFY THIS LISTENER ---
         cameraCancelBtn.addEventListener('click', () => {
-            closeCamera(); // Close the modal
-            
-            // --- NEW FIX: Restart recognition if it was in Live Mode ---
-            if (shouldBeListening && !isListening) {
-                console.log("Camera cancelled, restarting recognition.");
-                try {
-                    recognition.start();
-                } catch(e) { console.error("Error restarting recognition after cancel:", e); }
+            if (isVisionMode) {
+                toggleVisionMode(false); 
+                return;
             }
-            // --- END FIX ---
+            closeCamera(); 
+            
+            if (shouldBeListening && !isListening) {
+                try { recognition.start(); } catch(e) {}
+            }
         });
         // --- END OF MODIFICATION ---
 
@@ -7709,9 +7750,101 @@ async function runDeepResearch() {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// --- Vision Mode (Helen Open Eyes) Logic ---
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Replace your existing toggleVisionMode function with this one:
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// --- Vision Mode (Helen Open Eyes) - Progressive Timing ---
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+async function toggleVisionMode(state) {
+    if (state === isVisionMode) return; 
 
+    isVisionMode = state;
+    hideAllSidebars();
+    
+    const captureBtn = document.getElementById('capture-btn'); 
 
+    // UI/State Update
+    document.body.classList.toggle('focus-mode', state);
+    const avatar = document.querySelector('.centered-image');
+    avatar.classList.toggle('thinking', state);
+    goLiveBtn.classList.toggle('thinking', state);
+    
+    // --- DEACTIVATION LOGIC ---
+    if (!state) {
+        // Clear the timeout to stop the loop
+        if (visionTimeoutId) {
+            clearTimeout(visionTimeoutId);
+            visionTimeoutId = null;
+        }
+        
+        if (captureBtn) captureBtn.style.display = 'block'; 
+        closeCamera();
+        addMessageToChat("My eyes are closed now.", 'helen');
+        return;
+    }
+
+    // --- ACTIVATION LOGIC ---
+    addMessageToChat("I'm opening my eyes. I'll look around periodically.", 'helen');
+    
+    if (!isListening) startListening(true); // Auto-start microphone
+    if (captureBtn) captureBtn.style.display = 'none'; 
+    
+    const preferredCameraId = loadData(getUserKey(CAMERA_PREFERENCE_KEY), '');
+    const constraints = { video: { deviceId: preferredCameraId ? { exact: preferredCameraId } : undefined }, audio: false };
+    
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints); 
+        cameraView.srcObject = cameraStream;
+        
+        // KEEP CAMERA HIDDEN (Background Mode)
+        // cameraModal.classList.remove('hidden'); 
+
+        // --- INTERNAL FUNCTION FOR PROGRESSIVE TIMING ---
+        const scheduleNextLook = (stepIndex) => {
+            if (!isVisionMode) return;
+
+            // Get delay: Use the sequence [15, 30, 60], or stick to 60 (last item) if we exceed the array
+            const nextDelay = VISION_SEQUENCE[stepIndex] || VISION_SEQUENCE[VISION_SEQUENCE.length - 1];
+            
+            console.log(`Vision Mode: Next look in ${nextDelay / 1000} seconds (Step ${stepIndex})`);
+
+            visionTimeoutId = setTimeout(async () => {
+                if (!isVisionMode) return;
+                
+                await captureImage(true, VISION_MODE_PROMPT);
+                
+                // Recursively schedule the NEXT look, incrementing the step
+                scheduleNextLook(stepIndex + 1); 
+            }, nextDelay);
+        };
+
+        cameraView.onloadedmetadata = async () => {
+            cameraView.play();
+            
+            // 1. Warmup & First Look (Immediate)
+            setTimeout(async () => {
+                if(!isVisionMode) return;
+                await captureImage(true, VISION_MODE_PROMPT); 
+                
+                // 2. Start the Progressive Loop (Step 0 = 15s)
+                scheduleNextLook(0);
+            }, 1000);
+        };
+        
+    } catch (err) {
+        console.error("Error accessing camera for Vision Mode:", err);
+        addMessageToChat("I couldn't access your camera. Please check permissions.", 'helen', true);
+        isVisionMode = false; 
+        document.body.classList.remove('focus-mode');
+        avatar.classList.remove('thinking');
+        goLiveBtn.classList.remove('thinking');
+    }
+}
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
     </script>
 </body>
