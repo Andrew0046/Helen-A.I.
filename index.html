@@ -4249,7 +4249,8 @@ function populateVoiceList() {
             // --- END NEW VISION COMMANDS ---
 
             const scanTrigger = SCAN_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
-            if (scanTrigger) {
+           // ADDED CHECK: && !window.uploadedFileObject
+            if (scanTrigger && !window.uploadedFileObject) {
                 // This logic determines the *actual* prompt to be sent with the image
                 let prompt = message; // Default to the full message, e.g., "scan this document for keywords"
                 if (SCAN_COMMANDS.includes(normalizedMessage)) { 
@@ -4261,9 +4262,10 @@ function populateVoiceList() {
                 return; // Return *before* adding the "what do you see" message to the chat
             }
             
-            // ===== START: MODIFIED CAMERA/SCAN COMMANDS =====
+           // ===== START: MODIFIED CAMERA/SCAN COMMANDS =====
             const cameraTrigger = CAMERA_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
-            if (cameraTrigger) {
+            // ADDED CHECK: && !window.uploadedFileObject
+            if (cameraTrigger && !window.uploadedFileObject) {
                 // This is just a manual "open camera"
                 autoScanPrompt = null; // Ensure it's null
                 openCamera(false); // Pass 'false' for manual
