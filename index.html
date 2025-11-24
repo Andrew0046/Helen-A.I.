@@ -8088,16 +8088,15 @@ function initNetwork() {
 
 
 // ==========================================
-// CUSTOM WAKE WORD TRAINER (Transfer Learning)
+// CUSTOM WAKE WORD TRAINER (IndexedDB Fix)
 // ==========================================
 
 let transferRecognizer;
 let isTraining = false;
-let isWakeWordListening = false; // <--- Added this missing variable
+let isWakeWordListening = false;
 
 // 1. Open the Teacher Interface
 async function openTeacherMode() {
-    // Stop other listeners to free up mic
     if(typeof stopWakeWord === 'function') stopWakeWord();
     if(typeof stopListening === 'function' && isListening) stopListening();
 
@@ -8110,12 +8109,11 @@ async function openTeacherMode() {
         return;
     }
     
-    // Initialize the base model
     try {
         const baseRecognizer = speechCommands.create('BROWSER_FFT');
         await baseRecognizer.ensureModelLoaded();
         
-        // Create a new transfer learning instance named 'helen_wake_word'
+        // Create transfer learner
         transferRecognizer = baseRecognizer.createTransfer('helen_wake_word');
         
         showNotification("Teacher Mode Ready. Please record samples.", "info");
@@ -8136,7 +8134,6 @@ const countHelenSpan = document.getElementById('count-helen');
 const countNoiseSpan = document.getElementById('count-noise');
 const trainBtn = document.getElementById('train-btn');
 
-// Helper: Check if we have enough data to enable the "Train" button
 function checkTrainReady() {
     if (!transferRecognizer) return;
     
@@ -8146,7 +8143,6 @@ function checkTrainReady() {
     if(countHelenSpan) countHelenSpan.innerText = hCount;
     if(countNoiseSpan) countNoiseSpan.innerText = nCount;
 
-    // Require at least 20 samples of each for decent accuracy
     if (trainBtn && hCount >= 20 && nCount >= 20) {
         trainBtn.disabled = false;
         trainBtn.classList.add('animate-pulse');
@@ -8154,51 +8150,22 @@ function checkTrainReady() {
     }
 }
 
-// --- Button Event Listeners ---
-
-// Record "HELEN"
+// --- Button Listeners ---
 if (recHelenBtn) {
-    recHelenBtn.addEventListener('mousedown', () => {
-        if (transferRecognizer) transferRecognizer.collectExample('helen');
-    });
-    recHelenBtn.addEventListener('mouseup', async () => {
-        await new Promise(r => setTimeout(r, 100)); // Wait for collection
-        checkTrainReady();
-    });
-    // Touch support for mobile
-    recHelenBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        if (transferRecognizer) transferRecognizer.collectExample('helen');
-    });
-    recHelenBtn.addEventListener('touchend', async (e) => {
-        e.preventDefault();
-        await new Promise(r => setTimeout(r, 100));
-        checkTrainReady();
-    });
+    recHelenBtn.addEventListener('mousedown', () => transferRecognizer?.collectExample('helen'));
+    recHelenBtn.addEventListener('mouseup', async () => { await new Promise(r => setTimeout(r, 100)); checkTrainReady(); });
+    recHelenBtn.addEventListener('touchstart', (e) => { e.preventDefault(); transferRecognizer?.collectExample('helen'); });
+    recHelenBtn.addEventListener('touchend', async (e) => { e.preventDefault(); await new Promise(r => setTimeout(r, 100)); checkTrainReady(); });
 }
 
-// Record "NOISE"
 if (recNoiseBtn) {
-    recNoiseBtn.addEventListener('mousedown', () => {
-        if (transferRecognizer) transferRecognizer.collectExample('_background_noise_');
-    });
-    recNoiseBtn.addEventListener('mouseup', async () => {
-        await new Promise(r => setTimeout(r, 100));
-        checkTrainReady();
-    });
-     // Touch support for mobile
-    recNoiseBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        if (transferRecognizer) transferRecognizer.collectExample('_background_noise_');
-    });
-    recNoiseBtn.addEventListener('touchend', async (e) => {
-         e.preventDefault();
-        await new Promise(r => setTimeout(r, 100));
-        checkTrainReady();
-    });
+    recNoiseBtn.addEventListener('mousedown', () => transferRecognizer?.collectExample('_background_noise_'));
+    recNoiseBtn.addEventListener('mouseup', async () => { await new Promise(r => setTimeout(r, 100)); checkTrainReady(); });
+    recNoiseBtn.addEventListener('touchstart', (e) => { e.preventDefault(); transferRecognizer?.collectExample('_background_noise_'); });
+    recNoiseBtn.addEventListener('touchend', async (e) => { e.preventDefault(); await new Promise(r => setTimeout(r, 100)); checkTrainReady(); });
 }
 
-// 3. Train the Model
+// 3. Train and Save (Updated for IndexedDB)
 if (trainBtn) {
     trainBtn.addEventListener('click', async () => {
         if (isTraining || !transferRecognizer) return;
@@ -8207,7 +8174,7 @@ if (trainBtn) {
         
         try {
             await transferRecognizer.train({
-                epochs: 25, // Iterate 25 times
+                epochs: 25,
                 callback: {
                     onEpochEnd: async (epoch, logs) => {
                         const statusDiv = document.getElementById('training-status');
@@ -8216,21 +8183,21 @@ if (trainBtn) {
                 }
             });
             
-            trainBtn.innerText = "Training Complete!";
+            trainBtn.innerText = "Training Complete! Saving...";
             
-            // Save to LocalStorage so it persists after refresh
-            await transferRecognizer.save('localstorage://helen-model');
+            // --- FIX: Changed localstorage to indexeddb ---
+            await transferRecognizer.save('indexeddb://helen-model');
             
             showNotification("Helen has learned her name! Re-initializing...", "success");
             
             setTimeout(() => {
                 closeTeacherMode();
-                initCustomWakeWord(); // Start listening immediately
+                initCustomWakeWord();
             }, 1500);
 
         } catch (e) {
             console.error(e);
-            showNotification("Training failed. See console.", "error");
+            showNotification("Training failed: " + e.message, "error");
             trainBtn.innerText = "Error - Try Again";
             isTraining = false;
         }
@@ -8239,7 +8206,6 @@ if (trainBtn) {
 
 // 4. Main Function: Load & Listen
 async function initCustomWakeWord() {
-    // Avoid double-loading
     if (isWakeWordListening) return;
 
     console.log("Initializing Wake Word...");
@@ -8252,8 +8218,9 @@ async function initCustomWakeWord() {
         transferRecognizer = baseRecognizer.createTransfer('helen_wake_word');
         
         try {
-            await transferRecognizer.load('localstorage://helen-model');
-            console.log("Custom 'Helen' model loaded from storage!");
+            // --- FIX: Changed localstorage to indexeddb ---
+            await transferRecognizer.load('indexeddb://helen-model');
+            console.log("Custom 'Helen' model loaded from IndexedDB!");
             showNotification("Listening for 'Helen'...", "success");
         } catch (e) {
             console.log("No custom model found. Opening Trainer...");
@@ -8267,20 +8234,16 @@ async function initCustomWakeWord() {
             const helenIndex = words.indexOf('helen');
             const score = result.scores[helenIndex];
 
-            // console.log(`Helen Score: ${score.toFixed(2)}`); // Uncomment for debugging
-
-            if (score > 0.92) { // 92% confidence required
+            if (score > 0.92) { // 92% confidence
                 console.log(`HELEN DETECTED! (${score.toFixed(2)})`);
                 
                 if (!isListening) {
-                    // Visual Feedback
                     const audioInd = document.getElementById('audio-indicator');
                     if(audioInd) {
-                        audioInd.style.backgroundColor = '#0D9488'; // Teal Flash
+                        audioInd.style.backgroundColor = '#0D9488';
                         setTimeout(() => audioInd.style.backgroundColor = 'rgba(255,255,255,0.3)', 1000);
                     }
-                    
-                    // Trigger "I'm listening" mode
+                    // Wake up!
                     startListening(false);
                     speakText("Yes?");
                 }
@@ -8298,16 +8261,13 @@ async function initCustomWakeWord() {
     }
 }
 
-// --- FIXED STOP FUNCTION ---
 function stopWakeWord() {
-    // Use the correct variable name 'transferRecognizer'
     if (transferRecognizer && isWakeWordListening) {
         transferRecognizer.stopListening();
         isWakeWordListening = false;
         console.log("Wake Word Stopped.");
     }
 }
-
 
 
 
