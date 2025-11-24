@@ -8,6 +8,7 @@
   
 
   <link rel="icon" href="2pic.png" type="image/jpeg">
+  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands"></script>
@@ -3481,26 +3482,52 @@ body.focus-mode::before {
             return currentUser ? `${currentUser}_${baseKey}` : baseKey;
         }
 
-        function saveData(key, data) {
-            try {
-                localStorage.setItem(key, JSON.stringify(data));
-            } catch (e) {
-                console.error(`Error saving data for key "${key}":`, e);
-                showNotification(`Error: Could not save data for ${key}.`, 'error');
-            }
+       // --- UPDATED DATA MANAGEMENT WITH COMPRESSION ---
+
+function saveData(key, data) {
+    try {
+        // 1. Convert the data object to a string
+        const stringData = JSON.stringify(data);
+        
+        // 2. Compress the string into a specific UTF-16 format safe for localStorage
+        const compressed = LZString.compressToUTF16(stringData);
+        
+        // 3. Save it with a special marker so we know it's compressed
+        localStorage.setItem(key, "LZ_" + compressed);
+    } catch (e) {
+        console.error(`Error saving compressed data for key "${key}":`, e);
+        // Fallback: Try saving uncompressed if compression failed (rare)
+        try {
+            localStorage.setItem(key, JSON.stringify(data));
+        } catch (fullError) {
+             showNotification("Storage full! Please Export & Clear Data.", "error");
+        }
+    }
+}
+
+function loadData(key, defaultValue) {
+    try {
+        const rawData = localStorage.getItem(key);
+        
+        if (!rawData) return defaultValue;
+
+        // Check if the data starts with our "LZ_" marker
+        if (rawData.startsWith("LZ_")) {
+            // It is compressed! Remove the marker and decompress
+            const compressedContent = rawData.substring(3);
+            const decompressed = LZString.decompressFromUTF16(compressedContent);
+            return JSON.parse(decompressed);
         }
 
-        function loadData(key, defaultValue) {
-            try {
-                const data = localStorage.getItem(key);
-                return data ? JSON.parse(data) : defaultValue;
-            } catch (e) {
-                console.error(`Error loading data for key "${key}":`, e);
-                localStorage.removeItem(key);
-                showNotification(`Error: Corrupted data for ${key} removed.`, 'error');
-                return defaultValue;
-            }
-        }
+        // Backward Compatibility: If it has no marker, it's old uncompressed data.
+        // We load it normally. Next time we save, it will become compressed automatically.
+        return JSON.parse(rawData);
+
+    } catch (e) {
+        console.error(`Error loading data for key "${key}":`, e);
+        return defaultValue;
+    }
+}
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         function loadUserData() {
             allChatSessions = loadData(getUserKey(ALL_CHATS_KEY), []);
