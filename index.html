@@ -9,6 +9,9 @@
 
   <link rel="icon" href="2pic.png" type="image/jpeg">
 
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands"></script>
+
  <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/xlsx.full.min.js"></script>
 <style>
@@ -387,6 +390,7 @@ body {
 }
 
 #mic-button,
+#screen-button,
 #send-button,
 #menu-button,
 #attachment-button {
@@ -404,6 +408,7 @@ body {
 }
 
 #mic-button:hover,
+#screen-button:hover,
 #send-button:hover,
 #menu-button:hover,
 #attachment-button:hover {
@@ -412,6 +417,7 @@ body {
 }
 
 #mic-button:active,
+#screen-button:active,
 #send-button:active,
 #menu-button:active,
 #attachment-button:active {
@@ -420,6 +426,7 @@ body {
 }
 
 #mic-button svg,
+#screen-button svg,
 #send-button svg,
 #menu-button svg,
 #attachment-button svg {
@@ -1951,6 +1958,7 @@ body.focus-mode::before {
 }
 
 #mic-button:focus-visible,
+#screen-button:focus-visible,
 #send-button:focus-visible,
 #menu-button:focus-visible,
 #attachment-button:focus-visible {
@@ -2077,6 +2085,9 @@ body.focus-mode::before {
     font-family: inherit; /* Make textarea use the same font */
     line-height: 1.5;
 }
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
 		
 		
 		
@@ -2189,6 +2200,19 @@ body.focus-mode::before {
                     <div id="audio-indicator"></div>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2A4.004 4.004 0 0 0 8 6v6c0 2.21 1.79 4 4 4s4-1.79 4-4V6a4.004 4.004 0 0 0-4-4ZM18 10v2a6 6 0 0 1-12 0v-2H4v2a8 8 0 0 0 7 7.93V22h2v-2.07A8 8 0 0 0 20 12v-2h-2Z"/></svg>
                 </button>
+				
+				
+
+<button id="screen-button" title="Share Screen" aria-label="Share Screen">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+    </svg>
+</button>
+
+
+				
+				
+				
                 <button id="attachment-button" title="Attach a file" aria-label="Attach a file">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.122 2.122l7.81-7.81" /></svg>
                 </button>
@@ -2283,6 +2307,13 @@ body.focus-mode::before {
 </div>
  
 
+
+<div id="menu-option-wakeword" class="menu-option" onclick="initCustomWakeWord()">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="icon">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+    </svg>
+    <span>Enable "Helen" Wake Word</span>
+</div>
 
 
 
@@ -2829,6 +2860,41 @@ body.focus-mode::before {
 </div>
 
 
+
+
+<div id="teacher-interface" class="hidden fixed inset-0 z-[3000] bg-black/90 flex flex-col items-center justify-center text-white p-8 backdrop-blur-sm">
+    <div class="max-w-2xl w-full bg-[var(--bg-primary)] text-[var(--text-primary)] rounded-xl p-8 shadow-2xl border border-[var(--border)]">
+        <h2 class="text-3xl font-bold mb-6 text-[var(--accent)] text-center">Train Wake Word: "Helen"</h2>
+        
+        <div class="grid grid-cols-2 gap-6 mb-8">
+            <div class="p-6 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] flex flex-col items-center hover:scale-105 transition-transform">
+                <h3 class="font-bold mb-2 text-lg">Step 1: Say "Helen"</h3>
+                <p class="text-xs text-[var(--text-secondary)] mb-4 text-center">Click & HOLD to record.<br>Say "Helen" clearly.</p>
+                <button id="rec-helen-btn" class="w-20 h-20 rounded-full bg-blue-600 hover:bg-blue-500 flex items-center justify-center transition-all active:scale-90 shadow-lg border-4 border-blue-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="white" class="w-10 h-10"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
+                </button>
+                <p class="mt-4 text-2xl font-mono font-bold"><span id="count-helen" class="text-blue-500">0</span> / 20</p>
+            </div>
+
+            <div class="p-6 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] flex flex-col items-center hover:scale-105 transition-transform">
+                <h3 class="font-bold mb-2 text-lg">Step 2: Background</h3>
+                <p class="text-xs text-[var(--text-secondary)] mb-4 text-center">Click & HOLD to record.<br>Silence or room noise.</p>
+                <button id="rec-noise-btn" class="w-20 h-20 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all active:scale-90 shadow-lg border-4 border-red-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="white" class="w-10 h-10"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                </button>
+                <p class="mt-4 text-2xl font-mono font-bold"><span id="count-noise" class="text-red-500">0</span> / 20</p>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-4">
+            <button id="train-btn" class="w-full py-4 bg-[var(--accent)] text-white hover:opacity-90 rounded-lg font-bold text-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md" disabled>
+                Step 3: Train Helen
+            </button>
+            <div id="training-status" class="text-center text-sm text-[var(--text-secondary)] h-6 font-mono"></div>
+            <button onclick="closeTeacherMode()" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] mt-2 underline">Cancel / Close</button>
+        </div>
+    </div>
+</div>
 
 
 
@@ -4201,6 +4267,28 @@ function populateVoiceList() {
                     });
                 }
             }
+			
+			// --- SYSTEM SENSORS CONTEXT (Location + Battery + Network) ---
+    
+    // 1. Gather Data
+    const loc = currentLocationString || "Unknown Location";
+    const bat = window.batteryStatus || "Battery Unknown";
+    const net = window.networkStatus || "Network Unknown";
+    
+    // 2. Get Time
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateString = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+
+    // 3. Push to Helen's Context
+    contextPieces.push(`
+    [SYSTEM STATUS REPORT]
+    - Current Location: ${loc}
+    - Local Time: ${dateString}, ${timeString}
+    - Device Status: ${bat} | ${net}
+    `);
+			
+			
 
             if (contextPieces.length > 0) {
                 return `[AI CONTEXT BLOCK]\nYou have the following important context about the user:\n${contextPieces.join('\n')}\n[/AI CONTEXT BLOCK]\n\n`;
@@ -7819,6 +7907,407 @@ function downloadStringAsFile(filename, content) {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 }
+
+// ==========================================
+// SCREEN SHARING LOGIC
+// ==========================================
+
+const screenButton = document.getElementById('screen-button');
+
+screenButton.addEventListener('click', captureScreen);
+
+async function captureScreen() {
+    try {
+        // 1. Ask user to select a screen/window
+        const stream = await navigator.mediaDevices.getDisplayMedia({ 
+            video: { cursor: "always" }, // We want to see your mouse cursor
+            audio: false 
+        });
+
+        // 2. Create a hidden video element to play the stream
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        
+        // Wait for the video to actually load the screen data
+        video.onloadedmetadata = async () => {
+            await video.play();
+            
+            // 3. Create a canvas to snap the frame
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw the screen onto the canvas
+            ctx.drawImage(video, 0, 0);
+            
+            // 4. Stop the screen sharing immediately (Snapshot only)
+            stream.getTracks().forEach(track => track.stop());
+            
+            // 5. Convert to Image Data for Helen
+            const imageData = canvas.toDataURL('image/jpeg');
+            
+            // Set Global Variables
+            uploadedFileContent = imageData;
+            window.uploadedFileObject = { 
+                type: 'image/jpeg', 
+                name: 'screen-capture.jpg' 
+            };
+            
+            // 6. Trigger Helen
+            // We ask for a "Technical Analysis" since you usually share screens for bugs/design
+            const prompt = "I am sharing my screen with you. Analyze this screenshot. If it's code, look for errors. If it's a design, give feedback. If it's text, summarize it. Be helpful and technical.";
+            
+            // Show visual confirmation
+            showNotification("Screen captured! Analyzing...", "success");
+            
+            // Send to API (using 'vision' source to hide the big image bubble from chat)
+            await handleMessage(prompt, 'vision'); 
+        };
+
+    } catch (err) {
+        console.error("Screen Share Error:", err);
+        // Usually happens if user clicks "Cancel" on the browser prompt
+        showNotification("Screen share cancelled.", "info");
+    }
+}
+
+// ==========================================
+// GEOLOCATION & CONTEXT SYSTEM
+// ==========================================
+
+let currentLocationString = "Unknown Location";
+
+// Call this function automatically when the page loads
+window.addEventListener('load', () => {
+    initLocationSystem();
+});
+
+function initLocationSystem() {
+    if ("geolocation" in navigator) {
+        // We use 'getCurrentPosition' to save battery (instead of watching constantly)
+        navigator.geolocation.getCurrentPosition(successLocation, errorLocation);
+    } else {
+        console.log("Geolocation not supported");
+    }
+}
+
+async function successLocation(position) {
+    const lat = position.coords.latitude;
+    const lon = position.coords.longitude;
+    const accuracy = position.coords.accuracy; // Accuracy in meters
+
+    // 1. Basic Coordinates
+    console.log(`Got Location: ${lat}, ${lon} (Accuracy: ${accuracy}m)`);
+    
+    // 2. "Reverse Geocoding" - Turning numbers into a City Name
+    // We use the free OpenStreetMap API (Nominatim)
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+        const data = await response.json();
+        
+        // Extract the best readable address parts
+        const city = data.address.city || data.address.town || data.address.village || "Unknown City";
+        const country = data.address.country || "";
+        
+        // Update the global variable Helen reads
+        currentLocationString = `${city}, ${country}`;
+        
+        showNotification(`Location detected: ${currentLocationString}`, "info");
+        
+        // Optional: You can auto-update the SYSTEM_PROMPT here if you want it hard-coded,
+        // but usually, we just inject it into the message context.
+
+    } catch (error) {
+        console.error("Error finding city name:", error);
+        currentLocationString = `${lat.toFixed(2)}, ${lon.toFixed(2)}`; // Fallback to coords
+    }
+}
+
+function errorLocation(err) {
+    console.warn(`Location Error (${err.code}): ${err.message}`);
+    // If user denies permission, we just stay silent
+}
+
+
+// ==========================================
+// BATTERY & NETWORK SENSORS
+// ==========================================
+
+let systemStatusString = ""; // This holds the report for Helen
+
+// Start sensors on load
+window.addEventListener('load', () => {
+    initBattery();
+    initNetwork();
+});
+
+// 1. Battery Monitor
+async function initBattery() {
+    if ('getBattery' in navigator) {
+        try {
+            const battery = await navigator.getBattery();
+            
+            function updateBattery() {
+                const level = Math.round(battery.level * 100);
+                const charging = battery.charging ? "Charging ⚡" : "Discharging";
+                // Update the global string part 1
+                window.batteryStatus = `Battery: ${level}% (${charging})`; 
+            }
+            
+            updateBattery();
+            
+            // Listen for changes
+            battery.addEventListener('levelchange', updateBattery);
+            battery.addEventListener('chargingchange', updateBattery);
+            
+        } catch (e) {
+            console.log("Battery API error");
+        }
+    }
+}
+
+// 2. Network Monitor
+function initNetwork() {
+    if ('connection' in navigator) {
+        const conn = navigator.connection;
+        
+        function updateNetwork() {
+            const type = conn.effectiveType || "unknown"; // e.g., '4g'
+            const speed = conn.downlink || 0; // Mb/s
+            // Update the global string part 2
+            window.networkStatus = `Network: ${type.toUpperCase()} (~${speed} Mbps)`;
+        }
+        
+        updateNetwork();
+        conn.addEventListener('change', updateNetwork);
+    }
+}
+
+
+
+
+// ==========================================
+// CUSTOM WAKE WORD TRAINER (Transfer Learning)
+// ==========================================
+
+let transferRecognizer;
+let isTraining = false;
+let isWakeWordListening = false; // <--- Added this missing variable
+
+// 1. Open the Teacher Interface
+async function openTeacherMode() {
+    // Stop other listeners to free up mic
+    if(typeof stopWakeWord === 'function') stopWakeWord();
+    if(typeof stopListening === 'function' && isListening) stopListening();
+
+    const interfaceEl = document.getElementById('teacher-interface');
+    if (interfaceEl) {
+        interfaceEl.classList.remove('hidden');
+    } else {
+        console.error("Teacher Interface HTML element not found!");
+        showNotification("Error: Teacher Interface HTML missing.", "error");
+        return;
+    }
+    
+    // Initialize the base model
+    try {
+        const baseRecognizer = speechCommands.create('BROWSER_FFT');
+        await baseRecognizer.ensureModelLoaded();
+        
+        // Create a new transfer learning instance named 'helen_wake_word'
+        transferRecognizer = baseRecognizer.createTransfer('helen_wake_word');
+        
+        showNotification("Teacher Mode Ready. Please record samples.", "info");
+    } catch (e) {
+        console.error("Error loading speech-commands:", e);
+        showNotification("Error loading AI model. Check console.", "error");
+    }
+}
+
+function closeTeacherMode() {
+    document.getElementById('teacher-interface').classList.add('hidden');
+}
+
+// 2. Handle Recording Buttons
+const recHelenBtn = document.getElementById('rec-helen-btn');
+const recNoiseBtn = document.getElementById('rec-noise-btn');
+const countHelenSpan = document.getElementById('count-helen');
+const countNoiseSpan = document.getElementById('count-noise');
+const trainBtn = document.getElementById('train-btn');
+
+// Helper: Check if we have enough data to enable the "Train" button
+function checkTrainReady() {
+    if (!transferRecognizer) return;
+    
+    const hCount = transferRecognizer.countExamples()['helen'] || 0;
+    const nCount = transferRecognizer.countExamples()['_background_noise_'] || 0;
+    
+    if(countHelenSpan) countHelenSpan.innerText = hCount;
+    if(countNoiseSpan) countNoiseSpan.innerText = nCount;
+
+    // Require at least 20 samples of each for decent accuracy
+    if (trainBtn && hCount >= 20 && nCount >= 20) {
+        trainBtn.disabled = false;
+        trainBtn.classList.add('animate-pulse');
+        trainBtn.innerText = "Step 3: Train Helen (Ready!)";
+    }
+}
+
+// --- Button Event Listeners ---
+
+// Record "HELEN"
+if (recHelenBtn) {
+    recHelenBtn.addEventListener('mousedown', () => {
+        if (transferRecognizer) transferRecognizer.collectExample('helen');
+    });
+    recHelenBtn.addEventListener('mouseup', async () => {
+        await new Promise(r => setTimeout(r, 100)); // Wait for collection
+        checkTrainReady();
+    });
+    // Touch support for mobile
+    recHelenBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (transferRecognizer) transferRecognizer.collectExample('helen');
+    });
+    recHelenBtn.addEventListener('touchend', async (e) => {
+        e.preventDefault();
+        await new Promise(r => setTimeout(r, 100));
+        checkTrainReady();
+    });
+}
+
+// Record "NOISE"
+if (recNoiseBtn) {
+    recNoiseBtn.addEventListener('mousedown', () => {
+        if (transferRecognizer) transferRecognizer.collectExample('_background_noise_');
+    });
+    recNoiseBtn.addEventListener('mouseup', async () => {
+        await new Promise(r => setTimeout(r, 100));
+        checkTrainReady();
+    });
+     // Touch support for mobile
+    recNoiseBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (transferRecognizer) transferRecognizer.collectExample('_background_noise_');
+    });
+    recNoiseBtn.addEventListener('touchend', async (e) => {
+         e.preventDefault();
+        await new Promise(r => setTimeout(r, 100));
+        checkTrainReady();
+    });
+}
+
+// 3. Train the Model
+if (trainBtn) {
+    trainBtn.addEventListener('click', async () => {
+        if (isTraining || !transferRecognizer) return;
+        isTraining = true;
+        trainBtn.innerText = "Training... (Please Wait)";
+        
+        try {
+            await transferRecognizer.train({
+                epochs: 25, // Iterate 25 times
+                callback: {
+                    onEpochEnd: async (epoch, logs) => {
+                        const statusDiv = document.getElementById('training-status');
+                        if(statusDiv) statusDiv.innerText = `Epoch ${epoch}/25 - Loss: ${logs.loss.toFixed(5)}`;
+                    }
+                }
+            });
+            
+            trainBtn.innerText = "Training Complete!";
+            
+            // Save to LocalStorage so it persists after refresh
+            await transferRecognizer.save('localstorage://helen-model');
+            
+            showNotification("Helen has learned her name! Re-initializing...", "success");
+            
+            setTimeout(() => {
+                closeTeacherMode();
+                initCustomWakeWord(); // Start listening immediately
+            }, 1500);
+
+        } catch (e) {
+            console.error(e);
+            showNotification("Training failed. See console.", "error");
+            trainBtn.innerText = "Error - Try Again";
+            isTraining = false;
+        }
+    });
+}
+
+// 4. Main Function: Load & Listen
+async function initCustomWakeWord() {
+    // Avoid double-loading
+    if (isWakeWordListening) return;
+
+    console.log("Initializing Wake Word...");
+    showNotification("Initializing AI Model...", "info");
+
+    try {
+        const baseRecognizer = speechCommands.create('BROWSER_FFT');
+        await baseRecognizer.ensureModelLoaded();
+        
+        transferRecognizer = baseRecognizer.createTransfer('helen_wake_word');
+        
+        try {
+            await transferRecognizer.load('localstorage://helen-model');
+            console.log("Custom 'Helen' model loaded from storage!");
+            showNotification("Listening for 'Helen'...", "success");
+        } catch (e) {
+            console.log("No custom model found. Opening Trainer...");
+            showNotification("No voice model found. Opening Trainer...", "info");
+            openTeacherMode();
+            return;
+        }
+
+        transferRecognizer.listen(result => {
+            const words = transferRecognizer.wordLabels();
+            const helenIndex = words.indexOf('helen');
+            const score = result.scores[helenIndex];
+
+            // console.log(`Helen Score: ${score.toFixed(2)}`); // Uncomment for debugging
+
+            if (score > 0.92) { // 92% confidence required
+                console.log(`HELEN DETECTED! (${score.toFixed(2)})`);
+                
+                if (!isListening) {
+                    // Visual Feedback
+                    const audioInd = document.getElementById('audio-indicator');
+                    if(audioInd) {
+                        audioInd.style.backgroundColor = '#0D9488'; // Teal Flash
+                        setTimeout(() => audioInd.style.backgroundColor = 'rgba(255,255,255,0.3)', 1000);
+                    }
+                    
+                    // Trigger "I'm listening" mode
+                    startListening(false);
+                    speakText("Yes?");
+                }
+            }
+        }, { 
+            probabilityThreshold: 0.75,
+            overlapFactor: 0.5 
+        });
+        
+        isWakeWordListening = true;
+
+    } catch (err) {
+        console.error("Custom Wake Word Error:", err);
+        showNotification("Error loading AI: " + err.message, "error");
+    }
+}
+
+// --- FIXED STOP FUNCTION ---
+function stopWakeWord() {
+    // Use the correct variable name 'transferRecognizer'
+    if (transferRecognizer && isWakeWordListening) {
+        transferRecognizer.stopListening();
+        isWakeWordListening = false;
+        console.log("Wake Word Stopped.");
+    }
+}
+
 
 
 
