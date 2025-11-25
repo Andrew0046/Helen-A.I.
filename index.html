@@ -3189,6 +3189,15 @@ body.focus-mode::before {
 
         // ===== VISION MODE VARIABLES =====
         let isVisionMode = false; 
+		
+		// --- EMOTIONAL AWARENESS VARIABLES ---
+let currentEmotionalState = 'Normal'; 
+let averageVolume = 0;
+const EMOTION_THRESHOLDS = {
+    QUIET: 60,   // Increased (below this is whispering)
+    LOUD: 120    // Doubled (above this is shouting)
+};
+		
         let visionTimeoutId = null; // Changed from IntervalId to TimeoutId
         const VISION_SEQUENCE = [45000, 60000, 80000]; // The 15s -> 30s -> 60s sequence
         const VISION_MODE_PROMPT = "I am walking and the camera is moving. Ignore blur. Briefly scan the atmosphere and the path ahead for obstacles. CRITICAL: If this looks similar to the previous image, DO NOT repeat the description. Just say 'Still moving' or 'Same path'. Only describe NEW details or potential hazards. Keep it very short and punchy.";
@@ -3975,7 +3984,7 @@ function populateVoiceList() {
 		
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // --- Web Audio API for Visual Indicator ---
-        async function setupAudioProcessing() {
+        async function setupAudioProcessing(stream) {
             try {
                // const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -3988,31 +3997,55 @@ function populateVoiceList() {
                 analyser.connect(scriptProcessor);
                 scriptProcessor.connect(audioContext.destination);
                 
-                scriptProcessor.onaudioprocess = () => {
-                    if (!isListening) return;
-                    const array = new Uint8Array(analyser.frequencyBinCount);
-                    analyser.getByteFrequencyData(array);
-                    let sum = array.reduce((acc, val) => acc + val * val, 0);
-                    const rms = Math.sqrt(sum / array.length); // This is our volume level
+scriptProcessor.onaudioprocess = () => {
+    if (!isListening) return;
+    
+    const array = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(array);
+    
+    // Calculate Volume (RMS)
+    let sum = array.reduce((acc, val) => acc + val * val, 0);
+    const rms = Math.sqrt(sum / array.length);
+    averageVolume = rms; // Update global variable
+	console.log("Current Volume:", Math.round(rms)); // <--- Add this!
 
-                    // --- NEW INTERRUPTION LOGIC ---
-                    if (isSpeaking && rms > INTERRUPT_SENSITIVITY) {
-                        SpeechSynthesis.cancel(); // Stop Helen from talking
-                        
-                        // Manually clear all speaking states
-                        isSpeaking = false;
-                        document.querySelector('.centered-image').classList.remove('speaking');
-                        goLiveBtn.classList.remove('speaking');
-                    }
-                    // --- END OF NEW LOGIC ---
+    // --- EMOTIONAL STATE LOGIC ---
+    const orbVisuals = document.querySelector('.go-live-toggle'); // The Orb Element
+    
+    if (rms > EMOTION_THRESHOLDS.LOUD) {
+        currentEmotionalState = "Excited/Stressed";
+        // Visual Feedback: Turn Orb RED/ORANGE when loud
+        document.documentElement.style.setProperty('--accent', '#EF4444'); // Red
+        document.documentElement.style.setProperty('--glow-primary', 'rgba(255, 50, 50, 0.8)'); 
+        
+    } else if (rms < EMOTION_THRESHOLDS.QUIET && rms > 5) { // >5 prevents silence triggering it
+        currentEmotionalState = "Calm/Whispering";
+        // Visual Feedback: Turn Orb BLUE/PURPLE when quiet
+        document.documentElement.style.setProperty('--accent', '#6366F1'); // Indigo
+        document.documentElement.style.setProperty('--glow-primary', 'rgba(99, 102, 241, 0.8)');
 
-                    // This is the original visualizer code
-                    const normalizedVolume = Math.min(1, rms / 128);
-                    const scaleFactor = 0.8 + (normalizedVolume * 0.4);
-                    const opacityFactor = 0.5 + (normalizedVolume * 0.5);
-                    audioIndicator.style.transform = `translate(-50%, -50%) scale(${scaleFactor})`;
-                    audioIndicator.style.opacity = opacityFactor;
-                };
+    } else if (rms > 5) {
+        currentEmotionalState = "Normal";
+        // Visual Feedback: Reset to TEAL (Default)
+        document.documentElement.style.setProperty('--accent', '#0D9488'); // Teal
+        document.documentElement.style.setProperty('--glow-primary', 'rgba(0, 238, 255, 0.6)');
+    }
+
+    // --- INTERRUPTION LOGIC (Existing) ---
+    if (isSpeaking && rms > INTERRUPT_SENSITIVITY) {
+        SpeechSynthesis.cancel(); 
+        isSpeaking = false;
+        document.querySelector('.centered-image').classList.remove('speaking');
+        if(orbVisuals) orbVisuals.classList.remove('speaking');
+    }
+
+    // --- VISUALIZER ANIMATION (Existing) ---
+    const normalizedVolume = Math.min(1, rms / 128);
+    const scaleFactor = 0.8 + (normalizedVolume * 0.4);
+    const opacityFactor = 0.5 + (normalizedVolume * 0.5);
+    audioIndicator.style.transform = `translate(-50%, -50%) scale(${scaleFactor})`;
+    audioIndicator.style.opacity = opacityFactor;
+};
                 userActivatedAudio = true;
             } catch (err) {
                 console.error('Error setting up audio processing:', err);
@@ -4285,6 +4318,19 @@ function populateVoiceList() {
             if (contextPieces.length > 0) {
                 return `[AI CONTEXT BLOCK]\nYou have the following important context about the user:\n${contextPieces.join('\n')}\n[/AI CONTEXT BLOCK]\n\n`;
             }
+			
+	
+// --- NEW: INJECT EMOTIONAL CONTEXT (FORCE MODE) ---
+ccontextPieces.push(`
+[LIVE EMOTIONAL SENSOR DATA]
+- User's Vocal Volume: ${Math.round(averageVolume)} (Range: 0-100)
+- Detected Emotional Tone: ${currentEmotionalState}
+- INSTRUCTION: Adjust your response tone to match.
+`);
+
+			
+			
+			
             return '';
         }
 		
@@ -4486,6 +4532,7 @@ async function handleMessage(message, source) {
 
         const cleanedApiHistory = tempApiHistory.map(({ role, parts }) => ({ role, parts }));
         
+		console.log("? FULL PAYLOAD SENT TO AI:", lastMessage.parts[0].text);
         const payload = {
             contents: cleanedApiHistory,
                 systemInstruction: {
