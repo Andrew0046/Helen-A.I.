@@ -4315,18 +4315,20 @@ scriptProcessor.onaudioprocess = () => {
 			
 			
 
-            if (contextPieces.length > 0) {
-                return `[AI CONTEXT BLOCK]\nYou have the following important context about the user:\n${contextPieces.join('\n')}\n[/AI CONTEXT BLOCK]\n\n`;
-            }
-			
-	
 // --- NEW: INJECT EMOTIONAL CONTEXT (FORCE MODE) ---
-ccontextPieces.push(`
+contextPieces.push(`
 [LIVE EMOTIONAL SENSOR DATA]
 - User's Vocal Volume: ${Math.round(averageVolume)} (Range: 0-100)
 - Detected Emotional Tone: ${currentEmotionalState}
 - INSTRUCTION: Adjust your response tone to match.
 `);
+
+            if (contextPieces.length > 0) {
+                return `[AI CONTEXT BLOCK]\nYou have the following important context about the user:\n${contextPieces.join('\n')}\n[/AI CONTEXT BLOCK]\n\n`;
+            }
+			
+	
+
 
 			
 			
