@@ -4351,18 +4351,24 @@ contextPieces.push(`
 async function handleMessage(message, source) {
     if (!message.trim() && !window.uploadedFileObject) return; 
     
+	// 1. Activate Voice & Clear Input
     userActivatedAudio = true; 
     textInput.value = ''; 
     
-    const normalizedMessage = message.toLowerCase().trim();
-
-    // --- NEW VISION COMMANDS ---
-    const visionOpenTrigger = VISION_OPEN_COMMAND.find(cmd => normalizedMessage.includes(cmd));
-    if (visionOpenTrigger) {
-        toggleVisionMode(true);
-        return; 
+    // 2. Show YOUR message in the chat immediately
+    // (This was missing/too low in the previous version)
+    if (source !== 'vision') { 
+        addMessageToChat(message, 'user', false, true, window.uploadedFileObject ? { type: window.uploadedFileObject.type, content: uploadedFileContent } : null);
     }
 
+    // 3. NOW check for commands
+    if (executeCommand(message)) {
+        // If it was a command (like "Open Spotify"), stop here.
+        return; 
+    }
+    
+    // 4. If not a command, continue to Gemini...
+    const normalizedMessage = message.toLowerCase().trim();
 
 // --- SENTRY MODE VOICE COMMANDS ---
     const sentryStartTrigger = SENTRY_START_COMMANDS.find(cmd => normalizedMessage.includes(cmd));
@@ -4415,19 +4421,7 @@ async function handleMessage(message, source) {
         return; 
     }
 
-    // --- DISPLAY LOGIC ---
-    let attachmentForDisplay = null;
-    if (uploadedFileContent && window.uploadedFileObject) {
-            attachmentForDisplay = {
-            type: window.uploadedFileObject.type,
-            content: uploadedFileContent
-            };
-    }
     
-    // Only show bubble if it's NOT a hidden vision task
-    if (source !== 'vision') { 
-        addMessageToChat(message, 'user', false, true, attachmentForDisplay);
-    }
                 
     // --- OTHER COMMANDS ---
     const briefingTrigger = BRIEFING_COMMANDS.find(cmd => normalizedMessage.startsWith(cmd));
@@ -8203,7 +8197,70 @@ function stopWakeWord() {
     }
 }
 
+// ==========================================
+// 🚀 APP LAUNCHER & COMMAND CENTER
+// ==========================================
 
+function executeCommand(transcript) {
+    const lower = transcript.toLowerCase();
+    let executed = false;
+
+    // --- 1. Spotify ---
+    if (lower.includes('open spotify') || lower.includes('play music')) {
+        // Tries to open the desktop app via protocol
+        window.open('spotify://'); 
+        addMessageToChat("Launching Spotify...", "helen");
+        executed = true;
+    }
+
+    // --- 2. WhatsApp ---
+    // Logic: "Message [Name] [Message]" (Simple version just opens the app)
+    else if (lower.includes('open whatsapp')) {
+        window.open('whatsapp://'); // Tries Desktop App
+        // Fallback to Web if desktop fails (usually requires user click, but we try)
+        setTimeout(() => window.open('https://web.whatsapp.com'), 1000);
+        addMessageToChat("Opening WhatsApp...", "helen");
+        executed = true;
+    }
+
+    // --- 3. YouTube Search ---
+    else if (lower.includes('search youtube for')) {
+        const query = lower.split('search youtube for')[1].trim();
+        if (query) {
+            window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
+            addMessageToChat(`Searching YouTube for "${query}"...`, "helen");
+            executed = true;
+        }
+    }
+// --- 4. Google Maps ---
+    else if (lower.includes('show me on map') || lower.includes('where am i')) {
+        if ("geolocation" in navigator) {
+            addMessageToChat("Acquiring GPS signals...", "helen");
+            navigator.geolocation.getCurrentPosition(position => {
+                const { latitude, longitude } = position.coords;
+                addMessageToChat(`Found you: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`, "helen");
+                // FIX: Corrected URL format
+                window.open(`https://www.google.com/maps?q=${latitude},${longitude}`, '_blank');
+            }, (err) => {
+                console.error(err);
+                addMessageToChat("I couldn't get your GPS location. (Check browser permissions).", "helen", true);
+            });
+            executed = true;
+        } else {
+            addMessageToChat("Geolocation is not supported in this browser.", "helen", true);
+            executed = true;
+        }
+    }
+
+    // --- 5. Zoom ---
+    else if (lower.includes('open zoom')) {
+        window.open('zoommtg://'); 
+        addMessageToChat("Launching Zoom...", "helen");
+        executed = true;
+    }
+
+    return executed;
+}
 
 
 
