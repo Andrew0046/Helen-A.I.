@@ -2702,21 +2702,6 @@ body.focus-mode::before {
             </div>
 			
 			
-			<div class="settings-section">
-    <h3>Transfer Data</h3>
-    <p class="text-sm text-[var(--text-secondary)] mb-2">Send Helen's memory or chat logs to another device (via System Bluetooth/Share).</p>
-    
-    <button id="share-memory-btn" class="w-full bg-purple-600 text-white py-2 rounded-md hover:bg-purple-700 transition-all mb-2">
-        📤 Send "Memories" File
-    </button>
-    
-    <button id="share-chat-btn" class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition-all">
-        📤 Send Current Chat
-    </button>
-    
-    <p id="share-status" class="text-xs text-center mt-2 text-[var(--text-secondary)]"></p>
-</div>
-			
 			<div class="settings-section" id="camera-settings-section">
                 <h3>Camera Selection</h3>
                 <p class="text-sm text-[var(--text-secondary)] mb-2">Choose your preferred camera for scans.</p>
@@ -8219,71 +8204,6 @@ function stopWakeWord() {
 }
 
 
-
-// ==========================================
-// 📤 UNIVERSAL FILE SHARING (Bluetooth Hand-off)
-// ==========================================
-
-const shareMemoryBtn = document.getElementById('share-memory-btn');
-const shareChatBtn = document.getElementById('share-chat-btn');
-const shareStatus = document.getElementById('share-status');
-
-if (shareMemoryBtn) shareMemoryBtn.addEventListener('click', () => shareFile('memories'));
-if (shareChatBtn) shareChatBtn.addEventListener('click', () => shareFile('chat'));
-
-async function shareFile(type) {
-    // 1. Check if the browser supports file sharing
-    if (!navigator.canShare) {
-        shareStatus.textContent = "Error: Your browser does not support Web Share.";
-        return;
-    }
-
-    try {
-        let fileContent = "";
-        let fileName = "";
-        let mimeType = "text/plain";
-
-        // 2. Prepare the data
-        if (type === 'memories') {
-            const memories = loadData(getUserKey(MEMORIES_KEY), []);
-            fileContent = JSON.stringify(memories, null, 2);
-            fileName = `helen_memories_${Date.now()}.json`;
-            mimeType = "application/json"; // Some devices prefer text/plain
-        } else {
-            // Chat History
-            fileContent = chatHistory.map(msg => `${msg.role}: ${msg.parts[0].text}`).join('\n\n');
-            fileName = `helen_chat_${Date.now()}.txt`;
-        }
-
-        // 3. Create a Virtual File Object
-        const file = new File([fileContent], fileName, { type: mimeType });
-
-        // 4. Verify if this specific file is shareable
-        if (navigator.canShare({ files: [file] })) {
-            shareStatus.textContent = "Opening System Menu...";
-            
-            // 5. Trigger the Native OS Menu
-            await navigator.share({
-                title: 'Helen AI Data',
-                text: `Here is the ${type} file from Helen.`,
-                files: [file]
-            });
-            
-            shareStatus.textContent = "Sent successfully!";
-            addMessageToChat(`I've handed off the ${type} file to your system.`, "helen");
-        } else {
-            shareStatus.textContent = "Error: System cannot share this file type.";
-        }
-
-    } catch (error) {
-        if (error.name === 'AbortError') {
-            shareStatus.textContent = "Share cancelled by user.";
-        } else {
-            console.error("Share Error:", error);
-            shareStatus.textContent = "Error: " + error.message;
-        }
-    }
-}
 
 
 
