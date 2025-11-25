@@ -2703,17 +2703,18 @@ body.focus-mode::before {
 			
 			
 			<div class="settings-section">
-    <h3>Physical Devices (Web Bluetooth)</h3>
-    <p class="text-sm text-[var(--text-secondary)] mb-2">Current Mode: 🔋 Battery Reader</p>
+    <h3>Transfer Data</h3>
+    <p class="text-sm text-[var(--text-secondary)] mb-2">Send Helen's memory or chat logs to another device (via System Bluetooth/Share).</p>
     
-    <button id="connect-ble-btn" class="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 transition-all">
-        📡 Scan & Read Battery
+    <button id="share-memory-btn" class="w-full bg-purple-600 text-white py-2 rounded-md hover:bg-purple-700 transition-all mb-2">
+        📤 Send "Memories" File
     </button>
-
-    <div id="battery-display" class="mt-4 text-center text-2xl font-bold hidden">
-        --%
-    </div>
-    <p id="ble-status" class="text-xs text-center mt-2 text-[var(--text-secondary)]">Status: Disconnected</p>
+    
+    <button id="share-chat-btn" class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition-all">
+        📤 Send Current Chat
+    </button>
+    
+    <p id="share-status" class="text-xs text-center mt-2 text-[var(--text-secondary)]"></p>
 </div>
 			
 			<div class="settings-section" id="camera-settings-section">
@@ -8220,57 +8221,69 @@ function stopWakeWord() {
 
 
 // ==========================================
-// 🔋 BATTERY MODE: WEB BLUETOOTH
+// 📤 UNIVERSAL FILE SHARING (Bluetooth Hand-off)
 // ==========================================
 
-// Listener for the new button
-const connectBleBtn = document.getElementById('connect-ble-btn');
-if(connectBleBtn) {
-    connectBleBtn.addEventListener('click', connectToBattery);
-}
+const shareMemoryBtn = document.getElementById('share-memory-btn');
+const shareChatBtn = document.getElementById('share-chat-btn');
+const shareStatus = document.getElementById('share-status');
 
-async function connectToBattery() {
-    const statusText = document.getElementById('ble-status');
-    const battDisplay = document.getElementById('battery-display');
-    
+if (shareMemoryBtn) shareMemoryBtn.addEventListener('click', () => shareFile('memories'));
+if (shareChatBtn) shareChatBtn.addEventListener('click', () => shareFile('chat'));
+
+async function shareFile(type) {
+    // 1. Check if the browser supports file sharing
+    if (!navigator.canShare) {
+        shareStatus.textContent = "Error: Your browser does not support Web Share.";
+        return;
+    }
+
     try {
-        statusText.textContent = "Status: Scanning for Batteries...";
-        
-        // 1. Request Device (Looking for 'battery_service')
-        const device = await navigator.bluetooth.requestDevice({
-            filters: [{ services: ['battery_service'] }] 
-        });
+        let fileContent = "";
+        let fileName = "";
+        let mimeType = "text/plain";
 
-        // 2. Connect to Server
-        statusText.textContent = "Status: Connecting...";
-        const server = await device.gatt.connect();
+        // 2. Prepare the data
+        if (type === 'memories') {
+            const memories = loadData(getUserKey(MEMORIES_KEY), []);
+            fileContent = JSON.stringify(memories, null, 2);
+            fileName = `helen_memories_${Date.now()}.json`;
+            mimeType = "application/json"; // Some devices prefer text/plain
+        } else {
+            // Chat History
+            fileContent = chatHistory.map(msg => `${msg.role}: ${msg.parts[0].text}`).join('\n\n');
+            fileName = `helen_chat_${Date.now()}.txt`;
+        }
 
-        // 3. Get the Battery Service (Standard UUID: 0x180F)
-        const service = await server.getPrimaryService('battery_service');
+        // 3. Create a Virtual File Object
+        const file = new File([fileContent], fileName, { type: mimeType });
 
-        // 4. Get the Level Characteristic (Standard UUID: 0x2A19)
-        const characteristic = await service.getCharacteristic('battery_level');
-
-        // 5. Read the Value
-        const value = await characteristic.readValue();
-        const percentage = value.getUint8(0);
-
-        // 6. Display Result
-        statusText.textContent = `Status: Connected to ${device.name}`;
-        battDisplay.classList.remove('hidden');
-        battDisplay.textContent = `🔋 ${percentage}%`;
-        
-        // 7. Tell Helen
-        showNotification(`Battery Level: ${percentage}%`, "success");
-        addMessageToChat(`I connected to ${device.name}. The battery level is ${percentage}%.`, "helen");
+        // 4. Verify if this specific file is shareable
+        if (navigator.canShare({ files: [file] })) {
+            shareStatus.textContent = "Opening System Menu...";
+            
+            // 5. Trigger the Native OS Menu
+            await navigator.share({
+                title: 'Helen AI Data',
+                text: `Here is the ${type} file from Helen.`,
+                files: [file]
+            });
+            
+            shareStatus.textContent = "Sent successfully!";
+            addMessageToChat(`I've handed off the ${type} file to your system.`, "helen");
+        } else {
+            shareStatus.textContent = "Error: System cannot share this file type.";
+        }
 
     } catch (error) {
-        console.error("Bluetooth Error:", error);
-        statusText.textContent = "Status: Error (See Console)";
-        addMessageToChat("I couldn't read the battery. Make sure the device is advertising its battery service.", "helen", true);
+        if (error.name === 'AbortError') {
+            shareStatus.textContent = "Share cancelled by user.";
+        } else {
+            console.error("Share Error:", error);
+            shareStatus.textContent = "Error: " + error.message;
+        }
     }
 }
-
 
 
 
