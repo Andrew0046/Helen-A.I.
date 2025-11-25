@@ -2704,16 +2704,14 @@ body.focus-mode::before {
 			
 			<div class="settings-section">
     <h3>Physical Devices (Web Bluetooth)</h3>
-    <p class="text-sm text-[var(--text-secondary)] mb-2">Connect to a Bluetooth LE Light (MagicBlue/0xFFE5).</p>
+    <p class="text-sm text-[var(--text-secondary)] mb-2">Current Mode: 🔋 Battery Reader</p>
     
-    <button id="connect-ble-btn" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-all">
-        📡 Scan & Connect
+    <button id="connect-ble-btn" class="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 transition-all">
+        📡 Scan & Read Battery
     </button>
 
-    <div class="flex gap-2 mt-2">
-        <button onclick="manualColor(255,0,0)" class="flex-1 bg-red-500 text-white py-1 rounded hover:opacity-80">Red</button>
-        <button onclick="manualColor(0,255,0)" class="flex-1 bg-green-500 text-white py-1 rounded hover:opacity-80">Green</button>
-        <button onclick="manualColor(0,0,255)" class="flex-1 bg-blue-500 text-white py-1 rounded hover:opacity-80">Blue</button>
+    <div id="battery-display" class="mt-4 text-center text-2xl font-bold hidden">
+        --%
     </div>
     <p id="ble-status" class="text-xs text-center mt-2 text-[var(--text-secondary)]">Status: Disconnected</p>
 </div>
@@ -8222,84 +8220,56 @@ function stopWakeWord() {
 
 
 // ==========================================
-// 🔵 WEB BLUETOOTH API INTEGRATION
+// 🔋 BATTERY MODE: WEB BLUETOOTH
 // ==========================================
 
-let bluetoothDevice;
-let lightCharacteristic;
-
-// Initialize the button listener
+// Listener for the new button
 const connectBleBtn = document.getElementById('connect-ble-btn');
 if(connectBleBtn) {
-    connectBleBtn.addEventListener('click', connectToLight);
+    connectBleBtn.addEventListener('click', connectToBattery);
 }
 
-async function connectToLight() {
+async function connectToBattery() {
     const statusText = document.getElementById('ble-status');
+    const battDisplay = document.getElementById('battery-display');
     
     try {
-        statusText.textContent = "Status: Scanning...";
+        statusText.textContent = "Status: Scanning for Batteries...";
         
-        // 1. Request Device - This opens the browser's native pairing menu
-        // We filter for the specific service used by common LED strips (MagicHome/MagicBlue)
-        // You can change 0xFFE5 to 'battery_service' to test with other devices.
-        bluetoothDevice = await navigator.bluetooth.requestDevice({
-            // filters: [{ services: [0xFFE5] }], // Use this if you ONLY want lights
-            acceptAllDevices: true,               // Accepts anything (Phones, Fitbits, etc)
-            optionalServices: [0xFFE5]            // We specifically want to control this service later
+        // 1. Request Device (Looking for 'battery_service')
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['battery_service'] }] 
         });
 
-        // 2. Connect to the GATT Server
+        // 2. Connect to Server
         statusText.textContent = "Status: Connecting...";
-        const server = await bluetoothDevice.gatt.connect();
+        const server = await device.gatt.connect();
 
-        // 3. Get the specific "Service" (The folder containing features)
-        const service = await server.getPrimaryService(0xFFE5);
+        // 3. Get the Battery Service (Standard UUID: 0x180F)
+        const service = await server.getPrimaryService('battery_service');
 
-        // 4. Get the "Characteristic" (The specific file we write to)
-        // 0xFFE9 is the "Color Writer" for these bulbs
-        lightCharacteristic = await service.getCharacteristic(0xFFE9);
+        // 4. Get the Level Characteristic (Standard UUID: 0x2A19)
+        const characteristic = await service.getCharacteristic('battery_level');
 
-        statusText.textContent = "Status: Connected ✅";
-        showNotification("Connected to Physical Device!", "success");
-        addMessageToChat("I am now connected to your physical environment via Bluetooth.", "helen");
+        // 5. Read the Value
+        const value = await characteristic.readValue();
+        const percentage = value.getUint8(0);
 
-        // Flash Green to prove it works
-        manualColor(0, 255, 0);
+        // 6. Display Result
+        statusText.textContent = `Status: Connected to ${device.name}`;
+        battDisplay.classList.remove('hidden');
+        battDisplay.textContent = `🔋 ${percentage}%`;
+        
+        // 7. Tell Helen
+        showNotification(`Battery Level: ${percentage}%`, "success");
+        addMessageToChat(`I connected to ${device.name}. The battery level is ${percentage}%.`, "helen");
 
     } catch (error) {
         console.error("Bluetooth Error:", error);
-        statusText.textContent = "Status: Error (Check Console)";
-        
-        if (error.name === 'SecurityError') {
-            showNotification("Security Error: You must use HTTPS or Localhost.", "error");
-            addMessageToChat("I cannot access Bluetooth because we are not on a secure connection. Try running a local server.", "helen", true);
-        } else if (error.name === 'NotFoundError') {
-            statusText.textContent = "Status: Cancelled";
-        } else {
-            showNotification("Connection Failed. Is the device compatible?", "error");
-        }
+        statusText.textContent = "Status: Error (See Console)";
+        addMessageToChat("I couldn't read the battery. Make sure the device is advertising its battery service.", "helen", true);
     }
 }
-
-async function manualColor(r, g, b) {
-    if (!lightCharacteristic) {
-        // If no device, just log it (Simulated Mode)
-        console.log(`[SIMULATION] Helen is trying to set lights to RGB(${r}, ${g}, ${b})`);
-        return;
-    }
-    
-    try {
-        // Protocol for MagicBlue/MagicHome LED Bulbs
-        // Format: [Header, Red, Green, Blue, WarmWhite, Terminator, Checksum]
-        const command = new Uint8Array([0x56, r, g, b, 0x00, 0xF0, 0xAA]);
-        await lightCharacteristic.writeValue(command);
-        console.log(`Physical Light set to RGB(${r}, ${g}, ${b})`);
-    } catch (e) {
-        console.error("Write Error:", e);
-    }
-}
-
 
 
 
