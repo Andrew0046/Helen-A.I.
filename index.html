@@ -8426,6 +8426,8 @@ function startHeartbeat() {
             
             const now = Date.now();
             const minutesQuiet = Math.floor((now - lastInteractionTime) / 60000);
+            console.log(`[Heartbeat] Triggering Idle Thought... (Quiet: ${minutesQuiet}m)`);
+
 
             if (minutesQuiet < 15) return; // Wait 15 mins
             if (Math.random() > 0.05) return; // 5% chance
