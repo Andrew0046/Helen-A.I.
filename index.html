@@ -4509,6 +4509,13 @@ if (source === 'text') {
     }
 
 
+// --- THIS IS THE MISSING PART ---
+    const visionOpenTrigger = VISION_OPEN_COMMAND.find(cmd => normalizedMessage.includes(cmd));
+    if (visionOpenTrigger) {
+        toggleVisionMode(true);
+        return; 
+    }
+    // -------------------------------
 
     const visionCloseTrigger = VISION_CLOSE_COMMAND.find(cmd => normalizedMessage.includes(cmd));
     if (visionCloseTrigger) {
