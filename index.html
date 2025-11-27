@@ -5293,8 +5293,7 @@ function closeCamera() {
 }
 
 // ===== START: MODIFIED captureImage FUNCTION =====
-// ===== START: MODIFIED captureImage FUNCTION =====
-async function captureImage(isVisionTask = false, visionPrompt = null) { // <-- MODIFIED SIGNATURE
+async function captureImage(isVisionTask = false, visionPrompt = null) { 
     // Check if the stream is active before capturing
     if (!cameraStream) {
         if (isVisionTask) toggleVisionMode(false); // Shut down if stream is unexpectedly gone
@@ -5355,10 +5354,9 @@ async function captureImage(isVisionTask = false, visionPrompt = null) { // <-- 
         showNotification("Image captured! Now, what would you like me to do with it?", "success");
         textInput.focus();
     }
-}
-// ===== END: MODIFIED captureImage FUNCTION =====
-    
+
     // --- NEW FIX: Restart recognition if it was in Live Mode ---
+    // (This block is now correctly INSIDE the function)
     if (shouldBeListening && !isListening) {
         console.log("Camera capture complete, restarting recognition.");
         try {
@@ -5367,7 +5365,7 @@ async function captureImage(isVisionTask = false, visionPrompt = null) { // <-- 
     }
     // --- END FIX ---
 
-// ===== END: MODIFIED captureImage FUNCTION =====
+} // <--- THIS is the correct closing bracket
 // ===== END: MODIFIED captureImage FUNCTION =====
 
 
@@ -8347,7 +8345,10 @@ function executeCommand(transcript) {
     }
 
     return executed;
-}
+	
+   }
+   
+   
 
 
 
@@ -8518,13 +8519,21 @@ async function checkPresenceWithGemini(base64Image) {
             }]
         };
         
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        // --- UPDATED: Using 'gemini-1.5-flash-8b' for maximum speed ---
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         const result = await response.json();
+        
+        // Safety check in case the API returns an error
+        if (!result.candidates || result.candidates.length === 0) {
+            console.warn("Presence Check: No candidate returned");
+            return "UNKNOWN";
+        }
+
         const text = result.candidates[0].content.parts[0].text.trim().toUpperCase();
         
         if (text.includes("PRESENT")) return "PRESENT";
@@ -8535,7 +8544,6 @@ async function checkPresenceWithGemini(base64Image) {
         return "UNKNOWN";
     }
 }
-
 
 // ==========================================
 // 💭 THE DREAMING ENGINE (Deep Synthesis)
@@ -8594,13 +8602,6 @@ async function triggerDreamSequence() {
     return true; // <--- CRITICAL FIX: Tell the heartbeat we succeeded
 }
 
-
-
-
-
     </script>
 </body>
 </html>
-
-
-
