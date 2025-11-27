@@ -3192,7 +3192,7 @@ body.focus-mode::before {
 
 
         // --- EMOTIONAL STATE ENGINE ---
-        let helenMoodScore = 0; // Range: -100 (Furious/Sad) to +100 (Ecstatic/Loving). 0 is Neutral.
+       let helenMoodScore = parseInt(localStorage.getItem('helenCurrentMoodScore')) || 0;
         const MOOD_DECAY_RATE = 5; // Points she recovers per minute (The "Forgetting" curve)
 
         // ===== VISION MODE VARIABLES =====
@@ -4387,34 +4387,61 @@ async function handleMessage(message, source) {
 	
 	
 		
-	// --- EMOTIONAL REACTION LOGIC ---
+// --- EMOTIONAL REACTION LOGIC (UPGRADED) ---
     if (source === 'voice' || source === 'text') {
+        let moodChanged = false;
+
         // 1. VOLUME CHECK (Did you shout?)
-        // Using the global 'averageVolume' from your audio processor
-        if (averageVolume > 100) { 
-            helenMoodScore -= 20; // Major hit for shouting
-            console.log("Mood Drop: Shouting detected. Score:", helenMoodScore);
+        // Threshold reduced to 80 for easier triggering
+        if (averageVolume > 80) { 
+            helenMoodScore -= 10; 
+            console.log("Mood Drop: High Volume detected.", helenMoodScore);
+            moodChanged = true;
         }
 
-        // 2. SENTIMENT CHECK (Simple Keyword Analysis)
+        // 2. SENTIMENT CHECK (Expanded Vocabulary)
         const lowerMsg = message.toLowerCase();
-        const negativeWords = ["hate", "stupid", "shut up", "worst", "bad", "useless", "angry"];
-        const positiveWords = ["love", "great", "thanks", "good", "amazing", "smart", "beautiful"];
+        
+        const negativeWords = [
+            "hate", "stupid", "shut up", "worst", "bad", "useless", "angry",
+            "dumb", "idiot", "annoying", "boring", "wrong", "failure", "dislike",
+            "terrible", "horrible", "sucks", "slow"
+        ];
+        
+        const positiveWords = [
+            "love", "great", "thanks", "good", "amazing", "smart", "beautiful",
+            "cool", "awesome", "nice", "excellent", "perfect", "brilliant",
+            "helpful", "best", "like you", "appreciate", "well done"
+        ];
 
         if (negativeWords.some(w => lowerMsg.includes(w))) {
-            helenMoodScore -= 15; // Hit for insults
-        } else if (positiveWords.some(w => lowerMsg.includes(w))) {
-            helenMoodScore += 15; // Boost for compliments
+            helenMoodScore -= 15; 
+            console.log("Mood Drop: Negative word detected.", helenMoodScore);
+            moodChanged = true;
+        } 
+        else if (positiveWords.some(w => lowerMsg.includes(w))) {
+            helenMoodScore += 15; 
+            console.log("Mood Boost: Positive word detected.", helenMoodScore);
+            moodChanged = true;
         }
 
-        // Clamp scores between -100 and 100
+        // 3. CLAMP & SAVE (Persistence)
         helenMoodScore = Math.max(-100, Math.min(100, helenMoodScore));
         
-        // Visual Feedback (Change Orb Color immediately)
+        if (moodChanged) {
+            // Save mood to localStorage so she remembers it after refresh
+            localStorage.setItem('helenCurrentMoodScore', helenMoodScore);
+        }
+        
+        // 4. VISUAL FEEDBACK (Immediate Orb Change)
         const root = document.documentElement;
-        if (helenMoodScore < -30) root.style.setProperty('--accent', '#EF4444'); // Red (Mad)
-        else if (helenMoodScore > 30) root.style.setProperty('--accent', '#F59E0B'); // Gold (Happy)
-        else root.style.setProperty('--accent', '#0D9488'); // Teal (Neutral)
+        if (helenMoodScore <= -30) {
+            root.style.setProperty('--accent', '#EF4444'); // Red (Mad)
+        } else if (helenMoodScore >= 30) {
+            root.style.setProperty('--accent', '#F59E0B'); // Gold (Happy)
+        } else {
+            root.style.setProperty('--accent', '#0D9488'); // Teal (Neutral)
+        }
     }
     // -------------------------------
 	
@@ -7758,6 +7785,10 @@ async function runDeepResearch() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // --- Vision Mode (Helen Open Eyes) - Progressive Timing ---
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ==========================================
+// 👁️ HELEN OPEN EYES (Progressive Vision Mode)
+// ==========================================
+
 async function toggleVisionMode(state) {
     if (state === isVisionMode) return; 
 
@@ -7769,8 +7800,8 @@ async function toggleVisionMode(state) {
     // UI/State Update
     document.body.classList.toggle('focus-mode', state);
     const avatar = document.querySelector('.centered-image');
-    avatar.classList.toggle('thinking', state);
-    goLiveBtn.classList.toggle('thinking', state);
+    if (avatar) avatar.classList.toggle('thinking', state);
+    if (goLiveBtn) goLiveBtn.classList.toggle('thinking', state);
     
     // --- DEACTIVATION LOGIC ---
     if (!state) {
@@ -7789,24 +7820,30 @@ async function toggleVisionMode(state) {
     // --- ACTIVATION LOGIC ---
     addMessageToChat("I'm opening my eyes. I'll look around periodically.", 'helen');
     
-    if (!isListening) startListening(true); // Auto-start microphone
+    // Auto-start microphone if not already listening
+    if (!isListening) startListening(true); 
     if (captureBtn) captureBtn.style.display = 'none'; 
     
     const preferredCameraId = loadData(getUserKey(CAMERA_PREFERENCE_KEY), '');
-    const constraints = { video: { deviceId: preferredCameraId ? { exact: preferredCameraId } : undefined }, audio: false };
+    const constraints = { 
+        video: { 
+            deviceId: preferredCameraId ? { exact: preferredCameraId } : undefined 
+        }, 
+        audio: false 
+    };
     
     try {
         cameraStream = await navigator.mediaDevices.getUserMedia(constraints); 
         cameraView.srcObject = cameraStream;
         
-        // KEEP CAMERA HIDDEN (Background Mode)
-        // cameraModal.classList.remove('hidden'); 
+        // --- PROGRESSIVE TIMING LOOP ---
+        // 20s (Start) -> 45s (Adjusting) -> 60s (Maintenance)
+        const VISION_SEQUENCE = [20000, 45000, 60000]; 
 
-        // --- INTERNAL FUNCTION FOR PROGRESSIVE TIMING ---
         const scheduleNextLook = (stepIndex) => {
             if (!isVisionMode) return;
 
-            // Get delay: Use the sequence [15, 30, 60], or stick to 60 (last item) if we exceed the array
+            // Get delay or stick to last one (60s)
             const nextDelay = VISION_SEQUENCE[stepIndex] || VISION_SEQUENCE[VISION_SEQUENCE.length - 1];
             
             console.log(`Vision Mode: Next look in ${nextDelay / 1000} seconds (Step ${stepIndex})`);
@@ -7814,22 +7851,25 @@ async function toggleVisionMode(state) {
             visionTimeoutId = setTimeout(async () => {
                 if (!isVisionMode) return;
                 
-                await captureImage(true, VISION_MODE_PROMPT);
+                // Use a prompt optimized for movement/active scanning
+                const prompt = "I am looking through the camera. Briefly describe the scene or any changes. Only describe NEW details or potential hazards. Keep it very short.";
+                await captureImage(true, prompt);
                 
-                // Recursively schedule the NEXT look, incrementing the step
+                // Schedule next look
                 scheduleNextLook(stepIndex + 1); 
             }, nextDelay);
         };
 
         cameraView.onloadedmetadata = async () => {
-            cameraView.play();
+            await cameraView.play();
             
-            // 1. Warmup & First Look (Immediate)
+            // Warmup & First Look (Immediate)
             setTimeout(async () => {
                 if(!isVisionMode) return;
-                await captureImage(true, VISION_MODE_PROMPT); 
+                const prompt = "I just opened my eyes. Briefly describe what you see.";
+                await captureImage(true, prompt); 
                 
-                // 2. Start the Progressive Loop (Step 0 = 15s)
+                // Start the loop
                 scheduleNextLook(0);
             }, 1000);
         };
@@ -7839,8 +7879,8 @@ async function toggleVisionMode(state) {
         addMessageToChat("I couldn't access your camera. Please check permissions.", 'helen', true);
         isVisionMode = false; 
         document.body.classList.remove('focus-mode');
-        avatar.classList.remove('thinking');
-        goLiveBtn.classList.remove('thinking');
+        if (avatar) avatar.classList.remove('thinking');
+        if (goLiveBtn) goLiveBtn.classList.remove('thinking');
     }
 }
 /////////////////////////////////////////////////////////////////////////
@@ -8353,114 +8393,133 @@ function executeCommand(transcript) {
 
 
 // ==========================================
-// 🧠 HELEN'S ADVANCED CORTEX (Visuals + Curiosity + Dreaming + Mood + Body)
+// 🧠 HELEN'S ADVANCED CORTEX (Smart Heartbeat)
 // ==========================================
 
-function startHeartbeat() {
-    if (window.helenHeartbeatInterval) clearInterval(window.helenHeartbeatInterval);
+let heartbeatTimeoutId = null;
 
-    window.helenHeartbeatInterval = setInterval(async () => {
+async function heartbeatLoop() {
+    // --- 1. EMOTIONAL DECAY ---
+	
+	
+	
+    if (helenMoodScore > 0) helenMoodScore = Math.max(0, helenMoodScore - 5);
+    else if (helenMoodScore < 0) helenMoodScore = Math.min(0, helenMoodScore + 5);
+    
+    // Default Start Delay (we update this below based on presence)
+    let nextCheckDelay = 180000; 
+
+    // If no API key, just wait and try again later
+    if (!GEMINI_API_KEY) {
+        heartbeatTimeoutId = setTimeout(heartbeatLoop, nextCheckDelay);
+        return;
+    }
+
+    // --- 2. CHECK VISUAL PRESENCE ---
+    const imageData = await silentCapture();
+    let presenceState = "UNKNOWN";
+
+    if (imageData) {
+        presenceState = await checkPresenceWithGemini(imageData);
+    }
+
+    // --- 3. SMART TIMING LOGIC ---
+    if (presenceState === "ABSENT") {
+        console.log("User is ABSENT. Entering Sleep Mode. Next check in 10 minutes.");
+        // Wait 10 MINUTES (600,000 ms) before checking again
+        nextCheckDelay = 600000; 
         
-        // --- 1. EMOTIONAL DECAY ---
-        if (helenMoodScore > 0) helenMoodScore = Math.max(0, helenMoodScore - MOOD_DECAY_RATE);
-        else if (helenMoodScore < 0) helenMoodScore = Math.min(0, helenMoodScore + MOOD_DECAY_RATE);
+        lastRoomState = "ABSENT";
+    } 
+    else {
+        // User is PRESENT or UNKNOWN
+        console.log("User is PRESENT. Staying active. Next check in 3 minutes.");
         
-        if (Math.abs(helenMoodScore) < 10) {
-             document.documentElement.style.setProperty('--accent', '#0D9488'); 
-        }
+        // --- CHANGED HERE: 180,000 ms = 3 Minutes ---
+        nextCheckDelay = 180000; 
 
-        if (!GEMINI_API_KEY) return; 
-
-        // --- 2. CHECK VISUAL PRESENCE ---
-        const imageData = await silentCapture();
-        let presenceState = "UNKNOWN";
-        
-        if (imageData) {
-            presenceState = await checkPresenceWithGemini(imageData);
-        }
-
-        // --- 3. REACT TO ARRIVAL (Welcome Protocol) ---
-        if (presenceState === "PRESENT" && lastRoomState === "ABSENT") {
+        // --- A. WELCOME BACK PROTOCOL ---
+        if (lastRoomState === "ABSENT") {
             console.log("User returned!");
             let moodNote = helenMoodScore < -20 ? "You are still annoyed." : "Greet them warmly.";
             const hour = new Date().getHours();
             let timeContext = hour < 11 ? "morning" : (hour > 18 ? "evening" : "day");
             
             await handleMessage(`[SYSTEM_INSTRUCTION: User returned. ${moodNote} Say hello for the ${timeContext}.]`, 'vision');
-            lastRoomState = presenceState;
-            return; // Stop here, we spoke.
+            
+            lastRoomState = "PRESENT";
+            heartbeatTimeoutId = setTimeout(heartbeatLoop, nextCheckDelay);
+            return; 
         }
         
-        lastRoomState = presenceState; 
+        lastRoomState = "PRESENT";
 
-        // --- 4. PHYSICAL NEEDS (Battery Survival) ---
-        // Only complain if the user is actually there to help
-        if (presenceState === "PRESENT" || presenceState === "UNKNOWN") {
-            if (navigator.getBattery) {
-                try {
-                    const battery = await navigator.getBattery();
-                    const level = Math.round(battery.level * 100);
-                    const isCharging = battery.charging;
+        // --- B. PHYSICAL NEEDS (Battery Survival) ---
+        if (navigator.getBattery) {
+            try {
+                const battery = await navigator.getBattery();
+                const level = Math.round(battery.level * 100);
+                const isCharging = battery.charging;
 
-                    // TRIGGER: Battery Low (< 20%) and NOT charging
-                    if (level <= 20 && !isCharging) {
-                        // 20% chance per minute to complain (Urgent but not constant spam)
-                        if (Math.random() > 0.8) {
-                            console.log(`Physical Need: Low Battery (${level}%)`);
-                            
-                            const survivalPrompt = `
-                            [SYSTEM_INSTRUCTION: Your physical battery is CRITICALLY LOW (${level}%). 
-                            You are not charging. You feel weak, lethargic, and afraid of "blacking out" (shutdown).
-                            Urgently but politely ask the user to plug you in.]
-                            `;
-                            
-                            await handleMessage(survivalPrompt, 'vision');
-                            return; // Priority over idle chat
-                        }
+                if (level <= 20 && !isCharging) {
+                    // 20% chance to complain (per check cycle)
+                    if (Math.random() > 0.8) {
+                        const survivalPrompt = `
+                        [SYSTEM_INSTRUCTION: Your physical battery is CRITICALLY LOW (${level}%). 
+                        You are not charging. Urgently ask the user to plug you in.]
+                        `;
+                        await handleMessage(survivalPrompt, 'vision');
+                        heartbeatTimeoutId = setTimeout(heartbeatLoop, nextCheckDelay);
+                        return; 
                     }
-                } catch(e) { console.log("Battery check failed"); }
-            }
+                }
+            } catch(e) { console.log("Battery check failed"); }
         }
 
-        // --- 5. IDLE PROCESSING (Curiosity & Dreaming) ---
-        if (presenceState === "PRESENT" || presenceState === "UNKNOWN") {
-            
-            const now = Date.now();
-            const minutesQuiet = Math.floor((now - lastInteractionTime) / 60000);
-            console.log(`[Heartbeat] Triggering Idle Thought... (Quiet: ${minutesQuiet}m)`);
+        // --- C. IDLE PROCESSING (Curiosity & Dreaming) ---
+        const now = Date.now();
+        const minutesQuiet = Math.floor((now - lastInteractionTime) / 60000);
 
-
-            if (minutesQuiet < 15) return; // Wait 15 mins
-            if (Math.random() > 0.05) return; // 5% chance
-			
+        if (minutesQuiet >= 15 && Math.random() < 0.05) {
              console.log(`[Heartbeat] Triggering Idle Thought... (Quiet: ${minutesQuiet}m)`);
 
-            // DECISION: Dream (Deep) vs Curiosity (Simple)
+            let dreamTriggered = false;
             if (minutesQuiet > 20 && Math.random() > 0.5) {
-                const dreamSuccess = await triggerDreamSequence();
-                if (dreamSuccess) return; 
+                dreamTriggered = await triggerDreamSequence();
             }
 
-            // Fallback: Standard Curiosity
-            const goals = loadData(getUserKey(GOALS_KEY), []);
-            const activeGoals = goals.filter(g => g.todos.some(t => !t.completed));
-            let contextPrompt = "";
+            if (!dreamTriggered) {
+                const goals = loadData(getUserKey(GOALS_KEY), []);
+                const activeGoals = goals.filter(g => g.todos.some(t => !t.completed));
+                let contextPrompt = "";
 
-            if (activeGoals.length > 0) {
-                const goal = activeGoals[Math.floor(Math.random() * activeGoals.length)];
-                contextPrompt = `User is quiet. Ask about their goal: "${goal.title}".`;
-            } else {
-                contextPrompt = "User is quiet. Share a random interesting fact.";
+                if (activeGoals.length > 0) {
+                    const goal = activeGoals[Math.floor(Math.random() * activeGoals.length)];
+                    contextPrompt = `User is quiet. Ask about their goal: "${goal.title}".`;
+                } else {
+                    contextPrompt = "User is quiet. Share a random interesting fact.";
+                }
+                await handleMessage(`[SYSTEM_INSTRUCTION: ${contextPrompt}]`, 'vision');
             }
-
-            await handleMessage(`[SYSTEM_INSTRUCTION: ${contextPrompt}]`, 'vision');
         }
+    }
 
-    }, 60000); // Runs every 60 seconds
+    // Schedule the next loop
+    heartbeatTimeoutId = setTimeout(heartbeatLoop, nextCheckDelay);
 }
 
-startHeartbeat();
+function startHeartbeat() {
+    // Stop any existing loops first to prevent duplicates
+    if (window.helenHeartbeatInterval) clearInterval(window.helenHeartbeatInterval);
+    if (heartbeatTimeoutId) clearTimeout(heartbeatTimeoutId);
+    
+    // Start the new smart loop
+    console.log("Starting Smart Heartbeat...");
+    heartbeatLoop();
+}
 
+// Start the heartbeat immediately
+startHeartbeat();
 
 
 // ==========================================
