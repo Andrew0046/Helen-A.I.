@@ -8407,14 +8407,14 @@ let heartbeatTimeoutId = null;
 
 async function heartbeatLoop() {
     // --- 1. EMOTIONAL DECAY ---
-	
-	
-	
-    if (helenMoodScore > 0) helenMoodScore = Math.max(0, helenMoodScore - 5);
-    else if (helenMoodScore < 0) helenMoodScore = Math.min(0, helenMoodScore + 5);
+    if (helenMoodScore > 0) {
+        helenMoodScore = Math.max(0, helenMoodScore - 5);
+    } else if (helenMoodScore < 0) {
+        helenMoodScore = Math.min(0, helenMoodScore + 5);
+    }
     
-    // Default Start Delay (we update this below based on presence)
-    let nextCheckDelay = 180000; 
+    // Default Start Delay
+    let nextCheckDelay = 180000; // 3 Minutes
 
     // If no API key, just wait and try again later
     if (!GEMINI_API_KEY) {
@@ -8433,17 +8433,13 @@ async function heartbeatLoop() {
     // --- 3. SMART TIMING LOGIC ---
     if (presenceState === "ABSENT") {
         console.log("User is ABSENT. Entering Sleep Mode. Next check in 10 minutes.");
-        // Wait 10 MINUTES (600,000 ms) before checking again
-        nextCheckDelay = 600000; 
-        
+        nextCheckDelay = 600000; // 10 Minutes
         lastRoomState = "ABSENT";
     } 
     else {
         // User is PRESENT or UNKNOWN
         console.log("User is PRESENT. Staying active. Next check in 3 minutes.");
-        
-        // --- CHANGED HERE: 180,000 ms = 3 Minutes ---
-        nextCheckDelay = 180000; 
+        nextCheckDelay = 180000; // 3 Minutes
 
         // --- A. WELCOME BACK PROTOCOL ---
         if (lastRoomState === "ABSENT") {
@@ -8469,7 +8465,7 @@ async function heartbeatLoop() {
                 const isCharging = battery.charging;
 
                 if (level <= 20 && !isCharging) {
-                    // 20% chance to complain (per check cycle)
+                    // 20% chance to complain
                     if (Math.random() > 0.8) {
                         const survivalPrompt = `
                         [SYSTEM_INSTRUCTION: Your physical battery is CRITICALLY LOW (${level}%). 
@@ -8487,14 +8483,17 @@ async function heartbeatLoop() {
         const now = Date.now();
         const minutesQuiet = Math.floor((now - lastInteractionTime) / 60000);
 
+        // Only run if quiet for 15+ mins AND 5% chance hits
         if (minutesQuiet >= 15 && Math.random() < 0.05) {
              console.log(`[Heartbeat] Triggering Idle Thought... (Quiet: ${minutesQuiet}m)`);
 
             let dreamTriggered = false;
+            // If super quiet (>20m), try deep dreaming
             if (minutesQuiet > 20 && Math.random() > 0.5) {
                 dreamTriggered = await triggerDreamSequence();
             }
 
+            // Fallback to Curiosity
             if (!dreamTriggered) {
                 const goals = loadData(getUserKey(GOALS_KEY), []);
                 const activeGoals = goals.filter(g => g.todos.some(t => !t.completed));
@@ -8516,7 +8515,7 @@ async function heartbeatLoop() {
 }
 
 function startHeartbeat() {
-    // Stop any existing loops first to prevent duplicates
+    // Stop any existing loops first
     if (window.helenHeartbeatInterval) clearInterval(window.helenHeartbeatInterval);
     if (heartbeatTimeoutId) clearTimeout(heartbeatTimeoutId);
     
