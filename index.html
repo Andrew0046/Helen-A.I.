@@ -3992,8 +3992,7 @@ function populateVoiceList() {
         return;
     }
 
-    // Remove the filter to see all installed voices (Spanish, French, etc.)
-	const voices = SpeechSynthesis.getVoices();
+    const voices = SpeechSynthesis.getVoices().filter(voice => voice.lang.startsWith('en-'));
 
     if (voices.length === 0) {
         console.log("populateVoiceList: No voices found yet, will try again later.");
@@ -4510,7 +4509,7 @@ if (source === 'text') {
     }
 
     // 3. NOW check for commands
-    if (await executeCommand(message)) {
+    if (executeCommand(message)) {
         // If it was a command (like "Open Spotify"), stop here.
         return; 
     }
@@ -8376,23 +8375,26 @@ function stopWakeWord() {
 }
 
 // ==========================================
-// 🚀 APP LAUNCHER & COMMAND CENTER (Async Version)
+// 🚀 APP LAUNCHER & COMMAND CENTER
 // ==========================================
 
-async function executeCommand(transcript) {
+function executeCommand(transcript) {
     const lower = transcript.toLowerCase();
     let executed = false;
 
     // --- 1. Spotify ---
     if (lower.includes('open spotify') || lower.includes('play music')) {
+        // Tries to open the desktop app via protocol
         window.open('spotify://'); 
         addMessageToChat("Launching Spotify...", "helen");
         executed = true;
     }
 
     // --- 2. WhatsApp ---
+    // Logic: "Message [Name] [Message]" (Simple version just opens the app)
     else if (lower.includes('open whatsapp')) {
-        window.open('whatsapp://'); 
+        window.open('whatsapp://'); // Tries Desktop App
+        // Fallback to Web if desktop fails (usually requires user click, but we try)
         setTimeout(() => window.open('https://web.whatsapp.com'), 1000);
         addMessageToChat("Opening WhatsApp...", "helen");
         executed = true;
@@ -8407,22 +8409,24 @@ async function executeCommand(transcript) {
             executed = true;
         }
     }
-
-    // --- 4. Google Maps ---
+// --- 4. Google Maps ---
     else if (lower.includes('show me on map') || lower.includes('where am i')) {
         if ("geolocation" in navigator) {
             addMessageToChat("Acquiring GPS signals...", "helen");
             navigator.geolocation.getCurrentPosition(position => {
                 const { latitude, longitude } = position.coords;
                 addMessageToChat(`Found you: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`, "helen");
-                window.open(`http://googleusercontent.com/maps.google.com/${latitude},${longitude}`, '_blank');
+                
+                // --- FIX: Use the standard Google Maps URL ---
+                window.open(`https://www.google.com/maps?q=${latitude},${longitude}`, '_blank');
+                
             }, (err) => {
                 console.error(err);
-                addMessageToChat("I couldn't get your GPS location.", "helen", true);
+                addMessageToChat("I couldn't get your GPS location. (Check browser permissions).", "helen", true);
             });
             executed = true;
         } else {
-            addMessageToChat("Geolocation is not supported.", "helen", true);
+            addMessageToChat("Geolocation is not supported in this browser.", "helen", true);
             executed = true;
         }
     }
@@ -8434,36 +8438,14 @@ async function executeCommand(transcript) {
         executed = true;
     }
 
-    // --- 6. GOD MODE: Launch Apps (Real System Control) ---
-    else if (lower.includes('launch') || lower.includes('run')) {
-        const appName = lower.replace('launch', '').replace('run', '').trim();
-        
-        if (window.helenAPI) {
-            addMessageToChat(`Accessing System Shell to launch: ${appName}...`, "helen");
-            window.helenAPI.launchApp(appName); 
-            executed = true;
-        } else {
-            addMessageToChat("I am in Browser Mode. I cannot launch desktop apps directly.", "helen");
-            executed = true; // Mark executed so we don't send to Gemini
-        }
-    }
-
-    // --- 7. GOD MODE: System Stats ---
-    else if (lower.includes('system status') || lower.includes('pc stats')) {
-        if (window.helenAPI) {
-            const stats = await window.helenAPI.getStats(); // <--- The 'await' that caused the error
-            addMessageToChat(`System Report: ${stats}`, "helen");
-            executed = true;
-        } else {
-             addMessageToChat("I cannot access system stats in Browser Mode.", "helen");
-             executed = true;
-        }
-    }
-
     return executed;
-}
+	
+   }
    
    
+
+
+
 // ==========================================
 // 🧠 HELEN'S ADVANCED CORTEX (Smart Heartbeat)
 // ==========================================
@@ -8591,6 +8573,7 @@ function startHeartbeat() {
     console.log("Starting Smart Heartbeat...");
     heartbeatLoop();
 }
+
 // Start the heartbeat immediately
 startHeartbeat();
 
@@ -8733,33 +8716,6 @@ async function triggerDreamSequence() {
     
     return true; // <--- CRITICAL FIX: Tell the heartbeat we succeeded
 }
-
-
-// --- HYBRID BRIDGE: RECEIVE VOICE FROM C# ---
-function handleVoiceInput(text) {
-    console.log("Heard from C#:", text);
-    
-    // 1. Put text in box
-    const textInput = document.getElementById('text-input'); // Ensure ID matches
-    textInput.value = text;
-
-    // 2. Send it to Helen immediately (simulate Enter key)
-    handleMessage(text, 'voice');
-}
-
-// --- HYBRID BRIDGE: SEND COMMANDS TO C# ---
-// Replace your "God Mode" launch logic with this:
-function launchAppViaHybrid(appName) {
-    // Check if we are inside the C# App (WebView2)
-    if (window.chrome && window.chrome.webview) {
-        window.chrome.webview.postMessage(`launch:${appName}`);
-        addMessageToChat(`Asking Windows to launch ${appName}...`, "helen");
-    } else {
-        console.warn("Not running in Hybrid Mode.");
-    }
-}
-
-
 
     </script>
 </body>
