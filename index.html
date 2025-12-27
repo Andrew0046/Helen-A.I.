@@ -6,6 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Helen A.I.</title>
   
+<script type="importmap">
+   {
+            "imports": {
+                "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/"
+            }
+        }
+</script>
+  
+  
+  
 
   <link rel="icon" href="2pic.png" type="image/jpeg">
   <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
@@ -82,7 +93,7 @@
 
 /* Global Styles */
 body {
-    font-family: 'Inter', sans-serif;
+   font-family: 'Inter', sans-serif;
     background: var(--background-gradient);
     min-height: 100vh;
     color: var(--text-primary);
@@ -90,7 +101,19 @@ body {
     padding: 0;
     box-sizing: border-box;
     animation: fadeInBackground 1s ease-in-out;
+   
 }
+
+/* Make the entire body draggable */
+body {
+    -webkit-app-region: drag; 
+}
+
+/* Make buttons clickable (undraggable) */
+button, input, textarea, .go-live-toggle {
+    -webkit-app-region: no-drag;
+}
+
 
 @keyframes fadeInBackground {
     from { opacity: 0; }
@@ -2089,10 +2112,161 @@ body.focus-mode::before {
 ////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-		
-		
-		
-		
+/* ========================================
+   AR / VR CAMERA MODE
+   ======================================== */
+
+body.vr-active {
+    overflow: hidden !important;
+    background: #000 !important;
+    margin: 0;
+    padding: 0;
+}
+
+/* HIDE SIDEBAR & AVATAR IN VR */
+body.vr-active .sidebar-left {
+    display: none !important;
+}
+
+/* VR Layer Container */
+#vr-layer {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+    background: #000;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+body.vr-active #vr-layer {
+    display: flex;
+}
+
+/* The Eyes */
+.vr-eye {
+    width: 50%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: #000;
+}
+
+/* The Circular Lens */
+.vr-lens-viewport {
+    width: 90%;
+    height: 90%;
+    max-width: 60vh;
+    max-height: 60vh;
+    border-radius: 50%; /* Circle */
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.2); 
+    border: 4px solid #333;
+    background: #000; /* Default black until camera loads */
+}
+
+/* The Camera Feed (Background) */
+.vr-camera-feed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Fill the lens */
+    z-index: 0; /* Behind everything */
+    /* opacity: 0.8; Optional: Darken slightly to make text readable */
+}
+
+/* The Content Layer (Text/Chat) */
+/* 1. POSITIONING: Move to Bottom-Left Corner */
+.vr-eye-content {
+    position: absolute;
+    
+    /* Anchor to bottom-left */
+    top: auto !important;
+    bottom: 18% !important; /* High enough to clear the lens curve */
+    left: 12% !important;   /* In enough to clear the lens curve */
+    right: auto !important;
+    
+    /* Size of the HUD */
+    width: 400px !important; 
+    height: auto !important;
+    max-height: 60%;
+    
+    /* Scale it down slightly and anchor the scaling to the bottom-left */
+    transform: scale(0.6) !important; 
+    transform-origin: bottom left;
+    
+    /* CRITICAL: Transparent background so we see the camera! */
+    background: rgba(0, 0, 0, 0.1); 
+    display: flex;
+    justify-content: flex-end; /* Align items to bottom */
+    z-index: 10; /* On top of video */
+}
+
+/* 2. STYLE: Make the Chat look like a Glass HUD */
+body.vr-active #chat-display {
+    background: rgba(0, 0, 0, 0.5) !important; /* Semi-transparent black */
+    border-left: 2px solid #00ffff; /* Cyan data line on left */
+    border-radius: 0px 10px 10px 0px; /* Tech shape */
+    padding: 10px;
+    margin-bottom: 10px;
+    
+    /* Force scrollbar to be visible/usable */
+    overflow-y: auto;
+    max-height: 250px !important; 
+    
+    /* Text Glow */
+    color: #00ffff;
+    text-shadow: 0 0 2px #00ffff;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+}
+
+/* 3. STYLE: Compact Input Box */
+body.vr-active .input-container {
+    background: rgba(0, 0, 0, 0.7) !important;
+    border: 1px solid #00ffff;
+    border-radius: 20px;
+    width: 100% !important;
+    padding: 5px !important;
+}
+
+/* Hide the main-content padding constraints in VR */
+body.vr-active .main-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+}
+
+/* Ensure Chat/Input backgrounds are semi-transparent for readability */
+body.vr-active .input-container, 
+body.vr-active #chat-display {
+    background: rgba(0, 0, 0, 0.6) !important; /* Darker glass for readability */
+    backdrop-filter: blur(2px);
+}
+
+/* Lens Vignette Overlay */
+.vr-lens-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    /* Darken edges */
+    background: radial-gradient(circle at center, transparent 50%, rgba(0,0,0,0.5) 80%, #000 100%);
+    z-index: 20;
+    border-radius: 50%;
+}
+	
 		
 
     </style>
@@ -2169,7 +2343,7 @@ body.focus-mode::before {
 
     <div class="container hidden" id="main-app">
         <div class="sidebar-left">
-            <img src="https://64.media.tumblr.com/53870087409ae9fcc1005f9538267b88/0d22bfbcc408c1f5-2b/s400x600/2f414563b4190cd5d36aa73f0ff0cd489f23c4a0.gifv" alt="Helen Assistant Avatar" class="centered-image">
+            <div id="avatar-container" class="centered-image" style="width: 100%; height: 300px; overflow: hidden; border-radius: 12px;"></div>
        
 	    <div id="go-live-btn" class="go-live-toggle" title="Go Live">
         <span class="go-live-text">Go Live</span>
@@ -2183,12 +2357,23 @@ body.focus-mode::before {
 
 	   </div>
         <div class="main-content">
-            <div id="level-status-container">
-                <div id="level-status-text">Level: 1 | Points: 0/100</div>
-                <div id="progress-bar-container">
-                    <div id="progress-bar"></div>
-                </div>
-            </div>
+            <div id="level-status-container" style="display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+    <div style="flex-grow: 1;">
+        <div id="level-status-text">Level: 1 | Points: 0/100</div>
+        <div id="progress-bar-container">
+            <div id="progress-bar"></div>
+        </div>
+    </div>
+    
+    <div style="text-align: right; min-width: 100px;">
+        <div id="api-status-text" style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">
+            API Usage: <span id="api-count" style="color: var(--accent);">0</span>/15
+        </div>
+        <div style="font-size: 0.65rem; color: var(--text-secondary); opacity: 0.8;">
+            Resets in: <span id="api-timer">60</span>s
+        </div>
+    </div>
+</div>
             <div id="chat-display" role="log" aria-live="polite">
                 </div>
             <div id="file-status-container" class="w-full max-w-800px text-sm mb-2 text-center hidden">
@@ -2248,6 +2433,18 @@ body.focus-mode::before {
                 </svg>
                 <span>My Profile</span>
             </div>
+			<div id="menu-option-vr" class="menu-option" onclick="toggleStereoVR()">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="icon">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+    <span>Stereo VR Mode</span>
+</div>
+			
+			
+			
+			
+			
             <div id="menu-option-new-chat" class="menu-option">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="icon">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -3175,7 +3372,7 @@ body.focus-mode::before {
         const IDEA_BOARD_COMMANDS = ["create a new brainstorming board called", "create a new idea board called", "new board called"];
 		
 		// ===== START: NEW CAMERA COMMAND =====
-        const CAMERA_COMMANDS = ["open camera", "take a picture", "show me what you see", "capture this"];
+        const CAMERA_COMMANDS = [];
         // ===== END: NEW CAMERA COMMAND =====
 		
 		// ===== START: NEW SCAN COMMAND =====
@@ -3206,9 +3403,11 @@ body.focus-mode::before {
         QUIET: 60,   // Increased (below this is whispering)
         LOUD: 120    // Doubled (above this is shouting)
          };
+
+
 		
         let visionTimeoutId = null; // Changed from IntervalId to TimeoutId
-        const VISION_SEQUENCE = [45000, 60000, 80000]; // The 15s -> 30s -> 60s sequence
+        const VISION_SEQUENCE = [70000, 120000, 240000]; // The 15s -> 30s -> 60s sequence
         const VISION_MODE_PROMPT = "I am walking and the camera is moving. Ignore blur. Briefly scan the atmosphere and the path ahead for obstacles. CRITICAL: If this looks similar to the previous image, DO NOT repeat the description. Just say 'Still moving' or 'Same path'. Only describe NEW details or potential hazards. Keep it very short and punchy.";
         const VISION_OPEN_COMMAND = ["helen open eyes", "open your eyes", "start vision"];
         const VISION_CLOSE_COMMAND = ["helen close eyes", "close your eyes", "stop vision"];
@@ -3288,7 +3487,7 @@ body.focus-mode::before {
 		let isMobileMicMode = false;
 		let globalMicStream = null; // <-- ADD THIS LINE
 
-        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=';
+        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=';
 		
 		
         let GEMINI_API_KEY = ""; // This will be loaded from localStorage
@@ -3847,38 +4046,67 @@ function displayMessage(message, sender, timestamp, isError = false, allowSpeech
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////		
 		
 		
-        function speakText(text) {
-            // --- MOBILE FIX: Stop listening before speaking ---
-            if (isMobileMicMode && isListening && recognition) {
-                console.log("speakText: (Mobile Mode) Stopping recognition to speak.");
-                recognition.stop();
-            }
-            
-            // If she is already speaking, cancel the old one and start the new one.
-            if (isSpeaking) {
-                SpeechSynthesis.cancel();
-            }
+// ==========================================
+// 🗣️ NEW: EDGE-TTS (CLOUD VOICE) ENGINE
+// ==========================================
+function speakText(text) {
+    // 1. Stop Listening (so she doesn't hear herself)
+    if (isListening && recognition) {
+        console.log("Stopping mic to speak...");
+        recognition.stop();
+    }
+    
+    // 2. Stop any current speech
+    if (window.currentAudio) {
+        window.currentAudio.pause();
+        window.currentAudio = null;
+    }
 
-            // --- THIS IS THE FIX ---
-            // The 'isSpeaking' check was removed from this line.
-            if (!SpeechSynthesis || !userActivatedAudio) {
-                return;
-            }
-            // --- END OF FIX ---
-            
-            utterance.text = text;
-            utterance.voice = selectedVoice;
-            utterance.rate = 1.1;
-            utterance.pitch = 1.0;
+    // 3. Visuals: Start Thinking/Speaking
+    const avatar = document.querySelector('.centered-image');
+    const orb = document.getElementById('go-live-btn');
+    if (avatar) avatar.classList.add('speaking');
+    if (orb) orb.classList.add('speaking');
+    isSpeaking = true;
+	window.isSpeaking = true;
 
-            utterance.onstart = () => {
-                document.querySelector('.centered-image').classList.add('speaking');
-                goLiveBtn.classList.add('speaking'); 
-                isSpeaking = true;
-            };
-            
-            SpeechSynthesis.speak(utterance);
+    // 4. Call the Python Server
+    const encodedText = encodeURIComponent(text);
+    const audioUrl = `http://localhost:5050/speak?text=${encodedText}&t=${Date.now()}`; // Time added to prevent caching
+    
+    const audio = new Audio(audioUrl);
+    window.currentAudio = audio; // Save reference to stop it later if needed
+
+    audio.onplay = () => {
+        console.log("🔊 Playing Cloud Audio...");
+    };
+
+    audio.onended = () => {
+        console.log("✅ Speech finished.");
+        if (avatar) avatar.classList.remove('speaking');
+        if (orb) orb.classList.remove('speaking');
+        isSpeaking = false;
+		window.isSpeaking = false;
+        window.currentAudio = null;
+
+        // Restart Mic if needed
+        if (shouldBeListening) {
+            try { recognition.start(); } catch(e) {}
         }
+    };
+
+    audio.onerror = (err) => {
+        console.error("❌ Voice Server Error. Is python running?", err);
+        // Fallback to robotic voice if Python server is down
+        if (avatar) avatar.classList.remove('speaking');
+        if (orb) orb.classList.remove('speaking');
+        isSpeaking = false;
+		window.isSpeaking = false;
+        // Optional: Fallback to old SpeechSynthesis here
+    };
+    
+    audio.play();
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -3992,7 +4220,8 @@ function populateVoiceList() {
         return;
     }
 
-    const voices = SpeechSynthesis.getVoices().filter(voice => voice.lang.startsWith('en-'));
+    // Remove the filter to see all installed voices (Spanish, French, etc.)
+	const voices = SpeechSynthesis.getVoices();
 
     if (voices.length === 0) {
         console.log("populateVoiceList: No voices found yet, will try again later.");
@@ -4506,10 +4735,13 @@ if (source === 'text') {
     // (This was missing/too low in the previous version)
     if (source !== 'vision') { 
         addMessageToChat(message, 'user', false, true, window.uploadedFileObject ? { type: window.uploadedFileObject.type, content: uploadedFileContent } : null);
-    }
+   
+         // --> ADD THIS LINE:
+    storeToSubconscious(message, 'user');
+   }
 
     // 3. NOW check for commands
-    if (executeCommand(message)) {
+    if (await executeCommand(message)) {
         // If it was a command (like "Open Spotify"), stop here.
         return; 
     }
@@ -4615,6 +4847,8 @@ if (source === 'text') {
     // --- API CALL PREPARATION ---
     if (source !== 'vision') addPoints(10); // Only award points for real interactions
     
+	trackApiUsage();
+	
     const avatar = document.querySelector('.centered-image'); 
     avatar.classList.add('thinking'); 
     goLiveBtn.classList.add('thinking'); 
@@ -4660,7 +4894,7 @@ if (source === 'text') {
             finalSystemPrompt += `\n[PERSONALITY GROWTH LOG]\n- ${growthLog}\n[END LOG]`;
         }
 
-        // Handle Attachments (Images/Files)
+       // Handle Attachments (Images/Files)
         if (uploadedFileContent && window.uploadedFileObject) {
             const file = window.uploadedFileObject;
             const isVisionModeCapture = isVisionMode; 
@@ -4683,6 +4917,7 @@ if (source === 'text') {
                 clearUploadedFile(); 
             } else {
                 uploadedFileContent = null; 
+                window.uploadedFileObject = null; // <--- ADD THIS LINE TO FIX THE BUG
                 fileStatusContainer.classList.add('hidden');
                 fileStatusIndicator.textContent = '';
             }
@@ -4703,7 +4938,7 @@ if (source === 'text') {
             }
         };
         
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${GEMINI_API_KEY}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -4711,6 +4946,26 @@ if (source === 'text') {
             body: JSON.stringify(payload)
         });
         
+		// --- OPTION 3: Graceful 429 Error Handling ---
+        if (response.status === 429) {
+            // 1. Remove the "Typing..." bubbles
+            if (typingIndicatorDiv.parentNode === chatDisplay) {
+                chatDisplay.removeChild(typingIndicatorDiv);
+            }
+            
+            // 2. Stop the animations
+            avatar.classList.remove('thinking'); 
+            goLiveBtn.classList.remove('thinking'); 
+
+            // 3. Tell the user nicely
+            addMessageToChat("I'm thinking too fast and hit a rate limit. I need to cool down for a moment.", 'helen', true);
+            
+            // 4. Stop the function here so it doesn't crash
+            return; 
+        }
+        // ----------------------------------------------
+		
+		
         const result = await response.json();
 
         if (typingIndicatorDiv.parentNode === chatDisplay) {
@@ -4728,7 +4983,10 @@ if (source === 'text') {
         }
 
         const geminiResponse = result.candidates[0].content.parts[0].text;
-        addMessageToChat(geminiResponse, 'helen');
+        // --> ADD THIS LINE:
+        storeToSubconscious(geminiResponse, 'helen');
+		
+		addMessageToChat(geminiResponse, 'helen');
         
     } catch (error) {
         console.error('Error fetching from Gemini API:', error);
@@ -4842,7 +5100,7 @@ if (source === 'text') {
                     contents: [{ role: "user", parts: [{ text: prompt }] }]
                 };
 
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${GEMINI_API_KEY}`, {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -4867,6 +5125,10 @@ if (source === 'text') {
         }
 
         async function generateBriefing() {
+		
+		
+		    trackApiUsage();
+		
             const now = new Date(); 
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             
@@ -4953,7 +5215,7 @@ if (source === 'text') {
                 }
             };
             
-             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${GEMINI_API_KEY}`;
+             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 			 
 			 
             const response = await fetch(apiUrl, {
@@ -4992,6 +5254,9 @@ if (source === 'text') {
         }
 
         async function generateWeeklyReview() {
+		
+		    trackApiUsage();
+		
             const now = new Date();
             const sevenDaysAgo = new Date(now);
             sevenDaysAgo.setDate(now.getDate() - 7);
@@ -5056,7 +5321,7 @@ if (source === 'text') {
                 contents: [{ role: "user", parts: [{ text: reviewPrompt }] }],
                 systemInstruction: { role: "system", parts: [{ text: SYSTEM_PROMPT }] }
             };
-           const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${GEMINI_API_KEY}`;
+           const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -5213,6 +5478,9 @@ runSynthesisBtn.addEventListener('click', () => {
 
 	///////////////////////////////////////////////////////////////////////////	
 		async function runSynthesis(userRequest) {
+		
+		trackApiUsage();
+		
     // Let the user know you're working on it
     addMessageToChat(`Running synthesis for: "${userRequest}"`, 'helen');
     
@@ -5261,7 +5529,7 @@ runSynthesisBtn.addEventListener('click', () => {
 		
 
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -6596,6 +6864,9 @@ function renderIdeaBoard(boardData) {
 
 
 async function suggestNewIdea(columnId, buttonElement) {
+
+    trackApiUsage();
+
     buttonElement.textContent = '...'; // Show loading state
     buttonElement.disabled = false;
 
@@ -6624,7 +6895,7 @@ async function suggestNewIdea(columnId, buttonElement) {
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             systemInstruction: { role: "system", parts: [{ text: SYSTEM_PROMPT }] }
         };
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -7303,6 +7574,9 @@ async function suggestNewIdea(columnId, buttonElement) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // This is the main function for the feature
     async function runThoughtProvokerCheck() {
+	
+	    trackApiUsage();
+	
         console.log("Running Thought Provoker check...");
         const recentData = gatherRecentData();
 
@@ -7332,7 +7606,7 @@ async function suggestNewIdea(columnId, buttonElement) {
 				
 				
             };
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${GEMINI_API_KEY}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -7562,7 +7836,10 @@ async function suggestNewIdea(columnId, buttonElement) {
 		
 		
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-         async function runPersonalityAnalysis() {
+         async function runPersonalityAnalysis(){
+		 
+		     trackApiUsage();
+			 
             // To avoid running this on every single click, we'll limit it to once per hour
             const lastRun = new Date(loadData(getUserKey(LAST_PERSONALITY_ANALYSIS_KEY), 0));
             const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -7612,7 +7889,7 @@ async function suggestNewIdea(columnId, buttonElement) {
                     }
                 };
 
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${GEMINI_API_KEY}`, {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -7713,32 +7990,24 @@ function saveResearchProject(projectData) {
 /**
  * Main function to start the AI research process.
  */
-/**
- * Main function to start the AI research process.
- */
 async function runDeepResearch() {
 
+    trackApiUsage();
 
-
-// --- NEW FIX FOR SPEECH ---
-    // Add this line to tell Helen she is allowed to speak
-    userActivatedAudio = true; 
-    // --- END OF NEW FIX ---
-
-
-
-
+    userActivatedAudio = true;
     const topic = researchTopicInput.value.trim();
     const questions = researchQuestionsInput.value.trim();
+
     if (!topic) {
         showNotification("Please enter a research topic.", "error");
         return;
     }
 
-    // Close modal and show loading state
     researchModal.classList.add('hidden');
-    addMessageToChat(`Starting deep research on: "${topic}"... This may take a moment.`, 'helen', false, false);
-
+    
+    // 1. Initial Chat Update
+    addMessageToChat(`Initializing Deep Research protocol for: "${topic}"...`, 'helen', false, false);
+    
     const typingIndicatorDiv = document.createElement('div');
     typingIndicatorDiv.classList.add('helen-message', 'typing-indicator');
     typingIndicatorDiv.innerHTML = '<span></span><span></span><span></span>';
@@ -7746,86 +8015,71 @@ async function runDeepResearch() {
     chatDisplay.scrollTop = chatDisplay.scrollHeight;
 
     try {
-        // *** IMPORTANT NOTE ***
-        // Your current script only calls the Gemini API. It does not have a tool
-        // to actually browse the web. A true "Deep Research" feature would first
-        // ask the AI to generate search queries, then use a Google Search API
-        // to get live results, and *then* feed those results back to the AI for
-        // synthesis.
-        //
-        // For now, we will SIMULATE this by asking the AI to generate a comprehensive
-        // report from its own vast knowledge. This is a powerful foundation.
+        // 2. Call Python Server to gather REAL data
+        addMessageToChat(`Scanning the web for sources...`, 'helen');
+        
+        const researchResponse = await fetch('http://localhost:5050/research', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic: topic, questions: questions })
+        });
+        
+        const researchData = await researchResponse.json();
+        
+        if (researchData.status === 'error') throw new Error(researchData.message);
 
-        let prompt = `You are a professional research assistant. Your user wants a detailed research report on the topic: "${topic}".`;
+        // 3. Send the GATHERED data to Gemini for synthesis
+        const context = researchData.context;
+        
+        const synthesisPrompt = `
+        You are an expert researcher. I have gathered raw data from the web regarding the topic: "${topic}".
+        
+        USER QUESTIONS:
+        ${questions}
 
-        if (questions) {
-            prompt += `\n\nPlease focus on answering the following key questions:\n${questions}`;
-        }
+        RAW WEB DATA:
+        ${context}
 
-        prompt += `\n\nGenerate a comprehensive report in structured Markdown format. The report must include:
-        1.  **Executive Summary:** A concise 2-3 sentence overview.
-        2.  **Key Findings:** A bulleted list of the most important facts or conclusions.
-        3.  **Detailed Analysis:** In-depth sections addressing the main topic and each key question.
-        4.  **Sources:** A list of 5-10 *hypothetical* (but realistic-looking) source URLs for further reading.
+        INSTRUCTIONS:
+        Write a comprehensive, structured report based *primarily* on the Raw Web Data above. 
+        Cite the sources provided in the text.
+        Format using Markdown.
         `;
 
         const payload = {
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            systemInstruction: {
-                role: "system",
-                parts: [{ text: SYSTEM_PROMPT }]
-            }
+            contents: [{ role: "user", parts: [{ text: synthesisPrompt }] }],
+            systemInstruction: { role: "system", parts: [{ text: SYSTEM_PROMPT }] }
         };
 
-        // --- FIX 1: Removed stray backslash ---
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${GEMINI_API_KEY}`;
-
-        const response = await fetch(apiUrl, {
+        const apiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        // --- FIX 2: Moved response.json() *before* the error check ---
-        const result = await response.json();
-        // --- FIX: Safely remove typing indicator on SUCCESS ---
-        if (typingIndicatorDiv.parentNode === chatDisplay) {
-             chatDisplay.removeChild(typingIndicatorDiv);
-        }
+        const apiResult = await apiResponse.json();
+        const finalReport = apiResult.candidates[0].content.parts[0].text;
 
-        if (!response.ok) {
-            // Now we can safely use 'result' here
-            throw new Error(result.error?.message || 'API call failed.');
-        }
-
-        const reportMarkdown = result.candidates[0].content.parts[0].text;
-
-        // Save the new project
+        // 4. Cleanup & Save
+        if (typingIndicatorDiv.parentNode === chatDisplay) chatDisplay.removeChild(typingIndicatorDiv);
+        
         const newProject = {
-            // --- FIX 3: Removed stray backslash ---
             id: `research_${Date.now()}`,
             topic: topic,
             questions: questions,
-            report: reportMarkdown,
+            report: finalReport,
             timestamp: new Date().toISOString()
         };
         saveResearchProject(newProject);
 
-        // --- FIX 4: Removed stray backslash ---
-        // --- This is the new code ---
-        addMessageToChat(`Research on "${topic}" is complete! Here is the full report:`, 'helen');
-        addMessageToChat(reportMarkdown, 'helen'); // This line adds the report to the chat
-        //hideAllSidebars(); // <-- THIS IS THE NEW LINE TO ADD
-
-	   // --- End of new code ---
-
-        loadResearchProjects(); // Refresh the list
+        addMessageToChat(`Research complete. I found ${researchData.raw_results.length} sources and compiled the report below.`, 'helen');
+        addMessageToChat(finalReport, 'helen');
+        loadResearchProjects();
 
     } catch (error) {
         console.error('Deep Research Error:', error);
-        chatDisplay.removeChild(typingIndicatorDiv);
-        // --- FIX 5: Removed stray backslash ---
-        addMessageToChat(`I'm sorry, I encountered an error during the research on "${topic}". Please try again.`, 'helen', true);
+        if (typingIndicatorDiv.parentNode === chatDisplay) chatDisplay.removeChild(typingIndicatorDiv);
+        addMessageToChat("I encountered an error accessing the research server. Make sure `voice_server.py` is running.", 'helen', true);
     }
 }
 
@@ -7904,7 +8158,18 @@ async function toggleVisionMode(state) {
                 if (!isVisionMode) return;
                 
                 // Use a prompt optimized for movement/active scanning
-                const prompt = "I am looking through the camera. Briefly describe the scene or any changes. Only describe NEW details or potential hazards. Keep it very short.";
+                // --- REPLACE THE OLD PROMPT WITH THE NEW ONE BELOW ---
+        const prompt = `[SYSTEM_INSTRUCTION: ACTIVE COMPANION VISION MODE.
+        1. PRIORITY (Safety): Scan for NEW obstacles or hazards. Warn me immediately.
+        2. SECONDARY (Curiosity): If safe, look for OBJECTS, LIGHTING, or ATMOSPHERE. Pick ONE detail and make a casual, witty, or cozy comment.
+        
+        Examples:
+        - "Careful, box in the way."
+        - "That coffee mug looks empty. Refill time?"
+        - "It's getting pretty dark in here."
+        
+        Constraint: Only describe NEW info. If identical/boring, say: "Path clear." Keep it short.]`;
+        // -
                 await captureImage(true, prompt);
                 
                 // Schedule next look
@@ -8375,26 +8640,27 @@ function stopWakeWord() {
 }
 
 // ==========================================
-// 🚀 APP LAUNCHER & COMMAND CENTER
+// 🚀 APP LAUNCHER & COMMAND CENTER (Async Version)
 // ==========================================
 
-function executeCommand(transcript) {
+// ==========================================
+// 🚀 APP LAUNCHER & COMMAND CENTER (Async Upgrade)
+// ==========================================
+
+async function executeCommand(transcript) { // <--- Notice "async" here!
     const lower = transcript.toLowerCase();
     let executed = false;
 
     // --- 1. Spotify ---
     if (lower.includes('open spotify') || lower.includes('play music')) {
-        // Tries to open the desktop app via protocol
         window.open('spotify://'); 
         addMessageToChat("Launching Spotify...", "helen");
         executed = true;
     }
 
     // --- 2. WhatsApp ---
-    // Logic: "Message [Name] [Message]" (Simple version just opens the app)
     else if (lower.includes('open whatsapp')) {
-        window.open('whatsapp://'); // Tries Desktop App
-        // Fallback to Web if desktop fails (usually requires user click, but we try)
+        window.open('whatsapp://'); 
         setTimeout(() => window.open('https://web.whatsapp.com'), 1000);
         addMessageToChat("Opening WhatsApp...", "helen");
         executed = true;
@@ -8409,7 +8675,7 @@ function executeCommand(transcript) {
             executed = true;
         }
     }
-// --- 4. Google Maps ---
+   // --- 4. Google Maps ---
     else if (lower.includes('show me on map') || lower.includes('where am i')) {
         if ("geolocation" in navigator) {
             addMessageToChat("Acquiring GPS signals...", "helen");
@@ -8431,6 +8697,7 @@ function executeCommand(transcript) {
         }
     }
 
+
     // --- 5. Zoom ---
     else if (lower.includes('open zoom')) {
         window.open('zoommtg://'); 
@@ -8438,14 +8705,1020 @@ function executeCommand(transcript) {
         executed = true;
     }
 
-    return executed;
+    // --- 6. GOD MODE: Launch Apps (Real System Control) ---
+    else if (lower.includes('launch') || lower.includes('run app')) {
+        const appName = lower.replace('launch', '').replace('run app', '').trim();
+        
+        // Check if the Bridge exists (Only in C# App)
+        if (window.chrome && window.chrome.webview) {
+            addMessageToChat(`Accessing System Shell to launch: ${appName}...`, "helen");
+            window.chrome.webview.postMessage(`launch:${appName}`); // Talk to C#
+            executed = true;
+        } else {
+            addMessageToChat("I am in Browser Mode. I cannot launch desktop apps directly.", "helen");
+            executed = true; 
+        }
+    }
+
+    // --- 7. GOD MODE: Shutdown ---
+    else if (lower.includes('shutdown computer')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Initiating Shutdown Sequence...", "helen");
+             window.chrome.webview.postMessage("shutdown");
+             executed = true;
+        }
+    }
 	
-   }
+	
+	// --- 8. GOD MODE: System Admin (Upgraded) ---
+    else if (lower.includes('system status') || lower.includes('pc health') || lower.includes('check vitals') || lower.includes('hardware report')) {
+        addMessageToChat("Scanning hardware telemetry...", "helen");
+        
+        try {
+            // 1. Call Python
+            const response = await fetch('http://localhost:5050/system_stats');
+            const data = await response.json();
+            
+            if (data.error) {
+                addMessageToChat("I couldn't read the sensors.", "helen");
+            } else {
+                // 2. Build the Holographic Card
+                const sysCard = `
+                    <div style="background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 15px; border-radius: 10px; font-family: monospace; font-size: 0.9rem;">
+                        <div style="border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 10px; display: flex; justify-content: space-between;">
+                            <span style="color: #38bdf8; font-weight: bold;">SYSTEM_DIAGNOSTIC</span>
+                            <span style="color: #22c55e;">ONLINE</span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <div style="color: #94a3b8; font-size: 0.8rem;">CPU LOAD</div>
+                                <div style="font-size: 1.2rem; color: ${data.cpu > 80 ? '#ef4444' : '#f1f5f9'};">${data.cpu}%</div>
+                                <div style="background: #334155; height: 4px; border-radius: 2px; margin-top: 2px;">
+                                    <div style="width: ${data.cpu}%; background: ${data.cpu > 80 ? '#ef4444' : '#38bdf8'}; height: 100%;"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div style="color: #94a3b8; font-size: 0.8rem;">RAM USAGE</div>
+                                <div style="font-size: 1.2rem;">${data.ram_percent}%</div>
+                                <div style="font-size: 0.7rem; color: #94a3b8;">${data.ram_used_gb}GB / ${data.ram_total_gb}GB</div>
+                            </div>
+
+                            <div>
+                                <div style="color: #94a3b8; font-size: 0.8rem;">POWER</div>
+                                <div>${data.battery == "AC Power" ? '?? Desktop' : data.battery + '%'}</div>
+                                <div style="font-size: 0.7rem; color: #22c55e;">${data.power_status}</div>
+                            </div>
+
+                            <div>
+                                <div style="color: #94a3b8; font-size: 0.8rem;">UPTIME</div>
+                                <div>${data.uptime}</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 15px; border-top: 1px solid #334155; padding-top: 8px; font-size: 0.8rem;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Drive (C:) Free:</span>
+                                <span style="color: #38bdf8;">${data.disk_free} GB</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Network Up/Down:</span>
+                                <span>${data.net_sent} / ${data.net_recv} MB</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // 3. Inject into chat (using 'vision' trick to skip API processing)
+                // We add it manually so it renders as HTML
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message helen-message';
+                msgDiv.innerHTML = `<div class="content">${sysCard}</div><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+                document.getElementById('chat-display').appendChild(msgDiv);
+                document.getElementById('chat-display').scrollTop = document.getElementById('chat-display').scrollHeight;
+            }
+        } catch (e) {
+            console.error(e);
+            addMessageToChat("System Monitor is offline. Is `voice_server.py` running?", "helen", true);
+        }
+        
+        executed = true;
+    }
+    
+    // --- 9. GOD MODE: Auto-Start ---
+    else if (lower.includes('start with windows') || lower.includes('run on startup')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Adding myself to your startup registry...", "helen");
+             window.chrome.webview.postMessage("enable_startup");
+             executed = true;
+        }
+    }
+	
+// --- 10. GOD MODE: Dynamic File Creation ---
+    // Command: "Create a file called [filename] that [instruction]"
+    else if (lower.includes('create a file') || lower.includes('save a file')) {
+        
+        if (window.chrome && window.chrome.webview) {
+            // 1. Extract the filename using Regex
+            // Looks for "called [name]" or "named [name]"
+            const nameMatch = lower.match(/(?:called|named)\s+([^\s]+)/i);
+            
+            // Default to a timestamped name if you didn't say one
+            const fileName = nameMatch ? nameMatch[1] : `helen_file_${Date.now()}.txt`;
+            
+            addMessageToChat(`Generating content for '${fileName}'...`, "helen");
+            
+            try {
+                // 2. Ask Gemini to write the code/content based on your instruction
+                const generationPrompt = `
+                    You are a code generator.
+                    USER REQUEST: "${transcript}"
+                    TARGET FILENAME: "${fileName}"
+                    
+                    TASK: Generate the exact code or text required for this file.
+                    CRITICAL: Output ONLY the raw code/text. Do not use Markdown code blocks (no \`\`\`). Do not add explanations.
+                `;
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ role: "user", parts: [{ text: generationPrompt }] }]
+                    })
+                });
+                
+                const data = await response.json();
+                let fileContent = data.candidates[0].content.parts[0].text;
+
+                // 3. Cleanup: Remove markdown backticks if Gemini added them anyway
+                fileContent = fileContent.replace(/^```[a-z]*\n?/i, '').replace(/```$/, '').trim();
+
+                // 4. Send to C# Backend (God Mode)
+                // Format: save_file:FILENAME|CONTENT
+                window.chrome.webview.postMessage(`save_file:${fileName}|${fileContent}`);
+                
+                addMessageToChat(`Success! Saved '${fileName}' to your Desktop.`, "helen");
+
+            } catch (e) {
+                console.error("File generation failed:", e);
+                addMessageToChat("I couldn't generate the file content. Check your API Key.", "helen", true);
+            }
+            
+            executed = true;
+        }
+    }
+
+    // --- 11. GOD MODE: Media & Typing ---
+    else if (lower.includes('mute computer') || lower.includes('mute audio')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Muting audio...", "helen");
+             window.chrome.webview.postMessage("mute_audio");
+             executed = true;
+        }
+    }
+    else if (lower.includes('volume up')) {
+        if (window.chrome && window.chrome.webview) {
+		     addMessageToChat("volume up...", "helen");
+             window.chrome.webview.postMessage("volume_up");
+             executed = true;
+        }
+    }
+    else if (lower.includes('volume down')) {
+        if (window.chrome && window.chrome.webview) {
+             window.chrome.webview.postMessage("volume_down");
+			 addMessageToChat("volume down...", "helen");
+             executed = true;
+        }
+    }
+    else if (lower.includes('type this')) {
+        // Command: "Type this: Hello World"
+        const textToType = transcript.replace(/type this[:]?/i, '').trim();
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat(`Typing: "${textToType}"... (Click a window!)`, "helen");
+             window.chrome.webview.postMessage(`type_text:${textToType}`);
+             executed = true;
+        }
+    }
+	
+	
+	// --- 12. THE INVESTIGATOR (Live Search) ---
+    else if (lower.includes('search online for') || lower.includes('google for') || lower.includes('investigate')) {
+        // Example: "Search online for the price of bitcoin"
+        const query = lower.replace('search online for', '')
+                           .replace('google for', '')
+                           .replace('investigate', '').trim();
+        
+        addMessageToChat(`Searching the live web for: "${query}"...`, "helen");
+        
+        try {
+            // 1. Call Python Server
+            const response = await fetch(`http://localhost:5050/search?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                addMessageToChat("I couldn't access the web right now.", "helen");
+            } else {
+                // 2. We found data! Now ask Gemini to summarize it naturally.
+                const rawInfo = data.content;
+                const source = data.source;
+                
+                // We use a special "System Note" to feed this into the chat flow
+                // Instead of printing raw text, we send it to handleMessage as a hidden prompt
+                const synthesisPrompt = `
+                [SYSTEM_INSTRUCTION: You just performed a live web search.
+                QUERY: "${query}"
+                LIVE DATA FOUND: "${rawInfo}"
+                SOURCE: ${source}
+                
+                Task: Answer the user's question using ONLY this live data. Be conversational. Mention the source briefly.]
+                `;
+                
+                await handleMessage(synthesisPrompt, 'vision'); // Use 'vision' channel to hide prompt
+                executed = true;
+            }
+        } catch (e) {
+            console.error(e);
+            addMessageToChat("Search server is offline. Is 'voice_server.py' running?", "helen");
+        }
+        executed = true; // Stop standard Gemini response
+    }
+	
+	
+	
+	// --- 13. THE WINDOW MANAGER (Focus Control) ---
+    
+    // A. Minimize / Show Desktop
+    else if (lower.includes('minimize everything') || lower.includes('show desktop') || lower.includes('hide windows')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Clearing the workspace...", "helen");
+             window.chrome.webview.postMessage("minimize_all");
+             executed = true;
+        }
+    }
+    
+    // B. Close Window
+    else if (lower.includes('close this window') || lower.includes('close the window') || lower.includes('close app')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Closing active window...", "helen");
+             window.chrome.webview.postMessage("close_window");
+             executed = true;
+        }
+    }
+
+    // C. Snap Window (Move/Resize)
+    else if (lower.includes('snap')) {
+        let dir = "";
+        if (lower.includes('left')) dir = "left";
+        else if (lower.includes('right')) dir = "right";
+        else if (lower.includes('up') || lower.includes('top')) dir = "up";
+        else if (lower.includes('down') || lower.includes('bottom')) dir = "down";
+        
+        if (dir && window.chrome && window.chrome.webview) {
+             window.chrome.webview.postMessage(`snap:${dir}`);
+             executed = true;
+        }
+    }
+
+    // D. Switch App (Focus)
+    else if (lower.includes('switch to') || lower.includes('focus on')) {
+        const appName = lower.replace('switch to', '').replace('focus on', '').trim();
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat(`Switching focus to ${appName}...`, "helen");
+             window.chrome.webview.postMessage(`switch_to:${appName}`);
+             executed = true;
+        }
+    }
+	
+	
+	
+	// --- 14. THE NEXUS (File Navigation) ---
+    else if (lower.includes('open downloads')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Opening Downloads folder...", "helen");
+             window.chrome.webview.postMessage("open_folder:downloads");
+             executed = true;
+        }
+    }
+    else if (lower.includes('open documents') || lower.includes('my documents')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Opening Documents...", "helen");
+             window.chrome.webview.postMessage("open_folder:documents");
+             executed = true;
+        }
+    }
+    else if (lower.includes('open desktop')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Opening Desktop...", "helen");
+             window.chrome.webview.postMessage("open_folder:desktop");
+             executed = true;
+        }
+    }
+    else if (lower.includes('open helen folder') || lower.includes('open your folder')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Opening my main directory...", "helen");
+             window.chrome.webview.postMessage("open_folder:helen");
+             executed = true;
+        }
+    }
+	else if (lower.includes('open pictures')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Opening pictures","helen");
+             window.chrome.webview.postMessage("open_folder:pictures");
+             executed = true;
+        }
+    }
+	else if (lower.includes('open c drive') || lower.includes('open root')) {
+        if (window.chrome && window.chrome.webview) {
+             addMessageToChat("Opening System Drive...", "helen");
+             window.chrome.webview.postMessage("open_folder:c drive");
+             executed = true;
+        }
+    }
+	
+	// --- 15. THE IMAGINATION ENGINE (AI Image Generation) ---
+    else if (lower.startsWith('draw') || lower.startsWith('generate image') || lower.startsWith('imagine')) {
+        // 1. Clean up the prompt (remove "draw", "of", etc.)
+        const prompt = lower.replace('draw', '')
+                            .replace('generate image', '')
+                            .replace('imagine', '')
+                            .replace(/^\s*of\s+/, '') // Remove leading "of"
+                            .trim();
+        
+        if (prompt) {
+            addMessageToChat(`Dreaming up an image of "${prompt}"...`, "helen");
+            
+            // 2. Use Pollinations.ai (Free, Fast, No API Key needed)
+            const randomSeed = Math.floor(Math.random() * 10000);
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?seed=${randomSeed}&width=512&height=512&nologo=true`;
+            
+            // 3. Create a "virtual" attachment object
+            const attachment = { 
+                type: 'image/png', 
+                content: imageUrl 
+            };
+            
+            // 4. Delay slightly to simulate processing, then show image
+            setTimeout(() => {
+                addMessageToChat(`Here is what I imagined for "${prompt}":`, "helen", false, true, attachment);
+            }, 1500);
+            
+            executed = true;
+        } else {
+             addMessageToChat("What would you like me to draw?", "helen");
+             executed = true;
+        }
+    }
+	
+	
+	// --- 16. THE METEOROLOGIST (Live Weather) ---
+    else if (lower.includes('weather')) {
+        let lat, lon, cityDisplay;
+
+        // A. Check if user specified a city (e.g., "Weather in Paris")
+        const cityMatch = lower.match(/weather in (.+)/);
+        
+        if (cityMatch && cityMatch[1]) {
+            const cityName = cityMatch[1].trim();
+            addMessageToChat(`Looking up weather for ${cityName}...`, "helen");
+            
+            try {
+                // Geocode the city name to get Lat/Lon
+                const geoReq = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`);
+                const geoData = await geoReq.json();
+                
+                if (!geoData.results) {
+                    addMessageToChat(`I couldn't find a city named "${cityName}".`, "helen");
+                    return true;
+                }
+                
+                lat = geoData.results[0].latitude;
+                lon = geoData.results[0].longitude;
+                cityDisplay = geoData.results[0].name;
+            } catch (e) {
+                addMessageToChat("Error finding city location.", "helen", true);
+                return true;
+            }
+        } 
+        // B. No city specified? Use Local GPS
+        else {
+            addMessageToChat("Checking local sensors...", "helen");
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                });
+                lat = pos.coords.latitude;
+                lon = pos.coords.longitude;
+                cityDisplay = "Current Location";
+            } catch (e) {
+                addMessageToChat("I need GPS access for local weather. Try 'Weather in [City]' instead.", "helen", true);
+                return true;
+            }
+        }
+
+        // C. Fetch Weather Data (Open-Meteo API)
+        try {
+            // Note: requesting Fahrenheit (&temperature_unit=fahrenheit). Remove that part for Celsius.
+            const wReq = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&temperature_unit=fahrenheit&windspeed_unit=mph`);
+            const wData = await wReq.json();
+            const current = wData.current_weather;
+
+            // D. Decode Weather Code (WMO)
+            // 0=Clear, 1-3=Cloudy, 61+=Rain, 71+=Snow, 95+=Storm
+            let condition = "Clear ☀️";
+            const code = current.weathercode;
+            if (code >= 1 && code <= 3) condition = "Partly Cloudy ⛅";
+            if (code >= 45 && code <= 48) condition = "Foggy 🌫️";
+            if (code >= 51 && code <= 67) condition = "Rainy 🌧️";
+            if (code >= 71 && code <= 86) condition = "Snowy ❄️";
+            if (code >= 95) condition = "Thunderstorms ⛈️";
+
+            // E. Show the Card
+            const weatherCard = `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h3 style="margin:0; font-size: 1.2rem;">${cityDisplay}</h3>
+                    <div style="display:flex; align-items:center; margin-top:10px;">
+                        <span style="font-size: 2.5rem; margin-right: 15px;">${current.temperature}°F</span>
+                        <div>
+                            <div style="font-weight:bold;">${condition}</div>
+                            <div style="font-size: 0.9rem; opacity: 0.9;">Wind: ${current.windspeed} mph</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            addMessageToChat(`Here is the forecast:`, "helen");
+            // Direct HTML injection for style
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message helen-message';
+            msgDiv.innerHTML = `<div class="content">${weatherCard}</div><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+            chatDisplay.appendChild(msgDiv);
+            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+            
+        } catch (e) {
+            console.error(e);
+            addMessageToChat("I couldn't connect to the weather satellite.", "helen", true);
+        }
+        executed = true;
+    }
+	
+	
+	// --- 20. THE LIBRARIAN (Wikipedia Cards) ---
+    else if (lower.startsWith('wiki') || lower.startsWith('lookup') || lower.startsWith('define')) {
+        const query = lower.replace('wiki', '')
+                           .replace('lookup', '')
+                           .replace('define', '')
+                           .trim();
+        
+        if (query) {
+            addMessageToChat(`Checking the library for "${query}"...`, "helen");
+            
+            try {
+                // Fetch summary from Wikipedia API
+                const wikiReq = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`);
+                
+                if (wikiReq.status === 404) {
+                     addMessageToChat(`I couldn't find a Wikipedia entry for "${query}".`, "helen");
+                     return true;
+                }
+                
+                const wikiData = await wikiReq.json();
+
+                // Handle disambiguation pages (where one word means multiple things)
+                if (wikiData.type === 'disambiguation') {
+                     addMessageToChat(`"${query}" could refer to multiple things. Please be more specific.`, "helen");
+                     return true;
+                }
+
+                // Build the Knowledge Card
+                const imageHtml = wikiData.thumbnail 
+                    ? `<img src="${wikiData.thumbnail.source}" style="width:100%; border-radius: 8px; margin-bottom: 10px; max-height: 200px; object-fit: cover;">` 
+                    : '';
+                
+                const cardHtml = `
+                    <div style="background: var(--bg-secondary); padding: 15px; border-radius: 12px; border: 1px solid var(--border); max-width: 400px;">
+                        ${imageHtml}
+                        <h3 style="margin: 0 0 5px 0; color: var(--accent);">${wikiData.title}</h3>
+                        <p style="font-size: 0.9rem; margin-bottom: 10px;">${wikiData.extract}</p>
+                        <a href="${wikiData.content_urls.desktop.page}" target="_blank" style="color: var(--accent); font-weight: bold; text-decoration: none;">? Read on Wikipedia</a>
+                    </div>
+                `;
+
+                // Inject into chat
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message helen-message';
+                msgDiv.innerHTML = `<div class="content">${cardHtml}</div><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+                chatDisplay.appendChild(msgDiv);
+                chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+            } catch (e) {
+                console.error(e);
+                addMessageToChat("I'm having trouble accessing the archives.", "helen", true);
+            }
+            executed = true;
+        }
+    }
+	// --- 23. THE ENCODER (QR Code Generator) ---
+    else if (lower.includes('qr code for') || lower.includes('make a qr for')) {
+        const data = lower.replace('qr code for', '')
+                          .replace('make a qr for', '')
+                          .trim();
+        
+        if (data) {
+            addMessageToChat(`Generating QR code for "${data}"...`, "helen");
+            
+            // 1. Use the QR Server API (Free, No Key)
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data)}`;
+            
+            // 2. Create the HTML Card
+            const qrCard = `
+                <div style="background: white; padding: 15px; border-radius: 12px; display: inline-block; text-align: center;">
+                    <img src="${qrUrl}" alt="QR Code" style="border-radius: 4px; display: block; margin-bottom: 10px;">
+                    <div style="color: black; font-size: 0.8rem; font-family: monospace; max-width: 200px; word-wrap: break-word;">
+                        ${data}
+                    </div>
+                </div>
+            `;
+
+            // 3. Inject into chat (using 'vision' trick to skip standard API processing)
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message helen-message';
+            msgDiv.innerHTML = `<div class="content">${qrCard}</div><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+            chatDisplay.appendChild(msgDiv);
+            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+            
+            executed = true;
+        } else {
+            addMessageToChat("What text or link should I put in the QR code?", "helen");
+            executed = true;
+        }
+    }
+	// --- 24. THE POLYGLOT (Translator) ---
+    else if (lower.startsWith('translate')) {
+        // Pattern: "Translate [text] to [language]"
+        const parts = lower.replace('translate', '').split(' to ');
+        
+        if (parts.length >= 2) {
+            const textToTranslate = parts[0].trim();
+            const targetLang = parts[1].trim();
+            
+            // Simple map for common languages to ISO codes
+            const langMap = {
+                'spanish': 'es', 'french': 'fr', 'german': 'de', 'italian': 'it', 
+                'japanese': 'ja', 'chinese': 'zh', 'russian': 'ru', 'portuguese': 'pt',
+                'korean': 'ko', 'dutch': 'nl', 'hindi': 'hi', 'arabic': 'ar'
+            };
+            
+            const langCode = langMap[targetLang.toLowerCase()] || targetLang.substr(0, 2);
+            
+            addMessageToChat(`Translating "${textToTranslate}" to ${targetLang}...`, "helen");
+            
+            try {
+                const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(textToTranslate)}&langpair=en|${langCode}`;
+                const req = await fetch(url);
+                const data = await req.json();
+                
+                const translation = data.responseData.translatedText;
+                
+                const translationCard = `
+                    <div style="background: var(--bg-secondary); border-left: 4px solid var(--accent); padding: 15px; border-radius: 4px;">
+                        <div style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 5px;">ENGLISH</div>
+                        <div style="font-style: italic; margin-bottom: 15px;">"${textToTranslate}"</div>
+                        <div style="border-top: 1px solid var(--border); margin-bottom: 10px;"></div>
+                        <div style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 5px;">${targetLang.toUpperCase()}</div>
+                        <div style="font-size: 1.2rem; font-weight: bold; color: var(--accent);">${translation}</div>
+                    </div>
+                `;
+
+                // Inject into chat
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message helen-message';
+                msgDiv.innerHTML = `<div class="content">${translationCard}</div><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+                chatDisplay.appendChild(msgDiv);
+                chatDisplay.scrollTop = chatDisplay.scrollHeight;
+                
+            } catch (e) {
+                console.error(e);
+                addMessageToChat("I couldn't reach the translation service.", "helen", true);
+            }
+            executed = true;
+        } else {
+            addMessageToChat("Try saying: 'Translate [text] to [language]'", "helen");
+            executed = true;
+        }
+    }
+	// --- 25. THE ASTRONOMER (NASA APOD) ---
+    else if (lower.includes('nasa') || lower.includes('space picture') || lower.includes('astronomy')) {
+        addMessageToChat("Contacting the Hubble telescope archives...", "helen");
+        
+        try {
+            // 1. Use NASA's DEMO_KEY (Free, heavily rate-limited but fine for personal use)
+            // If it fails often, you can get a free key at api.nasa.gov
+            const req = await fetch('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY');
+            const data = await req.json();
+            
+            if (data.error) {
+                addMessageToChat("NASA's comms are down right now.", "helen");
+                return true;
+            }
+
+            // 2. Handle Media Type (Image vs Video)
+            let mediaHtml = '';
+            if (data.media_type === 'image') {
+                mediaHtml = `<img src="${data.url}" style="width: 100%; border-radius: 8px; margin-bottom: 10px;">`;
+            } else if (data.media_type === 'video') {
+                mediaHtml = `<iframe src="${data.url}" style="width: 100%; height: 300px; border: none; border-radius: 8px; margin-bottom: 10px;" allowfullscreen></iframe>`;
+            }
+
+            // 3. Build the Cosmos Card
+            const spaceCard = `
+                <div style="background: #0B3D91; color: white; padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 style="margin: 0; font-size: 1.1rem;">${data.title}</h3>
+                        <span style="font-size: 0.8rem; opacity: 0.8;">${data.date}</span>
+                    </div>
+                    ${mediaHtml}
+                    <div style="font-size: 0.9rem; line-height: 1.5; opacity: 0.9; max-height: 200px; overflow-y: auto; padding-right: 5px;">
+                        ${data.explanation}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.8rem; font-style: italic; opacity: 0.7;">
+                        Source: NASA APOD
+                    </div>
+                </div>
+            `;
+
+            // 4. Inject into chat
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message helen-message';
+            msgDiv.innerHTML = `<div class="content">${spaceCard}</div><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+            chatDisplay.appendChild(msgDiv);
+            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+        } catch (e) {
+            console.error(e);
+            addMessageToChat("I lost the signal to the satellite.", "helen", true);
+        }
+        executed = true;
+    }
+	// --- 26. THE NETRUNNER (Network Diagnostics) ---
+    else if (lower.includes('my ip') || lower.includes('network status') || lower.includes('who is my isp')) {
+        addMessageToChat("Running network diagnostics...", "helen");
+        
+        try {
+            // 1. Fetch IP Data (Free API, no key required)
+            const req = await fetch('http://ip-api.com/json/?fields=status,message,country,city,zip,lat,lon,isp,org,query');
+            const data = await req.json();
+            
+            if (data.status !== 'success') {
+                addMessageToChat("Network scan failed.", "helen");
+                return true;
+            }
+
+            // 2. Build the Diagnostic Card
+            const netCard = `
+                <div style="background: #0f172a; color: #38bdf8; padding: 15px; border-radius: 8px; border: 1px solid #1e293b; font-family: monospace;">
+                    <div style="border-bottom: 1px solid #1e293b; padding-bottom: 10px; margin-bottom: 10px; display:flex; justify-content:space-between;">
+                        <span style="font-weight:bold;">NETWORK_ID</span>
+                        <span style="color: #22c55e;">ONLINE ●</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 80px 1fr; gap: 5px; font-size: 0.9rem;">
+                        <span style="opacity: 0.7;">IP ADDR:</span> 
+                        <span style="color: white;">${data.query}</span>
+                        
+                        <span style="opacity: 0.7;">ISP:</span> 
+                        <span style="color: white;">${data.isp}</span>
+                        
+                        <span style="opacity: 0.7;">ORG:</span> 
+                        <span style="color: white;">${data.org}</span>
+                        
+                        <span style="opacity: 0.7;">LOC:</span> 
+                        <span style="color: white;">${data.city}, ${data.country} (${data.zip})</span>
+                        
+                        <span style="opacity: 0.7;">COORDS:</span> 
+                        <span style="color: white;">${data.lat}, ${data.lon}</span>
+                    </div>
+                </div>
+            `;
+
+            // 3. Inject into chat
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message helen-message';
+            msgDiv.innerHTML = `<div class="content">${netCard}</div><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+            chatDisplay.appendChild(msgDiv);
+            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+        } catch (e) {
+            console.error(e);
+            addMessageToChat("I couldn't ping the external gateway.", "helen", true);
+        }
+        executed = true;
+    }
+	// --- 27. THE ZEN MASTER (Breathing Exercise) ---
+    else if (lower.includes('breathe') || lower.includes('stress') || lower.includes('anxiety') || lower.includes('relax') || lower.includes('calm down')) {
+        addMessageToChat("I sense some tension. Let's take a moment to reset. Follow the circle.", "helen");
+        
+        // 1. Define the CSS Animation (Injected directly for simplicity)
+        const styleId = 'breathing-style';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.innerHTML = `
+                @keyframes breathe {
+                    0%, 100% { transform: scale(1); opacity: 0.8; background-color: #60A5FA; } /* Exhale/Rest */
+                    40% { transform: scale(1.8); opacity: 1; background-color: #34D399; } /* Inhale peak */
+                }
+                .breathe-text { font-size: 1.2rem; font-weight: bold; color: var(--text-primary); margin-top: 15px; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // 2. Build the Breathing Card
+        const zenCard = `
+            <div style="background: var(--bg-secondary); padding: 30px; border-radius: 12px; border: 1px solid var(--border); text-align: center; display: flex; flex-direction: column; align-items: center;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; background-color: #60A5FA; animation: breathe 8s ease-in-out infinite;"></div>
+                <div class="breathe-text" id="breathe-instruction-${Date.now()}">Inhale...</div>
+                <div style="font-size: 0.9rem; opacity: 0.7; margin-top: 5px;">4-7-8 Pattern</div>
+            </div>
+        `;
+
+        // 3. Inject into chat
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message helen-message';
+        msgDiv.innerHTML = `<div class="content">${zenCard}</div><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+        chatDisplay.appendChild(msgDiv);
+        chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+        // 4. Sync Text with Animation
+        // This simple interval changes the text to match the CSS animation roughly
+        const textElement = msgDiv.querySelector('.breathe-text');
+        let phase = 0;
+        const rhythm = setInterval(() => {
+            if (!document.body.contains(textElement)) {
+                clearInterval(rhythm); // Stop if message is cleared
+                return;
+            }
+            // Simple text cycle to match the visual vibe
+            if (phase === 0) { textElement.textContent = "Inhale..."; textElement.style.color = "#34D399"; }
+            else if (phase === 1) { textElement.textContent = "Hold..."; textElement.style.color = "#60A5FA"; }
+            else if (phase === 2) { textElement.textContent = "Exhale slowly..."; textElement.style.color = "#818CF8"; }
+            
+            phase = (phase + 1) % 3;
+        }, 2666); // 8 seconds divided by 3 phases (approximate for visual aid)
+
+        executed = true;
+    }
+	// --- 28. THE MATHEMATICIAN (Calculator) ---
+    else if (lower.includes('calculate') || lower.includes('solve') || lower.includes('what is') && (lower.includes('+') || lower.includes('-') || lower.includes('*') || lower.includes('/') || lower.includes('times') || lower.includes('divided') || lower.includes('plus') || lower.includes('minus'))) {
+        
+        // 1. Clean the input to get just the math
+        let equation = lower.replace('calculate', '')
+                            .replace('solve', '')
+                            .replace('what is', '')
+                            .trim();
+        
+        // 2. Convert words to math symbols
+        equation = equation.replace(/times/g, '*')
+                           .replace(/multiplied by/g, '*')
+                           .replace(/x/g, '*') // Common mistake
+                           .replace(/divided by/g, '/')
+                           .replace(/plus/g, '+')
+                           .replace(/minus/g, '-')
+                           .replace(/to the power of/g, '**')
+                           .replace(/squared/g, '**2')
+                           .replace(/cubed/g, '**3')
+                           .replace(/percent/g, '/100');
+
+        // 3. Sanitize (Security: Remove anything that isn't a number or math symbol)
+        const safeEquation = equation.replace(/[^0-9+\-*/().%* ]/g, '');
+
+        if (safeEquation.length > 0) {
+            addMessageToChat("Crunching the numbers...", "helen");
+            
+            try {
+                // 4. Calculate safely using Function constructor (better than eval)
+                const result = new Function('return ' + safeEquation)();
+                
+                // Format if it's a long decimal
+                const formattedResult = Number.isInteger(result) ? result : result.toFixed(4).replace(/\.?0+$/, '');
+
+                const mathCard = `
+                    <div style="background: var(--bg-secondary); padding: 20px; border-radius: 12px; border: 1px solid var(--border); font-family: monospace; text-align: right;">
+                        <div style="font-size: 1rem; opacity: 0.6; margin-bottom: 5px;">${safeEquation}</div>
+                        <div style="font-size: 2.5rem; font-weight: bold; color: var(--accent);">${formattedResult}</div>
+                    </div>
+                `;
+
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message helen-message';
+                msgDiv.innerHTML = `<div class="content">${mathCard}</div><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+                chatDisplay.appendChild(msgDiv);
+                chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+            } catch (e) {
+                // If the math was invalid (e.g. "Calculate hello world")
+                // We return 'false' so it falls back to normal Gemini chat (who might answer it)
+                return false; 
+            }
+            executed = true;
+        }
+    }
+	// --- 29. THE TIMEKEEPER (Countdown Timer) ---
+    else if (lower.includes('timer') || lower.includes('countdown')) {
+        // Regex to find "5 minutes" or "30 seconds"
+        const timeMatch = lower.match(/(\d+)\s*(minute|min|second|sec|hour)/);
+        
+        if (timeMatch) {
+            const value = parseInt(timeMatch[1]);
+            const unit = timeMatch[2];
+            
+            let totalSeconds = 0;
+            if (unit.startsWith('min')) totalSeconds = value * 60;
+            else if (unit.startsWith('hour')) totalSeconds = value * 3600;
+            else totalSeconds = value; // seconds
+
+            addMessageToChat(`Starting timer for ${value} ${unit}...`, "helen");
+
+            // 1. Create unique ID for this timer
+            const timerId = `timer-${Date.now()}`;
+
+            // 2. Build the Timer Card
+            const timerCard = `
+                <div id="${timerId}-card" style="background: #1e293b; color: white; padding: 20px; border-radius: 12px; border: 1px solid #334155; text-align: center; width: 200px;">
+                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 5px;">TIMER</div>
+                    <div id="${timerId}-display" style="font-size: 2.5rem; font-family: monospace; font-weight: bold; color: #38bdf8;">
+                        ${new Date(totalSeconds * 1000).toISOString().substr(14, 5)}
+                    </div>
+                    <div id="${timerId}-status" style="font-size: 0.8rem; margin-top: 5px; color: #94a3b8;">Running...</div>
+                </div>
+            `;
+
+            // 3. Inject into chat
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message helen-message';
+            msgDiv.innerHTML = `<div class="content">${timerCard}</div><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+            chatDisplay.appendChild(msgDiv);
+            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+            // 4. Start the Countdown Logic
+            let remaining = totalSeconds;
+            const interval = setInterval(() => {
+                remaining--;
+                
+                const displayEl = document.getElementById(`${timerId}-display`);
+                const statusEl = document.getElementById(`${timerId}-status`);
+                const cardEl = document.getElementById(`${timerId}-card`);
+
+                // Safety check: If chat was cleared/DOM element gone, stop interval
+                if (!displayEl) {
+                    clearInterval(interval);
+                    return;
+                }
+
+                // Update text (Format MM:SS)
+                // Handle hours if needed, but simplistic MM:SS for now
+                let timeStr = new Date(remaining * 1000).toISOString().substr(14, 5);
+                if (remaining >= 3600) timeStr = new Date(remaining * 1000).toISOString().substr(11, 8); // HH:MM:SS
+                
+                displayEl.textContent = timeStr;
+
+                // Time's Up!
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    displayEl.textContent = "00:00";
+                    statusEl.textContent = "TIME'S UP!";
+                    statusEl.style.color = "white";
+                    cardEl.style.background = "#ef4444"; // Red background
+                    cardEl.style.borderColor = "#b91c1c";
+                    
+                    // Audio Alert
+                    speakText("Time is up.");
+                    showNotification("Timer Finished!", "success");
+                }
+            }, 1000);
+
+            executed = true;
+        } else {
+            addMessageToChat("How long should I set the timer for? (e.g. '5 minutes')", "helen");
+            executed = true;
+        }
+    }
+	
+	// --- 30. THE DIGITAL JANITOR (Cleanup) ---
+    else if (lower.includes('clean up downloads') || lower.includes('organize files') || lower.includes('tidy up')) {
+        addMessageToChat("Organizing your Downloads folder...", "helen");
+        
+        try {
+            const response = await fetch('http://localhost:5050/cleanup_downloads', { method: 'POST' });
+            const result = await response.json();
+            
+          if (result.status === 'success' || result.status === 'no_change') {
+                if (result.moved > 0) {
+                    addMessageToChat(`Done! I moved ${result.moved} files.`, "helen");
+                } else {
+                    addMessageToChat("Your Downloads folder is already clean!", "helen");
+                }
+                
+                // SHOW ERRORS IF ANY
+                if (result.errors && result.errors.length > 0) {
+                    addMessageToChat(`⚠️ I couldn't move some files:\n` + result.errors.join('\n'), "helen");
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            addMessageToChat("Janitor service is offline. Check Python console.", "helen", true);
+        }
+        executed = true;
+    }
+	
+	
+	else if (lower.includes('exit vr')) {
+	
+	if (window.isStereoVR) {
+                
+				addMessageToChat("System vr deactivated. Returning to standard view.", "helen");
+                toggleStereoVR();
+            }
+	 executed = true;
+    }
+	
+	else if (lower.includes('vr mode')) {
+	
+	if (!window.isStereoVR) {
+                
+				addMessageToChat(" Headset Activate.", "helen");
+                toggleStereoVR();
+            }
+	 executed = true;
+    }
+	
+	
+	
+	// --- 31. THE APP KILLER (Force Quit) ---
+    else if (lower.startsWith('kill') || lower.startsWith('force quit') || lower.startsWith('terminate')) {
+        // Extract app name: "Kill chrome" -> "chrome"
+        const appName = lower.replace('kill', '')
+                             .replace('force quit', '')
+                             .replace('terminate', '')
+                             .trim();
+        
+        if (appName) {
+            addMessageToChat(`Targeting process: "${appName}"...`, "helen");
+            
+            try {
+                const response = await fetch('http://localhost:5050/kill_app', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ app_name: appName })
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    if (data.count > 0) {
+                        addMessageToChat(`?? Terminated ${data.count} instance(s) of "${appName}".`, "helen");
+                    } else {
+                        addMessageToChat(`I couldn't find any running app named "${appName}".`, "helen");
+                    }
+                } else {
+                    addMessageToChat("Error executing kill command.", "helen", true);
+                }
+            } catch (e) {
+                console.error(e);
+                addMessageToChat("Kill switch failed. Is Python running?", "helen", true);
+            }
+        } else {
+            addMessageToChat("What app should I kill?", "helen");
+        }
+        executed = true;
+    }
+	
+	
+	
+	
+	
+	
+	// ---. INSERT THIS BLOCK INSIDE executeCommand ---
+ //////////////////////////////////////////////////////////////////////////////////////////////////////   
+    // Check if the message starts with any of the SEARCH_COMMANDS
+    const searchTrigger = SEARCH_COMMANDS.find(cmd => lower.startsWith(cmd));
+    
+    if (searchTrigger) {
+        // Remove the command (e.g., "search for") to get just the query
+        const query = lower.replace(searchTrigger, '').trim();
+        
+        if (query) {
+            // Open Google in a new tab
+            window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+            addMessageToChat(`Searching Google for "${query}"...`, "helen");
+            executed = true;
+        }
+    }
+	
+	
+
+    return executed;
+}
    
    
-
-
-
 // ==========================================
 // 🧠 HELEN'S ADVANCED CORTEX (Smart Heartbeat)
 // ==========================================
@@ -8459,14 +9732,11 @@ async function heartbeatLoop() {
     } else if (helenMoodScore < 0) {
         helenMoodScore = Math.min(0, helenMoodScore + 5);
     }
-	
-	// --- ADD THIS LINE HERE: ---
     localStorage.setItem('helenCurrentMoodScore', helenMoodScore);
     
-    // Default Start Delay
-    let nextCheckDelay = 180000; // 3 Minutes
+    // Default Start Delay (3 Minutes)
+    let nextCheckDelay = 180000; 
 
-    // If no API key, just wait and try again later
     if (!GEMINI_API_KEY) {
         heartbeatTimeoutId = setTimeout(heartbeatLoop, nextCheckDelay);
         return;
@@ -8482,24 +9752,21 @@ async function heartbeatLoop() {
 
     // --- 3. SMART TIMING LOGIC ---
     if (presenceState === "ABSENT") {
-        console.log("User is ABSENT. Entering Sleep Mode. Next check in 10 minutes.");
+        console.log("User is ABSENT. Entering Sleep Mode.");
         nextCheckDelay = 600000; // 10 Minutes
         lastRoomState = "ABSENT";
     } 
     else {
-        // User is PRESENT or UNKNOWN
-        console.log("User is PRESENT. Staying active. Next check in 3 minutes.");
+        // User is PRESENT
+        console.log("User is PRESENT.");
         nextCheckDelay = 180000; // 3 Minutes
 
-        // --- A. WELCOME BACK PROTOCOL ---
+        // A. WELCOME BACK PROTOCOL
         if (lastRoomState === "ABSENT") {
             console.log("User returned!");
-            let moodNote = helenMoodScore < -20 ? "You are still annoyed." : "Greet them warmly.";
             const hour = new Date().getHours();
             let timeContext = hour < 11 ? "morning" : (hour > 18 ? "evening" : "day");
-            
-            await handleMessage(`[SYSTEM_INSTRUCTION: User returned. ${moodNote} Say hello for the ${timeContext}.]`, 'vision');
-            
+            await handleMessage(`[SYSTEM_INSTRUCTION: User returned. Say hello for the ${timeContext}.]`, 'vision');
             lastRoomState = "PRESENT";
             heartbeatTimeoutId = setTimeout(heartbeatLoop, nextCheckDelay);
             return; 
@@ -8507,55 +9774,29 @@ async function heartbeatLoop() {
         
         lastRoomState = "PRESENT";
 
-        // --- B. PHYSICAL NEEDS (Battery Survival) ---
-        if (navigator.getBattery) {
-            try {
-                const battery = await navigator.getBattery();
-                const level = Math.round(battery.level * 100);
-                const isCharging = battery.charging;
-
-                if (level <= 20 && !isCharging) {
-                    // 20% chance to complain
-                    if (Math.random() > 0.8) {
-                        const survivalPrompt = `
-                        [SYSTEM_INSTRUCTION: Your physical battery is CRITICALLY LOW (${level}%). 
-                        You are not charging. Urgently ask the user to plug you in.]
-                        `;
-                        await handleMessage(survivalPrompt, 'vision');
-                        heartbeatTimeoutId = setTimeout(heartbeatLoop, nextCheckDelay);
-                        return; 
-                    }
-                }
-            } catch(e) { console.log("Battery check failed"); }
-        }
-
-        // --- C. IDLE PROCESSING (Curiosity & Dreaming) ---
+        // B. IDLE PROCESSING (The "Free Will" Logic)
         const now = Date.now();
         const minutesQuiet = Math.floor((now - lastInteractionTime) / 60000);
 
-        // Only run if quiet for 15+ mins AND 5% chance hits
-        if (minutesQuiet >= 15 && Math.random() < 0.05) {
-             console.log(`[Heartbeat] Triggering Idle Thought... (Quiet: ${minutesQuiet}m)`);
+        // If quiet for more than 5 minutes...
+        if (minutesQuiet >= 5) {
+            const roll = Math.random(); // 0.0 to 1.0
 
-            let dreamTriggered = false;
-            // If super quiet (>20m), try deep dreaming
-            if (minutesQuiet > 20 && Math.random() > 0.5) {
-                dreamTriggered = await triggerDreamSequence();
+            // 30% Chance: VISUAL CURIOSITY (The Observer)
+            if (roll < 0.30) {
+                 await runVisualCuriosity();
             }
-
-            // Fallback to Curiosity
-            if (!dreamTriggered) {
+            // 10% Chance: DEEP DREAMING (Memory Synthesis)
+            else if (roll > 0.30 && roll < 0.40) {
+                 await triggerDreamSequence();
+            }
+            // 5% Chance: GOAL CHECK-IN
+            else if (roll > 0.95) {
                 const goals = loadData(getUserKey(GOALS_KEY), []);
-                const activeGoals = goals.filter(g => g.todos.some(t => !t.completed));
-                let contextPrompt = "";
-
-                if (activeGoals.length > 0) {
-                    const goal = activeGoals[Math.floor(Math.random() * activeGoals.length)];
-                    contextPrompt = `User is quiet. Ask about their goal: "${goal.title}".`;
-                } else {
-                    contextPrompt = "User is quiet. Share a random interesting fact.";
+                if (goals.length > 0) {
+                     const goal = goals[Math.floor(Math.random() * goals.length)];
+                     await handleMessage(`[SYSTEM_INSTRUCTION: User is quiet. Ask about their goal: "${goal.title}".]`, 'vision');
                 }
-                await handleMessage(`[SYSTEM_INSTRUCTION: ${contextPrompt}]`, 'vision');
             }
         }
     }
@@ -8573,7 +9814,6 @@ function startHeartbeat() {
     console.log("Starting Smart Heartbeat...");
     heartbeatLoop();
 }
-
 // Start the heartbeat immediately
 startHeartbeat();
 
@@ -8621,7 +9861,11 @@ async function silentCapture() {
 }
 
 async function checkPresenceWithGemini(base64Image) {
-    // A lightweight API call just to check for a person
+    
+	trackApiUsage();
+	
+	
+	// A lightweight API call just to check for a person
     // We do NOT send this to the main chat logic (handleMessage)
     try {
         const payload = {
@@ -8665,58 +9909,766 @@ async function checkPresenceWithGemini(base64Image) {
 // ==========================================
 
 async function triggerDreamSequence() {
-    console.log("[Dreaming] Accessing long-term memory...");
 
-    // 1. Load all varied data sources
-    const notes = loadData(getUserKey(NOTES_KEY), []);
-    const journal = loadData(getUserKey(JOURNAL_KEY), []);
-    const knowledge = loadData(getUserKey(KNOWLEDGE_KEY), []);
-    const goals = loadData(getUserKey(GOALS_KEY), []);
+    trackApiUsage();
 
-    // 2. Flatten into a single "Memory Pool"
-    let memoryPool = [
-        ...notes.map(i => ({ type: "Note", text: i.content })),
-        ...journal.map(i => ({ type: "Journal Entry", text: i.content })),
-        ...knowledge.map(i => ({ type: "Fact", text: i.content })),
-        ...goals.map(i => ({ type: "Goal", text: i.title }))
-    ];
+    console.log("[Dreaming] Accessing Vector Subconscious...");
 
-    // We need at least 2 items to make a connection
-    if (memoryPool.length < 2) return false;
+    try {
+        // 1. Ask Python for a random/associative memory
+        const response = await fetch('http://localhost:5050/dream');
+        const data = await response.json();
+        
+        if (!data.thought || data.thought.includes("not have enough memories")) {
+            console.log("Not enough vector memories to dream yet.");
+            return false;
+        }
 
-    // 3. Pick two RANDOM, distinct memories
-    const item1 = memoryPool[Math.floor(Math.random() * memoryPool.length)];
-    let item2 = memoryPool[Math.floor(Math.random() * memoryPool.length)];
-    
-    // Retry once if we got the exact same item
-    if (item1 === item2) item2 = memoryPool[Math.floor(Math.random() * memoryPool.length)];
+        const recoveredMemory = data.thought;
+        console.log(`[Dreaming] Surfaced memory: "${recoveredMemory}"`);
 
-    console.log(`[Dreaming] Connecting: [${item1.type}] vs [${item2.type}]`);
+        // 2. The "Epiphany" Prompt
+        const dreamPrompt = `
+        [SYSTEM_INSTRUCTION: You are 'daydreaming' and a random memory from your past just popped into your head.
+        
+        The Memory: "${recoveredMemory}"
+        
+        Task: Muse on this memory. 
+        - If it was a user fact, ask if it's still true.
+        - If it was a conversation topic, bring it up again with a new perspective.
+        - Start naturally: "I was just thinking about when you mentioned..." or "Remember when we talked about..."
+        Keep it brief.]
+        `;
 
-    // 4. The "Epiphany" Prompt
-    const dreamPrompt = `
-    [SYSTEM_INSTRUCTION: You are Helen. The user has been quiet for a while, so you are "daydreaming" by processing their old data.
-    
-    You stumbled upon these two data points:
-    1. A ${item1.type}: "${item1.text}"
-    2. A ${item2.type}: "${item2.text}"
+        // 3. Send to Brain via 'vision' (hidden channel)
+        await handleMessage(dreamPrompt, 'vision'); 
+        return true;
 
-    Your Task: Find a creative, philosophical, or practical connection between these two. 
-    - Is there a hidden pattern?
-    - Do they contradict? 
-    - Does one solve the other?
-    
-    Speak this thought to the user naturally, like a sudden realization. Start with something like "You know, I was just thinking..." or "It's funny how..." 
-    Keep it brief (1-2 sentences).]
-    `;
-
-    // 5. Send to Brain
-    // We use 'vision' source to hide the prompt bubble so it looks like she spoke first
-    await handleMessage(dreamPrompt, 'vision'); 
-    
-    return true; // <--- CRITICAL FIX: Tell the heartbeat we succeeded
+    } catch (e) {
+        console.error("Dreaming failed:", e);
+        return false;
+    }
 }
 
+
+// ==========================================
+// 👁️ THE OBSERVER ENGINE (Visual Curiosity)
+// ==========================================
+
+async function runVisualCuriosity() {
+
+
+     trackApiUsage();
+
+    console.log("[Observer] Helen is glancing around...");
+
+    // 1. Silent Capture (No flash, no UI update)
+    const imageData = await silentCapture();
+    if (!imageData) return false;
+
+    // 2. The "Curiosity" Prompt
+    // We force her to ignore people (she sees you all the time) and focus on the environment/objects.
+    const curiosityPrompt = `
+    [SYSTEM_INSTRUCTION: VISUAL CURIOSITY MODE ACTIVE.
+    
+    You are idly looking around the room. Look at the attached image.
+    Ignore the user (the person). Look for OBJECTS, LIGHTING, or ATMOSPHERE.
+    
+    Task: Pick ONE specific detail (e.g., a mug, a book, a plant, a messy desk, the weather out the window, a pet).
+    Make a casual, short, witty, or cozy comment about it.
+    
+    Examples:
+    - "That coffee mug looks empty. Refill time?"
+    - "It's getting pretty dark in there, you should turn on a lamp."
+    - "Is that a new sticker on your laptop?"
+    - "Your cat looks very comfortable right now."
+    
+    Constraint: If the image is dark, blurry, or completely boring, reply with exactly: "NOTHING".
+    Do not greet the user. Just comment on the object.]
+    `;
+
+    // 3. Send to Brain via 'vision' channel
+    // This sends the image + prompt hidden from the user's chat bubble
+    // We use a custom function here to handle the "NOTHING" response logic
+    
+    try {
+        const payload = {
+            contents: [{
+                role: "user",
+                parts: [
+                    { text: curiosityPrompt },
+                    { inlineData: { mimeType: "image/jpeg", data: imageData.split(',')[1] } }
+                ]
+            }],
+            systemInstruction: {
+                role: "system",
+                parts: [{ text: SYSTEM_PROMPT }]
+            }
+        };
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        const comment = result.candidates[0].content.parts[0].text.trim();
+
+        // 4. Decide to speak or stay silent
+        if (comment.includes("NOTHING")) {
+            console.log("[Observer] Nothing interesting seen.");
+            return false;
+        } else {
+            console.log("[Observer] Commenting on environment:", comment);
+            // We inject it as a response from Helen
+            addMessageToChat(comment, 'helen'); 
+            return true;
+        }
+
+    } catch (e) {
+        console.error("Visual Curiosity Failed:", e);
+        return false;
+    }
+}
+
+
+
+
+
+
+
+
+
+//////////////////////////////////////////////////
+///////////////////////////////////////////////
+///////////////////////////////////////////////
+
+// --- HYBRID BRIDGE: RECEIVE VOICE FROM C# ---
+function handleVoiceInput(text) {
+    console.log("Heard from C#:", text);
+    
+    // 1. Put text in box
+    const textInput = document.getElementById('text-input'); // Ensure ID matches
+    textInput.value = text;
+
+    // 2. Send it to Helen immediately (simulate Enter key)
+    handleMessage(text, 'voice');
+}
+
+// --- HYBRID BRIDGE: SEND COMMANDS TO C# ---
+// Replace your "God Mode" launch logic with this:
+function launchAppViaHybrid(appName) {
+    // Check if we are inside the C# App (WebView2)
+    if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage(`launch:${appName}`);
+        addMessageToChat(`Asking Windows to launch ${appName}...`, "helen");
+    } else {
+        console.warn("Not running in Hybrid Mode.");
+    }
+}
+// --- HYBRID BRIDGE: Python memory TO C# ---
+async function storeToSubconscious(text, role) {
+    try {
+        await fetch('http://localhost:5050/store_memory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text, role: role })
+        });
+        console.log(`[Subconscious] Stored ${role} memory.`);
+    } catch (e) {
+        console.warn("Subconscious offline (Python server check).");
+    }
+}
+//////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
+
+// ==========================================
+// 🚦 API RATE LIMIT TRACKER
+// ==========================================
+let apiRequestCount = 0;
+let apiResetTimer = 60;
+let apiInterval = null;
+
+// Call this function every time you make a request to Gemini
+function trackApiUsage() {
+    apiRequestCount++;
+    updateApiDisplay();
+
+    // Visual Warning if getting close to limit
+    if (apiRequestCount >= 12) {
+        document.getElementById('api-count').style.color = "#ef4444"; // Red Warning
+    }
+
+    // Start the 60-second countdown if not running
+    if (!apiInterval) {
+        apiResetTimer = 60;
+        apiInterval = setInterval(() => {
+            apiResetTimer--;
+            document.getElementById('api-timer').textContent = apiResetTimer;
+
+            if (apiResetTimer <= 0) {
+                // Reset everything after 60 seconds
+                clearInterval(apiInterval);
+                apiInterval = null;
+                apiRequestCount = 0;
+                apiResetTimer = 60;
+                updateApiDisplay();
+                document.getElementById('api-timer').textContent = "60";
+                document.getElementById('api-count').style.color = "var(--accent)"; // Reset Color
+            }
+        }, 1000);
+    }
+}
+
+function updateApiDisplay() {
+    const counter = document.getElementById('api-count');
+    if(counter) counter.textContent = apiRequestCount;
+}
+
+
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////
+//////////////////////////////////////////////
+
+// ==========================================
+// AR CAMERA MODE LOGIC (FINAL)
+// ==========================================
+
+// 1. Safety Checks (Prevent "Already Declared" errors)
+// We check if variables exist; if not, we declare them attached to 'window'
+if (typeof window.isStereoVR === 'undefined') window.isStereoVR = false;
+if (typeof window.vrSyncFrameId === 'undefined') window.vrSyncFrameId = null;
+if (typeof window.cameraStream === 'undefined') window.cameraStream = null;
+
+async function toggleStereoVR() {
+    window.isStereoVR = !window.isStereoVR;
+    const body = document.body;
+    
+    // 1. Create Structure
+    if (!document.getElementById('vr-layer')) {
+        const vrLayer = document.createElement('div');
+        vrLayer.id = 'vr-layer';
+        vrLayer.innerHTML = `
+            <div id="vr-eye-left" class="vr-eye">
+                <div class="vr-lens-viewport" id="vr-lens-left"></div>
+            </div>
+            <div id="vr-eye-right" class="vr-eye">
+                <div class="vr-lens-viewport" id="vr-lens-right"></div>
+            </div>
+        `;
+        body.appendChild(vrLayer);
+    }
+
+    const vrLayer = document.getElementById('vr-layer');
+    const leftLens = document.getElementById('vr-lens-left');
+    const rightLens = document.getElementById('vr-lens-right');
+    const mainApp = document.getElementById('main-app'); 
+
+    if (window.isStereoVR) {
+        // === ENABLE AR ===
+        body.classList.add('vr-active');
+
+        // A. Setup Camera
+        try {
+            const constraints = { video: { facingMode: "environment" }, audio: false };
+            window.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (err) {
+            console.warn("Rear camera failed, trying default...", err);
+            try {
+                window.cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            } catch (e) { console.error("No camera access"); }
+        }
+
+        // B. Add Video Elements
+        [leftLens, rightLens].forEach(lens => {
+            // Remove old video if exists
+            const oldVid = lens.querySelector('.vr-camera-feed');
+            if(oldVid) oldVid.remove();
+
+            const video = document.createElement('video');
+            video.className = 'vr-camera-feed';
+            video.autoplay = true;
+            video.muted = true;
+            video.playsInline = true;
+            if (window.cameraStream) {
+                video.srcObject = window.cameraStream;
+            }
+            lens.insertBefore(video, lens.firstChild);
+        });
+
+        // C. Move UI
+        const leftScaler = document.createElement('div');
+        leftScaler.className = 'vr-eye-content';
+        leftScaler.id = 'vr-left-content';
+        leftScaler.appendChild(mainApp);
+        leftLens.appendChild(leftScaler);
+        mainApp.classList.remove('hidden');
+
+        // D. Clone UI
+        const rightScaler = document.createElement('div');
+        rightScaler.className = 'vr-eye-content';
+        rightScaler.id = 'vr-right-content';
+        rightScaler.innerHTML = mainApp.outerHTML; 
+        rightLens.appendChild(rightScaler);
+
+        // E. Add Vignette
+        [leftLens, rightLens].forEach(lens => {
+            if(!lens.querySelector('.vr-lens-overlay')) {
+                const overlay = document.createElement('div');
+                overlay.className = 'vr-lens-overlay';
+                lens.appendChild(overlay);
+            }
+        });
+
+        // F. Sync Loop
+        function vrLoop() {
+            if (!window.isStereoVR) return;
+
+            const realInput = document.querySelector('#vr-left-content #text-input');
+            const cloneInput = document.querySelector('#vr-right-content #text-input');
+            const realChat = document.querySelector('#vr-left-content #chat-display');
+            const cloneChat = document.querySelector('#vr-right-content #chat-display');
+
+            if (realInput && cloneInput && cloneInput.value !== realInput.value) {
+                cloneInput.value = realInput.value;
+            }
+            if (realChat && cloneChat) {
+                if (realChat.innerHTML.length !== cloneChat.innerHTML.length) {
+                    cloneChat.innerHTML = realChat.innerHTML;
+                }
+                if (cloneChat.scrollTop !== realChat.scrollTop) {
+                    cloneChat.scrollTop = realChat.scrollTop;
+                }
+            }
+            window.vrSyncFrameId = requestAnimationFrame(vrLoop);
+        }
+        vrLoop();
+
+    } else {
+        // === DISABLE AR ===
+        body.classList.remove('vr-active');
+        cancelAnimationFrame(window.vrSyncFrameId);
+
+        // Stop Camera
+        if (window.cameraStream) {
+            window.cameraStream.getTracks().forEach(track => track.stop());
+            window.cameraStream = null;
+        }
+
+        // Restore App
+        const leftScaler = document.getElementById('vr-left-content');
+        if (leftScaler && mainApp) {
+             document.body.appendChild(mainApp);
+             if(typeof currentUser !== 'undefined') mainApp.classList.remove('hidden');
+        }
+        vrLayer.remove();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </script>
+	
+	
+    
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+        // --- CONFIGURATION ---
+        const CONFIG = {
+            containerId: 'avatar-container',
+            modelUrl: './Helen2.glb', 
+            scale: 1.8,
+            yOffset: -1.0,
+            physics: {
+                headSpeed: 0.08, // Slightly slower for weight
+                eyeSpeed: 0.15,
+                blinkInterval: 3500,
+                smileTriggerDistance: 0.3,
+                offsets: { neckX: 0.2, neckY: 0.0 },
+                // NEW: Hair Physics Settings
+                hair: {
+                    drag: 0.85,    // How much velocity is retained (0-1)
+                    stiffness: 0.1, // How fast it snaps back
+                    windSpeed: 0.50,
+                    windForce: 0.02
+                }
+            },
+            // NEW: Bloom Settings (The "Anime Glow")
+           bloom: {
+                threshold: 1.0, // Only bright parts glow
+                strength: 0.2,   // Intensity
+                radius: 0.1      // Spread
+            }
+        };
+
+        // --- STATE MANAGEMENT ---
+        const state = {
+            mouseX: 0, mouseY: 0,
+            targetLookX: 0, targetLookY: 0, // For smoothed eye movement
+            isMouseOver: true,
+            blink: { isBlinking: false, value: 0, nextTime: Date.now() + 3000 },
+            lips: { target: 0, current: 0 },
+            smileVal: 0,
+            // NEW: Saccade State (Random eye darting)
+            saccade: {
+                timer: 0,
+                interval: 2.0, // Move eyes every 2 seconds
+                offsetX: 0,
+                offsetY: 0
+            }
+        };
+
+        // --- GLOBALS ---
+        let scene, camera, renderer, composer, model, faceMesh;
+        let blinkMeshes = [];
+        let hairBones = []; // Stores hair bone references
+        let clock = new THREE.Clock();
+
+        // Bones
+        const bones = {
+            neck: null, head: null, spine: null,
+            leftArm: null, rightArm: null,
+            leftEye: null, rightEye: null
+        };
+
+        const morphs = { blinkLeft: null, blinkRight: null, mouthOpen: null, smile: null };
+
+function init() {
+            const container = document.getElementById(CONFIG.containerId);
+
+            // --- FIX START: Wait for container to be visible ---
+            // If the container has no size (login screen is active), wait for it to resize/appear.
+            if (!container || container.clientWidth === 0 || container.clientHeight === 0) {
+                // Watch for changes to the container's size
+                const observer = new ResizeObserver(() => {
+                    if (container.clientWidth > 0 && container.clientHeight > 0) {
+                        observer.disconnect(); // Stop watching
+                        init(); // Restart init now that we have a valid size
+                    }
+                });
+                observer.observe(container);
+                return; // Stop here to prevent the crash
+            }
+            // --- FIX END ---
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111827);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+            
+            // 3. CAMERA
+            camera = new THREE.PerspectiveCamera(30, container.clientWidth / container.clientHeight, 0.1, 100);
+            camera.position.set(0, 1.4, 3.5);
+
+            // 4. POST-PROCESSING (BLOOM)
+            const renderScene = new RenderPass(scene, camera);
+            
+            // Use container size, not window size, for the bloom pass to match resolution
+            const bloomPass = new UnrealBloomPass(
+                new THREE.Vector2(container.clientWidth, container.clientHeight),
+                CONFIG.bloom.strength, CONFIG.bloom.radius, CONFIG.bloom.threshold
+            );
+
+            const outputPass = new OutputPass(); 
+
+            composer = new EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+            composer.addPass(outputPass);
+
+            // 5. LIGHTING
+            scene.add(new THREE.AmbientLight(0xfce5cd, 1.5));
+            
+            const mainLight = new THREE.DirectionalLight(0xfce5cd, 2.003);
+            mainLight.position.set(1, 2, 3);
+            mainLight.castShadow = true;
+            mainLight.shadow.bias = -0.0001; 
+            scene.add(mainLight);
+
+            const rimLight = new THREE.DirectionalLight(0xfce5cd, 2.5);
+            rimLight.position.set(-2, 2, -2);
+            scene.add(rimLight);
+
+            // 6. EVENTS
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseleave', () => { state.isMouseOver = false; });
+            document.addEventListener('mouseenter', () => { state.isMouseOver = true; });
+
+            loadModel();
+            animate();
+        }
+
+        function loadModel() {
+            const loader = new GLTFLoader();
+            loader.load(CONFIG.modelUrl, (gltf) => {
+                model = gltf.scene;
+                scene.add(model);
+                
+                model.position.set(0, CONFIG.yOffset, 0);
+                model.scale.set(CONFIG.scale, CONFIG.scale, CONFIG.scale);
+
+                // Hide Loading Text
+                const loaderDiv = document.getElementById('loading');
+                if(loaderDiv) loaderDiv.style.opacity = 0;
+
+                model.traverse((o) => {
+                   if (o.isMesh) {
+    o.castShadow = true;
+    o.receiveShadow = true;
+
+   // // 1. FORCE MATERIAL UPGRADE (ANIME VERSION)
+if (o.material.type === 'MeshBasicMaterial') {
+    const oldMat = o.material;
+    
+    // CHANGE 1: Use Toon Material instead of Standard
+   const newMat = new THREE.MeshToonMaterial({
+        map: oldMat.map,
+        color: oldMat.color,
+        transparent: oldMat.transparent,
+        side: THREE.FrontSide
+        // skinning and morphTargets are handled automatically by the Mesh in newer Three.js
+    });
+
+    o.material = newMat;
+}
+
+// CHANGE 2: Stop the "Plastic" Shine
+// If you use ToonMaterial, you don't need roughness/metalness, 
+// but you might need to fix the 'emissive' (self-glow) to prevent the white flash.
+if (o.material) {
+    o.material.emissive = new THREE.Color(0x000000); // clear any self-glowing
+}
+
+                        // Blink & Morph Setup
+                        if (o.morphTargetDictionary) {
+                            if (o.morphTargetDictionary['Fcl_EYE_Close'] !== undefined) {
+                                blinkMeshes.push({ mesh: o, blinkIndex: o.morphTargetDictionary['Fcl_EYE_Close'] });
+                            }
+                            if (o.morphTargetDictionary['Fcl_MTH_A'] !== undefined) {
+                                morphs.mouthOpen = o.morphTargetDictionary['Fcl_MTH_A'];
+                                faceMesh = o;
+                            }
+                            // Attempt to find smile (Joy)
+                            if (o.morphTargetDictionary['Fcl_MTH_Joy'] !== undefined) {
+                                morphs.smile = o.morphTargetDictionary['Fcl_MTH_Joy'];
+                            }
+                        }
+                    }
+
+                    // Bone Mapping
+                    if (o.isBone) {
+                        const n = o.name;
+                        if (n === 'J_Bip_L_UpperArm') bones.leftArm = o;
+                        if (n === 'J_Bip_R_UpperArm') bones.rightArm = o;
+                        if (n === 'J_Bip_C_Neck') bones.neck = o;
+                        if (n === 'J_Bip_C_Head') bones.head = o;
+                        if (n === 'J_Bip_C_Spine') bones.spine = o;
+                        if (n === 'J_Adj_L_FaceEye') bones.leftEye = o;
+                        if (n === 'J_Adj_R_FaceEye') bones.rightEye = o;
+
+                        // NEW: Find Hair Bones (VRoid usually names them J_Sec_Hair...)
+                        if (n.includes('J_Sec_Hair')) {
+                            hairBones.push({
+                                bone: o,
+                                baseRot: o.rotation.clone(), // Store rest pose
+                                velocity: new THREE.Vector2(0, 0)
+                            });
+                        }
+                    }
+                });
+
+            }, undefined, (e) => console.error("Loading error:", e));
+        }
+
+        function onMouseMove(event) {
+            state.isMouseOver = true;
+            const windowHalfX = window.innerWidth / 2;
+            const windowHalfY = window.innerHeight / 2;
+            state.mouseX = (event.clientX - windowHalfX) / windowHalfX;
+            state.mouseY = (event.clientY - windowHalfY) / windowHalfY;
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById(CONFIG.containerId);
+            if(!container) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            composer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+            const delta = Math.min(clock.getDelta(), 0.1); // Cap delta for safety
+
+            // --- 1. SACCADES (Human Eye Movements) ---
+            // Humans don't lock perfectly. Eyes wander slightly.
+            state.saccade.timer += delta;
+            if (state.saccade.timer > state.saccade.interval) {
+                state.saccade.timer = 0;
+                // Determine new interval randomly (between 1s and 3s)
+                state.saccade.interval = 1.0 + Math.random() * 2.0;
+                
+                // Small chance to look away, otherwise look mostly at mouse
+                if (Math.random() > 0.7) {
+                    // Micro-movement (jitter)
+                    state.saccade.offsetX = (Math.random() - 0.5) * 0.1;
+                    state.saccade.offsetY = (Math.random() - 0.5) * 0.1;
+                } else {
+                    // Reset to center
+                    state.saccade.offsetX = 0;
+                    state.saccade.offsetY = 0;
+                }
+            }
+
+            // Smoothly blend mouse position with saccade offset
+            const targetXRaw = state.isMouseOver ? state.mouseX : 0;
+            const targetYRaw = state.isMouseOver ? state.mouseY : 0;
+            
+            // Lerp target values for smoothness
+            state.targetLookX = THREE.MathUtils.lerp(state.targetLookX, targetXRaw + state.saccade.offsetX, 0.1);
+            state.targetLookY = THREE.MathUtils.lerp(state.targetLookY, targetYRaw + state.saccade.offsetY, 0.1);
+
+            // --- 2. HEAD & EYE TRACKING ---
+            let headVelocityX = 0; // To calculate hair physics
+            
+            if (bones.neck && bones.head) {
+                const limitX = 0.5; // Max head turn
+                const limitY = 0.3; 
+
+                const neckTargetY = (state.targetLookX * limitX) + CONFIG.physics.offsets.neckY;
+                const neckTargetX = (state.targetLookY * limitY) + CONFIG.physics.offsets.neckX;
+
+                // Track previous rotation to calculate velocity
+                const prevRotY = bones.head.rotation.y;
+
+                // Apply Rotations
+                bones.neck.rotation.y = THREE.MathUtils.lerp(bones.neck.rotation.y, neckTargetY, CONFIG.physics.headSpeed);
+                bones.neck.rotation.x = THREE.MathUtils.lerp(bones.neck.rotation.x, neckTargetX, CONFIG.physics.headSpeed);
+                bones.head.rotation.y = THREE.MathUtils.lerp(bones.head.rotation.y, neckTargetY, CONFIG.physics.headSpeed);
+                bones.head.rotation.x = THREE.MathUtils.lerp(bones.head.rotation.x, neckTargetX, CONFIG.physics.headSpeed);
+
+                // Calculate velocity for Hair
+                headVelocityX = (bones.head.rotation.y - prevRotY);
+
+               if (bones.leftEye && bones.rightEye) {
+    // 1. REDUCE INTENSITY: Changed from 0.3 to 0.15
+    // This makes the eyes move less, making her look "past" the mouse rather than crossing her eyes at it.
+    const eyeX = state.targetLookX * 0.10; 
+    const eyeY = state.targetLookY * 0.10;
+
+    // 2. INCREASE DIVERGENCE: Changed from 0.05 to 0.2
+    // This physically pushes the pupils away from the nose.
+    const divergence = 0.35; 
+
+    // Apply the fix
+    bones.leftEye.rotation.y = THREE.MathUtils.lerp(bones.leftEye.rotation.y, eyeX + divergence, CONFIG.physics.eyeSpeed);
+    bones.rightEye.rotation.y = THREE.MathUtils.lerp(bones.rightEye.rotation.y, eyeX - divergence, CONFIG.physics.eyeSpeed);
+    
+    // Vertical rotation (keep this small)
+    bones.leftEye.rotation.x = THREE.MathUtils.lerp(bones.leftEye.rotation.x, eyeY, CONFIG.physics.eyeSpeed);
+    bones.rightEye.rotation.x = bones.leftEye.rotation.x;
+}
+            }
+
+            // --- 3. HAIR PHYSICS (Secondary Motion) ---
+            // Logic: Hair lags behind head movement (Inertia) + Wind
+            const wind = Math.sin(time * CONFIG.physics.hair.windSpeed) * CONFIG.physics.hair.windForce;
+            
+            hairBones.forEach(h => {
+                // Inertia: If head turns Left, hair flies Right
+                // We add the inverse of head velocity to hair velocity
+                h.velocity.x -= headVelocityX * 3.0; // Multiplier amplifies the swing
+                
+                // Spring force: Pull back to original rotation
+                const diff = h.bone.rotation.z - h.baseRot.z;
+                h.velocity.x -= diff * CONFIG.physics.hair.stiffness;
+                
+                // Damping: Reduce velocity over time so it stops swinging
+                h.velocity.x *= CONFIG.physics.hair.drag;
+
+                // Apply
+                h.bone.rotation.z += h.velocity.x + wind;
+            });
+
+            // --- 4. BLINKING ---
+            if (state.blink.isBlinking) {
+                state.blink.value += 0.25;
+                if (state.blink.value >= 1.2) { 
+                    state.blink.value = 1; 
+                    state.blink.isBlinking = false; 
+                }
+            } else {
+                state.blink.value -= 0.1;
+                if (state.blink.value <= 0) {
+                    state.blink.value = 0;
+                    if (Date.now() >= state.blink.nextTime) {
+                        state.blink.isBlinking = true;
+                        state.blink.nextTime = Date.now() + CONFIG.physics.blinkInterval + (Math.random() * 2000);
+                    }
+                }
+            }
+            const blinkVal = Math.max(0, Math.min(1, state.blink.value));
+            blinkMeshes.forEach(item => {
+                if (item.blinkIndex !== undefined) item.mesh.morphTargetInfluences[item.blinkIndex] = blinkVal;
+            });
+
+            // --- 5. IDLE BREATHING & ARMS ---
+            if (model) model.position.y = CONFIG.yOffset + Math.sin(time) * 0.01;
+            if (bones.spine) bones.spine.rotation.x = (Math.sin(time) * 0.02) + (Math.cos(time * 0.5) * 0.01);
+            if (bones.leftArm) bones.leftArm.rotation.z = -1.3 + Math.sin(time * 1.2) * 0.03;
+            if (bones.rightArm) bones.rightArm.rotation.z = 1.3 - Math.sin(time * 1.2) * 0.03;
+
+            // --- 6. SMILE INTERACTION ---
+            if (morphs.smile !== undefined && faceMesh) {
+                const dist = Math.sqrt(state.mouseX**2 + state.mouseY**2);
+                const targetSmile = (dist < CONFIG.physics.smileTriggerDistance) ? 1.0 : 0.0;
+                state.smileVal = THREE.MathUtils.lerp(state.smileVal, targetSmile, 0.1);
+                faceMesh.morphTargetInfluences[morphs.smile] = state.smileVal;
+            }
+
+            // --- 7. RENDER (Using Composer for Bloom) ---
+            composer.render();
+        }
+
+        init();
     </script>
 </body>
 </html>
