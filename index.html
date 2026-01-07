@@ -2171,12 +2171,18 @@ body.vr-active .landing-nav {
 
 /* 4. CAMERA FEED (Background) */
 .vr-camera-feed {
+    /* Existing settings... */
     position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-    z-index: 0;
-    transform: scale(1.2); /* Slight zoom to cover edges */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    
+    /* CHANGE THIS: 'cover' zooms in to fill space. 'contain' shows everything. */
+    object-fit: cover !important;
+    
+    /* OPTIONAL: If 'contain' is too small, try scaling it down manually */
+    transform: scale(1.0);  
 }
 
 /* 5. RETICLE (The Cursor) */
@@ -10382,7 +10388,18 @@ async function toggleStereoVR() {
 
         // 1. Camera Setup
         try {
-            const constraints = { video: { facingMode: "environment" }, audio: false };
+            const constraints = {
+    audio: false,
+    video: { 
+        facingMode: 'environment', // Use the back camera
+        
+        // REQUEST WIDESCREEN (HD): 
+        // This forces the camera to use a 16:9 aspect ratio (like a movie).
+        // Because it's wider, 'object-fit: cover' won't have to zoom in as much!
+        width: { ideal: 1280 },
+        height: { ideal: 720 } 
+    }
+};
             window.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch (err) {
             try { window.cameraStream = await navigator.mediaDevices.getUserMedia({ video: true }); } 
@@ -10618,15 +10635,6 @@ function startAIDetection(videoElement) {
 
     detectFrame();
 }
-
-
-
-
-
-
-
-
-
 
 
     </script>
