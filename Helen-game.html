@@ -3,75 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN AR OS • Shinecon G10 Optimized</title>
+    <title>HELEN AR OS • G10 Stereo VR</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New',monospace; touch-action:none; }
         #start { position:fixed; inset:0; background:rgba(0,0,0,0.92); display:flex; flex-direction:column; align-items:center; justify-content:center; color:#0ff; z-index:100; text-align:center; }
-        button { padding:1.2rem 3.5rem; font-size:1.9rem; background:#0ff; color:#000; border:3px solid #fff; font-weight:bold; cursor:pointer; margin:2rem; box-shadow:0 0 30px #0ff8; }
-        .hud { position:absolute; inset:0; pointer-events:none; color:#0ff; z-index:10; font-size:14px; padding:12px; }
-        .reticle { position:absolute; top:50%; left:50%; width:32px; height:32px; border:2px solid #0ff; border-radius:50%; transform:translate(-50%,-50%); opacity:0.75; box-shadow:0 0 15px #0ff; }
-        .scanlines { position:fixed; inset:0; background:repeating-linear-gradient(transparent 0, transparent 2px, rgba(0,255,255,0.035) 2px, rgba(0,255,255,0.035) 4px); pointer-events:none; z-index:5; }
+        button { padding:1.4rem 4rem; font-size:2.1rem; background:#0ff; color:#000; border:3px solid #fff; font-weight:bold; cursor:pointer; margin:2rem; box-shadow:0 0 35px #0ff9; border-radius:8px; }
+        .hud { position:absolute; inset:0; pointer-events:none; color:#0ff; z-index:10; font-size:15px; padding:15px; opacity:0.9; }
+        .reticle { position:absolute; top:50%; left:50%; width:36px; height:36px; border:3px solid #0ff; border-radius:50%; transform:translate(-50%,-50%); opacity:0.8; box-shadow:0 0 18px #0ff; }
+        .scanlines { position:fixed; inset:0; background:repeating-linear-gradient(transparent 0, transparent 3px, rgba(0,255,255,0.04) 3px, rgba(0,255,255,0.04) 6px); pointer-events:none; z-index:5; }
     </style>
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://unpkg.com/three@0.168.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.168.0/examples/jsm/"
-        }
-    }
-    </script>
 </head>
 <body>
 
 <div id="start">
-    <h1>HELEN AR OS • G10 VR</h1>
-    <p>Optimized for VR Shinecon G10</p>
-    <p>Landscape • Fullscreen • Adjust IPD & focus wheel</p>
-    <button onclick="startG10()">ENTER MATRIX</button>
+    <h1>HELEN AR OS</h1>
+    <p>VR Shinecon G10 Mode</p>
+    <p>Landscape • Fullscreen • Adjust IPD & focus</p>
+    <button onclick="startExperience()">ENTER</button>
 </div>
 
 <div class="hud" id="hud" style="display:none">
     <div class="reticle"></div>
-    <div>HELEN // G10 STEREO MODE • HEAD TRACKING ACTIVE</div>
+    <div>HELEN // G10 STEREO • HEAD TRACKING</div>
 </div>
 <div class="scanlines"></div>
 
-<script type="module">
-import * as THREE from 'three';
-
+<script>
 let scene, camera, renderer;
 const terminals = [];
 let cursorVisible = true;
 
-async function startG10() {
+function startExperience() {
     document.getElementById('start').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
 
-    // Request fullscreen (helps a lot on mobile)
+    // Try fullscreen (now works on HTTPS)
     if (document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen().catch(()=>{});
+        document.documentElement.requestFullscreen().catch(err => {
+            console.log("Fullscreen failed:", err);
+            // Continue anyway - head tracking still works
+        });
     }
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000811);
 
-    camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.05, 100); // Wider FOV for VR feel
+    camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.05, 100);
 
     renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
 
-    // Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-    const dir = new THREE.DirectionalLight(0xffffff, 1.8);
-    dir.position.set(4, 12, 8);
-    scene.add(dir);
-
-    // Initial terminals
-    spawnTerminal(-1.8, 1.4, -4.5);
-    spawnTerminal(1.8, 1.4, -4.5);
-    spawnTerminal(0, 1.7, -6);
+    // Add some terminals
+    spawnTerminal(-2, 1.5, -5);
+    spawnTerminal(2, 1.5, -5);
+    spawnTerminal(0, 1.8, -7);
 
     window.addEventListener('resize', onResize);
     if (window.DeviceOrientationEvent) {
@@ -83,57 +70,60 @@ async function startG10() {
 
 function spawnTerminal(x, y, z) {
     const id = terminals.length + 1;
-    const geo = new THREE.PlaneGeometry(3.6, 2.7);
+    const width = 4.2, height = 3.0;
     const canvas = document.createElement('canvas');
-    canvas.width = 640; canvas.height = 480;
+    canvas.width = 720; canvas.height = 540;
     const ctx = canvas.getContext('2d');
-    const tex = new THREE.CanvasTexture(canvas);
 
-    const mat = new THREE.MeshBasicMaterial({map: tex, side: THREE.DoubleSide, transparent: true, opacity: 0.94});
-    const mesh = new THREE.Mesh(geo, mat);
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95
+    });
+    const geometry = new THREE.PlaneGeometry(width, height);
+    const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(x, y, z);
     scene.add(mesh);
 
     drawTerminal(ctx, id);
-    tex.needsUpdate = true;
+    texture.needsUpdate = true;
 
-    terminals.push({mesh, tex, ctx, id});
+    terminals.push({mesh, texture, ctx, id});
 }
 
 function drawTerminal(ctx, id) {
-    ctx.fillStyle = 'rgba(0,10,22,0.92)';
-    ctx.fillRect(0,0,640,480);
+    ctx.fillStyle = 'rgba(0,8,20,0.93)';
+    ctx.fillRect(0,0,720,540);
 
-    ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 8;
-    ctx.strokeRect(12,12,616,456);
+    ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 10;
+    ctx.strokeRect(15,15,690,510);
 
-    ctx.fillStyle = '#00ffff'; ctx.font = 'bold 36px Courier New';
-    ctx.fillText(`TERMINAL_${id.toString().padStart(3,'0')}`, 40, 80);
+    ctx.fillStyle = '#00ffff'; ctx.font = 'bold 42px Courier New';
+    ctx.fillText(`TERMINAL_${id.toString().padStart(3,'0')}`, 50, 100);
 
-    ctx.font = 'bold 28px Courier New';
-    ctx.fillText('> G10 STEREO ACTIVE', 40, 160);
-    ctx.fillText('> HEAD TRACKING: ' + (window.DeviceOrientationEvent ? 'ENABLED' : 'DISABLED'), 40, 220);
-    ctx.fillText('> ADJUST IPD & FOCUS', 40, 280);
+    ctx.font = 'bold 32px Courier New';
+    ctx.fillText('> G10 MODE ACTIVE', 50, 200);
+    ctx.fillText('> HEAD TRACKING: ' + (window.DeviceOrientationEvent ? 'ON' : 'OFF'), 50, 260);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px Courier New';
-    ctx.fillText(cursorVisible ? '_' : '', 580, 420);
+    ctx.font = 'bold 38px Courier New';
+    ctx.fillText(cursorVisible ? '_' : '', 650, 480);
 }
 
 setInterval(() => {
     cursorVisible = !cursorVisible;
     terminals.forEach(t => {
         drawTerminal(t.ctx, t.id);
-        t.tex.needsUpdate = true;
+        t.texture.needsUpdate = true;
     });
-}, 580);
+}, 600);
 
 function onOrientation(event) {
     if (!event.alpha) return;
-    const alpha = THREE.MathUtils.degToRad(event.alpha); // yaw
-    const beta  = THREE.MathUtils.degToRad(event.beta);  // pitch
-
-    // Classic Cardboard-style mapping
+    const alpha = THREE.MathUtils.degToRad(event.alpha);
+    const beta = THREE.MathUtils.degToRad(event.beta);
     camera.rotation.set(beta - Math.PI/2, alpha, 0, 'YXZ');
 }
 
@@ -146,29 +136,33 @@ function onResize() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Stereo split-screen rendering
-    const halfWidth = window.innerWidth / 2;
-    const height = window.innerHeight;
+    const halfW = window.innerWidth / 2;
+    const h = window.innerHeight;
 
     // Left eye
-    renderer.setViewport(0, 0, halfWidth, height);
-    renderer.setScissor(0, 0, halfWidth, height);
+    renderer.setViewport(0, 0, halfW, h);
+    renderer.setScissor(0, 0, halfW, h);
     renderer.setScissorTest(true);
-    camera.aspect = halfWidth / height;
+    camera.aspect = halfW / h;
     camera.updateProjectionMatrix();
-    camera.position.x = -0.032; // ~64mm IPD — good default for G10
+    camera.position.x = -0.032; // ~64mm IPD - good G10 default
     renderer.render(scene, camera);
 
     // Right eye
-    renderer.setViewport(halfWidth, 0, halfWidth, height);
-    renderer.setScissor(halfWidth, 0, halfWidth, height);
+    renderer.setViewport(halfW, 0, halfW, h);
+    renderer.setScissor(halfW, 0, halfW, h);
     camera.position.x = +0.032;
     renderer.render(scene, camera);
 
-    // Reset
     camera.position.x = 0;
     renderer.setScissorTest(false);
 }
+
+// Load THREE from CDN
+const script = document.createElement('script');
+script.src = 'https://unpkg.com/three@0.168.0/build/three.min.js';
+script.onload = () => console.log('Three.js loaded');
+document.head.appendChild(script);
 </script>
 </body>
 </html>
