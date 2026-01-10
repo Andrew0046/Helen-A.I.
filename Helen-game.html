@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Helen AR: The Architect</title>
+    <title>Helen AR: Architect (No Voice)</title>
     <style>
         /* --- CORE STYLES --- */
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; touch-action: none; }
@@ -83,8 +83,8 @@
         <div style="text-align:left; font-size:14px; color:#aaa; margin-top:20px; line-height:1.6;">
             [1] TEXT &bull; [2] IMG &bull; [3] VID &bull; [4] YT<br>
             [G] GRAB/DROP WINDOW<br>
-            [K] SAVE WORLD &bull; [L] CLEAR<br>
-            VOICE: "MOVE" | "DROP" | "SAVE"
+            [K] SAVE WORLD &bull; [L] CLEAR MEMORY<br>
+            [X] DELETE LAST &bull; [WASD] MOVE
         </div>
         <div class="btn-group">
             <button id="init-btn">ENTER VR</button>
@@ -130,7 +130,6 @@
         let windows = []; 
         let windowCounter = 0;
         let grabbedWindow = null; // Which window are we holding?
-        let recognition;
 
         // --- INIT ---
         const btn = document.getElementById('init-btn');
@@ -153,7 +152,6 @@
             } catch (e) { alert("Camera Error"); }
 
             init3D();
-            initVoice();
             loadWorld(); // Auto-load saved windows
         });
 
@@ -288,26 +286,6 @@
             if (e.key.toLowerCase() === 'g') toggleGrab();
             if (e.key.toLowerCase() === 'k') saveWorld();
             if (e.key.toLowerCase() === 'l') { localStorage.clear(); showStatus("MEMORY CLEARED"); }
-        }
-
-        function initVoice() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) return;
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.lang = 'en-US';
-            recognition.onend = () => { recognition.start(); };
-            recognition.onresult = (event) => {
-                const last = event.results.length - 1;
-                const cmd = event.results[last][0].transcript.trim().toLowerCase();
-                
-                if (cmd.includes('system')) spawnWindow('text', ...getSpawnPos());
-                if (cmd.includes('move') || cmd.includes('grab')) toggleGrab();
-                if (cmd.includes('drop') || cmd.includes('place')) toggleGrab();
-                if (cmd.includes('save')) saveWorld();
-                if (cmd.includes('close')) removeLastWindow();
-            };
-            recognition.start();
         }
 
         // --- SPAWNING ---
