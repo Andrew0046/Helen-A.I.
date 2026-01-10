@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Helen AR: Native VR Mode</title>
+    <title>Helen AR: The Architect</title>
     <style>
         /* --- CORE STYLES --- */
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; touch-action: none; }
@@ -16,8 +16,9 @@
             z-index: 9999;
         }
         h1 { text-shadow: 0 0 10px #00ffff; letter-spacing: 2px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
         button {
-            padding: 20px 40px; font-size: 20px; margin-top: 30px;
+            padding: 15px 30px; font-size: 18px;
             background: transparent; color: #00ffff; border: 2px solid #00ffff; 
             font-weight: bold; cursor: pointer; transition: all 0.3s;
             box-shadow: 0 0 15px rgba(0,255,255,0.2);
@@ -27,49 +28,41 @@
         /* VR CONTAINER */
         #vr-container { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 
-        /* EYES & LENS SIMULATION */
-        .vr-eye { 
-            position: absolute; top: 0; width: 50%; height: 100%; 
-            overflow: hidden; border-right: 2px solid #000; box-sizing: border-box; 
-        }
+        /* EYES */
+        .vr-eye { position: absolute; top: 0; width: 50%; height: 100%; overflow: hidden; border-right: 2px solid #000; box-sizing: border-box; }
         #eye-left { left: 0; } #eye-right { left: 50%; }
 
-        /* VIGNETTE MASK (Makes it look like looking through goggles) */
         .lens-vignette {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.8) 85%, black 100%);
             z-index: 30; pointer-events: none;
         }
 
-        /* CAMERA FEED */
         .camera-feed {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover; transform: scale(1.2); z-index: 0;
         }
 
-        /* LAYERS */
         .ar-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; }
         
-        .hud-overlay { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 20; pointer-events: none;
-        }
-        
-        /* HUD ELEMENTS */
+        /* RETICLE & HUD */
         .reticle { 
             position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; 
             border: 2px solid #00ffff; border-radius: 50%; transform: translate(-50%, -50%); 
-            opacity: 0.6; box-shadow: 0 0 5px #00ffff;
+            opacity: 0.6; box-shadow: 0 0 5px #00ffff; transition: all 0.2s;
         }
+        .reticle.grab { border-color: #00ff00; background: rgba(0,255,0,0.2); width: 30px; height: 30px; }
+        
         .hud-text { 
             position: absolute; top: 20px; left: 20px; 
             color: #00ffff; text-shadow: 0 0 5px #00ffff; font-size: 14px; font-weight: bold; 
         }
-
-        /* GAMEPAD STATUS */
-        #gp-status {
-            position: absolute; bottom: 20px; left: 0; width: 100%; text-align: center;
-            color: lime; font-size: 12px; display: none;
+        
+        /* STATUS MESSAGE */
+        #status-msg {
+            position: absolute; bottom: 100px; left: 0; width: 100%; text-align: center;
+            color: #00ff00; font-size: 16px; font-weight: bold; display: none; text-shadow: 0 0 5px #00ff00;
         }
     </style>
     
@@ -85,15 +78,18 @@
 <body>
 
     <div id="start-screen">
-        <h1>HELEN AR OS</h1>
-        <p>NATIVE VR MODE</p>
+        <h1>HELEN AR: ARCHITECT</h1>
+        <p>PERSISTENT WORLD SYSTEM</p>
         <div style="text-align:left; font-size:14px; color:#aaa; margin-top:20px; line-height:1.6;">
-            &bull; WAKE LOCK ACTIVE<br>
-            &bull; FULLSCREEN ENABLED<br>
-            &bull; GAMEPAD SUPPORTED<br>
-            &bull; LENS VIGNETTE ON
+            [1] TEXT &bull; [2] IMG &bull; [3] VID &bull; [4] YT<br>
+            [G] GRAB/DROP WINDOW<br>
+            [K] SAVE WORLD &bull; [L] CLEAR<br>
+            VOICE: "MOVE" | "DROP" | "SAVE"
         </div>
-        <button id="init-btn">ENTER VR SYSTEM</button>
+        <div class="btn-group">
+            <button id="init-btn">ENTER VR</button>
+            <button onclick="localStorage.clear(); alert('Memory Wiped');">RESET MEMORY</button>
+        </div>
     </div>
 
     <div id="vr-container">
@@ -102,9 +98,9 @@
             <div id="render-left" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
             <div class="hud-overlay">
-                <div class="reticle"></div>
-                <div class="hud-text">L_EYE</div>
-                <div id="gp-status">GAMEPAD CONNECTED</div>
+                <div class="reticle" id="ret-l"></div>
+                <div class="hud-text">L_EYE // ARCHITECT</div>
+                <div id="status-msg">WORLD SAVED</div>
             </div>
         </div>
 
@@ -113,8 +109,8 @@
             <div id="render-right" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
             <div class="hud-overlay">
-                <div class="reticle"></div>
-                <div class="hud-text">R_EYE</div>
+                <div class="reticle" id="ret-r"></div>
+                <div class="hud-text">R_EYE // ARCHITECT</div>
             </div>
         </div>
     </div>
@@ -124,8 +120,7 @@
         import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
         // --- GLOBAL VARIABLES ---
-        let camera;
-        let rendererL, rendererR, cssL, cssR;
+        let camera, rendererL, rendererR, cssL, cssR;
         let sceneCommon, sceneL, sceneR; 
 
         const IPD = 0.064; 
@@ -134,27 +129,15 @@
         
         let windows = []; 
         let windowCounter = 0;
-        let wakeLock = null;
+        let grabbedWindow = null; // Which window are we holding?
+        let recognition;
 
-        // --- INITIALIZATION ---
+        // --- INIT ---
         const btn = document.getElementById('init-btn');
         btn.addEventListener('click', async () => {
-            // 1. REQUEST WAKE LOCK (Keep screen on)
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                    console.log("Wake Lock active");
-                }
-            } catch (err) { console.warn(`Wake Lock failed: ${err.name}, ${err.message}`); }
+            try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch(e){}
+            try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e){}
 
-            // 2. REQUEST FULLSCREEN
-            try {
-                if (document.documentElement.requestFullscreen) {
-                    await document.documentElement.requestFullscreen();
-                }
-            } catch (err) { console.warn("Fullscreen failed"); }
-
-            // 3. START CAMERA
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('vr-container').style.display = 'block';
 
@@ -167,13 +150,96 @@
                 const vr = document.getElementById('vid-right');
                 vl.srcObject = stream; vr.srcObject = stream;
                 vl.play(); vr.play();
-            } catch (e) {
-                alert("Camera Access Denied. Background will be black.");
-            }
+            } catch (e) { alert("Camera Error"); }
 
             init3D();
+            initVoice();
+            loadWorld(); // Auto-load saved windows
         });
 
+        // --- ARCHITECT FUNCTIONS ---
+        
+        function saveWorld() {
+            const data = windows.map(w => ({
+                id: w.id,
+                type: w.type,
+                url: w.url,
+                x: w.objL.position.x,
+                y: w.objL.position.y,
+                z: w.objL.position.z,
+                rotY: w.objL.rotation.y
+            }));
+            localStorage.setItem('helen_world_data', JSON.stringify(data));
+            showStatus("WORLD SAVED");
+        }
+
+        function loadWorld() {
+            const data = localStorage.getItem('helen_world_data');
+            if (!data) return;
+            const savedWindows = JSON.parse(data);
+            savedWindows.forEach(w => {
+                spawnWindow(w.type, w.x, w.y, w.z, w.rotY, w.url, false); // false = don't save again
+            });
+            showStatus("WORLD LOADED");
+        }
+
+        function toggleGrab() {
+            if (grabbedWindow) {
+                // DROP
+                grabbedWindow = null;
+                document.getElementById('ret-l').classList.remove('grab');
+                document.getElementById('ret-r').classList.remove('grab');
+                showStatus("WINDOW DROPPED");
+                saveWorld(); // Auto-save on drop
+            } else {
+                // GRAB (Find closest window)
+                const closest = findClosestWindow();
+                if (closest && closest.dist < 1.5) {
+                    grabbedWindow = closest.win;
+                    document.getElementById('ret-l').classList.add('grab');
+                    document.getElementById('ret-r').classList.add('grab');
+                    showStatus("WINDOW GRABBED");
+                }
+            }
+        }
+
+        function findClosestWindow() {
+            let minDist = Infinity;
+            let target = null;
+            const camPos = player.pos.clone(); // Approx head pos
+            
+            windows.forEach(w => {
+                const dist = w.objL.position.distanceTo(camPos);
+                if (dist < minDist) {
+                    minDist = dist;
+                    target = w;
+                }
+            });
+            return target ? { win: target, dist: minDist } : null;
+        }
+
+        function updateGrabbedWindow() {
+            if (!grabbedWindow) return;
+            // Move window to 2m in front of player
+            const dist = 2.0;
+            const x = player.pos.x - Math.sin(player.rotY) * dist;
+            const z = player.pos.z - Math.cos(player.rotY) * dist;
+            
+            grabbedWindow.objL.position.set(x, 1.6, z);
+            grabbedWindow.objL.rotation.y = player.rotY;
+            
+            grabbedWindow.objR.position.set(x, 1.6, z);
+            grabbedWindow.objR.rotation.y = player.rotY;
+        }
+
+        function showStatus(text) {
+            const el = document.getElementById('status-msg');
+            el.innerText = text;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 2000);
+        }
+
+        // --- CORE 3D ---
         function init3D() {
             sceneCommon = new THREE.Scene();
             sceneL = new THREE.Scene();
@@ -194,58 +260,11 @@
             document.addEventListener('keydown', handleInput);
             document.addEventListener('keyup', e => keys[e.code] = false);
 
-            // Spawn Default Window
-            spawnWindow('text', 0, 1.6, 0); 
-
+            if (windows.length === 0) spawnWindow('text', 0, 1.6, 0); // Default if empty
             animate();
         }
 
-        // --- INPUT & GAMEPAD POLLING ---
-        function updateInputs() {
-            const speed = 0.05;
-            let move = 0;
-            let turn = 0;
-
-            // 1. KEYBOARD
-            if(keys['KeyW']) move = 1;
-            if(keys['KeyS']) move = -1;
-            if(keys['KeyA']) turn = 1;
-            if(keys['KeyD']) turn = -1;
-
-            // 2. BLUETOOTH GAMEPAD (Standard Mapping)
-            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-            for (const gp of gamepads) {
-                if (gp) {
-                    // Show connection status
-                    document.getElementById('gp-status').style.display = 'block';
-                    
-                    // Left Stick Y (Move)
-                    if (Math.abs(gp.axes[1]) > 0.1) move = -gp.axes[1];
-                    // Right Stick X (Turn)
-                    if (Math.abs(gp.axes[2]) > 0.1) turn = -gp.axes[2];
-
-                    // Buttons for Spawning (A=0, B=1, X=2, Y=3)
-                    if (gp.buttons[0].pressed) spawnWindow('text', ...getSpawnPos());
-                    if (gp.buttons[3].pressed) removeLastWindow();
-                }
-            }
-
-            // Apply Physics
-            if (move !== 0) {
-                player.pos.z -= move * speed;
-            }
-            if (turn !== 0) {
-                player.rotY += turn * 0.03;
-            }
-        }
-
-        function getSpawnPos() {
-            const dist = 2.0;
-            const x = player.pos.x - Math.sin(player.rotY) * dist;
-            const z = player.pos.z - Math.cos(player.rotY) * dist;
-            return [x, 1.6, z, player.rotY];
-        }
-
+        // --- INPUTS ---
         function handleInput(e) {
             keys[e.code] = true;
             const coords = getSpawnPos();
@@ -256,7 +275,7 @@
                 if(url) spawnWindow('image', coords[0], coords[1], coords[2], coords[3], url);
             }
             if (e.key === '3') {
-                const url = prompt("Video URL:", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4");
+                const url = prompt("Video URL:", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
                 if(url) spawnWindow('video', coords[0], coords[1], coords[2], coords[3], url);
             }
             if (e.key === '4') {
@@ -264,56 +283,75 @@
                 if(url) spawnWindow('youtube', coords[0], coords[1], coords[2], coords[3], url);
             }
             if (e.key.toLowerCase() === 'x') removeLastWindow();
+            
+            // ARCHITECT KEYS
+            if (e.key.toLowerCase() === 'g') toggleGrab();
+            if (e.key.toLowerCase() === 'k') saveWorld();
+            if (e.key.toLowerCase() === 'l') { localStorage.clear(); showStatus("MEMORY CLEARED"); }
         }
 
-        // --- WINDOW MANAGER ---
-        function spawnWindow(type, x, y, z, rotationY = 0, customUrl = "") {
+        function initVoice() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return;
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.lang = 'en-US';
+            recognition.onend = () => { recognition.start(); };
+            recognition.onresult = (event) => {
+                const last = event.results.length - 1;
+                const cmd = event.results[last][0].transcript.trim().toLowerCase();
+                
+                if (cmd.includes('system')) spawnWindow('text', ...getSpawnPos());
+                if (cmd.includes('move') || cmd.includes('grab')) toggleGrab();
+                if (cmd.includes('drop') || cmd.includes('place')) toggleGrab();
+                if (cmd.includes('save')) saveWorld();
+                if (cmd.includes('close')) removeLastWindow();
+            };
+            recognition.start();
+        }
+
+        // --- SPAWNING ---
+        function spawnWindow(type, x, y, z, rotationY = 0, customUrl = "", shouldSave = true) {
             windowCounter++;
             const id = windowCounter;
-            const objL = createMediaObject(id, type, "LEFT", customUrl);
-            objL.position.set(x, y, z);
-            objL.rotation.y = rotationY;
-            sceneL.add(objL);
-            const objR = createMediaObject(id, type, "RIGHT", customUrl);
-            objR.position.set(x, y, z);
-            objR.rotation.y = rotationY;
-            sceneR.add(objR);
-            windows.push({ id, objL, objR });
+            
+            // Store Metadata for saving
+            const winData = { id, type, url: customUrl, objL: null, objR: null };
+            
+            winData.objL = createMediaObject(id, type, "LEFT", customUrl);
+            winData.objL.position.set(x, y, z);
+            winData.objL.rotation.y = rotationY;
+            sceneL.add(winData.objL);
+
+            winData.objR = createMediaObject(id, type, "RIGHT", customUrl);
+            winData.objR.position.set(x, y, z);
+            winData.objR.rotation.y = rotationY;
+            sceneR.add(winData.objR);
+
+            windows.push(winData);
+            if(shouldSave) saveWorld();
         }
 
         function createMediaObject(id, type, eyeLabel, url) {
             const div = document.createElement('div');
-            div.style.width = '600px'; 
-            div.style.height = '400px';
+            div.style.width = '600px'; div.style.height = '400px';
             div.style.background = 'rgba(0, 10, 20, 0.9)'; 
             div.style.border = '2px solid #00ffff';
             div.style.boxShadow = '0 0 40px rgba(0,255,255,0.2)';
-            div.style.fontFamily = 'monospace';
-            div.style.color = '#00ffff';
-            div.style.overflow = 'hidden';
+            div.style.fontFamily = 'monospace'; div.style.color = '#00ffff';
             div.style.display = 'flex'; div.style.flexDirection = 'column';
 
             const header = document.createElement('div');
-            header.innerHTML = `HELEN_OS // ${type.toUpperCase()} // ${id}`;
-            header.style.padding = "10px";
-            header.style.background = "rgba(0,255,255,0.2)";
-            header.style.fontWeight = "bold";
+            header.innerHTML = `ARCHITECT // ${type.toUpperCase()} // ${id}`;
+            header.style.padding = "10px"; header.style.background = "rgba(0,255,255,0.2)"; header.style.fontWeight = "bold";
             div.appendChild(header);
 
             const content = document.createElement('div');
-            content.style.flex = "1";
-            content.style.position = "relative";
+            content.style.flex = "1"; content.style.position = "relative";
 
             if (type === 'text') {
-                content.style.padding = "20px";
-                content.style.fontSize = "24px";
-                content.innerHTML = `
-                    <p>> SYSTEM: ONLINE</p>
-                    <p>> MODE: ${eyeLabel}</p>
-                    <p>> USER: ADMIN</p>
-                    <p style="margin-top:20px; color:#fff; animation: blink 1s infinite;">_AWAITING INPUT</p>
-                    <style>@keyframes blink { 50% { opacity: 0; } }</style>
-                `;
+                content.style.padding = "20px"; content.style.fontSize = "24px";
+                content.innerHTML = `<p>> WORLD: PERSISTENT</p><p>> MEMORY: ACTIVE</p><p style="margin-top:20px; color:#fff;">_READY</p>`;
             } 
             else if (type === 'image') content.innerHTML = `<img src="${url}" style="width:100%; height:100%; object-fit:cover;">`;
             else if (type === 'video') content.innerHTML = `<video src="${url}" autoplay loop muted controls style="width:100%; height:100%; object-fit:cover;"></video>`;
@@ -325,14 +363,21 @@
             return obj;
         }
 
+        // --- HELPERS ---
+        function getSpawnPos() {
+            const dist = 2.0;
+            const x = player.pos.x - Math.sin(player.rotY) * dist;
+            const z = player.pos.z - Math.cos(player.rotY) * dist;
+            return [x, 1.6, z, player.rotY];
+        }
+
         function removeLastWindow() {
             if (windows.length === 0) return;
             const win = windows.pop();
-            sceneL.remove(win.objL);
-            sceneR.remove(win.objR);
+            sceneL.remove(win.objL); sceneR.remove(win.objR);
+            saveWorld();
         }
 
-        // --- RENDERERS ---
         function createWebGL(id) {
             const c = document.getElementById(id);
             const r = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -353,32 +398,34 @@
         function onResize() {
             const halfW = window.innerWidth / 2;
             const h = window.innerHeight;
-            camera.aspect = halfW / h;
-            camera.updateProjectionMatrix();
+            camera.aspect = halfW / h; camera.updateProjectionMatrix();
             rendererL.setSize(halfW, h); rendererR.setSize(halfW, h);
             cssL.setSize(halfW, h); cssR.setSize(halfW, h);
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            updateInputs();
-            const halfIPD = IPD / 2;
+            // Physics
+            const speed = 0.05;
+            if(keys['KeyW']) player.pos.z -= speed;
+            if(keys['KeyS']) player.pos.z += speed;
+            if(keys['KeyA']) player.rotY += 0.03;
+            if(keys['KeyD']) player.rotY -= 0.03;
             
-            // LEFT
+            updateGrabbedWindow(); // Move grabbed window if exists
+
+            const halfIPD = IPD / 2;
             camera.position.copy(player.pos);
             camera.rotation.set(0, player.rotY, 0);
             camera.translateX(-halfIPD);
             camera.updateMatrixWorld();
-            rendererL.render(sceneCommon, camera); 
-            cssL.render(sceneL, camera);
+            rendererL.render(sceneCommon, camera); cssL.render(sceneL, camera);
 
-            // RIGHT
             camera.position.copy(player.pos);
             camera.rotation.set(0, player.rotY, 0);
             camera.translateX(halfIPD);
             camera.updateMatrixWorld();
-            rendererR.render(sceneCommon, camera); 
-            cssR.render(sceneR, camera);
+            rendererR.render(sceneCommon, camera); cssR.render(sceneR, camera);
         }
     </script>
 </body>
