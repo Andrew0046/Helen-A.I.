@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Helen AR: Wide View</title>
+    <title>Helen AR: Interactive OS</title>
     <style>
         /* --- CORE STYLES --- */
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; touch-action: none; }
@@ -27,30 +27,25 @@
 
         /* VR CONTAINER */
         #vr-container { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-
-        /* EYES */
         .vr-eye { position: absolute; top: 0; width: 50%; height: 100%; overflow: hidden; border-right: 2px solid #000; box-sizing: border-box; }
         #eye-left { left: 0; } #eye-right { left: 50%; }
 
-        /* VIGNETTE (Made slightly smaller to show more camera) */
+        /* VIGNETTE */
         .lens-vignette {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle, transparent 60%, rgba(0,0,0,0.9) 90%, black 100%);
             z-index: 30; pointer-events: none;
         }
 
-        /* --- CAMERA FIX: REMOVED ZOOM --- */
+        /* CAMERA */
         .camera-feed {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; 
-            transform: scale(1.0); /* CHANGED FROM 1.2 to 1.0 */
-            z-index: 0;
+            object-fit: cover; transform: scale(1.0); z-index: 0;
         }
 
         .ar-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
         .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; }
         
-        /* RETICLE */
         .reticle { 
             position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; 
             border: 2px solid #00ffff; border-radius: 50%; transform: translate(-50%, -50%); 
@@ -58,14 +53,25 @@
         }
         .reticle.grab { border-color: #00ff00; background: rgba(0,255,0,0.2); width: 30px; height: 30px; }
         
-        .hud-text { 
-            position: absolute; top: 20px; left: 20px; 
-            color: #00ffff; text-shadow: 0 0 5px #00ffff; font-size: 14px; font-weight: bold; 
-        }
-        
+        .hud-text { position: absolute; top: 20px; left: 20px; color: #00ffff; text-shadow: 0 0 5px #00ffff; font-size: 14px; font-weight: bold; }
         #status-msg {
             position: absolute; bottom: 100px; left: 0; width: 100%; text-align: center;
             color: #00ff00; font-size: 16px; font-weight: bold; display: none; text-shadow: 0 0 5px #00ff00;
+        }
+
+        /* --- DASHBOARD STYLES (Inside the window) --- */
+        .dash-container { display: flex; flex-direction: column; height: 100%; padding: 20px; gap: 15px; }
+        .dash-row { display: flex; gap: 10px; }
+        .dash-btn { 
+            flex: 1; padding: 15px; background: rgba(0,255,255,0.1); border: 1px solid #00ffff; color: #00ffff; 
+            font-family: monospace; cursor: pointer; font-weight: bold; text-align: center;
+        }
+        .dash-btn:hover { background: #00ffff; color: #000; }
+        .dash-btn.danger { border-color: #ff3333; color: #ff3333; background: rgba(255, 50, 50, 0.1); }
+        .dash-btn.danger:hover { background: #ff3333; color: #fff; }
+        textarea {
+            width: 100%; flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #00ffff; color: #00ffff; 
+            font-family: monospace; padding: 10px; resize: none; font-size: 16px;
         }
     </style>
     
@@ -81,13 +87,13 @@
 <body>
 
     <div id="start-screen">
-        <h1>HELEN AR: WIDE VIEW</h1>
-        <p>ARCHITECT MODE</p>
+        <h1>HELEN AR: INTERACTIVE</h1>
+        <p>ARCHITECT + APPS</p>
         <div style="text-align:left; font-size:14px; color:#aaa; margin-top:20px; line-height:1.6;">
-            [1] TEXT &bull; [2] IMG &bull; [3] VID &bull; [4] YT<br>
-            [G] GRAB/DROP WINDOW<br>
-            [K] SAVE WORLD &bull; [L] CLEAR MEMORY<br>
-            [X] DELETE LAST &bull; [WASD] MOVE
+            [1] DASHBOARD (New!)<br>
+            [2] IMG &bull; [3] VID &bull; [4] YT<br>
+            [G] GRAB/DROP &bull; [K] SAVE<br>
+            Use Mouse/Controller to click buttons.
         </div>
         <div class="btn-group">
             <button id="init-btn">ENTER VR</button>
@@ -100,21 +106,13 @@
             <video id="vid-left" class="camera-feed" autoplay muted playsinline></video>
             <div id="render-left" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
-            <div class="hud-overlay">
-                <div class="reticle" id="ret-l"></div>
-                <div class="hud-text">L_EYE // WIDE</div>
-                <div id="status-msg">WORLD SAVED</div>
-            </div>
+            <div class="hud-overlay"><div class="reticle" id="ret-l"></div><div class="hud-text">L_EYE</div><div id="status-msg">SAVED</div></div>
         </div>
-
         <div id="eye-right" class="vr-eye">
             <video id="vid-right" class="camera-feed" autoplay muted playsinline></video>
             <div id="render-right" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
-            <div class="hud-overlay">
-                <div class="reticle" id="ret-r"></div>
-                <div class="hud-text">R_EYE // WIDE</div>
-            </div>
+            <div class="hud-overlay"><div class="reticle" id="ret-r"></div><div class="hud-text">R_EYE</div></div>
         </div>
     </div>
 
@@ -122,17 +120,12 @@
         import * as THREE from 'three';
         import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
-        // --- GLOBAL VARIABLES ---
         let camera, rendererL, rendererR, cssL, cssR;
         let sceneCommon, sceneL, sceneR; 
-
         const IPD = 0.064; 
         const player = { pos: new THREE.Vector3(0, 1.6, 5), rotY: 0 };
         const keys = {};
-        
-        let windows = []; 
-        let windowCounter = 0;
-        let grabbedWindow = null; 
+        let windows = []; let windowCounter = 0; let grabbedWindow = null; 
 
         // --- INIT ---
         const btn = document.getElementById('init-btn');
@@ -148,17 +141,39 @@
                     video: { facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720} },
                     audio: false 
                 });
-                const vl = document.getElementById('vid-left');
-                const vr = document.getElementById('vid-right');
-                vl.srcObject = stream; vr.srcObject = stream;
-                vl.play(); vr.play();
+                const vl = document.getElementById('vid-left'); const vr = document.getElementById('vid-right');
+                vl.srcObject = stream; vr.srcObject = stream; vl.play(); vr.play();
             } catch (e) { alert("Camera Error"); }
 
             init3D();
             loadWorld(); 
         });
 
-        // --- ARCHITECT LOGIC ---
+        // --- INTERACTIVE LOGIC ---
+        
+        // This function changes the GLOBAL scene lighting when you click a button inside a window
+        window.setEnvironment = function(mode) {
+            sceneCommon.clear();
+            let color = 0xffffff; let intensity = 2;
+            
+            if (mode === 'red') { color = 0xff0000; intensity = 5; }
+            if (mode === 'matrix') { color = 0x00ff00; intensity = 3; }
+            if (mode === 'dark') { color = 0x5555ff; intensity = 0.5; }
+
+            const light = new THREE.DirectionalLight(color, intensity);
+            light.position.set(0, 5, 5);
+            sceneCommon.add(light);
+            sceneCommon.add(new THREE.AmbientLight(color, 0.5));
+            
+            showStatus("ENV: " + mode.toUpperCase());
+        };
+
+        // Auto-save notepad
+        window.saveNote = function(text) {
+            localStorage.setItem('helen_notepad', text);
+        };
+
+        // --- ARCHITECT LOGIC (Save/Load/Grab) ---
         function saveWorld() {
             const data = windows.map(w => ({
                 id: w.id, type: w.type, url: w.url,
@@ -170,35 +185,26 @@
 
         function loadWorld() {
             const data = localStorage.getItem('helen_world_data');
-            if (!data) return;
-            const savedWindows = JSON.parse(data);
-            savedWindows.forEach(w => {
-                spawnWindow(w.type, w.x, w.y, w.z, w.rotY, w.url, false);
-            });
-            showStatus("WORLD LOADED");
+            if (data) JSON.parse(data).forEach(w => spawnWindow(w.type, w.x, w.y, w.z, w.rotY, w.url, false));
         }
 
         function toggleGrab() {
             if (grabbedWindow) {
                 grabbedWindow = null;
-                document.getElementById('ret-l').classList.remove('grab');
-                document.getElementById('ret-r').classList.remove('grab');
-                showStatus("WINDOW DROPPED");
-                saveWorld();
+                document.getElementById('ret-l').classList.remove('grab'); document.getElementById('ret-r').classList.remove('grab');
+                showStatus("DROPPED"); saveWorld();
             } else {
                 const closest = findClosestWindow();
                 if (closest && closest.dist < 1.5) {
                     grabbedWindow = closest.win;
-                    document.getElementById('ret-l').classList.add('grab');
-                    document.getElementById('ret-r').classList.add('grab');
-                    showStatus("WINDOW GRABBED");
+                    document.getElementById('ret-l').classList.add('grab'); document.getElementById('ret-r').classList.add('grab');
+                    showStatus("GRABBED");
                 }
             }
         }
 
         function findClosestWindow() {
-            let minDist = Infinity;
-            let target = null;
+            let minDist = Infinity; let target = null;
             const camPos = player.pos.clone(); 
             windows.forEach(w => {
                 const dist = w.objL.position.distanceTo(camPos);
@@ -212,11 +218,8 @@
             const dist = 2.0;
             const x = player.pos.x - Math.sin(player.rotY) * dist;
             const z = player.pos.z - Math.cos(player.rotY) * dist;
-            
-            grabbedWindow.objL.position.set(x, 1.6, z);
-            grabbedWindow.objL.rotation.y = player.rotY;
-            grabbedWindow.objR.position.set(x, 1.6, z);
-            grabbedWindow.objR.rotation.y = player.rotY;
+            grabbedWindow.objL.position.set(x, 1.6, z); grabbedWindow.objL.rotation.y = player.rotY;
+            grabbedWindow.objR.position.set(x, 1.6, z); grabbedWindow.objR.rotation.y = player.rotY;
         }
 
         function showStatus(text) {
@@ -227,17 +230,10 @@
 
         // --- 3D SETUP ---
         function init3D() {
-            sceneCommon = new THREE.Scene();
-            sceneL = new THREE.Scene();
-            sceneR = new THREE.Scene();
-
+            sceneCommon = new THREE.Scene(); sceneL = new THREE.Scene(); sceneR = new THREE.Scene();
             const aspect = (window.innerWidth / 2) / window.innerHeight;
             camera = new THREE.PerspectiveCamera(70, aspect, 0.1, 100);
-
-            const light = new THREE.DirectionalLight(0xffffff, 2);
-            light.position.set(0, 5, 5);
-            sceneCommon.add(light);
-            sceneCommon.add(new THREE.AmbientLight(0xffffff, 0.5));
+            window.setEnvironment('normal'); // Init lights
 
             rendererL = createWebGL('render-left'); rendererR = createWebGL('render-right');
             cssL = createCSS('render-left'); cssR = createCSS('render-right');
@@ -246,7 +242,7 @@
             document.addEventListener('keydown', handleInput);
             document.addEventListener('keyup', e => keys[e.code] = false);
 
-            if (windows.length === 0) spawnWindow('text', 0, 1.6, 0); 
+            if (windows.length === 0) spawnWindow('dashboard', 0, 1.6, 0); 
             animate();
         }
 
@@ -254,7 +250,7 @@
             keys[e.code] = true;
             const coords = getSpawnPos();
 
-            if (e.key === '1') spawnWindow('text', ...coords);
+            if (e.key === '1') spawnWindow('dashboard', ...coords);
             if (e.key === '2') {
                 const url = prompt("Image URL:", "https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg");
                 if(url) spawnWindow('image', coords[0], coords[1], coords[2], coords[3], url);
@@ -268,10 +264,8 @@
                 if(url) spawnWindow('youtube', coords[0], coords[1], coords[2], coords[3], url);
             }
             if (e.key.toLowerCase() === 'x') removeLastWindow();
-            
             if (e.key.toLowerCase() === 'g') toggleGrab();
             if (e.key.toLowerCase() === 'k') saveWorld();
-            if (e.key.toLowerCase() === 'l') { localStorage.clear(); showStatus("MEMORY CLEARED"); }
         }
 
         function spawnWindow(type, x, y, z, rotationY = 0, customUrl = "", shouldSave = true) {
@@ -279,51 +273,70 @@
             const id = windowCounter;
             const winData = { id, type, url: customUrl, objL: null, objR: null };
             
-            winData.objL = createMediaObject(id, type, "LEFT", customUrl);
-            winData.objL.position.set(x, y, z);
-            winData.objL.rotation.y = rotationY;
+            // Generate content once
+            const contentHTML = generateWindowContent(id, type, customUrl);
+
+            // Create Left and Right clones
+            winData.objL = create3DObject(contentHTML, x, y, z, rotationY);
+            winData.objR = create3DObject(contentHTML, x, y, z, rotationY); // Note: IDs in HTML might conflict if we relied on them for selection, but for simple onclicks it's okay.
+            
             sceneL.add(winData.objL);
-
-            winData.objR = createMediaObject(id, type, "RIGHT", customUrl);
-            winData.objR.position.set(x, y, z);
-            winData.objR.rotation.y = rotationY;
             sceneR.add(winData.objR);
-
             windows.push(winData);
             if(shouldSave) saveWorld();
         }
 
-        function createMediaObject(id, type, eyeLabel, url) {
+        function create3DObject(html, x, y, z, rotY) {
             const div = document.createElement('div');
             div.style.width = '600px'; div.style.height = '400px';
-            div.style.background = 'rgba(0, 10, 20, 0.9)'; 
+            div.style.background = 'rgba(0, 15, 25, 0.95)'; 
             div.style.border = '2px solid #00ffff';
             div.style.boxShadow = '0 0 40px rgba(0,255,255,0.2)';
-            div.style.fontFamily = 'monospace'; div.style.color = '#00ffff';
             div.style.display = 'flex'; div.style.flexDirection = 'column';
+            div.innerHTML = html;
+            
+            // Re-attach listeners for the new DOM element
+            // (Basic buttons work via global onclick strings, but for cleaner code we use inline onclicks in HTML string)
 
-            const header = document.createElement('div');
-            header.innerHTML = `ARCHITECT // ${type.toUpperCase()} // ${id}`;
-            header.style.padding = "10px"; header.style.background = "rgba(0,255,255,0.2)"; header.style.fontWeight = "bold";
-            div.appendChild(header);
-
-            const content = document.createElement('div');
-            content.style.flex = "1"; content.style.position = "relative";
-
-            if (type === 'text') {
-                content.style.padding = "20px"; content.style.fontSize = "24px";
-                content.innerHTML = `<p>> WORLD: PERSISTENT</p><p>> MEMORY: ACTIVE</p><p style="margin-top:20px; color:#fff;">_READY</p>`;
-            } 
-            else if (type === 'image') content.innerHTML = `<img src="${url}" style="width:100%; height:100%; object-fit:cover;">`;
-            else if (type === 'video') content.innerHTML = `<video src="${url}" autoplay loop muted controls style="width:100%; height:100%; object-fit:cover;"></video>`;
-            else if (type === 'youtube') content.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${url}?autoplay=1&mute=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-
-            div.appendChild(content);
             const obj = new CSS3DObject(div);
+            obj.position.set(x, y, z);
+            obj.rotation.y = rotY;
             obj.scale.set(0.002, 0.002, 0.002);
             return obj;
         }
 
+        function generateWindowContent(id, type, url) {
+            const header = `<div style="padding:10px; background:rgba(0,255,255,0.2); font-weight:bold; color:#00ffff;">HELEN_OS // ${type.toUpperCase()} // ${id}</div>`;
+            let body = "";
+
+            if (type === 'dashboard') {
+                const savedNote = localStorage.getItem('helen_notepad') || "Captain's Log...";
+                body = `
+                    <div class="dash-container">
+                        <div style="color:#00ffff; font-size:20px;">SYSTEM TIME: <span id="clock-${id}">00:00:00</span></div>
+                        <div class="dash-row">
+                            <button class="dash-btn danger" onclick="window.setEnvironment('red')">RED ALERT</button>
+                            <button class="dash-btn" onclick="window.setEnvironment('matrix')">MATRIX</button>
+                            <button class="dash-btn" onclick="window.setEnvironment('normal')">NORMAL</button>
+                        </div>
+                        <textarea oninput="window.saveNote(this.value)">${savedNote}</textarea>
+                        <script>
+                            setInterval(() => {
+                                const el = document.getElementById('clock-${id}');
+                                if(el) el.innerText = new Date().toLocaleTimeString();
+                            }, 1000);
+                        <\/script>
+                    </div>
+                `;
+            } 
+            else if (type === 'image') body = `<img src="${url}" style="width:100%; height:100%; object-fit:cover;">`;
+            else if (type === 'video') body = `<video src="${url}" autoplay loop muted controls style="width:100%; height:100%; object-fit:cover;"></video>`;
+            else if (type === 'youtube') body = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${url}?autoplay=1&mute=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+
+            return header + `<div style="flex:1; position:relative;">${body}</div>`;
+        }
+
+        // --- HELPERS ---
         function getSpawnPos() {
             const dist = 2.0;
             const x = player.pos.x - Math.sin(player.rotY) * dist;
@@ -365,26 +378,23 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            // Physics
             const speed = 0.05;
             if(keys['KeyW']) player.pos.z -= speed;
             if(keys['KeyS']) player.pos.z += speed;
             if(keys['KeyA']) player.rotY += 0.03;
             if(keys['KeyD']) player.rotY -= 0.03;
             
-            updateGrabbedWindow(); // Move grabbed window if exists
+            updateGrabbedWindow(); 
 
             const halfIPD = IPD / 2;
             camera.position.copy(player.pos);
             camera.rotation.set(0, player.rotY, 0);
-            camera.translateX(-halfIPD);
-            camera.updateMatrixWorld();
+            camera.translateX(-halfIPD); camera.updateMatrixWorld();
             rendererL.render(sceneCommon, camera); cssL.render(sceneL, camera);
 
             camera.position.copy(player.pos);
             camera.rotation.set(0, player.rotY, 0);
-            camera.translateX(halfIPD);
-            camera.updateMatrixWorld();
+            camera.translateX(halfIPD); camera.updateMatrixWorld();
             rendererR.render(sceneCommon, camera); cssR.render(sceneR, camera);
         }
     </script>
