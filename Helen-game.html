@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Helen AR: Jedi Mode</title>
+    <title>Helen AR: Native VR Mode</title>
     <style>
+        /* --- CORE STYLES --- */
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; touch-action: none; }
 
         /* START SCREEN */
@@ -23,41 +24,54 @@
         }
         button:hover { background: #00ffff; color: #000; box-shadow: 0 0 30px rgba(0,255,255,0.6); }
 
-        #loading-text { display:none; margin-top:20px; color: yellow; font-weight:bold; }
-
         /* VR CONTAINER */
         #vr-container { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 
+        /* EYES & LENS SIMULATION */
         .vr-eye { 
             position: absolute; top: 0; width: 50%; height: 100%; 
             overflow: hidden; border-right: 2px solid #000; box-sizing: border-box; 
         }
         #eye-left { left: 0; } #eye-right { left: 50%; }
 
+        /* VIGNETTE MASK (Makes it look like looking through goggles) */
         .lens-vignette {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.8) 85%, black 100%);
             z-index: 30; pointer-events: none;
         }
 
+        /* CAMERA FEED */
         .camera-feed {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover; transform: scale(1.2); z-index: 0;
         }
 
+        /* LAYERS */
         .ar-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
-        .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; }
         
+        .hud-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 20; pointer-events: none;
+        }
+        
+        /* HUD ELEMENTS */
+        .reticle { 
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; 
+            border: 2px solid #00ffff; border-radius: 50%; transform: translate(-50%, -50%); 
+            opacity: 0.6; box-shadow: 0 0 5px #00ffff;
+        }
         .hud-text { 
             position: absolute; top: 20px; left: 20px; 
             color: #00ffff; text-shadow: 0 0 5px #00ffff; font-size: 14px; font-weight: bold; 
         }
-    </style>
 
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+        /* GAMEPAD STATUS */
+        #gp-status {
+            position: absolute; bottom: 20px; left: 0; width: 100%; text-align: center;
+            color: lime; font-size: 12px; display: none;
+        }
+    </style>
     
     <script type="importmap">
         {
@@ -72,14 +86,14 @@
 
     <div id="start-screen">
         <h1>HELEN AR OS</h1>
-        <p>JEDI MODE (HAND TRACKING)</p>
+        <p>NATIVE VR MODE</p>
         <div style="text-align:left; font-size:14px; color:#aaa; margin-top:20px; line-height:1.6;">
-            &bull; RAISE HAND TO ACTIVATE<br>
-            &bull; PINCH AIR: SPAWN WINDOW<br>
-            &bull; PINCH WINDOW: GRAB & MOVE<br>
+            &bull; WAKE LOCK ACTIVE<br>
+            &bull; FULLSCREEN ENABLED<br>
+            &bull; GAMEPAD SUPPORTED<br>
+            &bull; LENS VIGNETTE ON
         </div>
-        <button id="init-btn">INITIALIZE NEURAL LINK</button>
-        <div id="loading-text">LOADING AI MODELS... PLEASE WAIT...</div>
+        <button id="init-btn">ENTER VR SYSTEM</button>
     </div>
 
     <div id="vr-container">
@@ -87,14 +101,21 @@
             <video id="vid-left" class="camera-feed" autoplay muted playsinline></video>
             <div id="render-left" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
-            <div class="hud-overlay"><div class="hud-text">L_EYE // TRACKING</div></div>
+            <div class="hud-overlay">
+                <div class="reticle"></div>
+                <div class="hud-text">L_EYE</div>
+                <div id="gp-status">GAMEPAD CONNECTED</div>
+            </div>
         </div>
 
         <div id="eye-right" class="vr-eye">
             <video id="vid-right" class="camera-feed" autoplay muted playsinline></video>
             <div id="render-right" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
-            <div class="hud-overlay"><div class="hud-text">R_EYE // TRACKING</div></div>
+            <div class="hud-overlay">
+                <div class="reticle"></div>
+                <div class="hud-text">R_EYE</div>
+            </div>
         </div>
     </div>
 
@@ -113,117 +134,45 @@
         
         let windows = []; 
         let windowCounter = 0;
-        
-        // HAND TRACKING STATE
-        let handCursor = new THREE.Vector3();
-        let isPinching = false;
-        let wasPinching = false;
-        let heldWindow = null;
-        let cursorMeshL, cursorMeshR;
-        let handsAI = null;
-        let videoElement = null;
+        let wakeLock = null;
 
         // --- INITIALIZATION ---
         const btn = document.getElementById('init-btn');
         btn.addEventListener('click', async () => {
-            btn.style.display = 'none';
-            document.getElementById('loading-text').style.display = 'block';
+            // 1. REQUEST WAKE LOCK (Keep screen on)
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log("Wake Lock active");
+                }
+            } catch (err) { console.warn(`Wake Lock failed: ${err.name}, ${err.message}`); }
 
-            // 1. Wake Lock
-            try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch(e){}
+            // 2. REQUEST FULLSCREEN
+            try {
+                if (document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (err) { console.warn("Fullscreen failed"); }
 
-            // 2. Start Camera (Shared for Three.js BG and MediaPipe)
+            // 3. START CAMERA
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('vr-container').style.display = 'block';
+
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720} },
                     audio: false 
                 });
-                
-                videoElement = document.getElementById('vid-left');
-                const vidR = document.getElementById('vid-right');
-                
-                videoElement.srcObject = stream; 
-                vidR.srcObject = stream;
-                
-                await new Promise(r => videoElement.onloadedmetadata = r);
-                videoElement.play(); vidR.play();
-
-                // 3. Init AI
-                await initMediaPipe();
-
-                // 4. Start 3D
-                document.getElementById('start-screen').style.display = 'none';
-                document.getElementById('vr-container').style.display = 'block';
-                init3D();
-
+                const vl = document.getElementById('vid-left');
+                const vr = document.getElementById('vid-right');
+                vl.srcObject = stream; vr.srcObject = stream;
+                vl.play(); vr.play();
             } catch (e) {
-                alert("Error: " + e.message);
+                alert("Camera Access Denied. Background will be black.");
             }
+
+            init3D();
         });
-
-        async function initMediaPipe() {
-            handsAI = new Hands({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-            }});
-            
-            handsAI.setOptions({
-                maxNumHands: 1,
-                modelComplexity: 0, // 0 is fastest (Lite), 1 is Full
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-
-            handsAI.onResults(onHandResults);
-        }
-
-        function onHandResults(results) {
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const hand = results.multiHandLandmarks[0];
-                
-                // Index Tip (8)
-                const indexTip = hand[8];
-                // Thumb Tip (4)
-                const thumbTip = hand[4];
-
-                // 1. Update 3D Cursor Position
-                // Map normalized coordinates (0-1) to 3D Space roughly in front of camera
-                // We project it to a fixed depth (e.g., 0.5 meters in front of user)
-                const depth = 0.5;
-                
-                // Adjust for camera FOV (approx)
-                // MediaPipe x is 0(left) to 1(right). Three.js x is negative(left) to positive(right).
-                const x = (1.0 - indexTip.x) * 2 - 1; // Flip X for mirror effect if needed, or keeping standard
-                const y = (1.0 - indexTip.y) * 2 - 1; // Invert Y
-
-                // Project from camera
-                const vector = new THREE.Vector3(-x, y, -1).normalize(); // -x because camera looks down -Z
-                
-                // Apply player rotation to the hand vector
-                // This is simplified. For true AR, we need raycasting. 
-                // We'll treat the hand as a floating cursor locked to head view for simplicity in this engine.
-                
-                // Local position relative to camera
-                const localPos = new THREE.Vector3(x * 0.4, y * 0.4, -depth); // Scale down XY to fit FOV
-                
-                // World position
-                handCursor.copy(localPos);
-                handCursor.applyAxisAngle(new THREE.Vector3(0,1,0), player.rotY);
-                handCursor.add(player.pos);
-
-                // 2. Pinch Detection
-                // Calculate distance between index(8) and thumb(4)
-                const dx = indexTip.x - thumbTip.x;
-                const dy = indexTip.y - thumbTip.y;
-                const distance = Math.sqrt(dx*dx + dy*dy);
-
-                isPinching = (distance < 0.05); // Threshold
-
-            } else {
-                // Hand lost - hide cursor far away
-                handCursor.set(0, -1000, 0);
-                isPinching = false;
-            }
-        }
 
         function init3D() {
             sceneCommon = new THREE.Scene();
@@ -238,130 +187,152 @@
             sceneCommon.add(light);
             sceneCommon.add(new THREE.AmbientLight(0xffffff, 0.5));
 
-            // Create Hand Cursors (Visuals)
-            const geo = new THREE.SphereGeometry(0.02, 16, 16);
-            const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, opacity: 0.8, transparent: true });
-            
-            cursorMeshL = new THREE.Mesh(geo, mat);
-            cursorMeshR = new THREE.Mesh(geo, mat);
-            
-            // Add to scenes so they render on top of CSS objects
-            // Actually, mixing WebGL depth with CSS3D is tricky. 
-            // We'll add them to sceneCommon, but CSS objects render *on top* of WebGL usually.
-            // To fix this, we usually put WebGL on top (zIndex 2) and transparent background.
-            // Our setup has WebGL on top. So cursor will appear over windows.
-            sceneCommon.add(cursorMeshL); // Shared scene object? No, need separate instances for potential stereo offset if depth matters
-            // Actually, let's add one to each scene to handle stereo correctly if we wanted depth.
-            // For now, adding to Common is fine as it renders twice.
-
             rendererL = createWebGL('render-left'); rendererR = createWebGL('render-right');
             cssL = createCSS('render-left'); cssR = createCSS('render-right');
 
             window.addEventListener('resize', onResize);
-            document.addEventListener('keydown', e => keys[e.code] = true);
+            document.addEventListener('keydown', handleInput);
             document.addEventListener('keyup', e => keys[e.code] = false);
 
-            // Spawn Start Window
-            spawnWindow('text', 0, 1.6, -1.0); 
+            // Spawn Default Window
+            spawnWindow('text', 0, 1.6, 0); 
 
             animate();
         }
 
-        function updateLogic() {
-            // Update Cursor Visuals
-            cursorMeshL.position.copy(handCursor);
-            
-            if (isPinching) {
-                cursorMeshL.material.color.setHex(0x00ff00); // Green on pinch
-            } else {
-                cursorMeshL.material.color.setHex(0x00ffff); // Cyan normally
-            }
+        // --- INPUT & GAMEPAD POLLING ---
+        function updateInputs() {
+            const speed = 0.05;
+            let move = 0;
+            let turn = 0;
 
-            // --- INTERACTION LOGIC ---
-            
-            // 1. PINCH START (Frame where pinch happened)
-            if (isPinching && !wasPinching) {
-                // Check if touching a window
-                let hitFound = false;
-                
-                // Simple distance check against all windows
-                for (let win of windows) {
-                    const dist = win.objL.position.distanceTo(handCursor);
-                    if (dist < 0.4) { // Grabbing radius
-                        heldWindow = win;
-                        hitFound = true;
-                        break;
-                    }
-                }
+            // 1. KEYBOARD
+            if(keys['KeyW']) move = 1;
+            if(keys['KeyS']) move = -1;
+            if(keys['KeyA']) turn = 1;
+            if(keys['KeyD']) turn = -1;
 
-                // If not touching anything, SPAWN NEW WINDOW
-                if (!hitFound) {
-                    spawnWindow('text', handCursor.x, handCursor.y, handCursor.z, player.rotY);
+            // 2. BLUETOOTH GAMEPAD (Standard Mapping)
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            for (const gp of gamepads) {
+                if (gp) {
+                    // Show connection status
+                    document.getElementById('gp-status').style.display = 'block';
+                    
+                    // Left Stick Y (Move)
+                    if (Math.abs(gp.axes[1]) > 0.1) move = -gp.axes[1];
+                    // Right Stick X (Turn)
+                    if (Math.abs(gp.axes[2]) > 0.1) turn = -gp.axes[2];
+
+                    // Buttons for Spawning (A=0, B=1, X=2, Y=3)
+                    if (gp.buttons[0].pressed) spawnWindow('text', ...getSpawnPos());
+                    if (gp.buttons[3].pressed) removeLastWindow();
                 }
             }
 
-            // 2. DRAGGING
-            if (isPinching && heldWindow) {
-                // Move window to hand position
-                // Smoothing factor for less jitter
-                heldWindow.objL.position.lerp(handCursor, 0.2);
-                heldWindow.objR.position.lerp(handCursor, 0.2);
-                
-                // Make it face the player
-                heldWindow.objL.lookAt(player.pos);
-                heldWindow.objR.lookAt(player.pos);
+            // Apply Physics
+            if (move !== 0) {
+                player.pos.z -= move * speed;
             }
-
-            // 3. RELEASE
-            if (!isPinching) {
-                heldWindow = null;
+            if (turn !== 0) {
+                player.rotY += turn * 0.03;
             }
-
-            wasPinching = isPinching;
-
-            // Keyboard Movement (Fallback)
-            if(keys['KeyW']) player.pos.z -= 0.05;
-            if(keys['KeyS']) player.pos.z += 0.05;
-            if(keys['KeyA']) player.rotY += 0.03;
-            if(keys['KeyD']) player.rotY -= 0.03;
         }
 
-        function spawnWindow(type, x, y, z, rotationY = 0) {
+        function getSpawnPos() {
+            const dist = 2.0;
+            const x = player.pos.x - Math.sin(player.rotY) * dist;
+            const z = player.pos.z - Math.cos(player.rotY) * dist;
+            return [x, 1.6, z, player.rotY];
+        }
+
+        function handleInput(e) {
+            keys[e.code] = true;
+            const coords = getSpawnPos();
+
+            if (e.key === '1') spawnWindow('text', ...coords);
+            if (e.key === '2') {
+                const url = prompt("Image URL:", "https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg");
+                if(url) spawnWindow('image', coords[0], coords[1], coords[2], coords[3], url);
+            }
+            if (e.key === '3') {
+                const url = prompt("Video URL:", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4");
+                if(url) spawnWindow('video', coords[0], coords[1], coords[2], coords[3], url);
+            }
+            if (e.key === '4') {
+                let url = prompt("YouTube ID:", "dQw4w9WgXcQ");
+                if(url) spawnWindow('youtube', coords[0], coords[1], coords[2], coords[3], url);
+            }
+            if (e.key.toLowerCase() === 'x') removeLastWindow();
+        }
+
+        // --- WINDOW MANAGER ---
+        function spawnWindow(type, x, y, z, rotationY = 0, customUrl = "") {
             windowCounter++;
             const id = windowCounter;
-            const objL = createMediaObject(id, type, "LEFT");
+            const objL = createMediaObject(id, type, "LEFT", customUrl);
             objL.position.set(x, y, z);
-            objL.lookAt(player.pos);
+            objL.rotation.y = rotationY;
             sceneL.add(objL);
-            const objR = createMediaObject(id, type, "RIGHT");
+            const objR = createMediaObject(id, type, "RIGHT", customUrl);
             objR.position.set(x, y, z);
-            objR.lookAt(player.pos);
+            objR.rotation.y = rotationY;
             sceneR.add(objR);
             windows.push({ id, objL, objR });
         }
 
-        function createMediaObject(id, type, eyeLabel) {
+        function createMediaObject(id, type, eyeLabel, url) {
             const div = document.createElement('div');
-            div.style.width = '500px'; 
-            div.style.height = '350px';
-            div.style.background = 'rgba(0, 15, 30, 0.95)'; 
-            div.style.border = '4px solid #00ffff'; // Thicker for visibility
-            div.style.boxShadow = '0 0 40px rgba(0,255,255,0.4)';
+            div.style.width = '600px'; 
+            div.style.height = '400px';
+            div.style.background = 'rgba(0, 10, 20, 0.9)'; 
+            div.style.border = '2px solid #00ffff';
+            div.style.boxShadow = '0 0 40px rgba(0,255,255,0.2)';
             div.style.fontFamily = 'monospace';
             div.style.color = '#00ffff';
+            div.style.overflow = 'hidden';
             div.style.display = 'flex'; div.style.flexDirection = 'column';
-            div.innerHTML = `
-                <div style="padding:15px; background:rgba(0,255,255,0.2); font-weight:bold;">JEDI_TERM // ${id}</div>
-                <div style="padding:20px; font-size:24px;">
-                    <p>> HAND TRACKING: ON</p>
-                    <p>> PINCH TO GRAB</p>
-                    <p style="margin-top:20px; color:#fff;">_READY</p>
-                </div>`;
+
+            const header = document.createElement('div');
+            header.innerHTML = `HELEN_OS // ${type.toUpperCase()} // ${id}`;
+            header.style.padding = "10px";
+            header.style.background = "rgba(0,255,255,0.2)";
+            header.style.fontWeight = "bold";
+            div.appendChild(header);
+
+            const content = document.createElement('div');
+            content.style.flex = "1";
+            content.style.position = "relative";
+
+            if (type === 'text') {
+                content.style.padding = "20px";
+                content.style.fontSize = "24px";
+                content.innerHTML = `
+                    <p>> SYSTEM: ONLINE</p>
+                    <p>> MODE: ${eyeLabel}</p>
+                    <p>> USER: ADMIN</p>
+                    <p style="margin-top:20px; color:#fff; animation: blink 1s infinite;">_AWAITING INPUT</p>
+                    <style>@keyframes blink { 50% { opacity: 0; } }</style>
+                `;
+            } 
+            else if (type === 'image') content.innerHTML = `<img src="${url}" style="width:100%; height:100%; object-fit:cover;">`;
+            else if (type === 'video') content.innerHTML = `<video src="${url}" autoplay loop muted controls style="width:100%; height:100%; object-fit:cover;"></video>`;
+            else if (type === 'youtube') content.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${url}?autoplay=1&mute=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+
+            div.appendChild(content);
             const obj = new CSS3DObject(div);
-            obj.scale.set(0.0015, 0.0015, 0.0015);
+            obj.scale.set(0.002, 0.002, 0.002);
             return obj;
         }
 
+        function removeLastWindow() {
+            if (windows.length === 0) return;
+            const win = windows.pop();
+            sceneL.remove(win.objL);
+            sceneR.remove(win.objR);
+        }
+
+        // --- RENDERERS ---
         function createWebGL(id) {
             const c = document.getElementById(id);
             const r = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -390,25 +361,24 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            
-            // Send video frame to AI (Throttle to 30fps if needed, but running every frame here)
-            if (handsAI && videoElement && videoElement.readyState >= 2) {
-                 handsAI.send({image: videoElement}).catch(e => {});
-            }
-
-            updateLogic();
-            
+            updateInputs();
             const halfIPD = IPD / 2;
+            
+            // LEFT
             camera.position.copy(player.pos);
             camera.rotation.set(0, player.rotY, 0);
             camera.translateX(-halfIPD);
             camera.updateMatrixWorld();
-            rendererL.render(sceneCommon, camera); cssL.render(sceneL, camera);
+            rendererL.render(sceneCommon, camera); 
+            cssL.render(sceneL, camera);
+
+            // RIGHT
             camera.position.copy(player.pos);
             camera.rotation.set(0, player.rotY, 0);
             camera.translateX(halfIPD);
             camera.updateMatrixWorld();
-            rendererR.render(sceneCommon, camera); cssR.render(sceneR, camera);
+            rendererR.render(sceneCommon, camera); 
+            cssR.render(sceneR, camera);
         }
     </script>
 </body>
