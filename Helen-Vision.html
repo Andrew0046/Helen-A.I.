@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: MEDIA NODES</title>
+    <title>HELEN: ULTIMATE</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -35,12 +35,12 @@
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
 
 <div id="overlay">
-    <h1>HELEN: MEDIA DATABASE</h1>
+    <h1>HELEN: ULTIMATE</h1>
     <div class="status" id="pad-status">
-        [ MISSION BRIEFING ]<br>
-        1. Find "Encrypted Nodes"<br>
-        2. Aim Crosshair<br>
-        3. Hold (X) to Decrypt Media
+        [ SYSTEM READY ]<br>
+        • (X) Hack Node<br>
+        • (△) Toggle Vision/Lens<br>
+        • (L1/R1) Force Cycle Lens
     </div>
     <div class="log-box" id="debug-log">System initialized...</div>
 </div>
@@ -57,24 +57,26 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // DATA: What images/videos do you want to show?
+    // --- DATABASE ---
     const DATABASE = [
         { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'ARTIFACT_01' },
-        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', label: 'SURVEILLANCE_FOOTAGE' },
-        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/HST-SM4.jpeg', label: 'SATELLITE_VIEW' },
+        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', label: 'SURVEILLANCE' },
+        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/HST-SM4.jpeg', label: 'SATELLITE_FEED' },
         { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', label: 'DREAM_LOG' }
     ];
 
-    let targets = []; // The wireframe boxes
-    let activeHack = { obj: null, progress: 0 }; // Current hacking state
+    let targets = []; 
+    let activeHack = { obj: null, progress: 0 }; 
     
-    // Hardware IDs
+    // --- CAMERA IDS ---
+    let allBackCameras = []; // Store ALL back cameras here
     let torchCamId = null;
-    let wideCamId = null;
+    let wideCamId = null; // Our best guess for 0.5x
     let activeCamId = null;
 
-    let visionMode = 0; 
+    let visionMode = 0; // 0=Normal, 1=Cyber
     let lastBtnState = false; 
+    let lastCycleState = false;
     let isSwitching = false;
 
     const SPEED = 0.1; 
@@ -87,29 +89,49 @@
         el.innerText = msg + "\n" + el.innerText;
     }
 
-    // --- 1. CAMERA LOGIC (Dual Lens) ---
+    // --- 1. ROBUST LENS SCANNER ---
     async function scanCameras() {
         if (!navigator.mediaDevices?.enumerateDevices) return;
+        
+        log("Scanning hardware...");
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(d => d.kind === 'videoinput');
+        // Get all video inputs excluding obvious front cameras
+        const cameras = devices.filter(d => d.kind === 'videoinput' && !d.label.toLowerCase().includes('front'));
+        
+        allBackCameras = cameras.map(c => c.deviceId); // Save for manual cycling
+        log(`Found ${cameras.length} Back Cameras`);
 
+        // Phase 1: Identify Torch Camera (Main)
         for (const cam of cameras) {
-            if (cam.label.toLowerCase().includes('front')) continue;
-            const label = cam.label.toLowerCase();
-            
-            if (label.includes('ultra') || label.includes('0.5') || label.includes('wide')) {
-                if (!wideCamId) wideCamId = cam.deviceId;
-            }
-            // Check torch logic (simplified for brevity)
-            if (!torchCamId && !wideCamId) {
-                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
-                    const track = stream.getVideoTracks()[0];
-                    if (track.getCapabilities().torch) torchCamId = cam.deviceId;
-                    track.stop();
-                 } catch(e){}
-            }
+            try {
+                // We have to open it to check capabilities
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
+                const track = stream.getVideoTracks()[0];
+                const caps = track.getCapabilities();
+                
+                if (caps.torch) {
+                    torchCamId = cam.deviceId;
+                    log(`Torch found on cam index: ${allBackCameras.indexOf(cam.deviceId)}`);
+                }
+                track.stop(); // Clean up
+            } catch(e) {}
         }
+
+        // Phase 2: Identify "Not Torch" Camera (Likely Wide)
+        // If we found a torch cam, pick any other cam as the "Wide" candidate.
+        // If we didn't find a torch cam, just pick index 0 and 1.
+        if (torchCamId) {
+            const other = cameras.find(c => c.deviceId !== torchCamId);
+            if (other) wideCamId = other.deviceId;
+        } else {
+            // Fallback: If no torch detected, assume Cam 0 is Main, Cam 1 is Wide (if exists)
+            if (cameras.length > 1) wideCamId = cameras[1].deviceId;
+            if (cameras.length > 0) torchCamId = cameras[0].deviceId;
+        }
+
+        log(`Setup: Main=${torchCamId ? 'OK' : 'N/A'}, Wide=${wideCamId ? 'OK' : 'N/A'}`);
+        
+        // Start with Wide if available
         startCameraStream(wideCamId || torchCamId);
     }
 
@@ -123,6 +145,7 @@
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             const video = document.getElementById('camera-feed');
             video.srcObject = stream;
+            
             await new Promise(r => video.onloadedmetadata = r);
             await video.play();
 
@@ -136,49 +159,51 @@
                 camMaterial.uniforms.tDiffuse.value.generateMipmaps = false;
             }
             isSwitching = false;
-        } catch (err) { isSwitching = false; }
+        } catch (err) { 
+            log("Stream error: " + err.message);
+            isSwitching = false; 
+        }
     }
 
-    // --- 2. HACKING & MEDIA LOGIC ---
-    function spawnDecryptedScreen(position, rotation, data) {
-        // Create the screen geometry
-        const geometry = new THREE.PlaneGeometry(3, 1.8); // 16:9 Aspect Ratio
-        let material;
+    // --- MANUAL CYCLE FUNCTION ---
+    async function cycleNextLens() {
+        if (allBackCameras.length < 2) {
+            log("Only 1 camera found. Cannot cycle.");
+            return;
+        }
+        // Find current index
+        let idx = allBackCameras.indexOf(activeCamId);
+        // Next index
+        idx = (idx + 1) % allBackCameras.length;
+        const nextId = allBackCameras[idx];
+        
+        log(`Cycling to Lens ${idx + 1}/${allBackCameras.length}`);
+        
+        // Update wideCamId to this new choice so "Normal Mode" remembers it
+        if (visionMode === 0) wideCamId = nextId; 
+        
+        await startCameraStream(nextId);
+    }
 
+    // --- 2. 3D & GAME LOGIC ---
+    function spawnDecryptedScreen(position, rotation, data) {
+        const geometry = new THREE.PlaneGeometry(3, 1.8);
+        let material;
         if (data.type === 'video') {
             const video = document.createElement('video');
-            video.src = data.src;
-            video.crossOrigin = "anonymous";
-            video.loop = true;
-            video.muted = true; // Start muted to allow autoplay
-            video.play();
-            
-            const tex = new THREE.VideoTexture(video);
-            tex.colorSpace = THREE.SRGBColorSpace;
+            video.src = data.src; video.crossOrigin = "anonymous"; video.loop = true; video.muted = true; video.play();
+            const tex = new THREE.VideoTexture(video); tex.colorSpace = THREE.SRGBColorSpace;
             material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
         } else {
-            const tex = new THREE.TextureLoader().load(data.src);
-            tex.colorSpace = THREE.SRGBColorSpace;
+            const tex = new THREE.TextureLoader().load(data.src); tex.colorSpace = THREE.SRGBColorSpace;
             material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
         }
-
         const screen = new THREE.Mesh(geometry, material);
-        screen.position.copy(position);
-        screen.rotation.copy(rotation);
-        
-        // Add a "frame"
-        const frame = new THREE.LineSegments(
-            new THREE.EdgesGeometry(geometry),
-            new THREE.LineBasicMaterial({ color: 0x00ffff })
-        );
-        screen.add(frame);
-
+        screen.position.copy(position); screen.rotation.copy(rotation);
+        screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
         scene.add(screen);
-        
-        // Play sound effect (optional/future)
     }
 
-    // --- 3. INIT ENGINE ---
     scanCameras().then(init3D);
 
     const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
@@ -213,7 +238,6 @@
 
         const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
 
-        // HUD
         const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
         hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas); hudTexture.minFilter = THREE.LinearFilter;
         hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
@@ -234,18 +258,11 @@
     }
 
     function createTerminals() {
-        const geo = new THREE.IcosahedronGeometry(0.5, 0); 
-        const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
-        
-        // Spawn 4 nodes based on our DATABASE
+        const geo = new THREE.IcosahedronGeometry(0.5, 0); const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
         DATABASE.forEach((data, i) => {
             const mesh = new THREE.Mesh(geo, mat);
-            // Spread them out
-            const angle = (i / 4) * Math.PI * 2;
-            mesh.position.set(Math.sin(angle)*10, 1.5, Math.cos(angle)*10);
-            mesh.userData = { isNode: true, data: data, id: i }; // Store info
-            scene.add(mesh);
-            targets.push(mesh);
+            const angle = (i / 4) * Math.PI * 2; mesh.position.set(Math.sin(angle)*10, 1.5, Math.cos(angle)*10);
+            mesh.userData = { isNode: true, data: data, id: i }; scene.add(mesh); targets.push(mesh);
         });
     }
 
@@ -261,91 +278,65 @@
         // TRIANGLE: Lens Switch
         const btnTri = pad.buttons[3].pressed;
         if (btnTri && !lastBtnState) {
-            const newMode = visionMode === 0 ? 1 : 0;
-            visionMode = newMode;
-            if (camMaterial) camMaterial.uniforms.uMode.value = newMode;
-            if (newMode === 1 && torchCamId) startCameraStream(torchCamId).then(() => videoTrack?.applyConstraints({advanced:[{torch:true}]}));
+            visionMode = visionMode === 0 ? 1 : 0;
+            if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
+            if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(() => videoTrack?.applyConstraints({advanced:[{torch:true}]}));
             else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
         lastBtnState = btnTri;
 
-        // X BUTTON (Button 0): Hacking Interaction
+        // BUMPER (L1/R1): Force Cycle Lens (Buttons 4 or 5)
+        const btnCycle = pad.buttons[4].pressed || pad.buttons[5].pressed;
+        if (btnCycle && !lastCycleState) {
+            cycleNextLens();
+        }
+        lastCycleState = btnCycle;
+
+        // X BUTTON: HACK
         const btnX = pad.buttons[0].pressed;
-        
-        // Raycast Check
         raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
         const intersects = raycaster.intersectObjects(targets);
-
         if (intersects.length > 0) {
-            const target = intersects[0].object;
-            activeHack.obj = target;
-            
-            if (btnX) {
-                activeHack.progress += 2; // Speed of hack
-            } else {
-                activeHack.progress = Math.max(0, activeHack.progress - 5);
-            }
-
+            const target = intersects[0].object; activeHack.obj = target;
+            if (btnX) activeHack.progress += 2; else activeHack.progress = Math.max(0, activeHack.progress - 5);
             if (activeHack.progress >= 100) {
-                // HACK COMPLETE!
-                // 1. Remove Node
-                scene.remove(target);
-                targets = targets.filter(t => t !== target);
-                // 2. Spawn Media Screen
+                scene.remove(target); targets = targets.filter(t => t !== target);
                 spawnDecryptedScreen(target.position, target.rotation, target.userData.data);
                 activeHack.progress = 0; activeHack.obj = null;
             }
-        } else {
-            activeHack.obj = null;
-            activeHack.progress = 0;
-        }
+        } else { activeHack.obj = null; activeHack.progress = 0; }
     }
 
     function updateHUD() {
         if(!hudContext) return;
         const ctx = hudContext; const w = 1024; const h = 1024; ctx.clearRect(0, 0, w, h);
         
-        // Mode & Compass
         ctx.textAlign = 'right'; ctx.font = 'bold 30px Courier New';
         if(visionMode === 1) { ctx.fillStyle = '#00ffff'; ctx.fillText("VISION: [CYBER]", w-40, 60); }
         else { ctx.fillStyle = 'rgba(0,255,255,0.5)'; ctx.fillText("VISION: [NORMAL]", w-40, 60); }
 
-        // CROSSHAIR & HACKING UI
-        const cx = w/2; const cy = h/2;
-        
-        if (activeHack.obj) {
-            // Target Locked UI
-            ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
-            
-            ctx.fillStyle = '#ff0000'; ctx.textAlign = 'center'; ctx.font = '20px Courier New';
-            ctx.fillText("DETECTED: " + activeHack.obj.userData.data.label, cx, cy + 80);
-            
-            // Progress Bar
-            if (activeHack.progress > 0) {
-                ctx.fillStyle = '#000'; ctx.fillRect(cx-100, cy+90, 200, 20);
-                ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-100, cy+90, activeHack.progress * 2, 20);
-                ctx.fillText("DECRYPTING...", cx, cy + 140);
-            } else {
-                ctx.fillStyle = '#fff'; 
-                ctx.fillText("HOLD (X) TO HACK", cx, cy + 140);
-            }
+        // CAMERA ID DEBUG
+        ctx.font = '20px Courier New'; ctx.fillStyle = '#aaa';
+        const camLabel = activeCamId === torchCamId ? "MAIN" : (activeCamId === wideCamId ? "WIDE" : "AUX");
+        ctx.fillText(`CAM: ${camLabel}`, w-40, 90);
 
+        const cx = w/2; const cy = h/2;
+        if (activeHack.obj) {
+            ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
+            ctx.fillStyle = '#ff0000'; ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillText("DETECTED: " + activeHack.obj.userData.data.label, cx, cy + 80);
+            if (activeHack.progress > 0) {
+                ctx.fillStyle = '#000'; ctx.fillRect(cx-100, cy+90, 200, 20); ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-100, cy+90, activeHack.progress * 2, 20);
+                ctx.fillText("DECRYPTING...", cx, cy + 140);
+            } else { ctx.fillStyle = '#fff'; ctx.fillText("HOLD (X) TO HACK", cx, cy + 140); }
         } else {
-            // Normal Crosshair
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath();
             ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
         }
-        
         hudTexture.needsUpdate = true;
     }
 
     function animate() {
-        renderer.setAnimationLoop(() => { 
-            handleInput(); updateHUD(); 
-            targets.forEach(t => { t.rotation.x += 0.01; t.rotation.y += 0.01; }); 
-            renderer.render(scene, camera); 
-        });
+        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); targets.forEach(t => { t.rotation.x += 0.01; t.rotation.y += 0.01; }); renderer.render(scene, camera); });
     }
 </script>
 </body>
