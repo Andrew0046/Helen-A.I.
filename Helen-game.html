@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Helen AR: Turbo Optimized</title>
+    <title>Helen AR: Sensor Fusion</title>
     <style>
         /* --- CORE STYLES --- */
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; touch-action: none; }
@@ -37,7 +37,7 @@
         .camera-feed {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover; transform: scale(1.0); z-index: 0;
-            will-change: transform; /* GPU Hint */
+            will-change: transform; 
         }
 
         .ar-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
@@ -60,22 +60,12 @@
             color: #00ff00; font-size: 16px; font-weight: bold; display: none; text-shadow: 0 0 5px #00ff00;
         }
 
-        /* --- OPTIMIZED WINDOW STYLES --- */
-        .window-container {
-            /* Hardware Acceleration Hints */
-            backface-visibility: hidden;
-            transform-style: preserve-3d;
-            will-change: transform; 
-        }
-
+        /* --- WINDOW STYLES --- */
+        .window-container { backface-visibility: hidden; transform-style: preserve-3d; will-change: transform; }
         .browser-bar { display: flex; padding: 5px; background: #222; border-bottom: 1px solid #00ffff; }
         .browser-input { flex: 1; background: #000; color: #fff; border: 1px solid #555; padding: 5px; font-family: monospace; font-size: 14px; }
         .browser-btn { background: #00ffff; color: #000; border: none; padding: 0 15px; font-weight: bold; cursor: pointer; margin-left: 5px; }
-        
-        .file-upload-btn {
-            background: #00ffff; color: #000; padding: 15px; text-align: center; 
-            font-weight: bold; cursor: pointer; margin: 20px; border: 2px dashed #00ffff;
-        }
+        .file-upload-btn { background: #00ffff; color: #000; padding: 15px; text-align: center; font-weight: bold; cursor: pointer; margin: 20px; border: 2px dashed #00ffff; }
     </style>
     
     <script type="importmap">
@@ -90,14 +80,15 @@
 <body>
 
     <div id="start-screen">
-        <h1>HELEN AR: TURBO</h1>
-        <p>OPTIMIZED RENDERING ACTIVE</p>
+        <h1>HELEN AR: SENSORS</h1>
+        <p>GYRO + ACCEL + COMPASS</p>
         <div style="text-align:left; font-size:14px; color:#aaa; margin-top:20px; line-height:1.6;">
-            [1-4] MEDIA &bull; [5] BROWSER &bull; [6] UPLOAD<br>
+            LOOK: Move Phone<br>
+            [1-6] SPAWN APPS<br>
             [G] GRAB &bull; [K] SAVE &bull; [X] CLOSE
         </div>
         <div class="btn-group">
-            <button id="init-btn">ENTER VR</button>
+            <button id="init-btn">ENABLE SENSORS</button>
             <button onclick="localStorage.clear(); alert('Memory Wiped');">RESET MEMORY</button>
         </div>
     </div>
@@ -107,24 +98,27 @@
             <video id="vid-left" class="camera-feed" autoplay muted playsinline></video>
             <div id="render-left" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
-            <div class="hud-overlay"><div class="reticle" id="ret-l"></div><div class="hud-text">L_EYE // 60FPS</div><div id="status-msg">WORLD SAVED</div></div>
+            <div class="hud-overlay"><div class="reticle" id="ret-l"></div><div class="hud-text">L_EYE // SENSOR_FUSION</div><div id="status-msg">WORLD SAVED</div></div>
         </div>
         <div id="eye-right" class="vr-eye">
             <video id="vid-right" class="camera-feed" autoplay muted playsinline></video>
             <div id="render-right" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
-            <div class="hud-overlay"><div class="reticle" id="ret-r"></div><div class="hud-text">R_EYE // 60FPS</div></div>
+            <div class="hud-overlay"><div class="reticle" id="ret-r"></div><div class="hud-text">R_EYE // SENSOR_FUSION</div></div>
         </div>
     </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
+        
+        // --- NEW IMPORT: DEVICE ORIENTATION ---
+        import { DeviceOrientationControls } from 'three/addons/controls/DeviceOrientationControls.js';
 
-        let camera, rendererL, rendererR, cssL, cssR;
+        let camera, rendererL, rendererR, cssL, cssR, controls;
         let sceneCommon, sceneL, sceneR; 
         const IPD = 0.064; 
-        const player = { pos: new THREE.Vector3(0, 1.6, 5), rotY: 0 };
+        const player = { pos: new THREE.Vector3(0, 1.6, 5) }; // Removed rotY, controlled by sensors now
         const keys = {};
         let windows = []; 
         let windowCounter = 0;
@@ -133,6 +127,21 @@
         // --- INIT ---
         const btn = document.getElementById('init-btn');
         btn.addEventListener('click', async () => {
+            // 1. IOS PERMISSION CHECK
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                try {
+                    const permissionState = await DeviceOrientationEvent.requestPermission();
+                    if (permissionState === 'granted') {
+                        // iOS Granted
+                    } else {
+                        alert("Permission to use Gyroscope was denied.");
+                        return;
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
             try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch(e){}
             try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e){}
 
@@ -154,44 +163,26 @@
             loadWorld(); 
         });
 
-        // --- OPTIMIZED SYNC ENGINE ---
-        // Reads all values first, THEN writes them. Prevents Layout Thrashing.
+        // --- SYNC ENGINE ---
         function syncWindows() {
             const updates = [];
-
-            // 1. READ PHASE (Fast)
             windows.forEach(w => {
                 if (!w.domL || !w.domR) return;
-                
                 const contentL = w.domL.querySelector('.win-content');
                 const inputL = w.domL.querySelector('.browser-input');
-                
-                // Store the values we need to sync
-                if (contentL) {
-                    updates.push({ 
-                        domR: w.domR, 
-                        scrollTop: contentL.scrollTop, 
-                        scrollLeft: contentL.scrollLeft 
-                    });
-                }
-                
+                if (contentL) updates.push({ domR: w.domR, scrollTop: contentL.scrollTop, scrollLeft: contentL.scrollLeft });
                 if (inputL) {
                      const inputR = w.domR.querySelector('.browser-input');
-                     if(inputR && inputL.value !== inputR.value) {
-                         updates.push({ inputR: inputR, val: inputL.value, type: 'input' });
-                     }
+                     if(inputR && inputL.value !== inputR.value) updates.push({ inputR: inputR, val: inputL.value, type: 'input' });
                 }
             });
-
-            // 2. WRITE PHASE (Fast)
             updates.forEach(u => {
-                if(u.type === 'input') {
-                    u.inputR.value = u.val;
-                } else {
+                if(u.type === 'input') u.inputR.value = u.val;
+                else {
                     const contentR = u.domR.querySelector('.win-content');
                     if(contentR) {
-                        if(contentR.scrollTop !== u.scrollTop) contentR.scrollTop = u.scrollTop;
-                        if(contentR.scrollLeft !== u.scrollLeft) contentR.scrollLeft = u.scrollLeft;
+                        contentR.scrollTop = u.scrollTop;
+                        contentR.scrollLeft = u.scrollLeft;
                     }
                 }
             });
@@ -199,18 +190,12 @@
 
         // --- HANDLERS ---
         window.navigateBrowser = function(id, eye) {
-            const win = windows.find(w => w.id === id);
-            if (!win) return;
+            const win = windows.find(w => w.id === id); if (!win) return;
             const input = win.domL.querySelector('.browser-input');
-            let url = input.value;
-            if (!url.startsWith('http')) url = 'https://' + url;
-            
-            const iframeL = win.domL.querySelector('iframe');
-            const iframeR = win.domR.querySelector('iframe');
-            if(iframeL) iframeL.src = url;
-            if(iframeR) iframeR.src = url;
-            win.url = url; 
-            saveWorld();
+            let url = input.value; if (!url.startsWith('http')) url = 'https://' + url;
+            const iframeL = win.domL.querySelector('iframe'); const iframeR = win.domR.querySelector('iframe');
+            if(iframeL) iframeL.src = url; if(iframeR) iframeR.src = url;
+            win.url = url; saveWorld();
         }
 
         window.handleUpload = function(id, inputElement) {
@@ -218,12 +203,8 @@
                 const reader = new FileReader();
                 reader.onload = function (e) {
                     const result = e.target.result; 
-                    const win = windows.find(w => w.id === id);
-                    if (!win) return;
-                    const injectImage = (dom) => {
-                        const content = dom.querySelector('.win-content');
-                        content.innerHTML = `<img src="${result}" style="width:100%; height:100%; object-fit:contain;">`;
-                    };
+                    const win = windows.find(w => w.id === id); if (!win) return;
+                    const injectImage = (dom) => { dom.querySelector('.win-content').innerHTML = `<img src="${result}" style="width:100%; height:100%; object-fit:contain;">`; };
                     injectImage(win.domL); injectImage(win.domR);
                     showStatus("IMAGE LOADED");
                 };
@@ -256,24 +237,20 @@
         function toggleGrab() {
             if (grabbedWindow) {
                 grabbedWindow = null;
-                document.getElementById('ret-l').classList.remove('grab');
-                document.getElementById('ret-r').classList.remove('grab');
-                showStatus("WINDOW DROPPED");
-                saveWorld();
+                document.getElementById('ret-l').classList.remove('grab'); document.getElementById('ret-r').classList.remove('grab');
+                showStatus("WINDOW DROPPED"); saveWorld();
             } else {
                 const closest = findClosestWindow();
                 if (closest && closest.dist < 1.5) {
                     grabbedWindow = closest.win;
-                    document.getElementById('ret-l').classList.add('grab');
-                    document.getElementById('ret-r').classList.add('grab');
+                    document.getElementById('ret-l').classList.add('grab'); document.getElementById('ret-r').classList.add('grab');
                     showStatus("WINDOW GRABBED");
                 }
             }
         }
 
         function findClosestWindow() {
-            let minDist = Infinity;
-            let target = null;
+            let minDist = Infinity; let target = null;
             const camPos = player.pos.clone(); 
             windows.forEach(w => {
                 const dist = w.objL.position.distanceTo(camPos);
@@ -284,15 +261,19 @@
 
         function updateGrabbedWindow() {
             if (!grabbedWindow) return;
-            const dist = 2.0;
-            const x = player.pos.x - Math.sin(player.rotY) * dist;
-            const z = player.pos.z - Math.cos(player.rotY) * dist;
+            // Get current looking direction
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            direction.y = 0; direction.normalize();
+
+            // Place window 2m in front
+            const targetPos = player.pos.clone().add(direction.multiplyScalar(2.0));
+            targetPos.y = 1.6; // Keep height constant
             
-            // Move both eyes' objects
-            grabbedWindow.objL.position.set(x, 1.6, z);
-            grabbedWindow.objL.rotation.y = player.rotY;
-            grabbedWindow.objR.position.set(x, 1.6, z);
-            grabbedWindow.objR.rotation.y = player.rotY;
+            grabbedWindow.objL.position.copy(targetPos);
+            grabbedWindow.objL.lookAt(player.pos.x, 1.6, player.pos.z);
+            grabbedWindow.objR.position.copy(targetPos);
+            grabbedWindow.objR.lookAt(player.pos.x, 1.6, player.pos.z);
         }
 
         function showStatus(text) {
@@ -305,16 +286,17 @@
             sceneCommon = new THREE.Scene(); sceneL = new THREE.Scene(); sceneR = new THREE.Scene();
             const aspect = (window.innerWidth / 2) / window.innerHeight;
             camera = new THREE.PerspectiveCamera(70, aspect, 0.1, 100);
+            
+            // --- SENSOR CONTROLS ---
+            controls = new DeviceOrientationControls(camera);
+            // Optional: Connect compass (alphaOffset) if device supports it
+            
             const light = new THREE.DirectionalLight(0xffffff, 2);
             light.position.set(0, 5, 5);
             sceneCommon.add(light); sceneCommon.add(new THREE.AmbientLight(0xffffff, 0.5));
             
-            // --- OPTIMIZATION: CAP RESOLUTION ---
-            rendererL = createWebGL('render-left'); 
-            rendererR = createWebGL('render-right');
-            // Cap Pixel Ratio to 2 (Prevents 4k rendering on phones)
-            rendererL.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            rendererR.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            rendererL = createWebGL('render-left'); rendererR = createWebGL('render-right');
+            rendererL.setPixelRatio(Math.min(window.devicePixelRatio, 2)); rendererR.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
             cssL = createCSS('render-left'); cssR = createCSS('render-right');
             
@@ -345,18 +327,20 @@
         function spawnWindow(type, x, y, z, rotationY = 0, customUrl = "", shouldSave = true) {
             windowCounter++;
             const id = windowCounter;
-            
             const domL = createDOM(id, type, "LEFT", customUrl);
             const domR = createDOM(id, type, "RIGHT", customUrl);
 
             const objL = new CSS3DObject(domL); 
             objL.scale.set(0.002, 0.002, 0.002);
-            objL.position.set(x, y, z); objL.rotation.y = rotationY;
+            objL.position.set(x, y, z);
+            // Look at player initially
+            objL.lookAt(player.pos.x, 1.6, player.pos.z);
             sceneL.add(objL);
 
             const objR = new CSS3DObject(domR); 
             objR.scale.set(0.002, 0.002, 0.002);
-            objR.position.set(x, y, z); objR.rotation.y = rotationY;
+            objR.position.set(x, y, z); 
+            objR.lookAt(player.pos.x, 1.6, player.pos.z);
             sceneR.add(objR);
 
             windows.push({ id, type, url: customUrl, objL, objR, domL, domR });
@@ -365,9 +349,7 @@
 
         function createDOM(id, type, eyeLabel, url) {
             const div = document.createElement('div');
-            // Add Optimization Class
             div.className = 'window-container'; 
-            
             div.style.width = '600px'; div.style.height = '400px';
             div.style.background = 'rgba(0, 10, 20, 0.95)'; 
             div.style.border = '2px solid #00ffff';
@@ -400,7 +382,6 @@
             else if (type === 'video') content.innerHTML = `<video src="${url}" autoplay loop muted controls style="width:100%; height:100%; object-fit:cover;"></video>`;
             else if (type === 'youtube') content.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${url}?autoplay=1&mute=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
             else if (type === 'browser') content.innerHTML = `<iframe width="100%" height="100%" src="${url}" frameborder="0" style="background:#fff;"></iframe>`;
-            
             else if (type === 'upload') {
                 content.innerHTML = `
                     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
@@ -409,16 +390,22 @@
                         <label for="file-${id}-${eyeLabel}" class="file-upload-btn">CHOOSE FILE</label>
                     </div>`;
             }
-
             div.appendChild(content);
             return div;
         }
 
+        // --- UPDATED SPAWN POS (USES CAMERA DIRECTION) ---
         function getSpawnPos() {
-            const dist = 2.0;
-            const x = player.pos.x - Math.sin(player.rotY) * dist;
-            const z = player.pos.z - Math.cos(player.rotY) * dist;
-            return [x, 1.6, z, player.rotY];
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            direction.y = 0; direction.normalize();
+
+            // Spawn 2 meters in front of wherever camera is looking
+            const x = player.pos.x + (direction.x * 2.0);
+            const z = player.pos.z + (direction.z * 2.0);
+            
+            // Note: rotY is no longer used for spawning rotation, we use lookAt()
+            return [x, 1.6, z, 0];
         }
 
         function removeLastWindow() {
@@ -430,7 +417,7 @@
 
         function createWebGL(id) {
             const c = document.getElementById(id);
-            const r = new THREE.WebGLRenderer({ alpha: true, antialias: false }); // No Antialias = Faster
+            const r = new THREE.WebGLRenderer({ alpha: true, antialias: false });
             r.setSize(c.clientWidth, c.clientHeight);
             r.domElement.style.position = 'absolute'; r.domElement.style.top = '0'; r.domElement.style.zIndex = '2'; 
             c.appendChild(r.domElement);
@@ -455,25 +442,45 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            
+            // --- UPDATED PHYSICS: WALK IN DIRECTION OF GAZE ---
+            if (controls) controls.update(); // Updates camera rotation from sensors
+            
             const speed = 0.05;
-            if(keys['KeyW']) player.pos.z -= speed;
-            if(keys['KeyS']) player.pos.z += speed;
-            if(keys['KeyA']) player.rotY += 0.03;
-            if(keys['KeyD']) player.rotY -= 0.03;
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            direction.y = 0; direction.normalize();
+
+            const sideways = new THREE.Vector3();
+            sideways.crossVectors(camera.up, direction).normalize();
+
+            if(keys['KeyW']) player.pos.addScaledVector(direction, speed);
+            if(keys['KeyS']) player.pos.addScaledVector(direction, -speed);
+            if(keys['KeyD']) player.pos.addScaledVector(sideways, -speed); // Note: Sideways logic inverted for correct strafe
+            if(keys['KeyA']) player.pos.addScaledVector(sideways, speed);
             
             updateGrabbedWindow(); 
             syncWindows(); 
 
             const halfIPD = IPD / 2;
-            camera.position.copy(player.pos);
-            camera.rotation.set(0, player.rotY, 0);
-            camera.translateX(-halfIPD);
+            
+            // LEFT
+            const leftCamPos = player.pos.clone();
+            const leftOffset = new THREE.Vector3(-halfIPD, 0, 0);
+            leftOffset.applyQuaternion(camera.quaternion); // Rotate offset by camera rotation
+            leftCamPos.add(leftOffset);
+            
+            camera.position.copy(leftCamPos);
             camera.updateMatrixWorld();
             rendererL.render(sceneCommon, camera); cssL.render(sceneL, camera);
 
-            camera.position.copy(player.pos);
-            camera.rotation.set(0, player.rotY, 0);
-            camera.translateX(halfIPD);
+            // RIGHT
+            const rightCamPos = player.pos.clone();
+            const rightOffset = new THREE.Vector3(halfIPD, 0, 0);
+            rightOffset.applyQuaternion(camera.quaternion);
+            rightCamPos.add(rightOffset);
+
+            camera.position.copy(rightCamPos);
             camera.updateMatrixWorld();
             rendererR.render(sceneCommon, camera); cssR.render(sceneR, camera);
         }
