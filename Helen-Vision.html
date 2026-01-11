@@ -3,21 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: ULTIMATE</title>
+    <title>HELEN: MISSION LOADER</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); color: #00ffff;
+            background: rgba(0,0,0,0.85); color: #00ffff;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             z-index: 100;
         }
         .status { margin-top: 10px; font-size: 14px; color: #aaa; text-align: center; line-height: 1.5; }
-        .log-box { 
-            margin-top: 20px; padding: 10px; border: 1px solid #555; 
-            background: #000; color: #00ff00; font-size: 12px; max-width: 90%; 
-            white-space: pre-wrap; text-align: left; height: 100px; overflow-y: scroll;
+        
+        /* UI BUTTONS */
+        .btn-group { display: flex; flex-direction: column; gap: 15px; margin-top: 30px; width: 80%; max-width: 300px; }
+        
+        button {
+            padding: 15px; font-size: 16px; font-weight: bold; font-family: 'Courier New', monospace;
+            background: transparent; color: #00ffff; border: 2px solid #00ffff; 
+            cursor: pointer; text-transform: uppercase;
         }
+        button.primary { background: #00ffff; color: #000; }
+        button:active { transform: scale(0.95); }
+
+        .file-count { color: #00ff00; font-size: 12px; margin-top: -10px; text-align: right; display: none; }
     </style>
     
     <script type="importmap">
@@ -33,16 +41,21 @@
 <body>
 
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
+<input type="file" id="intel-input" multiple accept="image/*,video/*" style="display:none">
 
 <div id="overlay">
-    <h1>HELEN: ULTIMATE</h1>
-    <div class="status" id="pad-status">
-        [ SYSTEM READY ]<br>
-        • (X) Hack Node<br>
-        • (△) Toggle Vision/Lens<br>
-        • (L1/R1) Force Cycle Lens
+    <h1>HELEN OS</h1>
+    <div class="status">
+        [ MISSION PREP ]<br>
+        Load your custom media deck<br>before entering the field.
     </div>
-    <div class="log-box" id="debug-log">System initialized...</div>
+
+    <div class="btn-group">
+        <button onclick="document.getElementById('intel-input').click()">📂 UPLOAD INTEL</button>
+        <div id="file-status" class="file-count">0 FILES LOADED</div>
+
+        <div id="vr-btn-container"></div>
+    </div>
 </div>
 
 <script type="module">
@@ -52,100 +65,95 @@
 
     const polyfill = new WebXRPolyfill();
 
+    // --- GLOBAL VARIABLES ---
     let scene, camera, renderer, dolly;
-    let hudTexture, hudContext, hudMesh;
+    let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // --- DATABASE ---
-    const DATABASE = [
-        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'ARTIFACT_01' },
-        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', label: 'SURVEILLANCE' },
-        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/HST-SM4.jpeg', label: 'SATELLITE_FEED' },
-        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', label: 'DREAM_LOG' }
+    // DATA STORAGE
+    let CUSTOM_DATABASE = []; // User files go here
+    const DEFAULT_DATABASE = [
+        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEMO_ARTIFACT' },
+        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', label: 'DEMO_FOOTAGE' }
     ];
 
     let targets = []; 
     let activeHack = { obj: null, progress: 0 }; 
     
-    // --- CAMERA IDS ---
-    let allBackCameras = []; // Store ALL back cameras here
+    // CAMERAS
     let torchCamId = null;
-    let wideCamId = null; // Our best guess for 0.5x
+    let wideCamId = null;
     let activeCamId = null;
+    let allBackCameras = [];
 
-    let visionMode = 0; // 0=Normal, 1=Cyber
+    let visionMode = 0; 
     let lastBtnState = false; 
     let lastCycleState = false;
-    let isSwitching = false;
 
     const SPEED = 0.1; 
     const _moveDir = new THREE.Vector3();
     const _strafeDir = new THREE.Vector3();
 
-    function log(msg) {
-        console.log(msg);
-        const el = document.getElementById('debug-log');
-        el.innerText = msg + "\n" + el.innerText;
-    }
+    // --- 1. FILE HANDLING ---
+    const input = document.getElementById('intel-input');
+    const statusLabel = document.getElementById('file-status');
 
-    // --- 1. ROBUST LENS SCANNER ---
+    input.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            CUSTOM_DATABASE = []; // Clear old
+            
+            Array.from(e.target.files).forEach((file, index) => {
+                // Create Blob URL (Local browser memory)
+                const url = URL.createObjectURL(file);
+                const type = file.type.startsWith('video') ? 'video' : 'image';
+                
+                CUSTOM_DATABASE.push({
+                    type: type,
+                    src: url,
+                    label: `INTEL_${index + 1}_${file.name.substring(0,6).toUpperCase()}`
+                });
+            });
+
+            statusLabel.innerText = `${CUSTOM_DATABASE.length} FILES LOADED`;
+            statusLabel.style.display = 'block';
+            statusLabel.style.color = '#00ff00';
+        }
+    });
+
+    // --- 2. CAMERA SCANNER (Robust) ---
     async function scanCameras() {
         if (!navigator.mediaDevices?.enumerateDevices) return;
-        
-        log("Scanning hardware...");
         const devices = await navigator.mediaDevices.enumerateDevices();
-        // Get all video inputs excluding obvious front cameras
         const cameras = devices.filter(d => d.kind === 'videoinput' && !d.label.toLowerCase().includes('front'));
-        
-        allBackCameras = cameras.map(c => c.deviceId); // Save for manual cycling
-        log(`Found ${cameras.length} Back Cameras`);
+        allBackCameras = cameras.map(c => c.deviceId);
 
-        // Phase 1: Identify Torch Camera (Main)
         for (const cam of cameras) {
             try {
-                // We have to open it to check capabilities
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
                 const track = stream.getVideoTracks()[0];
-                const caps = track.getCapabilities();
-                
-                if (caps.torch) {
-                    torchCamId = cam.deviceId;
-                    log(`Torch found on cam index: ${allBackCameras.indexOf(cam.deviceId)}`);
-                }
-                track.stop(); // Clean up
+                if (track.getCapabilities().torch) torchCamId = cam.deviceId;
+                track.stop();
             } catch(e) {}
         }
-
-        // Phase 2: Identify "Not Torch" Camera (Likely Wide)
-        // If we found a torch cam, pick any other cam as the "Wide" candidate.
-        // If we didn't find a torch cam, just pick index 0 and 1.
+        
         if (torchCamId) {
             const other = cameras.find(c => c.deviceId !== torchCamId);
             if (other) wideCamId = other.deviceId;
-        } else {
-            // Fallback: If no torch detected, assume Cam 0 is Main, Cam 1 is Wide (if exists)
-            if (cameras.length > 1) wideCamId = cameras[1].deviceId;
-            if (cameras.length > 0) torchCamId = cameras[0].deviceId;
+        } else if (cameras.length > 0) {
+            torchCamId = cameras[0].deviceId;
+            if(cameras.length > 1) wideCamId = cameras[1].deviceId;
         }
-
-        log(`Setup: Main=${torchCamId ? 'OK' : 'N/A'}, Wide=${wideCamId ? 'OK' : 'N/A'}`);
-        
-        // Start with Wide if available
         startCameraStream(wideCamId || torchCamId);
     }
 
     async function startCameraStream(preferredId) {
-        if(isSwitching) return;
-        isSwitching = true;
         if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-
         try {
             const constraints = preferredId ? { video: { deviceId: { exact: preferredId } } } : { video: { facingMode: 'environment' } };
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             const video = document.getElementById('camera-feed');
             video.srcObject = stream;
-            
             await new Promise(r => video.onloadedmetadata = r);
             await video.play();
 
@@ -158,52 +166,10 @@
                 camMaterial.uniforms.tDiffuse.value.colorSpace = THREE.SRGBColorSpace;
                 camMaterial.uniforms.tDiffuse.value.generateMipmaps = false;
             }
-            isSwitching = false;
-        } catch (err) { 
-            log("Stream error: " + err.message);
-            isSwitching = false; 
-        }
+        } catch (err) {}
     }
 
-    // --- MANUAL CYCLE FUNCTION ---
-    async function cycleNextLens() {
-        if (allBackCameras.length < 2) {
-            log("Only 1 camera found. Cannot cycle.");
-            return;
-        }
-        // Find current index
-        let idx = allBackCameras.indexOf(activeCamId);
-        // Next index
-        idx = (idx + 1) % allBackCameras.length;
-        const nextId = allBackCameras[idx];
-        
-        log(`Cycling to Lens ${idx + 1}/${allBackCameras.length}`);
-        
-        // Update wideCamId to this new choice so "Normal Mode" remembers it
-        if (visionMode === 0) wideCamId = nextId; 
-        
-        await startCameraStream(nextId);
-    }
-
-    // --- 2. 3D & GAME LOGIC ---
-    function spawnDecryptedScreen(position, rotation, data) {
-        const geometry = new THREE.PlaneGeometry(3, 1.8);
-        let material;
-        if (data.type === 'video') {
-            const video = document.createElement('video');
-            video.src = data.src; video.crossOrigin = "anonymous"; video.loop = true; video.muted = true; video.play();
-            const tex = new THREE.VideoTexture(video); tex.colorSpace = THREE.SRGBColorSpace;
-            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-        } else {
-            const tex = new THREE.TextureLoader().load(data.src); tex.colorSpace = THREE.SRGBColorSpace;
-            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-        }
-        const screen = new THREE.Mesh(geometry, material);
-        screen.position.copy(position); screen.rotation.copy(rotation);
-        screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
-        scene.add(screen);
-    }
-
+    // --- 3. 3D ENGINE ---
     scanCameras().then(init3D);
 
     const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
@@ -238,61 +204,117 @@
 
         const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
 
+        // HUD Canvas
         const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
         hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas); hudTexture.minFilter = THREE.LinearFilter;
-        hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
+        const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
         hudMesh.position.set(0, 0, -1.5); camera.add(hudMesh);
 
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
-        createTerminals();
-
+        
+        // --- NOTE: WE SPAWN TERMINALS LATER ---
+        // We wait for the XR session to start to ensure data is loaded
+        
         renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setSize(window.innerWidth, window.innerHeight); renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
-        document.getElementById('overlay').appendChild(VRButton.createButton(renderer));
         
-        window.addEventListener("gamepadconnected", (e) => log("Gamepad: " + e.gamepad.id));
+        // VR BUTTON INJECT
+        const btn = VRButton.createButton(renderer);
+        btn.className = "primary"; // Style hook if needed
+        btn.innerHTML = "ENTER VR MISSION";
+        document.getElementById('vr-btn-container').appendChild(btn);
+        
+        // STARTUP HOOK: When session starts, we spawn the terminals based on CUSTOM or DEFAULT data
+        renderer.xr.addEventListener('sessionstart', () => {
+            document.getElementById('overlay').style.display = 'none';
+            spawnNodesBasedOnIntel();
+        });
+
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         animate();
     }
 
-    function createTerminals() {
-        const geo = new THREE.IcosahedronGeometry(0.5, 0); const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
-        DATABASE.forEach((data, i) => {
+    // --- DYNAMIC SPAWNING ---
+    function spawnNodesBasedOnIntel() {
+        // Use custom data if available, otherwise default
+        const dataSource = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+        
+        const geo = new THREE.IcosahedronGeometry(0.5, 0); 
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+        
+        // Calculate circle positions
+        const count = dataSource.length;
+        const radius = 8; // Distance from player
+
+        dataSource.forEach((data, i) => {
             const mesh = new THREE.Mesh(geo, mat);
-            const angle = (i / 4) * Math.PI * 2; mesh.position.set(Math.sin(angle)*10, 1.5, Math.cos(angle)*10);
-            mesh.userData = { isNode: true, data: data, id: i }; scene.add(mesh); targets.push(mesh);
+            // Distribute evenly in a circle around the user
+            const angle = (i / count) * Math.PI * 2; 
+            
+            mesh.position.set(
+                Math.sin(angle) * radius, 
+                1.5 + (Math.random()*0.5), // Slight height variation
+                Math.cos(angle) * radius
+            );
+            
+            mesh.userData = { isNode: true, data: data, id: i }; 
+            scene.add(mesh); 
+            targets.push(mesh);
         });
     }
 
+    function spawnDecryptedScreen(position, rotation, data) {
+        const geometry = new THREE.PlaneGeometry(3, 1.8);
+        let material;
+        if (data.type === 'video') {
+            const video = document.createElement('video');
+            video.src = data.src; video.crossOrigin = "anonymous"; video.loop = true; video.muted = true; video.play();
+            const tex = new THREE.VideoTexture(video); tex.colorSpace = THREE.SRGBColorSpace;
+            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+        } else {
+            const tex = new THREE.TextureLoader().load(data.src); tex.colorSpace = THREE.SRGBColorSpace;
+            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+        }
+        const screen = new THREE.Mesh(geometry, material);
+        screen.position.copy(position); screen.rotation.copy(rotation);
+        screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
+        scene.add(screen);
+    }
+
+    // --- INPUT LOOP ---
     function handleInput() {
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
+        
+        // Movement
         const x = Math.abs(pad.axes[0]) > 0.1 ? pad.axes[0] : 0; const z = Math.abs(pad.axes[1]) > 0.1 ? pad.axes[1] : 0;
         if (x !== 0 || z !== 0) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize(); _strafeDir.crossVectors(camera.up, _moveDir).normalize();
             dolly.position.addScaledVector(_moveDir, -z * SPEED); dolly.position.addScaledVector(_strafeDir, x * SPEED);
         }
         
-        // TRIANGLE: Lens Switch
-        const btnTri = pad.buttons[3].pressed;
-        if (btnTri && !lastBtnState) {
+        // Triangle: Mode
+        if (pad.buttons[3].pressed && !lastBtnState) {
             visionMode = visionMode === 0 ? 1 : 0;
             if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
-            if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(() => videoTrack?.applyConstraints({advanced:[{torch:true}]}));
+            if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(()=>videoTrack?.applyConstraints({advanced:[{torch:true}]}));
             else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
-        lastBtnState = btnTri;
+        lastBtnState = pad.buttons[3].pressed;
 
-        // BUMPER (L1/R1): Force Cycle Lens (Buttons 4 or 5)
-        const btnCycle = pad.buttons[4].pressed || pad.buttons[5].pressed;
-        if (btnCycle && !lastCycleState) {
-            cycleNextLens();
+        // Shoulder: Cycle Lens
+        if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastCycleState) {
+            // Manual cycle logic (simplified)
+            if(allBackCameras.length > 1) {
+                const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
+                startCameraStream(allBackCameras[idx]);
+            }
         }
-        lastCycleState = btnCycle;
+        lastCycleState = pad.buttons[4].pressed || pad.buttons[5].pressed;
 
-        // X BUTTON: HACK
+        // X Button: Hack
         const btnX = pad.buttons[0].pressed;
         raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
         const intersects = raycaster.intersectObjects(targets);
@@ -315,17 +337,13 @@
         if(visionMode === 1) { ctx.fillStyle = '#00ffff'; ctx.fillText("VISION: [CYBER]", w-40, 60); }
         else { ctx.fillStyle = 'rgba(0,255,255,0.5)'; ctx.fillText("VISION: [NORMAL]", w-40, 60); }
 
-        // CAMERA ID DEBUG
-        ctx.font = '20px Courier New'; ctx.fillStyle = '#aaa';
-        const camLabel = activeCamId === torchCamId ? "MAIN" : (activeCamId === wideCamId ? "WIDE" : "AUX");
-        ctx.fillText(`CAM: ${camLabel}`, w-40, 90);
-
         const cx = w/2; const cy = h/2;
         if (activeHack.obj) {
             ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
-            ctx.fillStyle = '#ff0000'; ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillText("DETECTED: " + activeHack.obj.userData.data.label, cx, cy + 80);
+            ctx.fillStyle = '#ff0000'; ctx.textAlign = 'center'; ctx.font = '20px Courier New'; 
+            ctx.fillText("DETECTED: " + activeHack.obj.userData.data.label, cx, cy + 80);
             if (activeHack.progress > 0) {
-                ctx.fillStyle = '#000'; ctx.fillRect(cx-100, cy+90, 200, 20); ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-100, cy+90, activeHack.progress * 2, 20);
+                ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-100, cy+90, activeHack.progress * 2, 20);
                 ctx.fillText("DECRYPTING...", cx, cy + 140);
             } else { ctx.fillStyle = '#fff'; ctx.fillText("HOLD (X) TO HACK", cx, cy + 140); }
         } else {
