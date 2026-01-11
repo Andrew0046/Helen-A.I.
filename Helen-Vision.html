@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: MISSION LOADER</title>
+    <title>HELEN: COMMANDER</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -13,19 +13,15 @@
             z-index: 100;
         }
         .status { margin-top: 10px; font-size: 14px; color: #aaa; text-align: center; line-height: 1.5; }
-        
-        /* UI BUTTONS */
         .btn-group { display: flex; flex-direction: column; gap: 15px; margin-top: 30px; width: 80%; max-width: 300px; }
-        
         button {
             padding: 15px; font-size: 16px; font-weight: bold; font-family: 'Courier New', monospace;
             background: transparent; color: #00ffff; border: 2px solid #00ffff; 
             cursor: pointer; text-transform: uppercase;
         }
         button.primary { background: #00ffff; color: #000; }
-        button:active { transform: scale(0.95); }
-
         .file-count { color: #00ff00; font-size: 12px; margin-top: -10px; text-align: right; display: none; }
+        .controls-hint { font-size: 11px; color: #666; margin-top: 20px; text-align: left; width: 100%; }
     </style>
     
     <script type="importmap">
@@ -46,15 +42,19 @@
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div class="status">
-        [ MISSION PREP ]<br>
-        Load your custom media deck<br>before entering the field.
+        [ COMMANDER MODE ]<br>
+        Create, Delete, and Deploy Intel.
     </div>
 
     <div class="btn-group">
-        <button onclick="document.getElementById('intel-input').click()">📂 UPLOAD INTEL</button>
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD MEDIA</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
-
         <div id="vr-btn-container"></div>
+        
+        <div class="controls-hint">
+            [X] HACK/PLAY &nbsp; [O] DELETE<br>
+            [□] CREATE &nbsp;&nbsp;&nbsp;&nbsp; [△] VISION
+        </div>
     </div>
 </div>
 
@@ -65,31 +65,27 @@
 
     const polyfill = new WebXRPolyfill();
 
-    // --- GLOBAL VARIABLES ---
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // DATA STORAGE
-    let CUSTOM_DATABASE = []; // User files go here
+    // DATA
+    let CUSTOM_DATABASE = []; 
     const DEFAULT_DATABASE = [
-        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEMO_ARTIFACT' },
-        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', label: 'DEMO_FOOTAGE' }
+        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT_IMG' },
+        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', label: 'DEFAULT_VID' }
     ];
 
     let targets = []; 
     let activeHack = { obj: null, progress: 0 }; 
     
     // CAMERAS
-    let torchCamId = null;
-    let wideCamId = null;
-    let activeCamId = null;
-    let allBackCameras = [];
-
+    let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
     let visionMode = 0; 
-    let lastBtnState = false; 
-    let lastCycleState = false;
+    
+    // BUTTON STATES
+    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false };
 
     const SPEED = 0.1; 
     const _moveDir = new THREE.Vector3();
@@ -101,27 +97,18 @@
 
     input.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
-            CUSTOM_DATABASE = []; // Clear old
-            
+            CUSTOM_DATABASE = []; 
             Array.from(e.target.files).forEach((file, index) => {
-                // Create Blob URL (Local browser memory)
                 const url = URL.createObjectURL(file);
                 const type = file.type.startsWith('video') ? 'video' : 'image';
-                
-                CUSTOM_DATABASE.push({
-                    type: type,
-                    src: url,
-                    label: `INTEL_${index + 1}_${file.name.substring(0,6).toUpperCase()}`
-                });
+                CUSTOM_DATABASE.push({ type: type, src: url, label: `FILE_${index+1}` });
             });
-
             statusLabel.innerText = `${CUSTOM_DATABASE.length} FILES LOADED`;
             statusLabel.style.display = 'block';
-            statusLabel.style.color = '#00ff00';
         }
     });
 
-    // --- 2. CAMERA SCANNER (Robust) ---
+    // --- 2. CAMERA SCANNER ---
     async function scanCameras() {
         if (!navigator.mediaDevices?.enumerateDevices) return;
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -204,7 +191,7 @@
 
         const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
 
-        // HUD Canvas
+        // HUD
         const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
         hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas); hudTexture.minFilter = THREE.LinearFilter;
         const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
@@ -213,72 +200,79 @@
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
-        // --- NOTE: WE SPAWN TERMINALS LATER ---
-        // We wait for the XR session to start to ensure data is loaded
-        
         renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setSize(window.innerWidth, window.innerHeight); renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
         
-        // VR BUTTON INJECT
         const btn = VRButton.createButton(renderer);
-        btn.className = "primary"; // Style hook if needed
-        btn.innerHTML = "ENTER VR MISSION";
+        btn.className = "primary"; btn.innerHTML = "ENTER VR MISSION";
         document.getElementById('vr-btn-container').appendChild(btn);
         
-        // STARTUP HOOK: When session starts, we spawn the terminals based on CUSTOM or DEFAULT data
         renderer.xr.addEventListener('sessionstart', () => {
             document.getElementById('overlay').style.display = 'none';
-            spawnNodesBasedOnIntel();
+            spawnInitialNodes();
         });
 
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         animate();
     }
 
-    // --- DYNAMIC SPAWNING ---
-    function spawnNodesBasedOnIntel() {
-        // Use custom data if available, otherwise default
-        const dataSource = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-        
-        const geo = new THREE.IcosahedronGeometry(0.5, 0); 
-        const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
-        
-        // Calculate circle positions
-        const count = dataSource.length;
-        const radius = 8; // Distance from player
-
-        dataSource.forEach((data, i) => {
-            const mesh = new THREE.Mesh(geo, mat);
-            // Distribute evenly in a circle around the user
-            const angle = (i / count) * Math.PI * 2; 
-            
-            mesh.position.set(
-                Math.sin(angle) * radius, 
-                1.5 + (Math.random()*0.5), // Slight height variation
-                Math.cos(angle) * radius
-            );
-            
-            mesh.userData = { isNode: true, data: data, id: i }; 
-            scene.add(mesh); 
-            targets.push(mesh);
+    // --- NODE LOGIC ---
+    function spawnInitialNodes() {
+        const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+        db.forEach((data, i) => {
+            const angle = (i / db.length) * Math.PI * 2;
+            const x = Math.sin(angle) * 8;
+            const z = Math.cos(angle) * 8;
+            spawnNodeAt(x, 1.5 + Math.random(), z, data);
         });
     }
 
-    function spawnDecryptedScreen(position, rotation, data) {
+    function spawnNodeAt(x, y, z, data) {
+        const geo = new THREE.IcosahedronGeometry(0.5, 0); 
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, y, z);
+        mesh.userData = { isNode: true, data: data || DEFAULT_DATABASE[0] }; 
+        scene.add(mesh); 
+        targets.push(mesh);
+    }
+
+    function spawnDecryptedScreen(position, data) {
+        // Create geometry
         const geometry = new THREE.PlaneGeometry(3, 1.8);
         let material;
+        
         if (data.type === 'video') {
             const video = document.createElement('video');
-            video.src = data.src; video.crossOrigin = "anonymous"; video.loop = true; video.muted = true; video.play();
-            const tex = new THREE.VideoTexture(video); tex.colorSpace = THREE.SRGBColorSpace;
+            video.src = data.src; 
+            video.crossOrigin = "anonymous"; 
+            video.loop = true; 
+            // FIX: Start muted, then unmute
+            video.muted = true; 
+            video.play().then(() => {
+                video.muted = false; // Turn on audio after play starts
+            });
+            
+            const tex = new THREE.VideoTexture(video); 
+            tex.colorSpace = THREE.SRGBColorSpace;
             material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
         } else {
-            const tex = new THREE.TextureLoader().load(data.src); tex.colorSpace = THREE.SRGBColorSpace;
+            const tex = new THREE.TextureLoader().load(data.src); 
+            tex.colorSpace = THREE.SRGBColorSpace;
             material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
         }
+
         const screen = new THREE.Mesh(geometry, material);
-        screen.position.copy(position); screen.rotation.copy(rotation);
+        screen.position.copy(position);
+        
+        // FIX: MAKE IT STRAIGHT
+        // Look at the camera so it faces the user perfectly
+        screen.lookAt(camera.position); 
+        // Optional: Keep it vertical (remove tilt)
+        screen.rotation.z = 0;
+        screen.rotation.x = 0; 
+        
         screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
         scene.add(screen);
     }
@@ -295,38 +289,67 @@
             dolly.position.addScaledVector(_moveDir, -z * SPEED); dolly.position.addScaledVector(_strafeDir, x * SPEED);
         }
         
-        // Triangle: Mode
-        if (pad.buttons[3].pressed && !lastBtnState) {
+        // TRIANGLE (Btn 3): Vision
+        if (pad.buttons[3].pressed && !lastBtn.triangle) {
             visionMode = visionMode === 0 ? 1 : 0;
             if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
             if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(()=>videoTrack?.applyConstraints({advanced:[{torch:true}]}));
             else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
-        lastBtnState = pad.buttons[3].pressed;
+        lastBtn.triangle = pad.buttons[3].pressed;
 
-        // Shoulder: Cycle Lens
-        if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastCycleState) {
-            // Manual cycle logic (simplified)
-            if(allBackCameras.length > 1) {
-                const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
-                startCameraStream(allBackCameras[idx]);
-            }
+        // BUMPER (Btn 4/5): Cycle Lens
+        const bumper = pad.buttons[4].pressed || pad.buttons[5].pressed;
+        if (bumper && !lastBtn.bumper && allBackCameras.length > 1) {
+            const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
+            startCameraStream(allBackCameras[idx]);
         }
-        lastCycleState = pad.buttons[4].pressed || pad.buttons[5].pressed;
+        lastBtn.bumper = bumper;
 
-        // X Button: Hack
+        // SQUARE (Btn 2): CREATE NODE
+        if (pad.buttons[2].pressed && !lastBtn.square) {
+            // Spawn 2 meters in front of camera
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            const pos = dolly.position.clone().add(camera.position).add(dir.multiplyScalar(3));
+            // Use random file from database
+            const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+            const data = db[Math.floor(Math.random() * db.length)];
+            spawnNodeAt(pos.x, pos.y, pos.z, data);
+        }
+        lastBtn.square = pad.buttons[2].pressed;
+
+        // X (Btn 0): HACK & CIRCLE (Btn 1): DELETE
         const btnX = pad.buttons[0].pressed;
+        const btnCircle = pad.buttons[1].pressed;
+        
         raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
         const intersects = raycaster.intersectObjects(targets);
+
         if (intersects.length > 0) {
-            const target = intersects[0].object; activeHack.obj = target;
-            if (btnX) activeHack.progress += 2; else activeHack.progress = Math.max(0, activeHack.progress - 5);
-            if (activeHack.progress >= 100) {
-                scene.remove(target); targets = targets.filter(t => t !== target);
-                spawnDecryptedScreen(target.position, target.rotation, target.userData.data);
-                activeHack.progress = 0; activeHack.obj = null;
+            const target = intersects[0].object; 
+            
+            // DELETE LOGIC
+            if (btnCircle && !lastBtn.circle) {
+                scene.remove(target);
+                targets = targets.filter(t => t !== target);
+                activeHack.obj = null;
+            }
+            
+            // HACK LOGIC
+            else {
+                activeHack.obj = target;
+                if (btnX) activeHack.progress += 2; else activeHack.progress = Math.max(0, activeHack.progress - 5);
+                
+                if (activeHack.progress >= 100) {
+                    scene.remove(target); 
+                    targets = targets.filter(t => t !== target);
+                    spawnDecryptedScreen(target.position, target.userData.data);
+                    activeHack.progress = 0; activeHack.obj = null;
+                }
             }
         } else { activeHack.obj = null; activeHack.progress = 0; }
+        
+        lastBtn.circle = btnCircle;
     }
 
     function updateHUD() {
@@ -342,10 +365,15 @@
             ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
             ctx.fillStyle = '#ff0000'; ctx.textAlign = 'center'; ctx.font = '20px Courier New'; 
             ctx.fillText("DETECTED: " + activeHack.obj.userData.data.label, cx, cy + 80);
+            
+            // Progress or Delete Prompt
             if (activeHack.progress > 0) {
                 ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-100, cy+90, activeHack.progress * 2, 20);
                 ctx.fillText("DECRYPTING...", cx, cy + 140);
-            } else { ctx.fillStyle = '#fff'; ctx.fillText("HOLD (X) TO HACK", cx, cy + 140); }
+            } else { 
+                ctx.fillStyle = '#fff'; 
+                ctx.fillText("[X] DECRYPT  [O] DELETE", cx, cy + 140); 
+            }
         } else {
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath();
             ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
