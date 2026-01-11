@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: FLASH HUNTER</title>
+    <title>HELEN: DUAL LENS</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -35,10 +35,10 @@
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
 
 <div id="overlay">
-    <h1>HELEN: FLASH HUNTER</h1>
+    <h1>HELEN: DUAL LENS</h1>
     <div class="status" id="pad-status">
-        [ HARDWARE SCANNING ]<br>
-        Finding camera with Torch access...
+        [ SYSTEM INITIALIZING ]<br>
+        Identifying Lenses...
     </div>
     <div class="log-box" id="debug-log">System initialized...</div>
 </div>
@@ -52,115 +52,165 @@
 
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext, hudMesh;
-    let camMaterial, videoTrack; 
+    let camMaterial, videoTrack, currentStream;
     let targets = []; 
     
-    let visionMode = 0; 
+    // CAMERA ID STORAGE
+    let torchCamId = null;
+    let wideCamId = null;
+    let activeCamId = null;
+
+    let visionMode = 0; // 0 = Normal (Wide), 1 = Cyber (Torch)
     let lastBtnState = false; 
+    let isSwitching = false;
 
     const SPEED = 0.1; 
     const _moveDir = new THREE.Vector3();
     const _strafeDir = new THREE.Vector3();
 
-    // --- LOGGING HELPER ---
     function log(msg) {
         console.log(msg);
         const el = document.getElementById('debug-log');
         el.innerText = msg + "\n" + el.innerText;
     }
 
-    // --- 🔦 THE HUNTER FUNCTION ---
-    // This loops through every camera to find the one with the torch
-    async function findTorchCamera() {
+    // --- 1. HARDWARE SCANNER ---
+    async function scanCameras() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
             log("Error: MediaDevices API not supported.");
-            return null;
+            return;
         }
 
-        log("1. Listing all cameras...");
+        log("Scanning Lenses...");
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(d => d.kind === 'videoinput');
-        
-        log(`Found ${cameras.length} cameras.`);
 
-        // First, just try the standard "environment" request (Fastest)
-        try {
-            log("2. Trying standard back camera...");
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            const track = stream.getVideoTracks()[0];
-            const caps = track.getCapabilities();
-            
-            if (caps.torch) {
-                log("SUCCESS: Standard camera has torch!");
-                return stream;
-            } else {
-                log("Standard camera has NO torch. Stopping stream.");
-                track.stop(); // Close it and keep looking
-            }
-        } catch(e) { log("Standard cam failed: " + e.message); }
-
-        // If standard failed, brute force check ALL back cameras
-        log("3. Brute forcing all lenses...");
-        
+        // Step 1: Find Camera with Torch (Usually Main)
+        // We brute force check them if the label isn't obvious
         for (const cam of cameras) {
-            // Skip front cameras if possible (label check)
             if (cam.label.toLowerCase().includes('front')) continue;
-
-            log(`Checking: ${cam.label || 'Unknown Camera'}`);
             
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { deviceId: { exact: cam.deviceId } } 
-                });
-                const track = stream.getVideoTracks()[0];
-                const caps = track.getCapabilities();
+            // Check for Ultra Wide keywords
+            const label = cam.label.toLowerCase();
+            if (label.includes('ultra') || label.includes('0.5') || label.includes('wide')) {
+                log(`Found WIDE: ${label}`);
+                if (!wideCamId) wideCamId = cam.deviceId;
+            }
 
-                if (caps.torch) {
-                    log(">>> FOUND TORCH CAMERA! <<<");
-                    log("ID: " + cam.deviceId.substring(0,10)+"...");
-                    return stream; // Return this golden stream
-                } else {
-                    track.stop(); // Not this one
-                }
-            } catch (err) {
-                log("Skipping cam (access denied/error).");
+            // Check for Torch capability (The only sure way is to open it)
+            // Optimization: If we already found one, skip opening others to save time
+            if (!torchCamId) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
+                    const track = stream.getVideoTracks()[0];
+                    const caps = track.getCapabilities();
+                    
+                    if (caps.torch) {
+                        log(`Found TORCH: ${label}`);
+                        torchCamId = cam.deviceId;
+                    }
+                    track.stop(); // Close immediately
+                } catch(e) {}
             }
         }
 
-        log("FAILURE: No camera on this device supports Torch.");
-        log("Fallback: Starting generic camera without flash.");
-        return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        // Fallbacks
+        if (!wideCamId) {
+            log("No 'Ultra' label found. Guessing...");
+            // If we found a torch cam, maybe another back cam is the wide one?
+            const other = cameras.find(c => c.deviceId !== torchCamId && !c.label.toLowerCase().includes('front'));
+            if(other) wideCamId = other.deviceId;
+        }
+
+        log(`Setup Complete.\nWide ID: ${wideCamId ? 'YES' : 'NO'}\nTorch ID: ${torchCamId ? 'YES' : 'NO'}`);
+        
+        // Start with Wide if available, else standard
+        startCameraStream(wideCamId || torchCamId);
     }
 
-    // --- INIT ---
-    findTorchCamera().then(stream => {
-        if(stream) {
-            const video = document.getElementById('camera-feed');
-            video.srcObject = stream;
-            video.onloadedmetadata = () => {
-                video.play();
-                videoTrack = stream.getVideoTracks()[0];
-                init3D();
-            };
-        }
-    });
+    // --- 2. STREAM SWITCHER ---
+    async function startCameraStream(preferredId) {
+        if(isSwitching) return;
+        isSwitching = true;
 
-    // --- FLASHLIGHT TOGGLE ---
+        log(`Switching to: ${preferredId === wideCamId ? 'WIDE (0.5x)' : 'MAIN (1x)'}...`);
+
+        // Stop current
+        if (currentStream) {
+            currentStream.getTracks().forEach(t => t.stop());
+        }
+
+        try {
+            const constraints = preferredId 
+                ? { video: { deviceId: { exact: preferredId } } }
+                : { video: { facingMode: 'environment' } }; // Fallback
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            const video = document.getElementById('camera-feed');
+            
+            video.srcObject = stream;
+            
+            // Wait for it to play
+            await new Promise(resolve => video.onloadedmetadata = resolve);
+            await video.play();
+
+            currentStream = stream;
+            videoTrack = stream.getVideoTracks()[0];
+            activeCamId = preferredId;
+            
+            // Update Texture if 3D is running
+            if (camMaterial) {
+                camMaterial.uniforms.tDiffuse.value = new THREE.VideoTexture(video);
+                camMaterial.uniforms.tDiffuse.value.colorSpace = THREE.SRGBColorSpace;
+                camMaterial.uniforms.tDiffuse.value.generateMipmaps = false;
+            }
+
+            isSwitching = false;
+            return true;
+
+        } catch (err) {
+            log("Stream Fail: " + err.message);
+            isSwitching = false;
+            return false;
+        }
+    }
+
+    async function setVisionMode(mode) {
+        visionMode = mode;
+
+        if (mode === 1) { 
+            // CYBER MODE -> Needs Torch Camera
+            if (activeCamId !== torchCamId && torchCamId) {
+                await startCameraStream(torchCamId);
+            }
+            // Enable Effects
+            if (camMaterial) camMaterial.uniforms.uMode.value = 1.0;
+            // Turn on Light
+            toggleFlashlight(true);
+
+        } else {
+            // NORMAL MODE -> Needs Wide Camera
+            toggleFlashlight(false); // Off first
+            if (camMaterial) camMaterial.uniforms.uMode.value = 0.0;
+            
+            if (activeCamId !== wideCamId && wideCamId) {
+                // Short delay to let light fade before switching lens
+                setTimeout(() => startCameraStream(wideCamId), 300);
+            }
+        }
+    }
+
     async function toggleFlashlight(active) {
         if (!videoTrack) return;
         try {
-            // Apply Constraints is the official Android method
             await videoTrack.applyConstraints({ advanced: [{ torch: active }] });
-            log(`Torch set to: ${active}`);
-        } catch (err) {
-            log("Torch Error: " + err.message);
-        }
+        } catch (e) { console.log("No torch on this lens"); }
     }
 
-    // --- 3D ENGINE (Same as before) ---
-    // (Collapsed to save space, logic is identical to previous working version)
-    
-    // SHADERS
+    // --- START ---
+    scanCameras().then(init3D);
+
+    // --- 3D ENGINE (Standard) ---
     const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
     const fragmentShader = `
         uniform sampler2D tDiffuse; uniform float uMode; uniform vec2 uResolution; varying vec2 vUv;
@@ -184,6 +234,7 @@
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100); dolly.add(camera);
 
         const video = document.getElementById('camera-feed');
+        // Initial texture (will be replaced by switcher)
         const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false; 
         
         camMaterial = new THREE.ShaderMaterial({
@@ -225,11 +276,12 @@
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize(); _strafeDir.crossVectors(camera.up, _moveDir).normalize();
             dolly.position.addScaledVector(_moveDir, -z * SPEED); dolly.position.addScaledVector(_strafeDir, x * SPEED);
         }
+        
+        // BUTTON 3: TRIANGLE (Toggle)
         const btnState = pad.buttons[3].pressed;
         if (btnState && !lastBtnState) {
-            visionMode = visionMode === 0 ? 1 : 0;
-            camMaterial.uniforms.uMode.value = visionMode;
-            toggleFlashlight(visionMode === 1);
+            const newMode = visionMode === 0 ? 1 : 0;
+            setVisionMode(newMode);
         }
         lastBtnState = btnState;
     }
@@ -242,9 +294,8 @@
             if (Date.now() % 500 < 250) { ctx.fillStyle = '#00ffff'; ctx.fillText("⚠️ ILLUMINATION ACTIVE", w-40, 100); }
             ctx.fillStyle = '#00ffff'; ctx.fillText("VISION: [CYBER-EDGE]", w-40, 60); ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.strokeRect(w-380, 20, 360, 50);
         } else {
-            ctx.fillStyle = 'rgba(0, 255, 255, 0.5)'; ctx.fillText("VISION: [NORMAL]", w-40, 60);
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.5)'; ctx.fillText("VISION: [NORMAL 0.5x]", w-40, 60);
         }
-        // CROSSHAIR
         ctx.strokeStyle = visionMode === 1 ? '#00ffff' : 'rgba(0, 255, 0, 0.5)'; ctx.lineWidth = 2; ctx.beginPath();
         ctx.moveTo(w/2 - 20, h/2); ctx.lineTo(w/2 + 20, h/2); ctx.moveTo(w/2, h/2 - 20); ctx.lineTo(w/2, h/2 + 20); ctx.stroke();
         hudTexture.needsUpdate = true;
