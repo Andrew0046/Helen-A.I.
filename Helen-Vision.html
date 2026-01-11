@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: DUAL LENS</title>
+    <title>HELEN: MEDIA NODES</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -16,7 +16,7 @@
         .log-box { 
             margin-top: 20px; padding: 10px; border: 1px solid #555; 
             background: #000; color: #00ff00; font-size: 12px; max-width: 90%; 
-            white-space: pre-wrap; text-align: left; height: 150px; overflow-y: scroll;
+            white-space: pre-wrap; text-align: left; height: 100px; overflow-y: scroll;
         }
     </style>
     
@@ -35,10 +35,12 @@
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
 
 <div id="overlay">
-    <h1>HELEN: DUAL LENS</h1>
+    <h1>HELEN: MEDIA DATABASE</h1>
     <div class="status" id="pad-status">
-        [ SYSTEM INITIALIZING ]<br>
-        Identifying Lenses...
+        [ MISSION BRIEFING ]<br>
+        1. Find "Encrypted Nodes"<br>
+        2. Aim Crosshair<br>
+        3. Hold (X) to Decrypt Media
     </div>
     <div class="log-box" id="debug-log">System initialized...</div>
 </div>
@@ -53,14 +55,25 @@
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext, hudMesh;
     let camMaterial, videoTrack, currentStream;
-    let targets = []; 
+    let raycaster = new THREE.Raycaster();
     
-    // CAMERA ID STORAGE
+    // DATA: What images/videos do you want to show?
+    const DATABASE = [
+        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'ARTIFACT_01' },
+        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', label: 'SURVEILLANCE_FOOTAGE' },
+        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/HST-SM4.jpeg', label: 'SATELLITE_VIEW' },
+        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', label: 'DREAM_LOG' }
+    ];
+
+    let targets = []; // The wireframe boxes
+    let activeHack = { obj: null, progress: 0 }; // Current hacking state
+    
+    // Hardware IDs
     let torchCamId = null;
     let wideCamId = null;
     let activeCamId = null;
 
-    let visionMode = 0; // 0 = Normal (Wide), 1 = Cyber (Torch)
+    let visionMode = 0; 
     let lastBtnState = false; 
     let isSwitching = false;
 
@@ -74,143 +87,100 @@
         el.innerText = msg + "\n" + el.innerText;
     }
 
-    // --- 1. HARDWARE SCANNER ---
+    // --- 1. CAMERA LOGIC (Dual Lens) ---
     async function scanCameras() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-            log("Error: MediaDevices API not supported.");
-            return;
-        }
-
-        log("Scanning Lenses...");
+        if (!navigator.mediaDevices?.enumerateDevices) return;
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(d => d.kind === 'videoinput');
 
-        // Step 1: Find Camera with Torch (Usually Main)
-        // We brute force check them if the label isn't obvious
         for (const cam of cameras) {
             if (cam.label.toLowerCase().includes('front')) continue;
-            
-            // Check for Ultra Wide keywords
             const label = cam.label.toLowerCase();
+            
             if (label.includes('ultra') || label.includes('0.5') || label.includes('wide')) {
-                log(`Found WIDE: ${label}`);
                 if (!wideCamId) wideCamId = cam.deviceId;
             }
-
-            // Check for Torch capability (The only sure way is to open it)
-            // Optimization: If we already found one, skip opening others to save time
-            if (!torchCamId) {
-                try {
+            // Check torch logic (simplified for brevity)
+            if (!torchCamId && !wideCamId) {
+                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
                     const track = stream.getVideoTracks()[0];
-                    const caps = track.getCapabilities();
-                    
-                    if (caps.torch) {
-                        log(`Found TORCH: ${label}`);
-                        torchCamId = cam.deviceId;
-                    }
-                    track.stop(); // Close immediately
-                } catch(e) {}
+                    if (track.getCapabilities().torch) torchCamId = cam.deviceId;
+                    track.stop();
+                 } catch(e){}
             }
         }
-
-        // Fallbacks
-        if (!wideCamId) {
-            log("No 'Ultra' label found. Guessing...");
-            // If we found a torch cam, maybe another back cam is the wide one?
-            const other = cameras.find(c => c.deviceId !== torchCamId && !c.label.toLowerCase().includes('front'));
-            if(other) wideCamId = other.deviceId;
-        }
-
-        log(`Setup Complete.\nWide ID: ${wideCamId ? 'YES' : 'NO'}\nTorch ID: ${torchCamId ? 'YES' : 'NO'}`);
-        
-        // Start with Wide if available, else standard
         startCameraStream(wideCamId || torchCamId);
     }
 
-    // --- 2. STREAM SWITCHER ---
     async function startCameraStream(preferredId) {
         if(isSwitching) return;
         isSwitching = true;
-
-        log(`Switching to: ${preferredId === wideCamId ? 'WIDE (0.5x)' : 'MAIN (1x)'}...`);
-
-        // Stop current
-        if (currentStream) {
-            currentStream.getTracks().forEach(t => t.stop());
-        }
+        if (currentStream) currentStream.getTracks().forEach(t => t.stop());
 
         try {
-            const constraints = preferredId 
-                ? { video: { deviceId: { exact: preferredId } } }
-                : { video: { facingMode: 'environment' } }; // Fallback
-
+            const constraints = preferredId ? { video: { deviceId: { exact: preferredId } } } : { video: { facingMode: 'environment' } };
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             const video = document.getElementById('camera-feed');
-            
             video.srcObject = stream;
-            
-            // Wait for it to play
-            await new Promise(resolve => video.onloadedmetadata = resolve);
+            await new Promise(r => video.onloadedmetadata = r);
             await video.play();
 
             currentStream = stream;
             videoTrack = stream.getVideoTracks()[0];
             activeCamId = preferredId;
             
-            // Update Texture if 3D is running
             if (camMaterial) {
                 camMaterial.uniforms.tDiffuse.value = new THREE.VideoTexture(video);
                 camMaterial.uniforms.tDiffuse.value.colorSpace = THREE.SRGBColorSpace;
                 camMaterial.uniforms.tDiffuse.value.generateMipmaps = false;
             }
-
             isSwitching = false;
-            return true;
-
-        } catch (err) {
-            log("Stream Fail: " + err.message);
-            isSwitching = false;
-            return false;
-        }
+        } catch (err) { isSwitching = false; }
     }
 
-    async function setVisionMode(mode) {
-        visionMode = mode;
+    // --- 2. HACKING & MEDIA LOGIC ---
+    function spawnDecryptedScreen(position, rotation, data) {
+        // Create the screen geometry
+        const geometry = new THREE.PlaneGeometry(3, 1.8); // 16:9 Aspect Ratio
+        let material;
 
-        if (mode === 1) { 
-            // CYBER MODE -> Needs Torch Camera
-            if (activeCamId !== torchCamId && torchCamId) {
-                await startCameraStream(torchCamId);
-            }
-            // Enable Effects
-            if (camMaterial) camMaterial.uniforms.uMode.value = 1.0;
-            // Turn on Light
-            toggleFlashlight(true);
-
-        } else {
-            // NORMAL MODE -> Needs Wide Camera
-            toggleFlashlight(false); // Off first
-            if (camMaterial) camMaterial.uniforms.uMode.value = 0.0;
+        if (data.type === 'video') {
+            const video = document.createElement('video');
+            video.src = data.src;
+            video.crossOrigin = "anonymous";
+            video.loop = true;
+            video.muted = true; // Start muted to allow autoplay
+            video.play();
             
-            if (activeCamId !== wideCamId && wideCamId) {
-                // Short delay to let light fade before switching lens
-                setTimeout(() => startCameraStream(wideCamId), 300);
-            }
+            const tex = new THREE.VideoTexture(video);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+        } else {
+            const tex = new THREE.TextureLoader().load(data.src);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
         }
+
+        const screen = new THREE.Mesh(geometry, material);
+        screen.position.copy(position);
+        screen.rotation.copy(rotation);
+        
+        // Add a "frame"
+        const frame = new THREE.LineSegments(
+            new THREE.EdgesGeometry(geometry),
+            new THREE.LineBasicMaterial({ color: 0x00ffff })
+        );
+        screen.add(frame);
+
+        scene.add(screen);
+        
+        // Play sound effect (optional/future)
     }
 
-    async function toggleFlashlight(active) {
-        if (!videoTrack) return;
-        try {
-            await videoTrack.applyConstraints({ advanced: [{ torch: active }] });
-        } catch (e) { console.log("No torch on this lens"); }
-    }
-
-    // --- START ---
+    // --- 3. INIT ENGINE ---
     scanCameras().then(init3D);
 
-    // --- 3D ENGINE (Standard) ---
     const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
     const fragmentShader = `
         uniform sampler2D tDiffuse; uniform float uMode; uniform vec2 uResolution; varying vec2 vUv;
@@ -234,7 +204,6 @@
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100); dolly.add(camera);
 
         const video = document.getElementById('camera-feed');
-        // Initial texture (will be replaced by switcher)
         const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false; 
         
         camMaterial = new THREE.ShaderMaterial({
@@ -244,6 +213,7 @@
 
         const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
 
+        // HUD
         const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
         hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas); hudTexture.minFilter = THREE.LinearFilter;
         hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
@@ -264,8 +234,19 @@
     }
 
     function createTerminals() {
-        const geo = new THREE.IcosahedronGeometry(0.5, 0); const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
-        for(let i=0; i<8; i++) { const m = new THREE.Mesh(geo, mat); m.position.set((Math.random()-0.5)*20, 1+Math.random()*2, (Math.random()-0.5)*20); scene.add(m); targets.push(m); }
+        const geo = new THREE.IcosahedronGeometry(0.5, 0); 
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+        
+        // Spawn 4 nodes based on our DATABASE
+        DATABASE.forEach((data, i) => {
+            const mesh = new THREE.Mesh(geo, mat);
+            // Spread them out
+            const angle = (i / 4) * Math.PI * 2;
+            mesh.position.set(Math.sin(angle)*10, 1.5, Math.cos(angle)*10);
+            mesh.userData = { isNode: true, data: data, id: i }; // Store info
+            scene.add(mesh);
+            targets.push(mesh);
+        });
     }
 
     function handleInput() {
@@ -277,32 +258,94 @@
             dolly.position.addScaledVector(_moveDir, -z * SPEED); dolly.position.addScaledVector(_strafeDir, x * SPEED);
         }
         
-        // BUTTON 3: TRIANGLE (Toggle)
-        const btnState = pad.buttons[3].pressed;
-        if (btnState && !lastBtnState) {
+        // TRIANGLE: Lens Switch
+        const btnTri = pad.buttons[3].pressed;
+        if (btnTri && !lastBtnState) {
             const newMode = visionMode === 0 ? 1 : 0;
-            setVisionMode(newMode);
+            visionMode = newMode;
+            if (camMaterial) camMaterial.uniforms.uMode.value = newMode;
+            if (newMode === 1 && torchCamId) startCameraStream(torchCamId).then(() => videoTrack?.applyConstraints({advanced:[{torch:true}]}));
+            else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
-        lastBtnState = btnState;
+        lastBtnState = btnTri;
+
+        // X BUTTON (Button 0): Hacking Interaction
+        const btnX = pad.buttons[0].pressed;
+        
+        // Raycast Check
+        raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+        const intersects = raycaster.intersectObjects(targets);
+
+        if (intersects.length > 0) {
+            const target = intersects[0].object;
+            activeHack.obj = target;
+            
+            if (btnX) {
+                activeHack.progress += 2; // Speed of hack
+            } else {
+                activeHack.progress = Math.max(0, activeHack.progress - 5);
+            }
+
+            if (activeHack.progress >= 100) {
+                // HACK COMPLETE!
+                // 1. Remove Node
+                scene.remove(target);
+                targets = targets.filter(t => t !== target);
+                // 2. Spawn Media Screen
+                spawnDecryptedScreen(target.position, target.rotation, target.userData.data);
+                activeHack.progress = 0; activeHack.obj = null;
+            }
+        } else {
+            activeHack.obj = null;
+            activeHack.progress = 0;
+        }
     }
 
     function updateHUD() {
         if(!hudContext) return;
         const ctx = hudContext; const w = 1024; const h = 1024; ctx.clearRect(0, 0, w, h);
+        
+        // Mode & Compass
         ctx.textAlign = 'right'; ctx.font = 'bold 30px Courier New';
-        if(visionMode === 1) {
-            if (Date.now() % 500 < 250) { ctx.fillStyle = '#00ffff'; ctx.fillText("⚠️ ILLUMINATION ACTIVE", w-40, 100); }
-            ctx.fillStyle = '#00ffff'; ctx.fillText("VISION: [CYBER-EDGE]", w-40, 60); ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.strokeRect(w-380, 20, 360, 50);
+        if(visionMode === 1) { ctx.fillStyle = '#00ffff'; ctx.fillText("VISION: [CYBER]", w-40, 60); }
+        else { ctx.fillStyle = 'rgba(0,255,255,0.5)'; ctx.fillText("VISION: [NORMAL]", w-40, 60); }
+
+        // CROSSHAIR & HACKING UI
+        const cx = w/2; const cy = h/2;
+        
+        if (activeHack.obj) {
+            // Target Locked UI
+            ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
+            
+            ctx.fillStyle = '#ff0000'; ctx.textAlign = 'center'; ctx.font = '20px Courier New';
+            ctx.fillText("DETECTED: " + activeHack.obj.userData.data.label, cx, cy + 80);
+            
+            // Progress Bar
+            if (activeHack.progress > 0) {
+                ctx.fillStyle = '#000'; ctx.fillRect(cx-100, cy+90, 200, 20);
+                ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-100, cy+90, activeHack.progress * 2, 20);
+                ctx.fillText("DECRYPTING...", cx, cy + 140);
+            } else {
+                ctx.fillStyle = '#fff'; 
+                ctx.fillText("HOLD (X) TO HACK", cx, cy + 140);
+            }
+
         } else {
-            ctx.fillStyle = 'rgba(0, 255, 255, 0.5)'; ctx.fillText("VISION: [NORMAL 0.5x]", w-40, 60);
+            // Normal Crosshair
+            ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath();
+            ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
         }
-        ctx.strokeStyle = visionMode === 1 ? '#00ffff' : 'rgba(0, 255, 0, 0.5)'; ctx.lineWidth = 2; ctx.beginPath();
-        ctx.moveTo(w/2 - 20, h/2); ctx.lineTo(w/2 + 20, h/2); ctx.moveTo(w/2, h/2 - 20); ctx.lineTo(w/2, h/2 + 20); ctx.stroke();
+        
         hudTexture.needsUpdate = true;
     }
 
     function animate() {
-        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); targets.forEach(t => t.rotation.y += 0.01); renderer.render(scene, camera); });
+        renderer.setAnimationLoop(() => { 
+            handleInput(); updateHUD(); 
+            targets.forEach(t => { t.rotation.x += 0.01; t.rotation.y += 0.01; }); 
+            renderer.render(scene, camera); 
+        });
     }
 </script>
 </body>
