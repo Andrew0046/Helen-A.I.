@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: ACTIVE FLASH</title>
+    <title>HELEN: FLASH DEBUG</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -13,7 +13,11 @@
             z-index: 100;
         }
         .status { margin-top: 10px; font-size: 14px; color: #aaa; text-align: center; line-height: 1.5; }
-        .warning { color: #ff0055; font-size: 12px; margin-top: 10px; }
+        .log-box { 
+            margin-top: 20px; padding: 10px; border: 1px solid #555; 
+            background: #000; color: #ff0055; font-size: 12px; max-width: 80%; 
+            white-space: pre-wrap; text-align: left;
+        }
     </style>
     
     <script type="importmap">
@@ -31,16 +35,13 @@
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
 
 <div id="overlay">
-    <h1>HELEN: FLASHLIGHT</h1>
-    <p>ACTIVE ILLUMINATION READY</p>
+    <h1>HELEN: DEBUG</h1>
     <div class="status" id="pad-status">
-        [ SYSTEM BOOT ]<br>
         1. Allow Camera Access<br>
-        2. Connect Controller<br>
-        3. Enter VR<br>
-        <span style="color:#fff">PRESS (△) FOR VISION + LIGHT</span>
+        2. Wait for "TORCH READY"<br>
+        3. Enter VR
     </div>
-    <div class="warning">NOTE: FLASHLIGHT WORKS ON ANDROID ONLY</div>
+    <div class="log-box" id="debug-log">Log initialized...</div>
 </div>
 
 <script type="module">
@@ -52,15 +53,24 @@
 
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext, hudMesh;
-    let camMaterial, videoTrack; // Store track to control torch
+    let camMaterial, videoTrack; 
     let targets = []; 
     
-    let visionMode = 0; // 0 = Normal, 1 = Cyber-Edge
+    let visionMode = 0; 
     let lastBtnState = false; 
 
     const SPEED = 0.1; 
     const _moveDir = new THREE.Vector3();
     const _strafeDir = new THREE.Vector3();
+
+    // --- LOGGING HELPER ---
+    function log(msg) {
+        console.log(msg);
+        const el = document.getElementById('debug-log');
+        el.innerText += "\n" + msg;
+        // Also update HUD if it exists
+        if(hudContext) drawDebugOnHUD(msg);
+    }
 
     // --- SHADERS ---
     const vertexShader = `
@@ -114,41 +124,58 @@
         }
     `;
 
-    initCamera().then(init3D);
+    initCamera().then(success => {
+        if(success) init3D();
+    });
 
     async function initCamera() {
+        log("Requesting Camera...");
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, 
-                audio: false
+                video: { facingMode: 'environment' }
             });
             const video = document.getElementById('camera-feed');
             video.srcObject = stream;
             
-            // SAVE TRACK FOR FLASHLIGHT CONTROL
-            videoTrack = stream.getVideoTracks()[0];
-
-            await video.play();
+            // Wait for track to be active
+            video.onloadedmetadata = () => {
+                video.play();
+                log("Camera active.");
+                
+                // CHECK TORCH CAPABILITY
+                videoTrack = stream.getVideoTracks()[0];
+                const capabilities = videoTrack.getCapabilities();
+                
+                if (capabilities.torch) {
+                    log("SUCCESS: Torch detected!");
+                } else {
+                    log("WARNING: Browser says Torch not supported.");
+                    log("Note: iOS does not support Torch.");
+                }
+            };
             return true;
         } catch (err) {
-            document.getElementById('pad-status').innerText = "CAMERA ERROR:\n" + err;
+            log("CAMERA ERROR: " + err.name);
+            log(err.message);
             return false;
         }
     }
 
     // --- FLASHLIGHT CONTROL ---
     async function toggleFlashlight(active) {
-        if (!videoTrack) return;
+        if (!videoTrack) {
+            log("Error: No Video Track");
+            return;
+        }
         
-        // This is the standard API for Android Chrome
-        const constraints = {
-            advanced: [{ torch: active }]
-        };
+        log(`Setting Torch: ${active}`);
 
         try {
-            await videoTrack.applyConstraints(constraints);
+            await videoTrack.applyConstraints({
+                advanced: [{ torch: active }]
+            });
         } catch (err) {
-            console.log("Flashlight not supported on this device/browser");
+            log("Torch Fail: " + err.message);
         }
     }
 
@@ -171,7 +198,7 @@
             uniforms: {
                 tDiffuse: { value: vidTex },
                 uMode: { value: 0.0 }, 
-                uResolution: { value: new THREE.Vector2(1280, 720) }
+                uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
             },
             vertexShader: vertexShader,
             fragmentShader: fragmentShader,
@@ -219,7 +246,7 @@
         document.getElementById('overlay').appendChild(btn);
         
         window.addEventListener("gamepadconnected", (e) => {
-            document.getElementById('pad-status').innerText = "SYSTEM READY\nID: " + e.gamepad.id;
+            log("Gamepad Connected: " + e.gamepad.id);
         });
 
         window.addEventListener('resize', onResize);
@@ -256,17 +283,18 @@
             // BUTTON 3: TRIANGLE (Toggle Mode + Light)
             const btnState = pad.buttons[3].pressed;
             if (btnState && !lastBtnState) {
-                // Flip Mode
                 visionMode = visionMode === 0 ? 1 : 0;
-                
-                // 1. Update Shader
                 camMaterial.uniforms.uMode.value = visionMode;
-                
-                // 2. Toggle Physical Flashlight
                 toggleFlashlight(visionMode === 1);
             }
             lastBtnState = btnState;
         }
+    }
+
+    // DRAW DEBUG LOG TO HUD CANVAS
+    let debugMsg = "";
+    function drawDebugOnHUD(msg) {
+        debugMsg = msg; // Store last message
     }
 
     function updateHUD() {
@@ -274,11 +302,21 @@
         const w = 1024; const h = 1024;
         ctx.clearRect(0, 0, w, h);
 
+        // DEBUG AREA (Bottom Center)
+        if (debugMsg) {
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(100, h-300, w-200, 100);
+            ctx.fillStyle = '#ff0055';
+            ctx.font = '24px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(debugMsg, w/2, h-250);
+        }
+
+        // VISION STATUS (Top Right)
         ctx.textAlign = 'right';
         ctx.font = 'bold 30px Courier New';
         if(visionMode === 1) {
-            // Flash Warning
-            if (Date.now() % 500 < 250) { // Blink effect
+            if (Date.now() % 500 < 250) { 
                 ctx.fillStyle = '#00ffff'; 
                 ctx.fillText("⚠️ ILLUMINATION ACTIVE", w-40, 100);
             }
