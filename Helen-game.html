@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Helen AR: Cockpit Mode</title>
+    <title>Helen AR: Console Edition</title>
     <style>
         /* --- CORE STYLES --- */
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; touch-action: none; }
@@ -62,20 +62,11 @@
         }
 
         /* --- WINDOW STYLES --- */
-        .window-container {
-            backface-visibility: hidden;
-            transform-style: preserve-3d;
-            will-change: transform; 
-        }
-
+        .window-container { backface-visibility: hidden; transform-style: preserve-3d; will-change: transform; }
         .browser-bar { display: flex; padding: 5px; background: #222; border-bottom: 1px solid #00ffff; }
         .browser-input { flex: 1; background: #000; color: #fff; border: 1px solid #555; padding: 5px; font-family: monospace; font-size: 14px; }
         .browser-btn { background: #00ffff; color: #000; border: none; padding: 0 15px; font-weight: bold; cursor: pointer; margin-left: 5px; }
-        
-        .file-upload-btn {
-            background: #00ffff; color: #000; padding: 15px; text-align: center; 
-            font-weight: bold; cursor: pointer; margin: 20px; border: 2px dashed #00ffff;
-        }
+        .file-upload-btn { background: #00ffff; color: #000; padding: 15px; text-align: center; font-weight: bold; cursor: pointer; margin: 20px; border: 2px dashed #00ffff; }
     </style>
     
     <script type="importmap">
@@ -90,12 +81,12 @@
 <body>
 
     <div id="start-screen">
-        <h1>HELEN AR: COCKPIT</h1>
-        <p>CURVED WORKSPACE ACTIVE</p>
+        <h1>HELEN AR: CONSOLE</h1>
+        <p>GAMEPAD SUPPORT ACTIVE</p>
         <div style="text-align:left; font-size:14px; color:#aaa; margin-top:20px; line-height:1.6;">
-            [1-4] MEDIA &bull; [5] BROWSER &bull; [6] UPLOAD<br>
-            [G] GRAB &bull; [K] SAVE &bull; [X] CLOSE<br>
-            Windows spawn in a circle around you.
+            KEYBOARD: [WASD] Move &bull; [ARROWS] Look<br>
+            CONTROLLER: Left Stick (Move) &bull; Right Stick (Look)<br>
+            [1-6] Spawn Media &bull; [G] Grab
         </div>
         <div class="btn-group">
             <button id="init-btn">ENTER VR</button>
@@ -108,13 +99,13 @@
             <video id="vid-left" class="camera-feed" autoplay muted playsinline></video>
             <div id="render-left" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
-            <div class="hud-overlay"><div class="reticle" id="ret-l"></div><div class="hud-text">L_EYE // COCKPIT</div><div id="status-msg">WORLD SAVED</div></div>
+            <div class="hud-overlay"><div class="reticle" id="ret-l"></div><div class="hud-text">L_EYE // GAMEPAD</div><div id="status-msg">WORLD SAVED</div></div>
         </div>
         <div id="eye-right" class="vr-eye">
             <video id="vid-right" class="camera-feed" autoplay muted playsinline></video>
             <div id="render-right" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
-            <div class="hud-overlay"><div class="reticle" id="ret-r"></div><div class="hud-text">R_EYE // COCKPIT</div></div>
+            <div class="hud-overlay"><div class="reticle" id="ret-r"></div><div class="hud-text">R_EYE // GAMEPAD</div></div>
         </div>
     </div>
 
@@ -125,7 +116,8 @@
         let camera, rendererL, rendererR, cssL, cssR;
         let sceneCommon, sceneL, sceneR; 
         const IPD = 0.064; 
-        const player = { pos: new THREE.Vector3(0, 1.6, 5), rotY: 0 };
+        // ADDED: rotX for looking up/down
+        const player = { pos: new THREE.Vector3(0, 1.6, 5), rotY: 0, rotX: 0 }; 
         const keys = {};
         let windows = []; 
         let windowCounter = 0;
@@ -154,6 +146,72 @@
             init3D();
             loadWorld(); 
         });
+
+        // --- INPUT ENGINE (KEYBOARD + GAMEPAD) ---
+        function updateInputs() {
+            const moveSpeed = 0.05;
+            const lookSpeed = 0.03;
+
+            // 1. KEYBOARD FALLBACK
+            if(keys['KeyW']) {
+                player.pos.x -= Math.sin(player.rotY) * moveSpeed;
+                player.pos.z -= Math.cos(player.rotY) * moveSpeed;
+            }
+            if(keys['KeyS']) {
+                player.pos.x += Math.sin(player.rotY) * moveSpeed;
+                player.pos.z += Math.cos(player.rotY) * moveSpeed;
+            }
+            if(keys['KeyA']) {
+                player.pos.x -= Math.cos(player.rotY) * moveSpeed;
+                player.pos.z += Math.sin(player.rotY) * moveSpeed;
+            }
+            if(keys['KeyD']) {
+                player.pos.x += Math.cos(player.rotY) * moveSpeed;
+                player.pos.z -= Math.sin(player.rotY) * moveSpeed;
+            }
+            // Keyboard Look
+            if(keys['ArrowLeft']) player.rotY += lookSpeed;
+            if(keys['ArrowRight']) player.rotY -= lookSpeed;
+            if(keys['ArrowUp']) player.rotX += lookSpeed;
+            if(keys['ArrowDown']) player.rotX -= lookSpeed;
+
+            // 2. GAMEPAD SUPPORT
+            const gamepads = navigator.getGamepads();
+            if (gamepads[0]) {
+                const gp = gamepads[0];
+                const deadzone = 0.1;
+
+                // Left Stick (Axes 0 & 1) - Movement
+                if (Math.abs(gp.axes[0]) > deadzone) { // Strafe Left/Right
+                    player.pos.x += Math.cos(player.rotY) * gp.axes[0] * moveSpeed;
+                    player.pos.z -= Math.sin(player.rotY) * gp.axes[0] * moveSpeed;
+                }
+                if (Math.abs(gp.axes[1]) > deadzone) { // Forward/Back
+                    player.pos.x += Math.sin(player.rotY) * gp.axes[1] * moveSpeed;
+                    player.pos.z += Math.cos(player.rotY) * gp.axes[1] * moveSpeed;
+                }
+
+                // Right Stick (Axes 2 & 3) - Looking
+                if (Math.abs(gp.axes[2]) > deadzone) { // Look Left/Right
+                    player.rotY -= gp.axes[2] * lookSpeed;
+                }
+                if (Math.abs(gp.axes[3]) > deadzone) { // Look Up/Down
+                    player.rotX -= gp.axes[3] * lookSpeed;
+                }
+
+                // Buttons (Example: X button on PS4 is usually index 0 or 1)
+                // Just for testing, button 0 triggers a Grab toggle
+                if (gp.buttons[0].pressed && !gp.buttons[0].wasPressed) {
+                    toggleGrab();
+                    gp.buttons[0].wasPressed = true;
+                } else if (!gp.buttons[0].pressed) {
+                    gp.buttons[0].wasPressed = false;
+                }
+            }
+            
+            // Clamp Vertical Look (Don't break neck)
+            player.rotX = Math.max(-1.5, Math.min(1.5, player.rotX));
+        }
 
         // --- SYNC ENGINE ---
         function syncWindows() {
@@ -228,7 +286,7 @@
             try {
                 const savedWindows = JSON.parse(data);
                 savedWindows.forEach(w => {
-                    spawnWindow(w.type, w.x, w.y, w.z, w.rotY, w.url, false); // Pass coordinates directly
+                    spawnWindow(w.type, w.x, w.y, w.z, w.rotY, w.url, false);
                 });
                 showStatus("WORLD LOADED");
             } catch(e) {}
@@ -265,14 +323,20 @@
 
         function updateGrabbedWindow() {
             if (!grabbedWindow) return;
-            // When grabbed, lock to center view
+            // Lock to center of view, including Pitch (looking up/down)
             const dist = 2.0;
-            const x = player.pos.x - Math.sin(player.rotY) * dist;
-            const z = player.pos.z - Math.cos(player.rotY) * dist;
-            grabbedWindow.objL.position.set(x, 1.6, z);
-            grabbedWindow.objL.rotation.y = player.rotY;
-            grabbedWindow.objR.position.set(x, 1.6, z);
-            grabbedWindow.objR.rotation.y = player.rotY;
+            // 3D Spherical coordinates
+            const x = player.pos.x - Math.sin(player.rotY) * Math.cos(player.rotX) * dist;
+            const y = player.pos.y + Math.sin(player.rotX) * dist;
+            const z = player.pos.z - Math.cos(player.rotY) * Math.cos(player.rotX) * dist;
+            
+            const updateObj = (obj) => {
+                obj.position.set(x, y, z);
+                obj.rotation.set(player.rotX, player.rotY, 0, 'YXZ'); // Ensure order is correct
+            };
+
+            updateObj(grabbedWindow.objL);
+            updateObj(grabbedWindow.objR);
         }
 
         function showStatus(text) {
@@ -285,6 +349,9 @@
             sceneCommon = new THREE.Scene(); sceneL = new THREE.Scene(); sceneR = new THREE.Scene();
             const aspect = (window.innerWidth / 2) / window.innerHeight;
             camera = new THREE.PerspectiveCamera(70, aspect, 0.1, 100);
+            // Default Rotation Order is important for looking up/down
+            camera.rotation.order = 'YXZ'; 
+
             const light = new THREE.DirectionalLight(0xffffff, 2);
             light.position.set(0, 5, 5);
             sceneCommon.add(light); sceneCommon.add(new THREE.AmbientLight(0xffffff, 0.5));
@@ -294,31 +361,23 @@
             window.addEventListener('resize', onResize);
             document.addEventListener('keydown', handleInput);
             document.addEventListener('keyup', e => keys[e.code] = false);
-            // No default spawn, wait for user
             animate();
         }
 
         function handleInput(e) {
             keys[e.code] = true;
             
-            // --- CURVED SPAWN LOGIC ---
-            // If we press a key to spawn, we calculate a "Cockpit Slot"
-            // We use the current window count to offset the angle
             if(['1','2','3','4','5','6'].includes(e.key)) {
-                const radius = 2.5; // Distance from player
-                // Spread windows by 30 degrees (0.5 radians)
-                // Start from center (0) and alternate left/right: 0, 30, -30, 60, -60...
+                const radius = 2.5; 
                 const offsetStep = 0.5; 
                 let angleOffset = 0;
-                
                 if (windowCounter % 2 === 0) angleOffset = (windowCounter/2) * offsetStep;
                 else angleOffset = -Math.ceil(windowCounter/2) * offsetStep;
-
                 const finalAngle = player.rotY + angleOffset;
-                
                 const x = player.pos.x - Math.sin(finalAngle) * radius;
                 const z = player.pos.z - Math.cos(finalAngle) * radius;
                 
+                // Spawn at eye level (adjusted by pitch if we wanted, but sticking to 1.6 is safer for UI)
                 if (e.key === '1') spawnWindow('text', x, 1.6, z, finalAngle);
                 if (e.key === '2') spawnWindow('image', x, 1.6, z, finalAngle, "https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg");
                 if (e.key === '3') spawnWindow('video', x, 1.6, z, finalAngle, "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
@@ -383,19 +442,14 @@
 
             if (type === 'text') {
                 content.style.padding = "20px"; content.style.fontSize = "24px";
-                content.innerHTML = "<p>> COCKPIT ONLINE.</p>";
+                content.innerHTML = "<p>> CONTROLLER INPUT ACTIVE.</p>";
             } 
             else if (type === 'image') content.innerHTML = `<img src="${url}" style="width:100%; height:100%; object-fit:contain;">`;
             else if (type === 'video') content.innerHTML = `<video src="${url}" autoplay loop muted controls style="width:100%; height:100%; object-fit:cover;"></video>`;
             else if (type === 'youtube') content.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${url}?autoplay=1&mute=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
             else if (type === 'browser') content.innerHTML = `<iframe width="100%" height="100%" src="${url}" frameborder="0" style="background:#fff;"></iframe>`;
             else if (type === 'upload') {
-                content.innerHTML = `
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
-                        <p>SELECT LOCAL MEDIA</p>
-                        <input type="file" id="file-${id}-${eyeLabel}" style="display:none;" onchange="window.handleUpload(${id}, this)">
-                        <label for="file-${id}-${eyeLabel}" class="file-upload-btn">CHOOSE FILE</label>
-                    </div>`;
+                content.innerHTML = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;"><p>SELECT LOCAL MEDIA</p><input type="file" id="file-${id}-${eyeLabel}" style="display:none;" onchange="window.handleUpload(${id}, this)"><label for="file-${id}-${eyeLabel}" class="file-upload-btn">CHOOSE FILE</label></div>`;
             }
 
             div.appendChild(content);
@@ -436,24 +490,22 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            const speed = 0.05;
-            if(keys['KeyW']) player.pos.z -= speed;
-            if(keys['KeyS']) player.pos.z += speed;
-            if(keys['KeyA']) player.rotY += 0.03;
-            if(keys['KeyD']) player.rotY -= 0.03;
             
+            updateInputs(); // <--- CHECKS GAMEPAD EVERY FRAME
             updateGrabbedWindow(); 
             syncWindows(); 
 
             const halfIPD = IPD / 2;
             camera.position.copy(player.pos);
-            camera.rotation.set(0, player.rotY, 0);
+            // Apply both RotY (Left/Right) and RotX (Up/Down)
+            camera.rotation.set(player.rotX, player.rotY, 0, 'YXZ');
+            
             camera.translateX(-halfIPD);
             camera.updateMatrixWorld();
             rendererL.render(sceneCommon, camera); cssL.render(sceneL, camera);
 
             camera.position.copy(player.pos);
-            camera.rotation.set(0, player.rotY, 0);
+            camera.rotation.set(player.rotX, player.rotY, 0, 'YXZ');
             camera.translateX(halfIPD);
             camera.updateMatrixWorld();
             rendererR.render(sceneCommon, camera); cssR.render(sceneR, camera);
