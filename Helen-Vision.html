@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: COMMANDER V2</title>
+    <title>HELEN: DOCS & DATA</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -24,6 +24,11 @@
         .controls-hint { font-size: 11px; color: #666; margin-top: 20px; text-align: left; width: 100%; }
     </style>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
     <script type="importmap">
         {
             "imports": {
@@ -37,23 +42,23 @@
 <body>
 
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
-<input type="file" id="intel-input" multiple accept="image/*,video/*" style="display:none">
+<input type="file" id="intel-input" multiple accept="image/*,video/*,application/pdf" style="display:none">
 
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div class="status">
-        [ COMMANDER V2 ]<br>
-        Full lifecycle control enabled.<br>Deploy. Hack. View. Delete.
+        [ DOCUMENT HANDLER ]<br>
+        PDFs, Images, and Video supported.
     </div>
 
     <div class="btn-group">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD MEDIA</button>
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [X] HACK NODE &nbsp;&nbsp; [O] DELETE OBJECT<br>
-            [□] CREATE NODE &nbsp; [△] VISION
+            [X] HACK/VIEW &nbsp;&nbsp; [O] DELETE<br>
+            [□] CREATE &nbsp;&nbsp;&nbsp;&nbsp; [△] VISION
         </div>
     </div>
 </div>
@@ -73,38 +78,69 @@
     // DATA
     let CUSTOM_DATABASE = []; 
     const DEFAULT_DATABASE = [
-        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT_IMG' },
-        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', label: 'DEFAULT_VID' }
+        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT_IMG' }
     ];
 
-    let targets = []; // Now contains BOTH Nodes and Screens
+    let targets = []; 
     let activeHack = { obj: null, progress: 0 }; 
     
     // CAMERAS
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
     let visionMode = 0; 
-    
-    // BUTTON STATES
     let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false };
-
     const SPEED = 0.1; 
-    const _moveDir = new THREE.Vector3();
-    const _strafeDir = new THREE.Vector3();
+    const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    // --- 1. FILE HANDLING ---
+    // --- 1. PDF & FILE PROCESSING ---
     const input = document.getElementById('intel-input');
     const statusLabel = document.getElementById('file-status');
 
-    input.addEventListener('change', (e) => {
+    input.addEventListener('change', async (e) => {
         if (e.target.files.length > 0) {
-            CUSTOM_DATABASE = []; 
-            Array.from(e.target.files).forEach((file, index) => {
-                const url = URL.createObjectURL(file);
-                const type = file.type.startsWith('video') ? 'video' : 'image';
-                CUSTOM_DATABASE.push({ type: type, src: url, label: `FILE_${index+1}` });
-            });
-            statusLabel.innerText = `${CUSTOM_DATABASE.length} FILES LOADED`;
+            CUSTOM_DATABASE = [];
+            statusLabel.innerText = "PROCESSING...";
             statusLabel.style.display = 'block';
+            statusLabel.style.color = '#ffff00';
+
+            for (let i = 0; i < e.target.files.length; i++) {
+                const file = e.target.files[i];
+                const label = `FILE_${i+1}_${file.name.substring(0,8).toUpperCase()}`;
+
+                if (file.type === 'application/pdf') {
+                    // CONVERT PDF TO IMAGE TEXTURE
+                    try {
+                        const pdfData = await file.arrayBuffer();
+                        const pdf = await pdfjsLib.getDocument(pdfData).promise;
+                        const page = await pdf.getPage(1); // Get Page 1
+                        
+                        // Render to High Res Canvas
+                        const viewport = page.getViewport({ scale: 2.0 }); // 2x scale for sharpness
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+
+                        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                        
+                        // Store as an image data URL
+                        CUSTOM_DATABASE.push({ 
+                            type: 'pdf', // Treat as custom type so we know shape
+                            src: canvas.toDataURL('image/png'), 
+                            label: label,
+                            ratio: viewport.width / viewport.height
+                        });
+                    } catch (err) { console.error("PDF Error", err); }
+                } 
+                else if (file.type.startsWith('video')) {
+                    CUSTOM_DATABASE.push({ type: 'video', src: URL.createObjectURL(file), label: label });
+                } 
+                else {
+                    CUSTOM_DATABASE.push({ type: 'image', src: URL.createObjectURL(file), label: label });
+                }
+            }
+
+            statusLabel.innerText = `${CUSTOM_DATABASE.length} FILES READY`;
+            statusLabel.style.color = '#00ff00';
         }
     });
 
@@ -217,7 +253,6 @@
         animate();
     }
 
-    // --- SPAWNING LOGIC ---
     function spawnInitialNodes() {
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         db.forEach((data, i) => {
@@ -230,7 +265,9 @@
 
     function spawnNodeAt(x, y, z, data) {
         const geo = new THREE.IcosahedronGeometry(0.5, 0); 
-        const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+        // Color code: Blue=Video/Img, Yellow=PDF
+        const color = data.type === 'pdf' ? 0xffff00 : 0x00ffff;
+        const mat = new THREE.MeshBasicMaterial({ color: color, wireframe: true });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(x, y, z);
         mesh.userData = { isNode: true, data: data || DEFAULT_DATABASE[0] }; 
@@ -239,19 +276,25 @@
     }
 
     function spawnDecryptedScreen(position, data) {
-        const geometry = new THREE.PlaneGeometry(3, 1.8);
+        let width = 3, height = 1.8; // Default 16:9
         let material;
         
-        if (data.type === 'video') {
-            const video = document.createElement('video');
-            video.src = data.src; 
-            video.crossOrigin = "anonymous"; 
-            video.loop = true; 
-            video.muted = true; 
-            video.play().then(() => { video.muted = false; }); // Enable Audio
-            
-            const tex = new THREE.VideoTexture(video); 
+        if (data.type === 'pdf') {
+            // Adjust geometry for Document (A4 portrait usually)
+            if (data.ratio) {
+                // If it's portrait, fix height to 2.5m and scale width
+                height = 2.5;
+                width = height * data.ratio;
+            }
+            const tex = new THREE.TextureLoader().load(data.src); 
             tex.colorSpace = THREE.SRGBColorSpace;
+            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+        }
+        else if (data.type === 'video') {
+            const video = document.createElement('video');
+            video.src = data.src; video.crossOrigin = "anonymous"; video.loop = true; video.muted = true; 
+            video.play().then(() => { video.muted = false; });
+            const tex = new THREE.VideoTexture(video); tex.colorSpace = THREE.SRGBColorSpace;
             material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
         } else {
             const tex = new THREE.TextureLoader().load(data.src); 
@@ -259,19 +302,20 @@
             material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
         }
 
+        const geometry = new THREE.PlaneGeometry(width, height);
         const screen = new THREE.Mesh(geometry, material);
         screen.position.copy(position);
-        screen.lookAt(camera.position); // Always face user
-        screen.rotation.z = 0; screen.rotation.x = 0; // Keep upright
+        screen.lookAt(camera.position); 
+        screen.rotation.z = 0; screen.rotation.x = 0; 
         
-        // Add Frame
-        screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
+        // Frame Color: Yellow for Docs, Cyan for Media
+        const color = data.type === 'pdf' ? 0xffff00 : 0x00ffff;
+        screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: color })));
         
-        // Mark as a Screen so we can delete it later
-        screen.userData = { isScreen: true, label: "MEDIA WINDOW" };
+        screen.userData = { isScreen: true, label: data.type === 'pdf' ? 'DOCUMENT' : 'MEDIA' };
         
         scene.add(screen);
-        targets.push(screen); // Add to interactive targets
+        targets.push(screen);
     }
 
     // --- INPUT LOOP ---
@@ -279,14 +323,14 @@
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
         
-        // MOVEMENT
+        // Movement
         const x = Math.abs(pad.axes[0]) > 0.1 ? pad.axes[0] : 0; const z = Math.abs(pad.axes[1]) > 0.1 ? pad.axes[1] : 0;
         if (x !== 0 || z !== 0) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize(); _strafeDir.crossVectors(camera.up, _moveDir).normalize();
             dolly.position.addScaledVector(_moveDir, -z * SPEED); dolly.position.addScaledVector(_strafeDir, x * SPEED);
         }
         
-        // VISION
+        // Buttons
         if (pad.buttons[3].pressed && !lastBtn.triangle) {
             visionMode = visionMode === 0 ? 1 : 0;
             if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
@@ -295,7 +339,12 @@
         }
         lastBtn.triangle = pad.buttons[3].pressed;
 
-        // CREATE NODE (Square)
+        if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastBtn.bumper && allBackCameras.length > 1) {
+            const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
+            startCameraStream(allBackCameras[idx]);
+        }
+        lastBtn.bumper = pad.buttons[4].pressed || pad.buttons[5].pressed;
+
         if (pad.buttons[2].pressed && !lastBtn.square) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
             const pos = dolly.position.clone().add(camera.position).add(dir.multiplyScalar(3));
@@ -304,7 +353,7 @@
         }
         lastBtn.square = pad.buttons[2].pressed;
 
-        // TARGET INTERACTION
+        // Interaction
         const btnX = pad.buttons[0].pressed;
         const btnCircle = pad.buttons[1].pressed;
         
@@ -313,29 +362,21 @@
 
         if (intersects.length > 0) {
             const target = intersects[0].object; 
-            
-            // DELETE (Circle) - Works on BOTH Nodes and Screens
             if (btnCircle && !lastBtn.circle) {
                 scene.remove(target);
                 targets = targets.filter(t => t !== target);
                 activeHack.obj = null;
-            }
-            
-            // HACK (X) - Works ONLY on Nodes
-            else if (target.userData.isNode) {
+            } else if (target.userData.isNode) {
                 activeHack.obj = target;
                 if (btnX) activeHack.progress += 2; else activeHack.progress = Math.max(0, activeHack.progress - 5);
-                
                 if (activeHack.progress >= 100) {
                     scene.remove(target); 
                     targets = targets.filter(t => t !== target);
                     spawnDecryptedScreen(target.position, target.userData.data);
                     activeHack.progress = 0; activeHack.obj = null;
                 }
-            }
-            // SCREEN RECOGNITION (for HUD)
-            else if (target.userData.isScreen) {
-                activeHack.obj = target; // Just to trigger HUD info
+            } else if (target.userData.isScreen) {
+                activeHack.obj = target;
             }
         } else { activeHack.obj = null; activeHack.progress = 0; }
         
@@ -352,25 +393,24 @@
 
         const cx = w/2; const cy = h/2;
         if (activeHack.obj) {
-            // Target Locked Style
             ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
             ctx.textAlign = 'center'; ctx.font = '20px Courier New'; 
             
             if (activeHack.obj.userData.isNode) {
-                ctx.fillStyle = '#ff0000'; 
-                ctx.fillText("ENCRYPTED SIGNAL", cx, cy + 80);
+                const type = activeHack.obj.userData.data.type;
+                ctx.fillStyle = type === 'pdf' ? '#ffff00' : '#ff0000'; 
+                ctx.fillText(type === 'pdf' ? "DOCUMENT FILE" : "MEDIA FILE", cx, cy + 80);
+                
                 if (activeHack.progress > 0) {
                     ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-100, cy+90, activeHack.progress * 2, 20);
                     ctx.fillText("DECRYPTING...", cx, cy + 140);
                 } else { 
-                    ctx.fillStyle = '#fff'; ctx.fillText("[X] HACK   [O] DELETE", cx, cy + 140); 
+                    ctx.fillStyle = '#fff'; ctx.fillText("[X] OPEN   [O] DELETE", cx, cy + 140); 
                 }
             } 
             else if (activeHack.obj.userData.isScreen) {
-                ctx.fillStyle = '#00ffff'; 
-                ctx.fillText("MEDIA WINDOW", cx, cy + 80);
-                ctx.fillStyle = '#fff'; 
-                ctx.fillText("[O] CLOSE WINDOW", cx, cy + 140);
+                ctx.fillStyle = '#00ffff'; ctx.fillText("ACTIVE WINDOW", cx, cy + 80);
+                ctx.fillStyle = '#fff'; ctx.fillText("[O] CLOSE WINDOW", cx, cy + 140);
             }
         } else {
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath();
