@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: COMMANDER</title>
+    <title>HELEN: COMMANDER V2</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -42,8 +42,8 @@
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div class="status">
-        [ COMMANDER MODE ]<br>
-        Create, Delete, and Deploy Intel.
+        [ COMMANDER V2 ]<br>
+        Full lifecycle control enabled.<br>Deploy. Hack. View. Delete.
     </div>
 
     <div class="btn-group">
@@ -52,8 +52,8 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [X] HACK/PLAY &nbsp; [O] DELETE<br>
-            [□] CREATE &nbsp;&nbsp;&nbsp;&nbsp; [△] VISION
+            [X] HACK NODE &nbsp;&nbsp; [O] DELETE OBJECT<br>
+            [□] CREATE NODE &nbsp; [△] VISION
         </div>
     </div>
 </div>
@@ -77,7 +77,7 @@
         { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', label: 'DEFAULT_VID' }
     ];
 
-    let targets = []; 
+    let targets = []; // Now contains BOTH Nodes and Screens
     let activeHack = { obj: null, progress: 0 }; 
     
     // CAMERAS
@@ -217,7 +217,7 @@
         animate();
     }
 
-    // --- NODE LOGIC ---
+    // --- SPAWNING LOGIC ---
     function spawnInitialNodes() {
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         db.forEach((data, i) => {
@@ -239,7 +239,6 @@
     }
 
     function spawnDecryptedScreen(position, data) {
-        // Create geometry
         const geometry = new THREE.PlaneGeometry(3, 1.8);
         let material;
         
@@ -248,11 +247,8 @@
             video.src = data.src; 
             video.crossOrigin = "anonymous"; 
             video.loop = true; 
-            // FIX: Start muted, then unmute
             video.muted = true; 
-            video.play().then(() => {
-                video.muted = false; // Turn on audio after play starts
-            });
+            video.play().then(() => { video.muted = false; }); // Enable Audio
             
             const tex = new THREE.VideoTexture(video); 
             tex.colorSpace = THREE.SRGBColorSpace;
@@ -265,16 +261,17 @@
 
         const screen = new THREE.Mesh(geometry, material);
         screen.position.copy(position);
+        screen.lookAt(camera.position); // Always face user
+        screen.rotation.z = 0; screen.rotation.x = 0; // Keep upright
         
-        // FIX: MAKE IT STRAIGHT
-        // Look at the camera so it faces the user perfectly
-        screen.lookAt(camera.position); 
-        // Optional: Keep it vertical (remove tilt)
-        screen.rotation.z = 0;
-        screen.rotation.x = 0; 
-        
+        // Add Frame
         screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
+        
+        // Mark as a Screen so we can delete it later
+        screen.userData = { isScreen: true, label: "MEDIA WINDOW" };
+        
         scene.add(screen);
+        targets.push(screen); // Add to interactive targets
     }
 
     // --- INPUT LOOP ---
@@ -282,14 +279,14 @@
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
         
-        // Movement
+        // MOVEMENT
         const x = Math.abs(pad.axes[0]) > 0.1 ? pad.axes[0] : 0; const z = Math.abs(pad.axes[1]) > 0.1 ? pad.axes[1] : 0;
         if (x !== 0 || z !== 0) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize(); _strafeDir.crossVectors(camera.up, _moveDir).normalize();
             dolly.position.addScaledVector(_moveDir, -z * SPEED); dolly.position.addScaledVector(_strafeDir, x * SPEED);
         }
         
-        // TRIANGLE (Btn 3): Vision
+        // VISION
         if (pad.buttons[3].pressed && !lastBtn.triangle) {
             visionMode = visionMode === 0 ? 1 : 0;
             if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
@@ -298,27 +295,16 @@
         }
         lastBtn.triangle = pad.buttons[3].pressed;
 
-        // BUMPER (Btn 4/5): Cycle Lens
-        const bumper = pad.buttons[4].pressed || pad.buttons[5].pressed;
-        if (bumper && !lastBtn.bumper && allBackCameras.length > 1) {
-            const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
-            startCameraStream(allBackCameras[idx]);
-        }
-        lastBtn.bumper = bumper;
-
-        // SQUARE (Btn 2): CREATE NODE
+        // CREATE NODE (Square)
         if (pad.buttons[2].pressed && !lastBtn.square) {
-            // Spawn 2 meters in front of camera
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
             const pos = dolly.position.clone().add(camera.position).add(dir.multiplyScalar(3));
-            // Use random file from database
             const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-            const data = db[Math.floor(Math.random() * db.length)];
-            spawnNodeAt(pos.x, pos.y, pos.z, data);
+            spawnNodeAt(pos.x, pos.y, pos.z, db[Math.floor(Math.random() * db.length)]);
         }
         lastBtn.square = pad.buttons[2].pressed;
 
-        // X (Btn 0): HACK & CIRCLE (Btn 1): DELETE
+        // TARGET INTERACTION
         const btnX = pad.buttons[0].pressed;
         const btnCircle = pad.buttons[1].pressed;
         
@@ -328,15 +314,15 @@
         if (intersects.length > 0) {
             const target = intersects[0].object; 
             
-            // DELETE LOGIC
+            // DELETE (Circle) - Works on BOTH Nodes and Screens
             if (btnCircle && !lastBtn.circle) {
                 scene.remove(target);
                 targets = targets.filter(t => t !== target);
                 activeHack.obj = null;
             }
             
-            // HACK LOGIC
-            else {
+            // HACK (X) - Works ONLY on Nodes
+            else if (target.userData.isNode) {
                 activeHack.obj = target;
                 if (btnX) activeHack.progress += 2; else activeHack.progress = Math.max(0, activeHack.progress - 5);
                 
@@ -346,6 +332,10 @@
                     spawnDecryptedScreen(target.position, target.userData.data);
                     activeHack.progress = 0; activeHack.obj = null;
                 }
+            }
+            // SCREEN RECOGNITION (for HUD)
+            else if (target.userData.isScreen) {
+                activeHack.obj = target; // Just to trigger HUD info
             }
         } else { activeHack.obj = null; activeHack.progress = 0; }
         
@@ -362,17 +352,25 @@
 
         const cx = w/2; const cy = h/2;
         if (activeHack.obj) {
+            // Target Locked Style
             ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
-            ctx.fillStyle = '#ff0000'; ctx.textAlign = 'center'; ctx.font = '20px Courier New'; 
-            ctx.fillText("DETECTED: " + activeHack.obj.userData.data.label, cx, cy + 80);
+            ctx.textAlign = 'center'; ctx.font = '20px Courier New'; 
             
-            // Progress or Delete Prompt
-            if (activeHack.progress > 0) {
-                ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-100, cy+90, activeHack.progress * 2, 20);
-                ctx.fillText("DECRYPTING...", cx, cy + 140);
-            } else { 
+            if (activeHack.obj.userData.isNode) {
+                ctx.fillStyle = '#ff0000'; 
+                ctx.fillText("ENCRYPTED SIGNAL", cx, cy + 80);
+                if (activeHack.progress > 0) {
+                    ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-100, cy+90, activeHack.progress * 2, 20);
+                    ctx.fillText("DECRYPTING...", cx, cy + 140);
+                } else { 
+                    ctx.fillStyle = '#fff'; ctx.fillText("[X] HACK   [O] DELETE", cx, cy + 140); 
+                }
+            } 
+            else if (activeHack.obj.userData.isScreen) {
+                ctx.fillStyle = '#00ffff'; 
+                ctx.fillText("MEDIA WINDOW", cx, cy + 80);
                 ctx.fillStyle = '#fff'; 
-                ctx.fillText("[X] DECRYPT  [O] DELETE", cx, cy + 140); 
+                ctx.fillText("[O] CLOSE WINDOW", cx, cy + 140);
             }
         } else {
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath();
@@ -382,7 +380,7 @@
     }
 
     function animate() {
-        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); targets.forEach(t => { t.rotation.x += 0.01; t.rotation.y += 0.01; }); renderer.render(scene, camera); });
+        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); targets.forEach(t => { if(t.userData.isNode) { t.rotation.x += 0.01; t.rotation.y += 0.01; } }); renderer.render(scene, camera); });
     }
 </script>
 </body>
