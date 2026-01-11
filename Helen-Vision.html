@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: COMMANDER FINAL</title>
+    <title>HELEN: INVENTORY</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); color: #00ffff;
+            background: rgba(0,0,0,0.9); color: #00ffff;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             z-index: 100;
         }
@@ -45,18 +45,18 @@
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div class="status">
-        [ SYSTEM READY ]<br>
-        Tactical Media & Doc Handler.
+        [ INVENTORY SYSTEM ]<br>
+        Load media -> Access via VR Menu.
     </div>
 
     <div class="btn-group">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD DATABASE</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [X] OPEN &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [O] DELETE<br>
-            [□] CREATE &nbsp;&nbsp;&nbsp;&nbsp; [△] VISION
+            [□] OPEN MENU &nbsp;&nbsp;&nbsp; [X] SELECT/OPEN<br>
+            [O] DELETE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [△] VISION
         </div>
     </div>
 </div>
@@ -73,14 +73,23 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
+    // DATA
     let CUSTOM_DATABASE = []; 
+    // Default data if user uploads nothing
     const DEFAULT_DATABASE = [
-        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT_IMG' }
+        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'MONA_LISA.JPG' },
+        { type: 'video', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', label: 'BUNNY.MP4' }
     ];
 
-    let targets = []; 
-    let activeHack = { obj: null, progress: 0 }; 
+    let targets = []; // Interactive world objects
+    let activeObject = { obj: null, progress: 0 }; 
     
+    // MENU SYSTEM
+    let menuGroup, menuMesh, menuCanvas, menuCtx, menuTexture;
+    let isMenuOpen = false;
+    let hoveredFileIndex = -1;
+
+    // CAMERAS
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
     let visionMode = 0; 
     let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false };
@@ -100,8 +109,10 @@
 
             for (let i = 0; i < e.target.files.length; i++) {
                 const file = e.target.files[i];
-                const label = `FILE_${i+1}_${file.name.substring(0,6).toUpperCase()}`;
-
+                // Clean filename
+                let name = file.name.toUpperCase();
+                if(name.length > 15) name = name.substring(0,12) + "...";
+                
                 if (file.type === 'application/pdf') {
                     try {
                         const pdfData = await file.arrayBuffer();
@@ -112,14 +123,14 @@
                         const ctx = canvas.getContext('2d');
                         canvas.height = viewport.height; canvas.width = viewport.width;
                         await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                        CUSTOM_DATABASE.push({ type: 'pdf', src: canvas.toDataURL('image/png'), label: label, ratio: viewport.width / viewport.height });
+                        CUSTOM_DATABASE.push({ type: 'pdf', src: canvas.toDataURL('image/png'), label: name, ratio: viewport.width / viewport.height });
                     } catch (err) {}
                 } 
                 else if (file.type.startsWith('video')) {
-                    CUSTOM_DATABASE.push({ type: 'video', src: URL.createObjectURL(file), label: label });
+                    CUSTOM_DATABASE.push({ type: 'video', src: URL.createObjectURL(file), label: name });
                 } 
                 else {
-                    CUSTOM_DATABASE.push({ type: 'image', src: URL.createObjectURL(file), label: label });
+                    CUSTOM_DATABASE.push({ type: 'image', src: URL.createObjectURL(file), label: name });
                 }
             }
             statusLabel.innerText = `${CUSTOM_DATABASE.length} FILES READY`;
@@ -133,7 +144,8 @@
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(d => d.kind === 'videoinput' && !d.label.toLowerCase().includes('front'));
         allBackCameras = cameras.map(c => c.deviceId);
-
+        
+        // Find Torch & Wide
         for (const cam of cameras) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
@@ -142,7 +154,6 @@
                 track.stop();
             } catch(e) {}
         }
-        
         if (torchCamId) {
             const other = cameras.find(c => c.deviceId !== torchCamId);
             if (other) wideCamId = other.deviceId;
@@ -162,11 +173,9 @@
             video.srcObject = stream;
             await new Promise(r => video.onloadedmetadata = r);
             await video.play();
-
             currentStream = stream;
             videoTrack = stream.getVideoTracks()[0];
             activeCamId = preferredId;
-            
             if (camMaterial) {
                 camMaterial.uniforms.tDiffuse.value = new THREE.VideoTexture(video);
                 camMaterial.uniforms.tDiffuse.value.colorSpace = THREE.SRGBColorSpace;
@@ -210,6 +219,7 @@
 
         const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
 
+        // HUD
         const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
         hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas); hudTexture.minFilter = THREE.LinearFilter;
         const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
@@ -223,37 +233,107 @@
         document.body.appendChild(renderer.domElement);
         
         const btn = VRButton.createButton(renderer);
-        btn.className = "primary"; btn.innerHTML = "ENTER VR MISSION";
+        btn.className = "primary"; btn.innerHTML = "ENTER VR";
         document.getElementById('vr-btn-container').appendChild(btn);
         
         renderer.xr.addEventListener('sessionstart', () => {
             document.getElementById('overlay').style.display = 'none';
-            spawnInitialNodes();
         });
+
+        // Initialize Menu System
+        createMenuSystem();
 
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         animate();
     }
 
-    function spawnInitialNodes() {
-        const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-        db.forEach((data, i) => {
-            const angle = (i / db.length) * Math.PI * 2;
-            const x = Math.sin(angle) * 8; const z = Math.cos(angle) * 8;
-            spawnNodeAt(x, 1.5 + Math.random(), z, data);
+    // --- 4. THE 3D MENU SYSTEM ---
+    function createMenuSystem() {
+        menuGroup = new THREE.Group();
+        
+        menuCanvas = document.createElement('canvas');
+        menuCanvas.width = 1024; menuCanvas.height = 1024;
+        menuCtx = menuCanvas.getContext('2d');
+        
+        menuTexture = new THREE.CanvasTexture(menuCanvas);
+        
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        const material = new THREE.MeshBasicMaterial({ 
+            map: menuTexture, 
+            transparent: true, 
+            side: THREE.DoubleSide
         });
+        
+        menuMesh = new THREE.Mesh(geometry, material);
+        menuGroup.add(menuMesh);
+        
+        // Add Frame
+        const frame = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff }));
+        menuGroup.add(frame);
+
+        scene.add(menuGroup);
+        menuGroup.visible = false; // Start hidden
     }
 
-    function spawnNodeAt(x, y, z, data) {
-        const geo = new THREE.IcosahedronGeometry(0.5, 0); 
-        const color = data.type === 'pdf' ? 0xffff00 : 0x00ffff;
-        const mat = new THREE.MeshBasicMaterial({ color: color, wireframe: true });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(x, y, z);
-        mesh.userData = { isNode: true, data: data || DEFAULT_DATABASE[0] }; 
-        scene.add(mesh); targets.push(mesh);
+    function updateMenuDisplay() {
+        const ctx = menuCtx;
+        const w = 1024; const h = 1024;
+        const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+        
+        // Background
+        ctx.fillStyle = 'rgba(0, 10, 20, 0.9)';
+        ctx.fillRect(0, 0, w, h);
+        
+        // Header
+        ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center';
+        ctx.fillText("TACTICAL INVENTORY", w/2, 100);
+        ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(50, 120); ctx.lineTo(w-50, 120); ctx.stroke();
+
+        // File List
+        ctx.textAlign = 'left'; ctx.font = '50px Courier New';
+        
+        // Display max 12 items for this demo
+        const maxItems = Math.min(db.length, 12);
+        
+        for (let i = 0; i < maxItems; i++) {
+            const y = 200 + (i * 70);
+            
+            if (i === hoveredFileIndex) {
+                // Highlight
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+                ctx.fillRect(50, y - 50, w - 100, 60);
+                ctx.fillStyle = '#fff'; // White text on hover
+                ctx.fillText(`> ${db[i].label}`, 80, y);
+            } else {
+                ctx.fillStyle = '#00aaaa'; // Dim cyan
+                ctx.fillText(`  ${db[i].label}`, 80, y);
+            }
+            
+            // Type Icon
+            ctx.fillStyle = '#666'; ctx.font = '30px Courier New';
+            ctx.fillText(db[i].type.toUpperCase(), w - 200, y);
+        }
+
+        menuTexture.needsUpdate = true;
     }
 
+    function spawnFromMenu(index) {
+        const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+        const data = db[index];
+        
+        // Spawn 3 meters in front of camera
+        const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+        const pos = camera.position.clone().add(dir.multiplyScalar(3));
+        
+        spawnDecryptedScreen(pos, data);
+        
+        // Close menu after spawn
+        isMenuOpen = false;
+        menuGroup.visible = false;
+    }
+
+    // --- OBJECT MANAGEMENT ---
     function spawnDecryptedScreen(position, data) {
         let width = 3, height = 1.8; 
         let material, videoElem = null;
@@ -281,27 +361,18 @@
         const color = data.type === 'pdf' ? 0xffff00 : 0x00ffff;
         screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: color })));
         
-        // STORE VIDEO ELEMENT IN USERDATA SO WE CAN KILL IT LATER
-        screen.userData = { isScreen: true, label: data.type === 'pdf' ? 'DOCUMENT' : 'MEDIA', videoElement: videoElem };
-        
+        screen.userData = { isScreen: true, label: data.label, videoElement: videoElem };
         scene.add(screen); targets.push(screen);
     }
 
-    // --- CLEAN DELETE FUNCTION ---
     function deleteObject(obj) {
-        // If it has a video, STOP IT!
         if (obj.userData.videoElement) {
             obj.userData.videoElement.pause();
-            obj.userData.videoElement.src = ""; // Unload source
+            obj.userData.videoElement.src = ""; 
             obj.userData.videoElement.load();
-            obj.userData.videoElement = null; // Remove reference
         }
-        
-        // Clean up memory
         if (obj.material.map) obj.material.map.dispose();
-        obj.material.dispose();
-        obj.geometry.dispose();
-
+        obj.material.dispose(); obj.geometry.dispose();
         scene.remove(obj);
         targets = targets.filter(t => t !== obj);
     }
@@ -311,12 +382,76 @@
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
         
+        // MOVEMENT
         const x = Math.abs(pad.axes[0]) > 0.1 ? pad.axes[0] : 0; const z = Math.abs(pad.axes[1]) > 0.1 ? pad.axes[1] : 0;
         if (x !== 0 || z !== 0) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize(); _strafeDir.crossVectors(camera.up, _moveDir).normalize();
             dolly.position.addScaledVector(_moveDir, -z * SPEED); dolly.position.addScaledVector(_strafeDir, x * SPEED);
         }
         
+        // SQUARE (Btn 2): TOGGLE MENU
+        if (pad.buttons[2].pressed && !lastBtn.square) {
+            isMenuOpen = !isMenuOpen;
+            menuGroup.visible = isMenuOpen;
+            
+            if (isMenuOpen) {
+                // Teleport menu in front of user
+                const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+                const pos = camera.position.clone().add(dir.multiplyScalar(2.5));
+                menuGroup.position.copy(pos);
+                menuGroup.lookAt(camera.position);
+                updateMenuDisplay();
+            }
+        }
+        lastBtn.square = pad.buttons[2].pressed;
+
+        // RAYCASTING
+        raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+        
+        if (isMenuOpen) {
+            // MENU MODE
+            const intersects = raycaster.intersectObject(menuMesh);
+            if (intersects.length > 0) {
+                // Calculate which item is hovered based on UV Y-coordinate
+                const uvY = intersects[0].uv.y;
+                // Map 1.0-0.0 range to file index. Top starts at ~0.8
+                // Rough math for the 12 items layout:
+                // Start Y = 200px (approx 0.8 UV). Step = 70px (approx 0.068 UV)
+                const listStartUV = 0.82;
+                const stepUV = 0.068;
+                
+                if (uvY < listStartUV) {
+                    const idx = Math.floor((listStartUV - uvY) / stepUV);
+                    const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+                    if (idx >= 0 && idx < db.length) {
+                        if (hoveredFileIndex !== idx) {
+                            hoveredFileIndex = idx;
+                            updateMenuDisplay();
+                        }
+                    } else { hoveredFileIndex = -1; }
+                }
+            } else { hoveredFileIndex = -1; updateMenuDisplay(); }
+
+            // SELECT (X)
+            if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) {
+                spawnFromMenu(hoveredFileIndex);
+            }
+
+        } else {
+            // WORLD MODE
+            const intersects = raycaster.intersectObjects(targets);
+            if (intersects.length > 0) {
+                activeObject.obj = intersects[0].object;
+                
+                // DELETE (Circle)
+                if (pad.buttons[1].pressed && !lastBtn.circle) {
+                    deleteObject(activeObject.obj);
+                    activeObject.obj = null;
+                }
+            } else { activeObject.obj = null; }
+        }
+
+        // VISION (Triangle)
         if (pad.buttons[3].pressed && !lastBtn.triangle) {
             visionMode = visionMode === 0 ? 1 : 0;
             if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
@@ -324,48 +459,8 @@
             else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
         lastBtn.triangle = pad.buttons[3].pressed;
-
-        if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastBtn.bumper && allBackCameras.length > 1) {
-            const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
-            startCameraStream(allBackCameras[idx]);
-        }
-        lastBtn.bumper = pad.buttons[4].pressed || pad.buttons[5].pressed;
-
-        if (pad.buttons[2].pressed && !lastBtn.square) {
-            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-            const pos = dolly.position.clone().add(camera.position).add(dir.multiplyScalar(3));
-            const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-            spawnNodeAt(pos.x, pos.y, pos.z, db[Math.floor(Math.random() * db.length)]);
-        }
-        lastBtn.square = pad.buttons[2].pressed;
-
-        const btnX = pad.buttons[0].pressed;
-        const btnCircle = pad.buttons[1].pressed;
-        
-        raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-        const intersects = raycaster.intersectObjects(targets);
-
-        if (intersects.length > 0) {
-            const target = intersects[0].object; 
-            if (btnCircle && !lastBtn.circle) {
-                // CALL NEW CLEAN DELETE
-                deleteObject(target);
-                activeHack.obj = null;
-            } else if (target.userData.isNode) {
-                activeHack.obj = target;
-                if (btnX) activeHack.progress += 2; else activeHack.progress = Math.max(0, activeHack.progress - 5);
-                if (activeHack.progress >= 100) {
-                    // Delete node -> Spawn screen
-                    deleteObject(target); // Clean up node mesh
-                    spawnDecryptedScreen(target.position, target.userData.data);
-                    activeHack.progress = 0; activeHack.obj = null;
-                }
-            } else if (target.userData.isScreen) {
-                activeHack.obj = target;
-            }
-        } else { activeHack.obj = null; activeHack.progress = 0; }
-        
-        lastBtn.circle = btnCircle;
+        lastBtn.x = pad.buttons[0].pressed;
+        lastBtn.circle = pad.buttons[1].pressed;
     }
 
     function updateHUD() {
@@ -377,26 +472,19 @@
         else { ctx.fillStyle = 'rgba(0,255,255,0.5)'; ctx.fillText("VISION: [NORMAL]", w-40, 60); }
 
         const cx = w/2; const cy = h/2;
-        if (activeHack.obj) {
-            ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
-            ctx.textAlign = 'center'; ctx.font = '20px Courier New'; 
+        
+        if (isMenuOpen) {
+            ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center';
+            ctx.fillText("MENU OPEN", cx, cy + 200);
+            // Simple crosshair for menu
+            ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; ctx.beginPath();
+            ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy); ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10); ctx.stroke();
             
-            if (activeHack.obj.userData.isNode) {
-                const type = activeHack.obj.userData.data.type;
-                ctx.fillStyle = type === 'pdf' ? '#ffff00' : '#ff0000'; 
-                ctx.fillText(type === 'pdf' ? "DOCUMENT FILE" : "MEDIA FILE", cx, cy + 80);
-                
-                if (activeHack.progress > 0) {
-                    ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-100, cy+90, activeHack.progress * 2, 20);
-                    ctx.fillText("DECRYPTING...", cx, cy + 140);
-                } else { 
-                    ctx.fillStyle = '#fff'; ctx.fillText("[X] OPEN   [O] DELETE", cx, cy + 140); 
-                }
-            } 
-            else if (activeHack.obj.userData.isScreen) {
-                ctx.fillStyle = '#00ffff'; ctx.fillText("ACTIVE WINDOW", cx, cy + 80);
-                ctx.fillStyle = '#fff'; ctx.fillText("[O] CLOSE WINDOW", cx, cy + 140);
-            }
+        } else if (activeObject.obj) {
+            ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
+            ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
+            ctx.fillText(activeObject.obj.userData.label, cx, cy + 80);
+            ctx.fillText("[O] CLOSE", cx, cy + 120);
         } else {
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath();
             ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
@@ -405,7 +493,7 @@
     }
 
     function animate() {
-        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); targets.forEach(t => { if(t.userData.isNode) { t.rotation.x += 0.01; t.rotation.y += 0.01; } }); renderer.render(scene, camera); });
+        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); renderer.render(scene, camera); });
     }
 </script>
 </body>
