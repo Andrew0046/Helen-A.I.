@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Helen AR: Sensor Fusion</title>
+    <title>Helen AR: Browser Edition</title>
     <style>
         /* --- CORE STYLES --- */
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; touch-action: none; }
 
+        /* START SCREEN */
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #050505; color: #00ffff; display: flex; 
@@ -24,7 +25,10 @@
         }
         button:hover { background: #00ffff; color: #000; box-shadow: 0 0 30px rgba(0,255,255,0.6); }
 
+        /* VR CONTAINER */
         #vr-container { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+        /* EYES */
         .vr-eye { position: absolute; top: 0; width: 50%; height: 100%; overflow: hidden; border-right: 2px solid #000; box-sizing: border-box; }
         #eye-left { left: 0; } #eye-right { left: 50%; }
 
@@ -37,12 +41,12 @@
         .camera-feed {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover; transform: scale(1.0); z-index: 0;
-            will-change: transform; 
         }
 
         .ar-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
         .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; }
         
+        /* RETICLE */
         .reticle { 
             position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; 
             border: 2px solid #00ffff; border-radius: 50%; transform: translate(-50%, -50%); 
@@ -59,13 +63,6 @@
             position: absolute; bottom: 100px; left: 0; width: 100%; text-align: center;
             color: #00ff00; font-size: 16px; font-weight: bold; display: none; text-shadow: 0 0 5px #00ff00;
         }
-
-        /* --- WINDOW STYLES --- */
-        .window-container { backface-visibility: hidden; transform-style: preserve-3d; will-change: transform; }
-        .browser-bar { display: flex; padding: 5px; background: #222; border-bottom: 1px solid #00ffff; }
-        .browser-input { flex: 1; background: #000; color: #fff; border: 1px solid #555; padding: 5px; font-family: monospace; font-size: 14px; }
-        .browser-btn { background: #00ffff; color: #000; border: none; padding: 0 15px; font-weight: bold; cursor: pointer; margin-left: 5px; }
-        .file-upload-btn { background: #00ffff; color: #000; padding: 15px; text-align: center; font-weight: bold; cursor: pointer; margin: 20px; border: 2px dashed #00ffff; }
     </style>
     
     <script type="importmap">
@@ -80,15 +77,16 @@
 <body>
 
     <div id="start-screen">
-        <h1>HELEN AR: SENSORS</h1>
-        <p>GYRO + ACCEL + COMPASS</p>
+        <h1>HELEN AR: BROWSER</h1>
+        <p>ARCHITECT + WEB ACCESS</p>
         <div style="text-align:left; font-size:14px; color:#aaa; margin-top:20px; line-height:1.6;">
-            LOOK: Move Phone<br>
-            [1-6] SPAWN APPS<br>
-            [G] GRAB &bull; [K] SAVE &bull; [X] CLOSE
+            [1] TEXT &bull; [2] IMG &bull; [3] VID &bull; [4] YT<br>
+            [5] BROWSER (NEW!)<br>
+            [G] GRAB/DROP &bull; [K] SAVE<br>
+            [X] CLOSE &bull; [WASD] MOVE
         </div>
         <div class="btn-group">
-            <button id="init-btn">ENABLE SENSORS</button>
+            <button id="init-btn">ENTER VR</button>
             <button onclick="localStorage.clear(); alert('Memory Wiped');">RESET MEMORY</button>
         </div>
     </div>
@@ -98,28 +96,36 @@
             <video id="vid-left" class="camera-feed" autoplay muted playsinline></video>
             <div id="render-left" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
-            <div class="hud-overlay"><div class="reticle" id="ret-l"></div><div class="hud-text">L_EYE // SENSOR_FUSION</div><div id="status-msg">WORLD SAVED</div></div>
+            <div class="hud-overlay">
+                <div class="reticle" id="ret-l"></div>
+                <div class="hud-text">L_EYE // WEB_ENABLED</div>
+                <div id="status-msg">WORLD SAVED</div>
+            </div>
         </div>
+
         <div id="eye-right" class="vr-eye">
             <video id="vid-right" class="camera-feed" autoplay muted playsinline></video>
             <div id="render-right" class="ar-overlay"></div>
             <div class="lens-vignette"></div>
-            <div class="hud-overlay"><div class="reticle" id="ret-r"></div><div class="hud-text">R_EYE // SENSOR_FUSION</div></div>
+            <div class="hud-overlay">
+                <div class="reticle" id="ret-r"></div>
+                <div class="hud-text">R_EYE // WEB_ENABLED</div>
+            </div>
         </div>
     </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
-        
-        // --- NEW IMPORT: DEVICE ORIENTATION ---
-        import { DeviceOrientationControls } from 'three/addons/controls/DeviceOrientationControls.js';
 
-        let camera, rendererL, rendererR, cssL, cssR, controls;
+        // --- GLOBAL VARIABLES ---
+        let camera, rendererL, rendererR, cssL, cssR;
         let sceneCommon, sceneL, sceneR; 
+
         const IPD = 0.064; 
-        const player = { pos: new THREE.Vector3(0, 1.6, 5) }; // Removed rotY, controlled by sensors now
+        const player = { pos: new THREE.Vector3(0, 1.6, 5), rotY: 0 };
         const keys = {};
+        
         let windows = []; 
         let windowCounter = 0;
         let grabbedWindow = null; 
@@ -127,21 +133,6 @@
         // --- INIT ---
         const btn = document.getElementById('init-btn');
         btn.addEventListener('click', async () => {
-            // 1. IOS PERMISSION CHECK
-            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                try {
-                    const permissionState = await DeviceOrientationEvent.requestPermission();
-                    if (permissionState === 'granted') {
-                        // iOS Granted
-                    } else {
-                        alert("Permission to use Gyroscope was denied.");
-                        return;
-                    }
-                } catch (error) {
-                    console.error(error);
-                }
-            }
-
             try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch(e){}
             try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e){}
 
@@ -163,58 +154,9 @@
             loadWorld(); 
         });
 
-        // --- SYNC ENGINE ---
-        function syncWindows() {
-            const updates = [];
-            windows.forEach(w => {
-                if (!w.domL || !w.domR) return;
-                const contentL = w.domL.querySelector('.win-content');
-                const inputL = w.domL.querySelector('.browser-input');
-                if (contentL) updates.push({ domR: w.domR, scrollTop: contentL.scrollTop, scrollLeft: contentL.scrollLeft });
-                if (inputL) {
-                     const inputR = w.domR.querySelector('.browser-input');
-                     if(inputR && inputL.value !== inputR.value) updates.push({ inputR: inputR, val: inputL.value, type: 'input' });
-                }
-            });
-            updates.forEach(u => {
-                if(u.type === 'input') u.inputR.value = u.val;
-                else {
-                    const contentR = u.domR.querySelector('.win-content');
-                    if(contentR) {
-                        contentR.scrollTop = u.scrollTop;
-                        contentR.scrollLeft = u.scrollLeft;
-                    }
-                }
-            });
-        }
-
-        // --- HANDLERS ---
-        window.navigateBrowser = function(id, eye) {
-            const win = windows.find(w => w.id === id); if (!win) return;
-            const input = win.domL.querySelector('.browser-input');
-            let url = input.value; if (!url.startsWith('http')) url = 'https://' + url;
-            const iframeL = win.domL.querySelector('iframe'); const iframeR = win.domR.querySelector('iframe');
-            if(iframeL) iframeL.src = url; if(iframeR) iframeR.src = url;
-            win.url = url; saveWorld();
-        }
-
-        window.handleUpload = function(id, inputElement) {
-            if (inputElement.files && inputElement.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    const result = e.target.result; 
-                    const win = windows.find(w => w.id === id); if (!win) return;
-                    const injectImage = (dom) => { dom.querySelector('.win-content').innerHTML = `<img src="${result}" style="width:100%; height:100%; object-fit:contain;">`; };
-                    injectImage(win.domL); injectImage(win.domR);
-                    showStatus("IMAGE LOADED");
-                };
-                reader.readAsDataURL(inputElement.files[0]);
-            }
-        }
-
-        // --- CORE LOGIC ---
+        // --- ARCHITECT LOGIC ---
         function saveWorld() {
-            const data = windows.filter(w => w.type !== 'upload').map(w => ({
+            const data = windows.map(w => ({
                 id: w.id, type: w.type, url: w.url,
                 x: w.objL.position.x, y: w.objL.position.y, z: w.objL.position.z, rotY: w.objL.rotation.y
             }));
@@ -225,32 +167,34 @@
         function loadWorld() {
             const data = localStorage.getItem('helen_world_data');
             if (!data) return;
-            try {
-                const savedWindows = JSON.parse(data);
-                savedWindows.forEach(w => {
-                    spawnWindow(w.type, w.x, w.y, w.z, w.rotY, w.url, false);
-                });
-                showStatus("WORLD LOADED");
-            } catch(e) {}
+            const savedWindows = JSON.parse(data);
+            savedWindows.forEach(w => {
+                spawnWindow(w.type, w.x, w.y, w.z, w.rotY, w.url, false);
+            });
+            showStatus("WORLD LOADED");
         }
 
         function toggleGrab() {
             if (grabbedWindow) {
                 grabbedWindow = null;
-                document.getElementById('ret-l').classList.remove('grab'); document.getElementById('ret-r').classList.remove('grab');
-                showStatus("WINDOW DROPPED"); saveWorld();
+                document.getElementById('ret-l').classList.remove('grab');
+                document.getElementById('ret-r').classList.remove('grab');
+                showStatus("WINDOW DROPPED");
+                saveWorld();
             } else {
                 const closest = findClosestWindow();
                 if (closest && closest.dist < 1.5) {
                     grabbedWindow = closest.win;
-                    document.getElementById('ret-l').classList.add('grab'); document.getElementById('ret-r').classList.add('grab');
+                    document.getElementById('ret-l').classList.add('grab');
+                    document.getElementById('ret-r').classList.add('grab');
                     showStatus("WINDOW GRABBED");
                 }
             }
         }
 
         function findClosestWindow() {
-            let minDist = Infinity; let target = null;
+            let minDist = Infinity;
+            let target = null;
             const camPos = player.pos.clone(); 
             windows.forEach(w => {
                 const dist = w.objL.position.distanceTo(camPos);
@@ -261,19 +205,14 @@
 
         function updateGrabbedWindow() {
             if (!grabbedWindow) return;
-            // Get current looking direction
-            const direction = new THREE.Vector3();
-            camera.getWorldDirection(direction);
-            direction.y = 0; direction.normalize();
-
-            // Place window 2m in front
-            const targetPos = player.pos.clone().add(direction.multiplyScalar(2.0));
-            targetPos.y = 1.6; // Keep height constant
+            const dist = 2.0;
+            const x = player.pos.x - Math.sin(player.rotY) * dist;
+            const z = player.pos.z - Math.cos(player.rotY) * dist;
             
-            grabbedWindow.objL.position.copy(targetPos);
-            grabbedWindow.objL.lookAt(player.pos.x, 1.6, player.pos.z);
-            grabbedWindow.objR.position.copy(targetPos);
-            grabbedWindow.objR.lookAt(player.pos.x, 1.6, player.pos.z);
+            grabbedWindow.objL.position.set(x, 1.6, z);
+            grabbedWindow.objL.rotation.y = player.rotY;
+            grabbedWindow.objR.position.set(x, 1.6, z);
+            grabbedWindow.objR.rotation.y = player.rotY;
         }
 
         function showStatus(text) {
@@ -282,27 +221,27 @@
             setTimeout(() => { el.style.display = 'none'; }, 2000);
         }
 
+        // --- 3D SETUP ---
         function init3D() {
-            sceneCommon = new THREE.Scene(); sceneL = new THREE.Scene(); sceneR = new THREE.Scene();
+            sceneCommon = new THREE.Scene();
+            sceneL = new THREE.Scene();
+            sceneR = new THREE.Scene();
+
             const aspect = (window.innerWidth / 2) / window.innerHeight;
             camera = new THREE.PerspectiveCamera(70, aspect, 0.1, 100);
-            
-            // --- SENSOR CONTROLS ---
-            controls = new DeviceOrientationControls(camera);
-            // Optional: Connect compass (alphaOffset) if device supports it
-            
+
             const light = new THREE.DirectionalLight(0xffffff, 2);
             light.position.set(0, 5, 5);
-            sceneCommon.add(light); sceneCommon.add(new THREE.AmbientLight(0xffffff, 0.5));
-            
-            rendererL = createWebGL('render-left'); rendererR = createWebGL('render-right');
-            rendererL.setPixelRatio(Math.min(window.devicePixelRatio, 2)); rendererR.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            sceneCommon.add(light);
+            sceneCommon.add(new THREE.AmbientLight(0xffffff, 0.5));
 
+            rendererL = createWebGL('render-left'); rendererR = createWebGL('render-right');
             cssL = createCSS('render-left'); cssR = createCSS('render-right');
-            
+
             window.addEventListener('resize', onResize);
             document.addEventListener('keydown', handleInput);
             document.addEventListener('keyup', e => keys[e.code] = false);
+
             if (windows.length === 0) spawnWindow('text', 0, 1.6, 0); 
             animate();
         }
@@ -312,11 +251,23 @@
             const coords = getSpawnPos();
 
             if (e.key === '1') spawnWindow('text', ...coords);
-            if (e.key === '2') spawnWindow('image', coords[0], coords[1], coords[2], coords[3], "https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg");
-            if (e.key === '3') spawnWindow('video', coords[0], coords[1], coords[2], coords[3], "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
-            if (e.key === '4') spawnWindow('youtube', coords[0], coords[1], coords[2], coords[3], "dQw4w9WgXcQ");
-            if (e.key === '5') spawnWindow('browser', coords[0], coords[1], coords[2], coords[3], "https://en.wikipedia.org/wiki/Main_Page");
-            if (e.key === '6') spawnWindow('upload', ...coords);
+            if (e.key === '2') {
+                const url = prompt("Image URL:", "https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg");
+                if(url) spawnWindow('image', coords[0], coords[1], coords[2], coords[3], url);
+            }
+            if (e.key === '3') {
+                const url = prompt("Video URL:", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+                if(url) spawnWindow('video', coords[0], coords[1], coords[2], coords[3], url);
+            }
+            if (e.key === '4') {
+                let url = prompt("YouTube ID:", "dQw4w9WgXcQ");
+                if(url) spawnWindow('youtube', coords[0], coords[1], coords[2], coords[3], url);
+            }
+            // --- NEW: BROWSER ---
+            if (e.key === '5') {
+                let url = prompt("Enter Website (must allow iframes):", "https://en.wikipedia.org/wiki/Augmented_reality");
+                if(url) spawnWindow('browser', coords[0], coords[1], coords[2], coords[3], url);
+            }
 
             if (e.key.toLowerCase() === 'x') removeLastWindow();
             if (e.key.toLowerCase() === 'g') toggleGrab();
@@ -327,85 +278,66 @@
         function spawnWindow(type, x, y, z, rotationY = 0, customUrl = "", shouldSave = true) {
             windowCounter++;
             const id = windowCounter;
-            const domL = createDOM(id, type, "LEFT", customUrl);
-            const domR = createDOM(id, type, "RIGHT", customUrl);
+            const winData = { id, type, url: customUrl, objL: null, objR: null };
+            
+            winData.objL = createMediaObject(id, type, "LEFT", customUrl);
+            winData.objL.position.set(x, y, z);
+            winData.objL.rotation.y = rotationY;
+            sceneL.add(winData.objL);
 
-            const objL = new CSS3DObject(domL); 
-            objL.scale.set(0.002, 0.002, 0.002);
-            objL.position.set(x, y, z);
-            // Look at player initially
-            objL.lookAt(player.pos.x, 1.6, player.pos.z);
-            sceneL.add(objL);
+            winData.objR = createMediaObject(id, type, "RIGHT", customUrl);
+            winData.objR.position.set(x, y, z);
+            winData.objR.rotation.y = rotationY;
+            sceneR.add(winData.objR);
 
-            const objR = new CSS3DObject(domR); 
-            objR.scale.set(0.002, 0.002, 0.002);
-            objR.position.set(x, y, z); 
-            objR.lookAt(player.pos.x, 1.6, player.pos.z);
-            sceneR.add(objR);
-
-            windows.push({ id, type, url: customUrl, objL, objR, domL, domR });
+            windows.push(winData);
             if(shouldSave) saveWorld();
         }
 
-        function createDOM(id, type, eyeLabel, url) {
+        function createMediaObject(id, type, eyeLabel, url) {
             const div = document.createElement('div');
-            div.className = 'window-container'; 
             div.style.width = '600px'; div.style.height = '400px';
-            div.style.background = 'rgba(0, 10, 20, 0.95)'; 
+            div.style.background = 'rgba(0, 10, 20, 0.9)'; 
             div.style.border = '2px solid #00ffff';
             div.style.boxShadow = '0 0 40px rgba(0,255,255,0.2)';
             div.style.fontFamily = 'monospace'; div.style.color = '#00ffff';
             div.style.display = 'flex'; div.style.flexDirection = 'column';
 
-            if (type === 'browser') {
-                const bar = document.createElement('div');
-                bar.className = 'browser-bar';
-                bar.innerHTML = `<input type="text" class="browser-input" value="${url}" onkeydown="if(event.key === 'Enter') window.navigateBrowser(${id}, '${eyeLabel}')"><button class="browser-btn" onclick="window.navigateBrowser(${id}, '${eyeLabel}')">GO</button>`;
-                div.appendChild(bar);
-            } else {
-                const header = document.createElement('div');
-                header.innerHTML = `HELEN_OS // ${type.toUpperCase()} // ${id}`;
-                header.style.padding = "10px"; header.style.background = "rgba(0,255,255,0.2)"; header.style.fontWeight = "bold";
-                div.appendChild(header);
-            }
+            const header = document.createElement('div');
+            header.innerHTML = `HELEN_OS // ${type.toUpperCase()} // ${id}`;
+            header.style.padding = "10px"; header.style.background = "rgba(0,255,255,0.2)"; header.style.fontWeight = "bold";
+            div.appendChild(header);
 
             const content = document.createElement('div');
-            content.className = 'win-content';
             content.style.flex = "1"; content.style.position = "relative";
-            content.style.overflowY = 'auto'; content.style.pointerEvents = "auto"; 
+            
+            // Allow clicking inside for browser
+            content.style.pointerEvents = "auto"; 
 
             if (type === 'text') {
                 content.style.padding = "20px"; content.style.fontSize = "24px";
-                content.innerHTML = "<p>> SYSTEM READY.</p>";
+                content.innerHTML = `<p>> WORLD: PERSISTENT</p><p>> MEMORY: ACTIVE</p><p style="margin-top:20px; color:#fff;">_READY</p>`;
             } 
-            else if (type === 'image') content.innerHTML = `<img src="${url}" style="width:100%; height:100%; object-fit:contain;">`;
+            else if (type === 'image') content.innerHTML = `<img src="${url}" style="width:100%; height:100%; object-fit:cover;">`;
             else if (type === 'video') content.innerHTML = `<video src="${url}" autoplay loop muted controls style="width:100%; height:100%; object-fit:cover;"></video>`;
             else if (type === 'youtube') content.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${url}?autoplay=1&mute=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-            else if (type === 'browser') content.innerHTML = `<iframe width="100%" height="100%" src="${url}" frameborder="0" style="background:#fff;"></iframe>`;
-            else if (type === 'upload') {
-                content.innerHTML = `
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
-                        <p>SELECT LOCAL MEDIA</p>
-                        <input type="file" id="file-${id}-${eyeLabel}" style="display:none;" onchange="window.handleUpload(${id}, this)">
-                        <label for="file-${id}-${eyeLabel}" class="file-upload-btn">CHOOSE FILE</label>
-                    </div>`;
+            
+            // --- BROWSER IFRAME ---
+            else if (type === 'browser') {
+                content.innerHTML = `<iframe width="100%" height="100%" src="${url}" frameborder="0" style="background:#fff;"></iframe>`;
             }
+
             div.appendChild(content);
-            return div;
+            const obj = new CSS3DObject(div);
+            obj.scale.set(0.002, 0.002, 0.002);
+            return obj;
         }
 
-        // --- UPDATED SPAWN POS (USES CAMERA DIRECTION) ---
         function getSpawnPos() {
-            const direction = new THREE.Vector3();
-            camera.getWorldDirection(direction);
-            direction.y = 0; direction.normalize();
-
-            // Spawn 2 meters in front of wherever camera is looking
-            const x = player.pos.x + (direction.x * 2.0);
-            const z = player.pos.z + (direction.z * 2.0);
-            
-            // Note: rotY is no longer used for spawning rotation, we use lookAt()
-            return [x, 1.6, z, 0];
+            const dist = 2.0;
+            const x = player.pos.x - Math.sin(player.rotY) * dist;
+            const z = player.pos.z - Math.cos(player.rotY) * dist;
+            return [x, 1.6, z, player.rotY];
         }
 
         function removeLastWindow() {
@@ -417,7 +349,7 @@
 
         function createWebGL(id) {
             const c = document.getElementById(id);
-            const r = new THREE.WebGLRenderer({ alpha: true, antialias: false });
+            const r = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             r.setSize(c.clientWidth, c.clientHeight);
             r.domElement.style.position = 'absolute'; r.domElement.style.top = '0'; r.domElement.style.zIndex = '2'; 
             c.appendChild(r.domElement);
@@ -442,48 +374,29 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            
-            // --- UPDATED PHYSICS: WALK IN DIRECTION OF GAZE ---
-            if (controls) controls.update(); // Updates camera rotation from sensors
-            
+            // Physics
             const speed = 0.05;
-            const direction = new THREE.Vector3();
-            camera.getWorldDirection(direction);
-            direction.y = 0; direction.normalize();
-
-            const sideways = new THREE.Vector3();
-            sideways.crossVectors(camera.up, direction).normalize();
-
-            if(keys['KeyW']) player.pos.addScaledVector(direction, speed);
-            if(keys['KeyS']) player.pos.addScaledVector(direction, -speed);
-            if(keys['KeyD']) player.pos.addScaledVector(sideways, -speed); // Note: Sideways logic inverted for correct strafe
-            if(keys['KeyA']) player.pos.addScaledVector(sideways, speed);
+            if(keys['KeyW']) player.pos.z -= speed;
+            if(keys['KeyS']) player.pos.z += speed;
+            if(keys['KeyA']) player.rotY += 0.03;
+            if(keys['KeyD']) player.rotY -= 0.03;
             
-            updateGrabbedWindow(); 
-            syncWindows(); 
+            updateGrabbedWindow(); // Move grabbed window if exists
 
             const halfIPD = IPD / 2;
-            
-            // LEFT
-            const leftCamPos = player.pos.clone();
-            const leftOffset = new THREE.Vector3(-halfIPD, 0, 0);
-            leftOffset.applyQuaternion(camera.quaternion); // Rotate offset by camera rotation
-            leftCamPos.add(leftOffset);
-            
-            camera.position.copy(leftCamPos);
+            camera.position.copy(player.pos);
+            camera.rotation.set(0, player.rotY, 0);
+            camera.translateX(-halfIPD);
             camera.updateMatrixWorld();
             rendererL.render(sceneCommon, camera); cssL.render(sceneL, camera);
 
-            // RIGHT
-            const rightCamPos = player.pos.clone();
-            const rightOffset = new THREE.Vector3(halfIPD, 0, 0);
-            rightOffset.applyQuaternion(camera.quaternion);
-            rightCamPos.add(rightOffset);
-
-            camera.position.copy(rightCamPos);
+            camera.position.copy(player.pos);
+            camera.rotation.set(0, player.rotY, 0);
+            camera.translateX(halfIPD);
             camera.updateMatrixWorld();
             rendererR.render(sceneCommon, camera); cssR.render(sceneR, camera);
         }
     </script>
 </body>
 </html>
+
