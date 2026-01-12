@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: BODY LOCKED MENU</title>
+    <title>HELEN: BODY LOCKED V2</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -45,8 +45,8 @@
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div class="status">
-        [ TACTICAL MENU ]<br>
-        Menu now follows operator.
+        [ SYSTEM UPDATED ]<br>
+        Menu tracking calibrated for<br>locomotion.
     </div>
 
     <div class="btn-group">
@@ -296,8 +296,15 @@
 
     function spawnFromMenu(index) {
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-        const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-        const pos = camera.position.clone().add(dir.multiplyScalar(3));
+        // Use World Space position relative to camera
+        const dir = new THREE.Vector3(); 
+        camera.getWorldDirection(dir);
+        const worldPos = new THREE.Vector3();
+        camera.getWorldPosition(worldPos);
+        
+        // Spawn 3 meters in front of REAL position
+        const pos = worldPos.add(dir.multiplyScalar(3));
+        
         spawnDecryptedScreen(pos, db[index]);
         isMenuOpen = false; menuGroup.visible = false;
     }
@@ -321,7 +328,13 @@
         }
         const geometry = new THREE.PlaneGeometry(width, height);
         const screen = new THREE.Mesh(geometry, material);
-        screen.position.copy(position); screen.lookAt(camera.position); screen.rotation.z = 0; screen.rotation.x = 0; 
+        screen.position.copy(position); 
+        
+        // Face player, but stay vertical
+        const playerPos = new THREE.Vector3();
+        camera.getWorldPosition(playerPos);
+        screen.lookAt(playerPos.x, screen.position.y, playerPos.z); 
+
         screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: data.type === 'pdf' ? 0xffff00 : 0x00ffff })));
         screen.userData = { isScreen: true, label: data.label, videoElement: videoElem };
         scene.add(screen); targets.push(screen);
@@ -350,20 +363,27 @@
         if (pad.buttons[2].pressed && !lastBtn.square) {
             isMenuOpen = !isMenuOpen; 
             menuGroup.visible = isMenuOpen;
-            // No static placement here anymore
         }
         lastBtn.square = pad.buttons[2].pressed;
 
-        // NEW: BODY-LOCKED MENU LOGIC
+        // FIXED: MENU FOLLOWS PLAYER IN WORLD SPACE
         if (isMenuOpen) {
             const dir = new THREE.Vector3(); 
             camera.getWorldDirection(dir);
-            dir.y = 0; dir.normalize(); // Flatten vector
+            dir.y = 0; dir.normalize(); 
             
-            // Move menu 2.5m in front of player
-            const targetPos = camera.position.clone().add(dir.multiplyScalar(2.5));
+            // Get Absolute World Position
+            const worldPos = new THREE.Vector3();
+            camera.getWorldPosition(worldPos);
+
+            // Place menu 2.5m away
+            const targetPos = worldPos.add(dir.multiplyScalar(2.5));
             menuGroup.position.copy(targetPos);
-            menuGroup.lookAt(camera.position); // Always face player
+            
+            // Look at absolute head position
+            const headPos = new THREE.Vector3();
+            camera.getWorldPosition(headPos);
+            menuGroup.lookAt(headPos);
         }
 
         // TRIANGLE: VISION CYCLE (0 -> 1 -> 2 -> 0)
