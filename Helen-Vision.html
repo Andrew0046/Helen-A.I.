@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: PERSISTENCE</title>
+    <title>HELEN: SMART MENU</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -20,6 +20,7 @@
             cursor: pointer; text-transform: uppercase;
         }
         button.primary { background: #00ffff; color: #000; }
+        .file-count { color: #00ff00; font-size: 12px; margin-top: -10px; text-align: right; display: none; }
         .controls-hint { font-size: 11px; color: #666; margin-top: 20px; text-align: left; width: 100%; }
         .save-alert { color: #00ff00; font-weight:bold; margin-bottom: 10px; display: none; }
     </style>
@@ -46,19 +47,19 @@
     <h1>HELEN OS</h1>
     <div id="save-found-msg" class="save-alert">⚠️ PREVIOUS MISSION FOUND</div>
     <div class="status">
-        [ PERSISTENCE MODULE ]<br>
-        Save your workspace layout.
+        [ SMART MENU SYSTEM ]<br>
+        Inventory now follows you.
     </div>
 
     <div class="btn-group">
         <button onclick="document.getElementById('intel-input').click()">📂 LOAD DATABASE</button>
         <button id="restore-btn" style="display:none; border-color:#00ff00; color:#00ff00;" onclick="restoreMission()">↺ RESTORE SAVE</button>
-        <div id="file-status" style="color:#00ff00; font-size:12px; display:none; text-align:right;"></div>
+        <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [□] MENU -> SAVE/LOAD<br>
-            [X] SELECT &nbsp; [O] DELETE &nbsp; [△] VISION
+            [□] MENU &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [X] SELECT<br>
+            [O] DELETE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [△] VISION
         </div>
     </div>
 </div>
@@ -85,11 +86,16 @@
     let targets = []; 
     let activeObject = { obj: null, progress: 0 }; 
     
-    // MENU
+    // MENU SYSTEM
     let menuGroup, menuMesh, menuCanvas, menuCtx, menuTexture;
     let isMenuOpen = false;
     let hoveredFileIndex = -1;
-    let systemMessage = ""; // For "GAME SAVED" popup
+    let systemMessage = "";
+    
+    // TAG-ALONG LOGIC VARS
+    const MENU_DISTANCE = 2.5; // How far away it floats
+    const MENU_LERP = 0.05;    // How fast it catches up (0.1 = fast, 0.01 = slow)
+    const MENU_DEADZONE = 0.4; // How much you can look around before it moves (in radians)
 
     // HARDWARE
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
@@ -98,16 +104,13 @@
     const SPEED = 0.1; 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    // --- 0. PERSISTENCE CHECK ---
-    // Check on load if data exists
+    // --- 0. RESTORE LOGIC ---
     const savedData = localStorage.getItem('helen_mission_save');
     if (savedData) {
         document.getElementById('save-found-msg').style.display = 'block';
         document.getElementById('restore-btn').style.display = 'block';
     }
-
     window.restoreMission = function() {
-        // We will parse this once VR starts
         window.shouldRestore = true;
         document.getElementById('restore-btn').innerText = ">> RESTORE ARMED <<";
         document.getElementById('restore-btn').style.background = "#003300";
@@ -116,23 +119,19 @@
     // --- 1. FILE PROCESSING ---
     const input = document.getElementById('intel-input');
     const statusLabel = document.getElementById('file-status');
-
     input.addEventListener('change', async (e) => {
         if (e.target.files.length > 0) {
             CUSTOM_DATABASE = [];
-            statusLabel.innerText = "PROCESSING..."; statusLabel.style.display = 'block';
+            statusLabel.innerText = "PROCESSING..."; statusLabel.style.display = 'block'; statusLabel.style.color = '#ffff00';
             for (let i = 0; i < e.target.files.length; i++) {
                 const file = e.target.files[i];
                 let name = file.name.toUpperCase();
                 if(name.length > 15) name = name.substring(0,12) + "...";
-                
-                // Read as DataURL for persistent storage (so we can save it to text)
                 const reader = new FileReader();
                 const base64Promise = new Promise(resolve => { reader.onload = e => resolve(e.target.result); reader.readAsDataURL(file); });
                 const base64 = await base64Promise;
 
                 if (file.type === 'application/pdf') {
-                    // For PDF, we render to canvas then save that image data
                     try {
                         const pdfData = await file.arrayBuffer();
                         const pdf = await pdfjsLib.getDocument(pdfData).promise;
@@ -146,9 +145,6 @@
                     } catch (err) {}
                 } 
                 else if (file.type.startsWith('video')) {
-                    // Video blobs cannot be saved easily to localStorage (too big). 
-                    // We save the reference, but in this "Web" version, persistent video is tricky without a server.
-                    // For now, we store the blob URL for the session.
                     CUSTOM_DATABASE.push({ type: 'video', src: URL.createObjectURL(file), label: name, isBlob: true });
                 } 
                 else {
@@ -156,16 +152,16 @@
                 }
             }
             statusLabel.innerText = `${CUSTOM_DATABASE.length} FILES READY`;
+            statusLabel.style.color = '#00ff00';
         }
     });
 
-    // --- 2. HARDWARE INIT ---
+    // --- 2. HARDWARE ---
     async function scanCameras() {
         if (!navigator.mediaDevices?.enumerateDevices) return;
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(d => d.kind === 'videoinput' && !d.label.toLowerCase().includes('front'));
         allBackCameras = cameras.map(c => c.deviceId);
-        
         for (const cam of cameras) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
@@ -263,13 +259,10 @@
         animate();
     }
 
-    // --- 4. PERSISTENCE LOGIC ---
+    // --- 4. PERSISTENCE ---
     function saveMission() {
         const objectsToSave = [];
         targets.forEach(t => {
-            // Only save screens/nodes that have persistent data (skip videos blobs for now or save metadata)
-            // Note: Saving large images to localStorage might hit quota (5MB). 
-            // In a real app, use IndexedDB. Here we try our best.
             objectsToSave.push({
                 x: t.position.x, y: t.position.y, z: t.position.z,
                 rx: t.rotation.x, ry: t.rotation.y, rz: t.rotation.z,
@@ -277,14 +270,10 @@
                 data: t.userData.data
             });
         });
-
         try {
             localStorage.setItem('helen_mission_save', JSON.stringify(objectsToSave));
             showSystemMessage("MISSION SAVED");
-        } catch(e) {
-            showSystemMessage("SAVE FAILED (DATA TOO LARGE)");
-            console.error(e);
-        }
+        } catch(e) { showSystemMessage("SAVE FAILED (DATA TOO LARGE)"); }
     }
 
     function applySaveData() {
@@ -295,36 +284,25 @@
             objects.forEach(obj => {
                 const pos = new THREE.Vector3(obj.x, obj.y, obj.z);
                 const rot = new THREE.Euler(obj.rx, obj.ry, obj.rz);
-                
-                if (obj.type === 'node') {
-                    spawnNodeAt(obj.x, obj.y, obj.z, obj.data);
-                } else {
-                    spawnDecryptedScreen(pos, obj.data, rot);
-                }
+                if (obj.type === 'node') spawnNodeAt(obj.x, obj.y, obj.z, obj.data);
+                else spawnDecryptedScreen(pos, obj.data, rot);
             });
             showSystemMessage("MISSION RESTORED");
-        } catch(e) {
-            console.error("Load failed", e);
-        }
+        } catch(e) {}
     }
 
     function wipeSave() {
         localStorage.removeItem('helen_mission_save');
-        targets.forEach(t => {
-             scene.remove(t);
-             if(t.userData.videoElement) t.userData.videoElement.pause();
-        });
-        targets = [];
-        showSystemMessage("DATABASE WIPED");
+        targets.forEach(t => { scene.remove(t); if(t.userData.videoElement) t.userData.videoElement.pause(); });
+        targets = []; showSystemMessage("DATABASE WIPED");
     }
 
     function showSystemMessage(msg) {
-        systemMessage = msg;
-        updateMenuDisplay();
+        systemMessage = msg; updateMenuDisplay();
         setTimeout(() => { systemMessage = ""; updateMenuDisplay(); }, 3000);
     }
 
-    // --- 5. MENU & SPAWN ---
+    // --- 5. SMART MENU ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         menuCanvas = document.createElement('canvas'); menuCanvas.width = 1024; menuCanvas.height = 1024;
@@ -339,38 +317,26 @@
     function updateMenuDisplay() {
         const ctx = menuCtx; const w = 1024; const h = 1024;
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-        
         ctx.fillStyle = 'rgba(0, 10, 20, 0.9)'; ctx.fillRect(0, 0, w, h);
-        
-        // Header
-        ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; 
-        ctx.fillText("TACTICAL INVENTORY", w/2, 80);
+        ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 80);
         ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
         
-        // SYSTEM OPTIONS (Top of list)
         const sysOpts = [" [SAVE MISSION]", " [WIPE DATA]"];
         ctx.textAlign = 'left'; ctx.font = '50px Courier New';
-        
         let listY = 180;
         
-        // Draw System Options
         for (let i=0; i<sysOpts.length; i++) {
              if (i === hoveredFileIndex) {
                 ctx.fillStyle = '#ff0055'; ctx.fillRect(50, listY - 50, w - 100, 60);
                 ctx.fillStyle = '#fff'; ctx.fillText(sysOpts[i], 80, listY);
-            } else {
-                ctx.fillStyle = '#ff0055'; ctx.fillText(sysOpts[i], 80, listY);
-            }
+            } else { ctx.fillStyle = '#ff0055'; ctx.fillText(sysOpts[i], 80, listY); }
             listY += 70;
         }
 
-        // Draw Files
         ctx.fillStyle = '#00aaaa'; 
         const maxItems = 8;
         for (let i = 0; i < Math.min(db.length, maxItems); i++) {
-            // Offset index by system options
             const menuIndex = i + sysOpts.length;
-            
             if (menuIndex === hoveredFileIndex) {
                 ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 100, 60);
                 ctx.fillStyle = '#fff'; ctx.fillText(`> ${db[i].label}`, 80, listY);
@@ -381,21 +347,16 @@
             listY += 70;
         }
 
-        // System Message Popup
         if (systemMessage) {
             ctx.fillStyle = '#00ff00'; ctx.fillRect(100, h/2 - 50, w-200, 100);
             ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.fillText(systemMessage, w/2, h/2 + 15);
         }
-
         menuTexture.needsUpdate = true;
     }
 
     function spawnFromMenu(index) {
-        // Index 0 = Save, Index 1 = Wipe
         if (index === 0) { saveMission(); return; }
         if (index === 1) { wipeSave(); return; }
-        
-        // Real files start at index 2
         const fileIndex = index - 2;
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         if (fileIndex >= 0 && fileIndex < db.length) {
@@ -434,13 +395,8 @@
         const geometry = new THREE.PlaneGeometry(width, height);
         const screen = new THREE.Mesh(geometry, material);
         screen.position.copy(position); 
-        
-        if (rotation) {
-            screen.rotation.copy(rotation);
-        } else {
-            screen.lookAt(camera.position); screen.rotation.z = 0; screen.rotation.x = 0; 
-        }
-
+        if (rotation) screen.rotation.copy(rotation);
+        else { screen.lookAt(camera.position); screen.rotation.z = 0; screen.rotation.x = 0; }
         screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: data.type === 'pdf' ? 0xffff00 : 0x00ffff })));
         screen.userData = { isScreen: true, label: data.label, videoElement: videoElem, data: data };
         scene.add(screen); targets.push(screen);
@@ -455,6 +411,34 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
+    // --- 6. SMART TAG-ALONG ---
+    function updateMenuPosition() {
+        if (!isMenuOpen || !menuGroup) return;
+
+        // Where is user looking?
+        const cameraForward = new THREE.Vector3();
+        camera.getWorldDirection(cameraForward);
+        cameraForward.y = 0; cameraForward.normalize();
+
+        // Where is menu?
+        const menuPos = menuGroup.position.clone();
+        const vectorToMenu = menuPos.sub(camera.position);
+        vectorToMenu.y = 0; vectorToMenu.normalize();
+
+        // Calculate angle between Look and Menu
+        const angle = cameraForward.angleTo(vectorToMenu);
+
+        // If angle > deadzone (user looked away), gently float menu back to center
+        if (angle > MENU_DEADZONE) {
+            // Target position: 2.5m in front of camera
+            const targetPos = camera.position.clone().add(cameraForward.multiplyScalar(MENU_DISTANCE));
+            
+            // LERP (Smooth Move)
+            menuGroup.position.lerp(targetPos, MENU_LERP);
+            menuGroup.lookAt(camera.position); // Always face user
+        }
+    }
+
     // --- INPUT LOOP ---
     function handleInput() {
         const pads = navigator.getGamepads(); if(!pads[0]) return;
@@ -466,6 +450,7 @@
             dolly.position.addScaledVector(_moveDir, -z * SPEED); dolly.position.addScaledVector(_strafeDir, x * SPEED);
         }
         
+        // SQUARE: MENU
         if (pad.buttons[2].pressed && !lastBtn.square) {
             isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen;
             if (isMenuOpen) {
@@ -476,6 +461,7 @@
         }
         lastBtn.square = pad.buttons[2].pressed;
 
+        // TRIANGLE: VISION CYCLE
         if (pad.buttons[3].pressed && !lastBtn.triangle) {
             visionMode = (visionMode + 1) % 3;
             if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
@@ -490,10 +476,8 @@
             const intersects = raycaster.intersectObject(menuMesh);
             if (intersects.length > 0) {
                 const uvY = intersects[0].uv.y;
-                // Mapping: Top starts at 0.82 (approx 180px). Step is 0.068 (70px)
                 if (uvY < 0.82) {
                     const idx = Math.floor((0.82 - uvY) / 0.068);
-                    // Valid indices: 0 (Save), 1 (Wipe), 2+ (Files)
                     if (idx >= 0 && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
                 }
             } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
@@ -519,7 +503,7 @@
 
         const cx = w/2; const cy = h/2;
         if (isMenuOpen) {
-            ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center'; ctx.fillText("MENU OPEN", cx, cy + 200);
+            ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center'; ctx.fillText("MENU ONLINE", cx, cy + 200);
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy); ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10); ctx.stroke();
         } else if (activeObject.obj) {
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
@@ -532,7 +516,13 @@
     }
 
     function animate() {
-        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); targets.forEach(t => { if(t.userData.isNode) { t.rotation.x += 0.01; t.rotation.y += 0.01; } }); renderer.render(scene, camera); });
+        renderer.setAnimationLoop(() => { 
+            handleInput(); 
+            updateMenuPosition(); // <-- THIS IS THE NEW FIX
+            updateHUD(); 
+            targets.forEach(t => { if(t.userData.isNode) { t.rotation.x += 0.01; t.rotation.y += 0.01; } }); 
+            renderer.render(scene, camera); 
+        });
     }
 </script>
 </body>
