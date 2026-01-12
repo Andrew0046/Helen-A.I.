@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: ARCHITECT</title>
+    <title>HELEN: PERSISTENCE</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -44,21 +44,21 @@
 
 <div id="overlay">
     <h1>HELEN OS</h1>
-    <div id="save-found-msg" class="save-alert">⚠️ ARCHITECT DATA FOUND</div>
+    <div id="save-found-msg" class="save-alert">⚠️ PREVIOUS MISSION FOUND</div>
     <div class="status">
-        [ ARCHITECT MODE ]<br>
-        Precision Placement & Editing.
+        [ PERSISTENCE MODULE ]<br>
+        Save your workspace layout.
     </div>
 
     <div class="btn-group">
         <button onclick="document.getElementById('intel-input').click()">📂 LOAD DATABASE</button>
-        <button id="restore-btn" style="display:none; border-color:#00ff00; color:#00ff00;" onclick="restoreMission()">↺ RESTORE LAYOUT</button>
+        <button id="restore-btn" style="display:none; border-color:#00ff00; color:#00ff00;" onclick="restoreMission()">↺ RESTORE SAVE</button>
         <div id="file-status" style="color:#00ff00; font-size:12px; display:none; text-align:right;"></div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [□] MENU &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [X] SELECT / PLACE<br>
-            [O] CANCEL &nbsp;&nbsp;&nbsp;&nbsp; [L1/R1] ROTATE / LENS
+            [□] MENU -> SAVE/LOAD<br>
+            [X] SELECT &nbsp; [O] DELETE &nbsp; [△] VISION
         </div>
     </div>
 </div>
@@ -85,17 +85,11 @@
     let targets = []; 
     let activeObject = { obj: null, progress: 0 }; 
     
-    // GHOST / PLACEMENT SYSTEM
-    let ghostMesh = null;
-    let placementData = null; // Data of object being placed
-    let placementDist = 2.5; // Default distance
-    let holdTimer = 0; // For "Hold X to Move"
-
     // MENU
     let menuGroup, menuMesh, menuCanvas, menuCtx, menuTexture;
     let isMenuOpen = false;
     let hoveredFileIndex = -1;
-    let systemMessage = "";
+    let systemMessage = ""; // For "GAME SAVED" popup
 
     // HARDWARE
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
@@ -104,14 +98,16 @@
     const SPEED = 0.1; 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    // --- 0. PERSISTENCE ---
-    const savedData = localStorage.getItem('helen_architect_save');
+    // --- 0. PERSISTENCE CHECK ---
+    // Check on load if data exists
+    const savedData = localStorage.getItem('helen_mission_save');
     if (savedData) {
         document.getElementById('save-found-msg').style.display = 'block';
         document.getElementById('restore-btn').style.display = 'block';
     }
 
     window.restoreMission = function() {
+        // We will parse this once VR starts
         window.shouldRestore = true;
         document.getElementById('restore-btn').innerText = ">> RESTORE ARMED <<";
         document.getElementById('restore-btn').style.background = "#003300";
@@ -130,11 +126,13 @@
                 let name = file.name.toUpperCase();
                 if(name.length > 15) name = name.substring(0,12) + "...";
                 
+                // Read as DataURL for persistent storage (so we can save it to text)
                 const reader = new FileReader();
                 const base64Promise = new Promise(resolve => { reader.onload = e => resolve(e.target.result); reader.readAsDataURL(file); });
                 const base64 = await base64Promise;
 
                 if (file.type === 'application/pdf') {
+                    // For PDF, we render to canvas then save that image data
                     try {
                         const pdfData = await file.arrayBuffer();
                         const pdf = await pdfjsLib.getDocument(pdfData).promise;
@@ -148,6 +146,9 @@
                     } catch (err) {}
                 } 
                 else if (file.type.startsWith('video')) {
+                    // Video blobs cannot be saved easily to localStorage (too big). 
+                    // We save the reference, but in this "Web" version, persistent video is tricky without a server.
+                    // For now, we store the blob URL for the session.
                     CUSTOM_DATABASE.push({ type: 'video', src: URL.createObjectURL(file), label: name, isBlob: true });
                 } 
                 else {
@@ -158,7 +159,7 @@
         }
     });
 
-    // --- 2. HARDWARE ---
+    // --- 2. HARDWARE INIT ---
     async function scanCameras() {
         if (!navigator.mediaDevices?.enumerateDevices) return;
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -203,7 +204,7 @@
         } catch (err) {}
     }
 
-    // --- 3. 3D ENGINE ---
+    // --- 3. 3D SETUP ---
     scanCameras().then(init3D);
 
     const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
@@ -262,122 +263,68 @@
         animate();
     }
 
-    // --- 4. GHOST PLACEMENT SYSTEM ---
-    function startPlacement(data) {
-        // Clear previous ghost if any
-        if (ghostMesh) { scene.remove(ghostMesh); ghostMesh = null; }
-
-        placementData = data;
-        placementDist = 2.5; // Reset distance
-        
-        // Create Visual Ghost
-        let width = 3, height = 1.8;
-        if (data.type === 'pdf' && data.ratio) { height = 2.5; width = height * data.ratio; }
-        
-        const geo = new THREE.PlaneGeometry(width, height);
-        // Use texture if available, but transparent
-        let tex = null;
-        if (data.type !== 'video') { // Don't preload video for ghost, just use color
-             tex = new THREE.TextureLoader().load(data.src);
-        }
-        
-        const mat = new THREE.MeshBasicMaterial({ 
-            map: tex, color: tex ? 0xffffff : 0x00ffff, 
-            transparent: true, opacity: 0.5, side: THREE.DoubleSide, wireframe: false 
-        });
-        
-        ghostMesh = new THREE.Mesh(geo, mat);
-        // Add wireframe
-        ghostMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0x00ff00 })));
-        
-        scene.add(ghostMesh);
-    }
-
-    function confirmPlacement() {
-        if (!ghostMesh) return;
-        
-        // Spawn Real Object at Ghost Transform
-        spawnDecryptedScreen(ghostMesh.position, placementData, ghostMesh.rotation);
-        
-        // Cleanup
-        scene.remove(ghostMesh);
-        ghostMesh = null;
-        placementData = null;
-    }
-
-    function cancelPlacement() {
-        if (ghostMesh) { scene.remove(ghostMesh); ghostMesh = null; }
-        placementData = null;
-    }
-
-    function updateGhost(pad) {
-        if (!ghostMesh) return;
-        
-        // 1. Position: Locked to Camera + Distance
-        const dir = new THREE.Vector3(); 
-        camera.getWorldDirection(dir);
-        // Add "Look Offset" - if we look up, ghost goes up.
-        // We calculate position directly
-        const targetPos = camera.position.clone().add(dir.multiplyScalar(placementDist));
-        
-        // Smooth lerp for visual comfort
-        ghostMesh.position.lerp(targetPos, 0.2);
-        
-        // 2. Rotation: Face Camera by default, but allow manual override
-        // If we haven't manually rotated much, keep facing camera
-        // For simplicity, let's make it always LookAt camera Y-axis only?
-        // Let's implement MANUAL Rotation via Bumpers
-        
-        if (pad.buttons[4].pressed) ghostMesh.rotation.y += 0.05; // L1
-        if (pad.buttons[5].pressed) ghostMesh.rotation.y -= 0.05; // R1
-        
-        // Ensure it stays upright
-        ghostMesh.rotation.x = 0;
-        ghostMesh.rotation.z = 0;
-    }
-
-    function pickupObject(obj) {
-        // Convert existing object back to data
-        const data = obj.userData.data;
-        // Delete existing
-        deleteObject(obj);
-        // Start placement with data
-        startPlacement(data);
-    }
-
-    // --- 5. SAVING ---
+    // --- 4. PERSISTENCE LOGIC ---
     function saveMission() {
         const objectsToSave = [];
         targets.forEach(t => {
+            // Only save screens/nodes that have persistent data (skip videos blobs for now or save metadata)
+            // Note: Saving large images to localStorage might hit quota (5MB). 
+            // In a real app, use IndexedDB. Here we try our best.
             objectsToSave.push({
                 x: t.position.x, y: t.position.y, z: t.position.z,
                 rx: t.rotation.x, ry: t.rotation.y, rz: t.rotation.z,
+                type: t.userData.isScreen ? 'screen' : 'node',
                 data: t.userData.data
             });
         });
+
         try {
-            localStorage.setItem('helen_architect_save', JSON.stringify(objectsToSave));
-            showSystemMessage("LAYOUT SAVED");
-        } catch(e) { showSystemMessage("SAVE FAILED (FULL)"); }
+            localStorage.setItem('helen_mission_save', JSON.stringify(objectsToSave));
+            showSystemMessage("MISSION SAVED");
+        } catch(e) {
+            showSystemMessage("SAVE FAILED (DATA TOO LARGE)");
+            console.error(e);
+        }
     }
 
     function applySaveData() {
-        const data = localStorage.getItem('helen_architect_save');
+        const data = localStorage.getItem('helen_mission_save');
         if (!data) return;
-        JSON.parse(data).forEach(obj => {
-            const pos = new THREE.Vector3(obj.x, obj.y, obj.z);
-            const rot = new THREE.Euler(obj.rx, obj.ry, obj.rz);
-            spawnDecryptedScreen(pos, obj.data, rot);
+        try {
+            const objects = JSON.parse(data);
+            objects.forEach(obj => {
+                const pos = new THREE.Vector3(obj.x, obj.y, obj.z);
+                const rot = new THREE.Euler(obj.rx, obj.ry, obj.rz);
+                
+                if (obj.type === 'node') {
+                    spawnNodeAt(obj.x, obj.y, obj.z, obj.data);
+                } else {
+                    spawnDecryptedScreen(pos, obj.data, rot);
+                }
+            });
+            showSystemMessage("MISSION RESTORED");
+        } catch(e) {
+            console.error("Load failed", e);
+        }
+    }
+
+    function wipeSave() {
+        localStorage.removeItem('helen_mission_save');
+        targets.forEach(t => {
+             scene.remove(t);
+             if(t.userData.videoElement) t.userData.videoElement.pause();
         });
-        showSystemMessage("LAYOUT RESTORED");
+        targets = [];
+        showSystemMessage("DATABASE WIPED");
     }
 
     function showSystemMessage(msg) {
-        systemMessage = msg; updateMenuDisplay();
+        systemMessage = msg;
+        updateMenuDisplay();
         setTimeout(() => { systemMessage = ""; updateMenuDisplay(); }, 3000);
     }
 
-    // --- 6. MENU ---
+    // --- 5. MENU & SPAWN ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         menuCanvas = document.createElement('canvas'); menuCanvas.width = 1024; menuCanvas.height = 1024;
@@ -392,42 +339,80 @@
     function updateMenuDisplay() {
         const ctx = menuCtx; const w = 1024; const h = 1024;
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+        
         ctx.fillStyle = 'rgba(0, 10, 20, 0.9)'; ctx.fillRect(0, 0, w, h);
-        ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("ARCHITECT INVENTORY", w/2, 80);
+        
+        // Header
+        ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; 
+        ctx.fillText("TACTICAL INVENTORY", w/2, 80);
         ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
         
-        const sysOpts = [" [SAVE LAYOUT]", " [WIPE DATA]"];
+        // SYSTEM OPTIONS (Top of list)
+        const sysOpts = [" [SAVE MISSION]", " [WIPE DATA]"];
         ctx.textAlign = 'left'; ctx.font = '50px Courier New';
+        
         let listY = 180;
+        
+        // Draw System Options
         for (let i=0; i<sysOpts.length; i++) {
-             if (i === hoveredFileIndex) { ctx.fillStyle = '#ff0055'; ctx.fillRect(50, listY - 50, w - 100, 60); ctx.fillStyle = '#fff'; ctx.fillText(sysOpts[i], 80, listY); } 
-             else { ctx.fillStyle = '#ff0055'; ctx.fillText(sysOpts[i], 80, listY); }
+             if (i === hoveredFileIndex) {
+                ctx.fillStyle = '#ff0055'; ctx.fillRect(50, listY - 50, w - 100, 60);
+                ctx.fillStyle = '#fff'; ctx.fillText(sysOpts[i], 80, listY);
+            } else {
+                ctx.fillStyle = '#ff0055'; ctx.fillText(sysOpts[i], 80, listY);
+            }
             listY += 70;
         }
 
+        // Draw Files
         ctx.fillStyle = '#00aaaa'; 
-        for (let i = 0; i < Math.min(db.length, 8); i++) {
+        const maxItems = 8;
+        for (let i = 0; i < Math.min(db.length, maxItems); i++) {
+            // Offset index by system options
             const menuIndex = i + sysOpts.length;
-            if (menuIndex === hoveredFileIndex) { ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 100, 60); ctx.fillStyle = '#fff'; ctx.fillText(`> ${db[i].label}`, 80, listY); } 
-            else { ctx.fillStyle = '#00aaaa'; ctx.fillText(`  ${db[i].label}`, 80, listY); }
+            
+            if (menuIndex === hoveredFileIndex) {
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 100, 60);
+                ctx.fillStyle = '#fff'; ctx.fillText(`> ${db[i].label}`, 80, listY);
+            } else {
+                ctx.fillStyle = '#00aaaa'; ctx.fillText(`  ${db[i].label}`, 80, listY);
+            }
             ctx.fillStyle = '#666'; ctx.fillText(db[i].type.toUpperCase(), w - 200, listY);
             listY += 70;
         }
-        if (systemMessage) { ctx.fillStyle = '#00ff00'; ctx.fillRect(100, h/2 - 50, w-200, 100); ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.fillText(systemMessage, w/2, h/2 + 15); }
+
+        // System Message Popup
+        if (systemMessage) {
+            ctx.fillStyle = '#00ff00'; ctx.fillRect(100, h/2 - 50, w-200, 100);
+            ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.fillText(systemMessage, w/2, h/2 + 15);
+        }
+
         menuTexture.needsUpdate = true;
     }
 
     function spawnFromMenu(index) {
+        // Index 0 = Save, Index 1 = Wipe
         if (index === 0) { saveMission(); return; }
-        if (index === 1) { localStorage.removeItem('helen_architect_save'); showSystemMessage("WIPED"); return; }
+        if (index === 1) { wipeSave(); return; }
         
+        // Real files start at index 2
         const fileIndex = index - 2;
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         if (fileIndex >= 0 && fileIndex < db.length) {
-            // ENTER GHOST MODE
-            startPlacement(db[fileIndex]);
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            const pos = camera.position.clone().add(dir.multiplyScalar(3));
+            spawnDecryptedScreen(pos, db[fileIndex]);
             isMenuOpen = false; menuGroup.visible = false;
         }
+    }
+
+    function spawnNodeAt(x, y, z, data) {
+        const geo = new THREE.IcosahedronGeometry(0.5, 0); 
+        const color = data.type === 'pdf' ? 0xffff00 : 0x00ffff;
+        const mat = new THREE.MeshBasicMaterial({ color: color, wireframe: true });
+        const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x, y, z);
+        mesh.userData = { isNode: true, data: data || DEFAULT_DATABASE[0] }; 
+        scene.add(mesh); targets.push(mesh);
     }
 
     function spawnDecryptedScreen(position, data, rotation = null) {
@@ -449,14 +434,22 @@
         const geometry = new THREE.PlaneGeometry(width, height);
         const screen = new THREE.Mesh(geometry, material);
         screen.position.copy(position); 
-        if (rotation) screen.rotation.copy(rotation); else { screen.lookAt(camera.position); screen.rotation.z = 0; screen.rotation.x = 0; }
+        
+        if (rotation) {
+            screen.rotation.copy(rotation);
+        } else {
+            screen.lookAt(camera.position); screen.rotation.z = 0; screen.rotation.x = 0; 
+        }
+
         screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: data.type === 'pdf' ? 0xffff00 : 0x00ffff })));
         screen.userData = { isScreen: true, label: data.label, videoElement: videoElem, data: data };
         scene.add(screen); targets.push(screen);
     }
 
     function deleteObject(obj) {
-        if (obj.userData.videoElement) { obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load(); }
+        if (obj.userData.videoElement) {
+            obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
+        }
         if (obj.material.map) obj.material.map.dispose();
         obj.material.dispose(); obj.geometry.dispose();
         scene.remove(obj); targets = targets.filter(t => t !== obj);
@@ -467,15 +460,13 @@
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
         
-        // MOVEMENT
         const x = Math.abs(pad.axes[0]) > 0.1 ? pad.axes[0] : 0; const z = Math.abs(pad.axes[1]) > 0.1 ? pad.axes[1] : 0;
         if (x !== 0 || z !== 0) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize(); _strafeDir.crossVectors(camera.up, _moveDir).normalize();
             dolly.position.addScaledVector(_moveDir, -z * SPEED); dolly.position.addScaledVector(_strafeDir, x * SPEED);
         }
         
-        // SQUARE: MENU (Only if not placing)
-        if (pad.buttons[2].pressed && !lastBtn.square && !ghostMesh) {
+        if (pad.buttons[2].pressed && !lastBtn.square) {
             isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen;
             if (isMenuOpen) {
                 const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
@@ -485,66 +476,35 @@
         }
         lastBtn.square = pad.buttons[2].pressed;
 
-        // GHOST MODE LOGIC
-        if (ghostMesh) {
-            updateGhost(pad);
-            // X: PLACE
-            if (pad.buttons[0].pressed && !lastBtn.x) confirmPlacement();
-            // CIRCLE: CANCEL
-            if (pad.buttons[1].pressed && !lastBtn.circle) cancelPlacement();
-        } 
-        else {
-            // NORMAL MODE
-            
-            // TRIANGLE: VISION
-            if (pad.buttons[3].pressed && !lastBtn.triangle) {
-                visionMode = (visionMode + 1) % 3;
-                if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
-                if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(()=>videoTrack?.applyConstraints({advanced:[{torch:true}]}));
-                else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
-            }
-            lastBtn.triangle = pad.buttons[3].pressed;
-
-            // BUMPER: CYCLE LENS (Only if not ghost)
-            if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastBtn.bumper && allBackCameras.length > 1) {
-                const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
-                startCameraStream(allBackCameras[idx]);
-            }
-            lastBtn.bumper = pad.buttons[4].pressed || pad.buttons[5].pressed;
-
-            // INTERACTION
-            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-            if (isMenuOpen) {
-                const intersects = raycaster.intersectObject(menuMesh);
-                if (intersects.length > 0) {
-                    const uvY = intersects[0].uv.y;
-                    if (uvY < 0.82) {
-                        const idx = Math.floor((0.82 - uvY) / 0.068);
-                        if (idx >= 0 && idx < 20 && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
-                    }
-                } else hoveredFileIndex = -1; 
-                if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
-            } 
-            else {
-                const intersects = raycaster.intersectObjects(targets);
-                if (intersects.length > 0) {
-                    activeObject.obj = intersects[0].object;
-                    // CIRCLE: DELETE
-                    if (pad.buttons[1].pressed && !lastBtn.circle) { deleteObject(activeObject.obj); activeObject.obj = null; }
-                    
-                    // HOLD X: PICK UP (Move)
-                    if (pad.buttons[0].pressed) {
-                        holdTimer++;
-                        if (holdTimer > 20) { // Approx 0.3s
-                            pickupObject(activeObject.obj);
-                            holdTimer = 0;
-                        }
-                    } else { holdTimer = 0; }
-
-                } else { activeObject.obj = null; holdTimer = 0; }
-            }
+        if (pad.buttons[3].pressed && !lastBtn.triangle) {
+            visionMode = (visionMode + 1) % 3;
+            if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
+            if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(()=>videoTrack?.applyConstraints({advanced:[{torch:true}]}));
+            else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
+        lastBtn.triangle = pad.buttons[3].pressed;
+
+        raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
         
+        if (isMenuOpen) {
+            const intersects = raycaster.intersectObject(menuMesh);
+            if (intersects.length > 0) {
+                const uvY = intersects[0].uv.y;
+                // Mapping: Top starts at 0.82 (approx 180px). Step is 0.068 (70px)
+                if (uvY < 0.82) {
+                    const idx = Math.floor((0.82 - uvY) / 0.068);
+                    // Valid indices: 0 (Save), 1 (Wipe), 2+ (Files)
+                    if (idx >= 0 && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
+                }
+            } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
+            if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
+        } else {
+            const intersects = raycaster.intersectObjects(targets);
+            if (intersects.length > 0) {
+                activeObject.obj = intersects[0].object;
+                if (pad.buttons[1].pressed && !lastBtn.circle) { deleteObject(activeObject.obj); activeObject.obj = null; }
+            } else { activeObject.obj = null; }
+        }
         lastBtn.x = pad.buttons[0].pressed; lastBtn.circle = pad.buttons[1].pressed;
     }
 
@@ -558,30 +518,13 @@
         else { ctx.fillStyle = 'rgba(0,255,255,0.5)'; ctx.fillText("VISION: [NORMAL]", w-40, 60); }
 
         const cx = w/2; const cy = h/2;
-        
-        if (ghostMesh) {
-             ctx.fillStyle = '#00ff00'; ctx.textAlign = 'center'; 
-             ctx.fillText("PLACEMENT MODE", cx, cy + 150);
-             ctx.font = '20px Courier New'; ctx.fillStyle = '#fff';
-             ctx.fillText("[L1/R1] ROTATE   [X] CONFIRM   [O] CANCEL", cx, cy + 190);
-             // Ghost Crosshair
-             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath();
-             ctx.moveTo(cx - 40, cy); ctx.lineTo(cx + 40, cy); ctx.moveTo(cx, cy - 40); ctx.lineTo(cx, cy + 40); ctx.stroke();
-
-        } else if (isMenuOpen) {
+        if (isMenuOpen) {
             ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center'; ctx.fillText("MENU OPEN", cx, cy + 200);
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy); ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10); ctx.stroke();
         } else if (activeObject.obj) {
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
             ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
-            ctx.fillText(activeObject.obj.userData.label, cx, cy + 80); 
-            ctx.fillText("[O] DELETE", cx, cy + 120);
-            
-            // Show Hold Progress
-            if (holdTimer > 0) {
-                 ctx.fillStyle = '#00ff00'; ctx.fillRect(cx-50, cy+140, holdTimer * 5, 10);
-                 ctx.fillText("HOLD TO MOVE", cx, cy + 170); 
-            }
+            ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80); ctx.fillText("[O] DELETE", cx, cy + 120);
         } else {
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
         }
@@ -589,7 +532,7 @@
     }
 
     function animate() {
-        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); renderer.render(scene, camera); });
+        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); targets.forEach(t => { if(t.userData.isNode) { t.rotation.x += 0.01; t.rotation.y += 0.01; } }); renderer.render(scene, camera); });
     }
 </script>
 </body>
