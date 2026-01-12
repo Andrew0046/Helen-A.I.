@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: VOID COMMANDER</title>
+    <title>HELEN: PERSISTENCE</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -20,8 +20,8 @@
             cursor: pointer; text-transform: uppercase;
         }
         button.primary { background: #00ffff; color: #000; }
-        .file-count { color: #00ff00; font-size: 12px; margin-top: -10px; text-align: right; display: none; }
         .controls-hint { font-size: 11px; color: #666; margin-top: 20px; text-align: left; width: 100%; }
+        .save-alert { color: #00ff00; font-weight:bold; margin-bottom: 10px; display: none; }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -44,19 +44,21 @@
 
 <div id="overlay">
     <h1>HELEN OS</h1>
+    <div id="save-found-msg" class="save-alert">⚠️ PREVIOUS MISSION FOUND</div>
     <div class="status">
-        [ SYSTEM READY ]<br>
-        3-Stage Vision: Normal / Cyber / Void
+        [ PERSISTENCE MODULE ]<br>
+        Save your workspace layout.
     </div>
 
     <div class="btn-group">
         <button onclick="document.getElementById('intel-input').click()">📂 LOAD DATABASE</button>
-        <div id="file-status" class="file-count">0 FILES LOADED</div>
+        <button id="restore-btn" style="display:none; border-color:#00ff00; color:#00ff00;" onclick="restoreMission()">↺ RESTORE SAVE</button>
+        <div id="file-status" style="color:#00ff00; font-size:12px; display:none; text-align:right;"></div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [□] MENU &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [X] SELECT<br>
-            [O] DELETE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [△] CYCLE VISION
+            [□] MENU -> SAVE/LOAD<br>
+            [X] SELECT &nbsp; [O] DELETE &nbsp; [△] VISION
         </div>
     </div>
 </div>
@@ -87,16 +89,29 @@
     let menuGroup, menuMesh, menuCanvas, menuCtx, menuTexture;
     let isMenuOpen = false;
     let hoveredFileIndex = -1;
+    let systemMessage = ""; // For "GAME SAVED" popup
 
-    // CAMERAS & VISION
+    // HARDWARE
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
-    
-    // 0 = Normal, 1 = Cyber, 2 = Void (Off)
     let visionMode = 0; 
-    
     let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false };
     const SPEED = 0.1; 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
+
+    // --- 0. PERSISTENCE CHECK ---
+    // Check on load if data exists
+    const savedData = localStorage.getItem('helen_mission_save');
+    if (savedData) {
+        document.getElementById('save-found-msg').style.display = 'block';
+        document.getElementById('restore-btn').style.display = 'block';
+    }
+
+    window.restoreMission = function() {
+        // We will parse this once VR starts
+        window.shouldRestore = true;
+        document.getElementById('restore-btn').innerText = ">> RESTORE ARMED <<";
+        document.getElementById('restore-btn').style.background = "#003300";
+    };
 
     // --- 1. FILE PROCESSING ---
     const input = document.getElementById('intel-input');
@@ -105,16 +120,19 @@
     input.addEventListener('change', async (e) => {
         if (e.target.files.length > 0) {
             CUSTOM_DATABASE = [];
-            statusLabel.innerText = "PROCESSING...";
-            statusLabel.style.display = 'block';
-            statusLabel.style.color = '#ffff00';
-
+            statusLabel.innerText = "PROCESSING..."; statusLabel.style.display = 'block';
             for (let i = 0; i < e.target.files.length; i++) {
                 const file = e.target.files[i];
                 let name = file.name.toUpperCase();
                 if(name.length > 15) name = name.substring(0,12) + "...";
                 
+                // Read as DataURL for persistent storage (so we can save it to text)
+                const reader = new FileReader();
+                const base64Promise = new Promise(resolve => { reader.onload = e => resolve(e.target.result); reader.readAsDataURL(file); });
+                const base64 = await base64Promise;
+
                 if (file.type === 'application/pdf') {
+                    // For PDF, we render to canvas then save that image data
                     try {
                         const pdfData = await file.arrayBuffer();
                         const pdf = await pdfjsLib.getDocument(pdfData).promise;
@@ -128,18 +146,20 @@
                     } catch (err) {}
                 } 
                 else if (file.type.startsWith('video')) {
-                    CUSTOM_DATABASE.push({ type: 'video', src: URL.createObjectURL(file), label: name });
+                    // Video blobs cannot be saved easily to localStorage (too big). 
+                    // We save the reference, but in this "Web" version, persistent video is tricky without a server.
+                    // For now, we store the blob URL for the session.
+                    CUSTOM_DATABASE.push({ type: 'video', src: URL.createObjectURL(file), label: name, isBlob: true });
                 } 
                 else {
-                    CUSTOM_DATABASE.push({ type: 'image', src: URL.createObjectURL(file), label: name });
+                    CUSTOM_DATABASE.push({ type: 'image', src: base64, label: name });
                 }
             }
             statusLabel.innerText = `${CUSTOM_DATABASE.length} FILES READY`;
-            statusLabel.style.color = '#00ff00';
         }
     });
 
-    // --- 2. CAMERA SCANNER ---
+    // --- 2. HARDWARE INIT ---
     async function scanCameras() {
         if (!navigator.mediaDevices?.enumerateDevices) return;
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -184,39 +204,23 @@
         } catch (err) {}
     }
 
-    // --- 3. 3D ENGINE ---
+    // --- 3. 3D SETUP ---
     scanCameras().then(init3D);
 
     const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
-    
-    // UPDATED SHADER FOR 3 MODES
     const fragmentShader = `
-        uniform sampler2D tDiffuse; 
-        uniform float uMode; // 0=Norm, 1=Cyber, 2=Void
-        uniform vec2 uResolution; 
-        varying vec2 vUv;
-        
+        uniform sampler2D tDiffuse; uniform float uMode; uniform vec2 uResolution; varying vec2 vUv;
         void main() {
             vec4 color = texture2D(tDiffuse, vUv);
-            
-            if (uMode > 1.5) {
-                // MODE 2: VOID (Black)
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-            } 
+            if (uMode > 1.5) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
             else if (uMode > 0.5) {
-                // MODE 1: CYBER (Edges)
                 float x = 1.0 / uResolution.x; float y = 1.0 / uResolution.y;
                 vec4 horizEdge = -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) + -2.0 * texture2D(tDiffuse, vUv + vec2(-x,  0.0)) + -1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) + 2.0 * texture2D(tDiffuse, vUv + vec2( x,  0.0)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
                 vec4 vertEdge = -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) + -2.0 * texture2D(tDiffuse, vUv + vec2( 0.0, -y)) + -1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) + 1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) + 2.0 * texture2D(tDiffuse, vUv + vec2( 0.0,  y)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
                 vec3 edge = sqrt((horizEdge.rgb * horizEdge.rgb) + (vertEdge.rgb * vertEdge.rgb));
                 float val = length(edge);
-                if(val > 0.15) gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * val * 2.0; 
-                else gl_FragColor = vec4(0.0, 0.05, 0.1, 1.0); 
-            } 
-            else { 
-                // MODE 0: NORMAL
-                gl_FragColor = color; 
-            }
+                if(val > 0.15) gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * val * 2.0; else gl_FragColor = vec4(0.0, 0.05, 0.1, 1.0); 
+            } else gl_FragColor = color; 
         }
     `;
 
@@ -227,15 +231,12 @@
 
         const video = document.getElementById('camera-feed');
         const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false; 
-        
         camMaterial = new THREE.ShaderMaterial({
             uniforms: { tDiffuse: { value: vidTex }, uMode: { value: 0.0 }, uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
             vertexShader: vertexShader, fragmentShader: fragmentShader, depthTest: false, depthWrite: false
         });
-
         const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
 
-        // HUD
         const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
         hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas); hudTexture.minFilter = THREE.LinearFilter;
         const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
@@ -254,6 +255,7 @@
         
         renderer.xr.addEventListener('sessionstart', () => {
             document.getElementById('overlay').style.display = 'none';
+            if (window.shouldRestore) applySaveData();
         });
 
         createMenuSystem();
@@ -261,7 +263,68 @@
         animate();
     }
 
-    // --- 4. MENU SYSTEM ---
+    // --- 4. PERSISTENCE LOGIC ---
+    function saveMission() {
+        const objectsToSave = [];
+        targets.forEach(t => {
+            // Only save screens/nodes that have persistent data (skip videos blobs for now or save metadata)
+            // Note: Saving large images to localStorage might hit quota (5MB). 
+            // In a real app, use IndexedDB. Here we try our best.
+            objectsToSave.push({
+                x: t.position.x, y: t.position.y, z: t.position.z,
+                rx: t.rotation.x, ry: t.rotation.y, rz: t.rotation.z,
+                type: t.userData.isScreen ? 'screen' : 'node',
+                data: t.userData.data
+            });
+        });
+
+        try {
+            localStorage.setItem('helen_mission_save', JSON.stringify(objectsToSave));
+            showSystemMessage("MISSION SAVED");
+        } catch(e) {
+            showSystemMessage("SAVE FAILED (DATA TOO LARGE)");
+            console.error(e);
+        }
+    }
+
+    function applySaveData() {
+        const data = localStorage.getItem('helen_mission_save');
+        if (!data) return;
+        try {
+            const objects = JSON.parse(data);
+            objects.forEach(obj => {
+                const pos = new THREE.Vector3(obj.x, obj.y, obj.z);
+                const rot = new THREE.Euler(obj.rx, obj.ry, obj.rz);
+                
+                if (obj.type === 'node') {
+                    spawnNodeAt(obj.x, obj.y, obj.z, obj.data);
+                } else {
+                    spawnDecryptedScreen(pos, obj.data, rot);
+                }
+            });
+            showSystemMessage("MISSION RESTORED");
+        } catch(e) {
+            console.error("Load failed", e);
+        }
+    }
+
+    function wipeSave() {
+        localStorage.removeItem('helen_mission_save');
+        targets.forEach(t => {
+             scene.remove(t);
+             if(t.userData.videoElement) t.userData.videoElement.pause();
+        });
+        targets = [];
+        showSystemMessage("DATABASE WIPED");
+    }
+
+    function showSystemMessage(msg) {
+        systemMessage = msg;
+        updateMenuDisplay();
+        setTimeout(() => { systemMessage = ""; updateMenuDisplay(); }, 3000);
+    }
+
+    // --- 5. MENU & SPAWN ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         menuCanvas = document.createElement('canvas'); menuCanvas.width = 1024; menuCanvas.height = 1024;
@@ -276,41 +339,90 @@
     function updateMenuDisplay() {
         const ctx = menuCtx; const w = 1024; const h = 1024;
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+        
         ctx.fillStyle = 'rgba(0, 10, 20, 0.9)'; ctx.fillRect(0, 0, w, h);
-        ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 100);
-        ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 120); ctx.lineTo(w-50, 120); ctx.stroke();
+        
+        // Header
+        ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; 
+        ctx.fillText("TACTICAL INVENTORY", w/2, 80);
+        ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
+        
+        // SYSTEM OPTIONS (Top of list)
+        const sysOpts = [" [SAVE MISSION]", " [WIPE DATA]"];
         ctx.textAlign = 'left'; ctx.font = '50px Courier New';
-        const maxItems = Math.min(db.length, 12);
-        for (let i = 0; i < maxItems; i++) {
-            const y = 200 + (i * 70);
-            if (i === hoveredFileIndex) {
-                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, y - 50, w - 100, 60);
-                ctx.fillStyle = '#fff'; ctx.fillText(`> ${db[i].label}`, 80, y);
+        
+        let listY = 180;
+        
+        // Draw System Options
+        for (let i=0; i<sysOpts.length; i++) {
+             if (i === hoveredFileIndex) {
+                ctx.fillStyle = '#ff0055'; ctx.fillRect(50, listY - 50, w - 100, 60);
+                ctx.fillStyle = '#fff'; ctx.fillText(sysOpts[i], 80, listY);
             } else {
-                ctx.fillStyle = '#00aaaa'; ctx.fillText(`  ${db[i].label}`, 80, y);
+                ctx.fillStyle = '#ff0055'; ctx.fillText(sysOpts[i], 80, listY);
             }
-            ctx.fillStyle = '#666'; ctx.fillText(db[i].type.toUpperCase(), w - 200, y);
+            listY += 70;
         }
+
+        // Draw Files
+        ctx.fillStyle = '#00aaaa'; 
+        const maxItems = 8;
+        for (let i = 0; i < Math.min(db.length, maxItems); i++) {
+            // Offset index by system options
+            const menuIndex = i + sysOpts.length;
+            
+            if (menuIndex === hoveredFileIndex) {
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 100, 60);
+                ctx.fillStyle = '#fff'; ctx.fillText(`> ${db[i].label}`, 80, listY);
+            } else {
+                ctx.fillStyle = '#00aaaa'; ctx.fillText(`  ${db[i].label}`, 80, listY);
+            }
+            ctx.fillStyle = '#666'; ctx.fillText(db[i].type.toUpperCase(), w - 200, listY);
+            listY += 70;
+        }
+
+        // System Message Popup
+        if (systemMessage) {
+            ctx.fillStyle = '#00ff00'; ctx.fillRect(100, h/2 - 50, w-200, 100);
+            ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.fillText(systemMessage, w/2, h/2 + 15);
+        }
+
         menuTexture.needsUpdate = true;
     }
 
     function spawnFromMenu(index) {
+        // Index 0 = Save, Index 1 = Wipe
+        if (index === 0) { saveMission(); return; }
+        if (index === 1) { wipeSave(); return; }
+        
+        // Real files start at index 2
+        const fileIndex = index - 2;
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-        const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-        const pos = camera.position.clone().add(dir.multiplyScalar(3));
-        spawnDecryptedScreen(pos, db[index]);
-        isMenuOpen = false; menuGroup.visible = false;
+        if (fileIndex >= 0 && fileIndex < db.length) {
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            const pos = camera.position.clone().add(dir.multiplyScalar(3));
+            spawnDecryptedScreen(pos, db[fileIndex]);
+            isMenuOpen = false; menuGroup.visible = false;
+        }
     }
 
-    function spawnDecryptedScreen(position, data) {
+    function spawnNodeAt(x, y, z, data) {
+        const geo = new THREE.IcosahedronGeometry(0.5, 0); 
+        const color = data.type === 'pdf' ? 0xffff00 : 0x00ffff;
+        const mat = new THREE.MeshBasicMaterial({ color: color, wireframe: true });
+        const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x, y, z);
+        mesh.userData = { isNode: true, data: data || DEFAULT_DATABASE[0] }; 
+        scene.add(mesh); targets.push(mesh);
+    }
+
+    function spawnDecryptedScreen(position, data, rotation = null) {
         let width = 3, height = 1.8; 
         let material, videoElem = null;
         if (data.type === 'pdf') {
             if (data.ratio) { height = 2.5; width = height * data.ratio; }
             const tex = new THREE.TextureLoader().load(data.src); tex.colorSpace = THREE.SRGBColorSpace;
             material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-        }
-        else if (data.type === 'video') {
+        } else if (data.type === 'video') {
             videoElem = document.createElement('video'); videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; videoElem.loop = true; videoElem.muted = true; 
             videoElem.play().then(() => { videoElem.muted = false; });
             const tex = new THREE.VideoTexture(videoElem); tex.colorSpace = THREE.SRGBColorSpace;
@@ -321,9 +433,16 @@
         }
         const geometry = new THREE.PlaneGeometry(width, height);
         const screen = new THREE.Mesh(geometry, material);
-        screen.position.copy(position); screen.lookAt(camera.position); screen.rotation.z = 0; screen.rotation.x = 0; 
+        screen.position.copy(position); 
+        
+        if (rotation) {
+            screen.rotation.copy(rotation);
+        } else {
+            screen.lookAt(camera.position); screen.rotation.z = 0; screen.rotation.x = 0; 
+        }
+
         screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: data.type === 'pdf' ? 0xffff00 : 0x00ffff })));
-        screen.userData = { isScreen: true, label: data.label, videoElement: videoElem };
+        screen.userData = { isScreen: true, label: data.label, videoElement: videoElem, data: data };
         scene.add(screen); targets.push(screen);
     }
 
@@ -340,13 +459,13 @@
     function handleInput() {
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
+        
         const x = Math.abs(pad.axes[0]) > 0.1 ? pad.axes[0] : 0; const z = Math.abs(pad.axes[1]) > 0.1 ? pad.axes[1] : 0;
         if (x !== 0 || z !== 0) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize(); _strafeDir.crossVectors(camera.up, _moveDir).normalize();
             dolly.position.addScaledVector(_moveDir, -z * SPEED); dolly.position.addScaledVector(_strafeDir, x * SPEED);
         }
         
-        // SQUARE: MENU
         if (pad.buttons[2].pressed && !lastBtn.square) {
             isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen;
             if (isMenuOpen) {
@@ -357,21 +476,11 @@
         }
         lastBtn.square = pad.buttons[2].pressed;
 
-        // TRIANGLE: VISION CYCLE (0 -> 1 -> 2 -> 0)
         if (pad.buttons[3].pressed && !lastBtn.triangle) {
-            visionMode = (visionMode + 1) % 3; // CYCLE 0, 1, 2
-            
+            visionMode = (visionMode + 1) % 3;
             if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
-            
-            if (visionMode === 1 && torchCamId) {
-                // CYBER: Flashlight ON
-                startCameraStream(torchCamId).then(()=>videoTrack?.applyConstraints({advanced:[{torch:true}]}));
-            } else {
-                // NORMAL or VOID: Flashlight OFF
-                videoTrack?.applyConstraints({advanced:[{torch:false}]});
-                // If Normal (0), try Wide lens. If Void (2), we just leave the stream running (hidden by shader)
-                if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300);
-            }
+            if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(()=>videoTrack?.applyConstraints({advanced:[{torch:true}]}));
+            else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
         lastBtn.triangle = pad.buttons[3].pressed;
 
@@ -381,10 +490,11 @@
             const intersects = raycaster.intersectObject(menuMesh);
             if (intersects.length > 0) {
                 const uvY = intersects[0].uv.y;
+                // Mapping: Top starts at 0.82 (approx 180px). Step is 0.068 (70px)
                 if (uvY < 0.82) {
                     const idx = Math.floor((0.82 - uvY) / 0.068);
-                    const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-                    if (idx >= 0 && idx < db.length && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
+                    // Valid indices: 0 (Save), 1 (Wipe), 2+ (Files)
+                    if (idx >= 0 && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
                 }
             } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
             if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
@@ -414,7 +524,7 @@
         } else if (activeObject.obj) {
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
             ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
-            ctx.fillText(activeObject.obj.userData.label, cx, cy + 80); ctx.fillText("[O] CLOSE", cx, cy + 120);
+            ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80); ctx.fillText("[O] DELETE", cx, cy + 120);
         } else {
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
         }
@@ -422,7 +532,7 @@
     }
 
     function animate() {
-        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); renderer.render(scene, camera); });
+        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); targets.forEach(t => { if(t.userData.isNode) { t.rotation.x += 0.01; t.rotation.y += 0.01; } }); renderer.render(scene, camera); });
     }
 </script>
 </body>
