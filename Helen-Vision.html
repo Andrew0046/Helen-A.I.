@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL READER</title>
+    <title>HELEN: PDF READER</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -19,7 +19,7 @@
             background: transparent; color: #00ffff; border: 2px solid #00ffff; 
             cursor: pointer; text-transform: uppercase;
         }
-        button.primary { background: #00ffff; color: #000; }
+        .file-count { color: #00ff00; font-size: 12px; margin-top: -10px; text-align: right; display: none; }
         .controls-hint { font-size: 11px; color: #666; margin-top: 20px; text-align: left; width: 100%; }
     </style>
     
@@ -44,18 +44,18 @@
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div class="status">
-        [ DOC READER INSTALLED ]<br>
-        Look at PDF + Joystick L/R to flip pages.
+        [ DOC READER V1.0 ]<br>
+        Gaze + Stick L/R to Flip Pages
     </div>
 
     <div class="btn-group">
         <button onclick="document.getElementById('intel-input').click()">📂 LOAD DATABASE</button>
-        <div id="file-status" style="color:#00ff00; font-size:12px; display:none; text-align:right;"></div>
+        <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [JOYSTICK] MOVE (OR FLIP PAGE)<br>
-            [□] MENU &nbsp; [X] SELECT &nbsp; [△] VISION
+            [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
+            [STICK] MOVE or TURN PAGE (If Looking at PDF)
         </div>
     </div>
 </div>
@@ -72,29 +72,34 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // DATA & STATE
+    // DATA
     let CUSTOM_DATABASE = []; 
+    // Default mock data
     const DEFAULT_DATABASE = [
         { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'MONA_LISA.JPG' }
     ];
 
     let targets = []; 
-    let activeObject = { obj: null }; 
-    let lastPageFlipTime = 0; // For debounce
+    let activeObject = { obj: null, progress: 0 }; 
+    
+    // STATE FOR PAGINATION
+    let lastPageTurnTime = 0;
+    const PAGE_DEBOUNCE = 300; // ms
 
     // MENU
-    let menuGroup, menuMesh, menuCanvas, menuCtx, menuTexture;
+    let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
     let hoveredFileIndex = -1;
 
-    // HARDWARE
+    // CAMERAS
     let torchCamId = null, wideCamId = null, activeCamId = null;
     let visionMode = 0; 
     let lastBtn = { x: false, circle: false, square: false, triangle: false };
+    
     const SPEED = 0.1; 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    // --- 1. FILE PROCESSING (UPDATED) ---
+    // --- 1. FILE PROCESSING (UPDATED FOR RAW PDF) ---
     const input = document.getElementById('intel-input');
     const statusLabel = document.getElementById('file-status');
 
@@ -102,33 +107,16 @@
         if (e.target.files.length > 0) {
             CUSTOM_DATABASE = [];
             statusLabel.innerText = "PROCESSING..."; statusLabel.style.display = 'block'; statusLabel.style.color = '#ffff00';
-            
+
             for (let i = 0; i < e.target.files.length; i++) {
                 const file = e.target.files[i];
                 let name = file.name.toUpperCase();
                 if(name.length > 15) name = name.substring(0,12) + "...";
                 
                 if (file.type === 'application/pdf') {
-                    // STORE RAW ARRAY BUFFER for real-time paging
-                    try {
-                        const pdfBuffer = await file.arrayBuffer();
-                        // Load just page 1 for the preview thumbnail
-                        const pdf = await pdfjsLib.getDocument(pdfBuffer).promise;
-                        const page = await pdf.getPage(1);
-                        const viewport = page.getViewport({ scale: 2.0 });
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        canvas.height = viewport.height; canvas.width = viewport.width;
-                        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                        
-                        CUSTOM_DATABASE.push({ 
-                            type: 'pdf', 
-                            src: canvas.toDataURL('image/png'), // Thumbnail
-                            pdfData: pdfBuffer, // RAW DATA FOR PAGING
-                            label: name, 
-                            ratio: viewport.width / viewport.height 
-                        });
-                    } catch (err) { console.error(err); }
+                    // STORE RAW ARRAY BUFFER for rendering later
+                    const buffer = await file.arrayBuffer();
+                    CUSTOM_DATABASE.push({ type: 'pdf', buffer: buffer, label: name });
                 } 
                 else if (file.type.startsWith('video')) {
                     CUSTOM_DATABASE.push({ type: 'video', src: URL.createObjectURL(file), label: name });
@@ -141,11 +129,12 @@
         }
     });
 
-    // --- 2. SETUP (Standard) ---
+    // --- 2. CAMERA & 3D SETUP ---
     async function scanCameras() {
         if (!navigator.mediaDevices?.enumerateDevices) return;
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(d => d.kind === 'videoinput' && !d.label.toLowerCase().includes('front'));
+        
         for (const cam of cameras) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
@@ -157,7 +146,10 @@
         if (torchCamId) {
             const other = cameras.find(c => c.deviceId !== torchCamId);
             if (other) wideCamId = other.deviceId;
-        } else if (cameras.length > 0) torchCamId = cameras[0].deviceId;
+        } else if (cameras.length > 0) {
+            torchCamId = cameras[0].deviceId;
+            if(cameras.length > 1) wideCamId = cameras[1].deviceId;
+        }
         startCameraStream(wideCamId || torchCamId);
     }
 
@@ -183,6 +175,23 @@
 
     scanCameras().then(init3D);
 
+    const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
+    const fragmentShader = `
+        uniform sampler2D tDiffuse; uniform float uMode; uniform vec2 uResolution; varying vec2 vUv;
+        void main() {
+            vec4 color = texture2D(tDiffuse, vUv);
+            if (uMode > 1.5) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            else if (uMode > 0.5) {
+                float x = 1.0 / uResolution.x; float y = 1.0 / uResolution.y;
+                vec4 horizEdge = -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) + -2.0 * texture2D(tDiffuse, vUv + vec2(-x,  0.0)) + -1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) + 2.0 * texture2D(tDiffuse, vUv + vec2( x,  0.0)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
+                vec4 vertEdge = -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) + -2.0 * texture2D(tDiffuse, vUv + vec2( 0.0, -y)) + -1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) + 1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) + 2.0 * texture2D(tDiffuse, vUv + vec2( 0.0,  y)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
+                vec3 edge = sqrt((horizEdge.rgb * horizEdge.rgb) + (vertEdge.rgb * vertEdge.rgb));
+                float val = length(edge);
+                if(val > 0.15) gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * val * 2.0; else gl_FragColor = vec4(0.0, 0.05, 0.1, 1.0); 
+            } else gl_FragColor = color; 
+        }
+    `;
+
     function init3D() {
         scene = new THREE.Scene();
         dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
@@ -190,23 +199,6 @@
 
         const video = document.getElementById('camera-feed');
         const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false; 
-        
-        const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
-        const fragmentShader = `
-            uniform sampler2D tDiffuse; uniform float uMode; uniform vec2 uResolution; varying vec2 vUv;
-            void main() {
-                vec4 color = texture2D(tDiffuse, vUv);
-                if (uMode > 1.5) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-                else if (uMode > 0.5) {
-                    float x = 1.0 / uResolution.x; float y = 1.0 / uResolution.y;
-                    vec4 horizEdge = -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) + -2.0 * texture2D(tDiffuse, vUv + vec2(-x,  0.0)) + -1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) + 2.0 * texture2D(tDiffuse, vUv + vec2( x,  0.0)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
-                    vec4 vertEdge = -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) + -2.0 * texture2D(tDiffuse, vUv + vec2( 0.0, -y)) + -1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) + 1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) + 2.0 * texture2D(tDiffuse, vUv + vec2( 0.0,  y)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
-                    vec3 edge = sqrt((horizEdge.rgb * horizEdge.rgb) + (vertEdge.rgb * vertEdge.rgb));
-                    if(length(edge) > 0.15) gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * length(edge) * 2.0; 
-                    else gl_FragColor = vec4(0.0, 0.05, 0.1, 1.0); 
-                } else gl_FragColor = color; 
-            }`;
-
         camMaterial = new THREE.ShaderMaterial({
             uniforms: { tDiffuse: { value: vidTex }, uMode: { value: 0.0 }, uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
             vertexShader: vertexShader, fragmentShader: fragmentShader, depthTest: false, depthWrite: false
@@ -214,7 +206,7 @@
         const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
 
         const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
-        hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas);
+        hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas); hudTexture.minFilter = THREE.LinearFilter;
         const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
         hudMesh.position.set(0, 0, -1.5); camera.add(hudMesh);
 
@@ -226,7 +218,9 @@
         document.body.appendChild(renderer.domElement);
         
         const btn = VRButton.createButton(renderer);
+        btn.className = "primary"; btn.innerHTML = "ENTER VR";
         document.getElementById('vr-btn-container').appendChild(btn);
+        
         renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
 
         createMenuSystem();
@@ -234,11 +228,11 @@
         animate();
     }
 
-    // --- 3. MENU SYSTEM ---
+    // --- 3. MENU & SPAWNING ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
-        menuCanvas = document.createElement('canvas'); menuCanvas.width = 1024; menuCanvas.height = 1024;
-        menuCtx = menuCanvas.getContext('2d'); menuTexture = new THREE.CanvasTexture(menuCanvas);
+        const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
+        menuCtx = canvas.getContext('2d'); menuTexture = new THREE.CanvasTexture(canvas);
         const geometry = new THREE.PlaneGeometry(2, 2);
         const material = new THREE.MeshBasicMaterial({ map: menuTexture, transparent: true, side: THREE.DoubleSide });
         menuMesh = new THREE.Mesh(geometry, material); menuGroup.add(menuMesh);
@@ -267,84 +261,95 @@
         menuTexture.needsUpdate = true;
     }
 
-    // --- 4. SPAWNING ---
     function spawnFromMenu(index) {
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-        const worldPos = new THREE.Vector3(); camera.getWorldPosition(worldPos);
-        const pos = worldPos.add(dir.multiplyScalar(3));
-        spawnDecryptedScreen(pos, db[index]);
+        const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
+        
+        spawnScreen(pos, db[index]);
         isMenuOpen = false; menuGroup.visible = false;
     }
 
-    async function spawnDecryptedScreen(position, data) {
-        let width = 3, height = 1.8; 
-        let material, videoElem = null, pdfDoc = null;
+    // --- 4. PDF RENDER LOGIC ---
+    async function renderPdfPageToTexture(mesh, pageNum) {
+        if (!mesh.userData.pdfDoc) return;
+        if (mesh.userData.isRendering) return; // Prevent double trigger
+        mesh.userData.isRendering = true;
+
+        try {
+            const pdf = mesh.userData.pdfDoc;
+            // Clamp page number
+            if (pageNum < 1) pageNum = 1;
+            if (pageNum > pdf.numPages) pageNum = pdf.numPages;
+            
+            mesh.userData.pageNum = pageNum;
+            const page = await pdf.getPage(pageNum);
+            
+            // High Res Scale
+            const viewport = page.getViewport({ scale: 2.0 });
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.height = viewport.height; canvas.width = viewport.width;
+
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+            // Update Texture
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            
+            if (mesh.material.map) mesh.material.map.dispose(); // Cleanup old
+            mesh.material.map = tex;
+            mesh.material.needsUpdate = true;
+            
+            // Update aspect ratio if needed (optional, simplistic here)
+            // const ratio = viewport.width / viewport.height;
+            // mesh.scale.x = mesh.geometry.parameters.height * ratio; 
+        } catch(e) { console.error(e); }
         
+        mesh.userData.isRendering = false;
+    }
+
+    async function spawnScreen(position, data) {
+        let width = 3, height = 1.8; 
+        let material, videoElem = null;
+        const geometry = new THREE.PlaneGeometry(3, 1.8); // Default geometry size, scale later
+        
+        const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+        screen.position.copy(position); 
+        const pPos = camera.getWorldPosition(new THREE.Vector3());
+        screen.lookAt(pPos.x, screen.position.y, pPos.z);
+        
+        screen.userData = { isScreen: true, label: data.label, type: data.type };
+
         if (data.type === 'pdf') {
-            if (data.ratio) { height = 2.5; width = height * data.ratio; }
-            // Load PDF Object for paging
-            if (data.pdfData) {
-                pdfDoc = await pdfjsLib.getDocument(data.pdfData).promise;
-            }
-            const tex = new THREE.TextureLoader().load(data.src); tex.colorSpace = THREE.SRGBColorSpace;
-            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-        }
-        else if (data.type === 'video') {
+            // LOAD PDF DOC
+            const pdf = await pdfjsLib.getDocument(data.buffer).promise;
+            screen.userData.pdfDoc = pdf;
+            screen.userData.pageNum = 1;
+            screen.userData.totalPages = pdf.numPages;
+            
+            // Initial Render
+            await renderPdfPageToTexture(screen, 1);
+            
+            // Adjust Shape to Vertical
+            screen.scale.set(0.8, 1.4, 1); // Make it look like a paper
+            screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffff00 })));
+        
+        } else if (data.type === 'video') {
             videoElem = document.createElement('video'); videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; videoElem.loop = true; videoElem.muted = true; 
             videoElem.play().then(() => { videoElem.muted = false; });
             const tex = new THREE.VideoTexture(videoElem); tex.colorSpace = THREE.SRGBColorSpace;
-            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+            screen.material.map = tex;
+            screen.userData.videoElement = videoElem;
+            screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
+        
         } else {
             const tex = new THREE.TextureLoader().load(data.src); tex.colorSpace = THREE.SRGBColorSpace;
-            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+            screen.material.map = tex;
+            screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
         }
 
-        const geometry = new THREE.PlaneGeometry(width, height);
-        const screen = new THREE.Mesh(geometry, material);
-        screen.position.copy(position); 
-        const playerPos = new THREE.Vector3(); camera.getWorldPosition(playerPos);
-        screen.lookAt(playerPos.x, screen.position.y, playerPos.z); 
-        screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: data.type === 'pdf' ? 0xffff00 : 0x00ffff })));
-        
-        // ATTACH STATE
-        screen.userData = { 
-            isScreen: true, 
-            type: data.type, 
-            label: data.label, 
-            videoElement: videoElem,
-            // PDF STATE
-            pdfDoc: pdfDoc,
-            currentPage: 1,
-            totalPages: pdfDoc ? pdfDoc.numPages : 0
-        };
         scene.add(screen); targets.push(screen);
-    }
-
-    // --- 5. PDF PAGING LOGIC ---
-    async function updatePdfPage(mesh, dir) {
-        if (!mesh.userData.pdfDoc) return;
-        
-        const newPage = mesh.userData.currentPage + dir;
-        if (newPage < 1 || newPage > mesh.userData.totalPages) return; // Bounds check
-        
-        mesh.userData.currentPage = newPage;
-        
-        const page = await mesh.userData.pdfDoc.getPage(newPage);
-        const viewport = page.getViewport({ scale: 2.0 });
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.height = viewport.height; canvas.width = viewport.width;
-        
-        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-        
-        // Update Texture
-        const newTex = new THREE.CanvasTexture(canvas);
-        newTex.colorSpace = THREE.SRGBColorSpace;
-        
-        if (mesh.material.map) mesh.material.map.dispose(); // Clean up old memory
-        mesh.material.map = newTex;
-        mesh.material.needsUpdate = true;
     }
 
     function deleteObject(obj) {
@@ -356,17 +361,21 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
-    // --- INPUT LOOP (WITH PDF FOCUS) ---
+    // --- 5. INPUT LOOP (WITH PAGINATION) ---
     function handleInput() {
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
-        const now = Date.now();
         
-        // RAYCAST FIRST
+        // CHECK IF LOOKING AT PDF
         raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-        let focusedPDF = null;
+        let lookingAtPdf = false;
         
+        // If menu is open, handle menu only
         if (isMenuOpen) {
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
+            const targetPos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2.5));
+            menuGroup.position.copy(targetPos); menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
+            
             const intersects = raycaster.intersectObject(menuMesh);
             if (intersects.length > 0) {
                 const uvY = intersects[0].uv.y;
@@ -375,81 +384,73 @@
                     const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
                     if (idx >= 0 && idx < db.length && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
                 }
-            } else if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); }
-            
+            } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
             if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
-        } 
-        else {
-            // Check World Objects
+            
+        } else {
+            // WORLD INTERACTION
             const intersects = raycaster.intersectObjects(targets);
             if (intersects.length > 0) {
                 activeObject.obj = intersects[0].object;
                 
                 // IS IT A PDF?
                 if (activeObject.obj.userData.type === 'pdf') {
-                    focusedPDF = activeObject.obj;
+                    lookingAtPdf = true;
                 }
-                
-                // DELETE
+
                 if (pad.buttons[1].pressed && !lastBtn.circle) { deleteObject(activeObject.obj); activeObject.obj = null; }
             } else { activeObject.obj = null; }
         }
 
-        // --- JOYSTICK LOGIC ---
-        const x = pad.axes[0];
-        const z = pad.axes[1];
-        
-        if (focusedPDF) {
-            // == FOCUS MODE ==
-            // Hijack Joystick X for Page Turning
-            if (Math.abs(x) > 0.5 && (now - lastPageFlipTime > 500)) {
-                if (x > 0) updatePdfPage(focusedPDF, 1);  // Right -> Next
-                else updatePdfPage(focusedPDF, -1);       // Left -> Prev
-                lastPageFlipTime = now;
+        // MOVEMENT VS PAGINATION LOGIC
+        const stickX = pad.axes[0];
+        const stickZ = pad.axes[1];
+
+        if (lookingAtPdf) {
+            // --- PDF READING MODE ---
+            // If sticking left/right significantly, turn page
+            if (Math.abs(stickX) > 0.5) {
+                const now = Date.now();
+                if (now - lastPageTurnTime > PAGE_DEBOUNCE) {
+                    const target = activeObject.obj;
+                    const dir = Math.sign(stickX); // +1 Right (Next), -1 Left (Prev)
+                    const newPage = target.userData.pageNum + dir;
+                    
+                    if (newPage >= 1 && newPage <= target.userData.totalPages) {
+                        renderPdfPageToTexture(target, newPage);
+                        lastPageTurnTime = now;
+                    }
+                }
             }
-            
-            // Allow Forward/Back movement (Z axis) but disable turning/strafing (X axis)
-            // This lets you walk closer to read, but not drift sideways
-            if (Math.abs(z) > 0.1) {
-                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                dolly.position.addScaledVector(_moveDir, -z * SPEED);
+            // Allow forward/back movement (Z axis) but DISABLE STRAFING (X axis)
+            if (Math.abs(stickZ) > 0.1) {
+                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+                 dolly.position.addScaledVector(_moveDir, -stickZ * SPEED);
             }
-        } 
-        else {
-            // == NORMAL MODE ==
-            // Full Movement
-            if (Math.abs(x) > 0.1 || Math.abs(z) > 0.1) {
+
+        } else {
+            // --- NORMAL MOVEMENT MODE ---
+            // Normal Walking/Strafing logic
+            if (Math.abs(stickX) > 0.1 || Math.abs(stickZ) > 0.1) {
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                 _strafeDir.crossVectors(camera.up, _moveDir).normalize();
-                dolly.position.addScaledVector(_moveDir, -z * SPEED);
-                dolly.position.addScaledVector(_strafeDir, x * SPEED);
+                dolly.position.addScaledVector(_moveDir, -stickZ * SPEED);
+                dolly.position.addScaledVector(_strafeDir, stickX * SPEED);
             }
         }
 
-        // MENU TOGGLE
-        if (pad.buttons[2].pressed && !lastBtn.square) {
-            isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen;
-        }
-        if (isMenuOpen) {
-            const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize(); 
-            const worldPos = new THREE.Vector3(); camera.getWorldPosition(worldPos);
-            menuGroup.position.copy(worldPos.add(dir.multiplyScalar(2.5)));
-            const headPos = new THREE.Vector3(); camera.getWorldPosition(headPos);
-            menuGroup.lookAt(headPos);
-        }
+        // BUTTONS
+        if (pad.buttons[2].pressed && !lastBtn.square) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; }
+        lastBtn.square = pad.buttons[2].pressed;
 
-        // VISION TOGGLE
         if (pad.buttons[3].pressed && !lastBtn.triangle) {
             visionMode = (visionMode + 1) % 3;
             if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
             if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(()=>videoTrack?.applyConstraints({advanced:[{torch:true}]}));
             else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
-
-        lastBtn.square = pad.buttons[2].pressed;
         lastBtn.triangle = pad.buttons[3].pressed;
-        lastBtn.x = pad.buttons[0].pressed; 
-        lastBtn.circle = pad.buttons[1].pressed;
+        lastBtn.x = pad.buttons[0].pressed; lastBtn.circle = pad.buttons[1].pressed;
     }
 
     function updateHUD() {
@@ -465,25 +466,23 @@
         if (isMenuOpen) {
             ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center'; ctx.fillText("MENU OPEN", cx, cy + 200);
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy); ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10); ctx.stroke();
-        } 
-        else if (activeObject.obj) {
+        } else if (activeObject.obj) {
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
             ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
-            ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80);
             
-            // PDF HUD INFO
+            const label = activeObject.obj.userData.label || "TARGET";
+            ctx.fillText(label, cx, cy + 80); 
+            ctx.fillText("[O] CLOSE", cx, cy + 120);
+
+            // PDF HUD HINT
             if (activeObject.obj.userData.type === 'pdf') {
-                const page = activeObject.obj.userData.currentPage;
+                const page = activeObject.obj.userData.pageNum;
                 const total = activeObject.obj.userData.totalPages;
                 ctx.fillStyle = '#ffff00';
-                ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 110);
-                ctx.fillStyle = '#aaa'; ctx.font = '16px Courier New';
-                ctx.fillText("[L/R] FLIP PAGE   [O] DELETE", cx, cy + 140);
-            } else {
-                ctx.fillText("[O] DELETE", cx, cy + 120);
+                ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 160);
+                ctx.fillText("< STICK > TO TURN", cx, cy + 190);
             }
-        } 
-        else {
+        } else {
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
         }
         hudTexture.needsUpdate = true;
