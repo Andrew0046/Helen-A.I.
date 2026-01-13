@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: PDF FIX</title>
+    <title>HELEN: WALL ALIGN</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -44,8 +44,8 @@
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div class="status">
-        [ SYSTEM PATCHED ]<br>
-        Memory logic updated.<br>Multi-spawn enabled.
+        [ MANIPULATION UPDATE ]<br>
+        Use Right Stick to align screens<br>with physical walls.
     </div>
 
     <div class="btn-group">
@@ -54,8 +54,8 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
-            [STICK] MOVE or TURN PAGE (If Looking at PDF)
+            [L-STICK] MOVE &nbsp;&nbsp;&nbsp; [R-STICK] ROTATE SCREEN<br>
+            [L1/R1] ZOOM or PAGE FLIP
         </div>
     </div>
 </div>
@@ -91,9 +91,10 @@
     // CAMERAS
     let torchCamId = null, wideCamId = null, activeCamId = null;
     let visionMode = 0; 
-    let lastBtn = { x: false, circle: false, square: false, triangle: false };
+    let lastBtn = { x: false, circle: false, square: false, triangle: false, l1: false, r1: false };
     
     const SPEED = 0.1; 
+    const ROTATION_SPEED = 0.05; // How fast screens rotate
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
     // --- 1. FILE PROCESSING ---
@@ -112,7 +113,6 @@
                 
                 if (file.type === 'application/pdf') {
                     const buffer = await file.arrayBuffer();
-                    // Store the raw buffer. We will clone it later.
                     CUSTOM_DATABASE.push({ type: 'pdf', buffer: buffer, label: name });
                 } 
                 else if (file.type.startsWith('video')) {
@@ -123,8 +123,6 @@
                 }
             }
             statusLabel.innerText = `${CUSTOM_DATABASE.length} FILES READY`; statusLabel.style.color = '#00ff00';
-            
-            // RESET INPUT so you can re-select the same file if you really want to
             input.value = ''; 
         }
     });
@@ -311,7 +309,6 @@
         screen.userData = { isScreen: true, label: data.label, type: data.type };
 
         if (data.type === 'pdf') {
-            // FIX: Clone the buffer so we don't detach the original
             const clonedBuffer = data.buffer.slice(0);
             const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
             
@@ -349,6 +346,7 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
+    // --- 5. INPUT LOOP ---
     function handleInput() {
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
@@ -373,22 +371,45 @@
             if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
             
         } else {
+            // WORLD INTERACTION
             const intersects = raycaster.intersectObjects(targets);
             if (intersects.length > 0) {
                 activeObject.obj = intersects[0].object;
+                
                 if (activeObject.obj.userData.type === 'pdf') lookingAtPdf = true;
+
+                // ROTATE OBJECT WITH RIGHT STICK
+                const rsX = pad.axes[2] || 0; // Right Stick X
+                const rsY = pad.axes[3] || 0; // Right Stick Y
+                
+                if (Math.abs(rsX) > 0.1) activeObject.obj.rotation.y += rsX * ROTATION_SPEED;
+                if (Math.abs(rsY) > 0.1) activeObject.obj.rotation.x += rsY * ROTATION_SPEED;
+
+                // DELETE
                 if (pad.buttons[1].pressed && !lastBtn.circle) { deleteObject(activeObject.obj); activeObject.obj = null; }
             } else { activeObject.obj = null; }
         }
 
+        // LEFT STICK: MOVEMENT
         const stickX = pad.axes[0]; const stickZ = pad.axes[1];
+        if (Math.abs(stickX) > 0.1 || Math.abs(stickZ) > 0.1) {
+            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+            _strafeDir.crossVectors(camera.up, _moveDir).normalize();
+            dolly.position.addScaledVector(_moveDir, -stickZ * SPEED);
+            dolly.position.addScaledVector(_strafeDir, stickX * SPEED);
+        }
+
+        // SHOULDERS (L1/R1): CONTEXTUAL
+        const l1 = pad.buttons[4].pressed;
+        const r1 = pad.buttons[5].pressed;
 
         if (lookingAtPdf) {
-            if (Math.abs(stickX) > 0.5) {
+            // PAGE TURN MODE
+            if ((l1 && !lastBtn.l1) || (r1 && !lastBtn.r1)) {
                 const now = Date.now();
                 if (now - lastPageTurnTime > PAGE_DEBOUNCE) {
+                    const dir = r1 ? 1 : -1;
                     const target = activeObject.obj;
-                    const dir = Math.sign(stickX); 
                     const newPage = target.userData.pageNum + dir;
                     if (newPage >= 1 && newPage <= target.userData.totalPages) {
                         renderPdfPageToTexture(target, newPage);
@@ -396,19 +417,18 @@
                     }
                 }
             }
-            if (Math.abs(stickZ) > 0.1) {
-                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                 dolly.position.addScaledVector(_moveDir, -stickZ * SPEED);
-            }
         } else {
-            if (Math.abs(stickX) > 0.1 || Math.abs(stickZ) > 0.1) {
-                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
-                dolly.position.addScaledVector(_moveDir, -stickZ * SPEED);
-                dolly.position.addScaledVector(_strafeDir, stickX * SPEED);
+            // CAMERA LENS CYCLE MODE
+            if ((l1 || r1) && (!lastBtn.l1 && !lastBtn.r1)) {
+                if (allBackCameras.length > 1) {
+                    const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
+                    startCameraStream(allBackCameras[idx]);
+                }
             }
         }
+        lastBtn.l1 = l1; lastBtn.r1 = r1;
 
+        // BUTTONS
         if (pad.buttons[2].pressed && !lastBtn.square) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; }
         lastBtn.square = pad.buttons[2].pressed;
 
@@ -438,11 +458,17 @@
         } else if (activeObject.obj) {
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
             ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
-            ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80); ctx.fillText("[O] CLOSE", cx, cy + 120);
+            
+            const label = activeObject.obj.userData.label || "TARGET";
+            ctx.fillText(label, cx, cy + 80); 
+            ctx.fillText("[R-STICK] ROTATE", cx, cy + 120);
+
             if (activeObject.obj.userData.type === 'pdf') {
                 const page = activeObject.obj.userData.pageNum;
                 const total = activeObject.obj.userData.totalPages;
-                ctx.fillStyle = '#ffff00'; ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 160); ctx.fillText("< STICK > TO TURN", cx, cy + 190);
+                ctx.fillStyle = '#ffff00';
+                ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 160);
+                ctx.fillText("[L1/R1] FLIP PAGE", cx, cy + 190);
             }
         } else {
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
