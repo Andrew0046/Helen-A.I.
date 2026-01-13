@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: PDF READER</title>
+    <title>HELEN: PDF FIX</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -44,8 +44,8 @@
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div class="status">
-        [ DOC READER V1.0 ]<br>
-        Gaze + Stick L/R to Flip Pages
+        [ SYSTEM PATCHED ]<br>
+        Memory logic updated.<br>Multi-spawn enabled.
     </div>
 
     <div class="btn-group">
@@ -74,17 +74,14 @@
     
     // DATA
     let CUSTOM_DATABASE = []; 
-    // Default mock data
     const DEFAULT_DATABASE = [
         { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'MONA_LISA.JPG' }
     ];
 
     let targets = []; 
     let activeObject = { obj: null, progress: 0 }; 
-    
-    // STATE FOR PAGINATION
     let lastPageTurnTime = 0;
-    const PAGE_DEBOUNCE = 300; // ms
+    const PAGE_DEBOUNCE = 300; 
 
     // MENU
     let menuGroup, menuMesh, menuCtx, menuTexture;
@@ -99,7 +96,7 @@
     const SPEED = 0.1; 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    // --- 1. FILE PROCESSING (UPDATED FOR RAW PDF) ---
+    // --- 1. FILE PROCESSING ---
     const input = document.getElementById('intel-input');
     const statusLabel = document.getElementById('file-status');
 
@@ -114,8 +111,8 @@
                 if(name.length > 15) name = name.substring(0,12) + "...";
                 
                 if (file.type === 'application/pdf') {
-                    // STORE RAW ARRAY BUFFER for rendering later
                     const buffer = await file.arrayBuffer();
+                    // Store the raw buffer. We will clone it later.
                     CUSTOM_DATABASE.push({ type: 'pdf', buffer: buffer, label: name });
                 } 
                 else if (file.type.startsWith('video')) {
@@ -126,10 +123,13 @@
                 }
             }
             statusLabel.innerText = `${CUSTOM_DATABASE.length} FILES READY`; statusLabel.style.color = '#00ff00';
+            
+            // RESET INPUT so you can re-select the same file if you really want to
+            input.value = ''; 
         }
     });
 
-    // --- 2. CAMERA & 3D SETUP ---
+    // --- 2. CAMERA SETUP ---
     async function scanCameras() {
         if (!navigator.mediaDevices?.enumerateDevices) return;
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -228,7 +228,6 @@
         animate();
     }
 
-    // --- 3. MENU & SPAWNING ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
@@ -270,22 +269,18 @@
         isMenuOpen = false; menuGroup.visible = false;
     }
 
-    // --- 4. PDF RENDER LOGIC ---
     async function renderPdfPageToTexture(mesh, pageNum) {
         if (!mesh.userData.pdfDoc) return;
-        if (mesh.userData.isRendering) return; // Prevent double trigger
+        if (mesh.userData.isRendering) return; 
         mesh.userData.isRendering = true;
 
         try {
             const pdf = mesh.userData.pdfDoc;
-            // Clamp page number
             if (pageNum < 1) pageNum = 1;
             if (pageNum > pdf.numPages) pageNum = pdf.numPages;
             
             mesh.userData.pageNum = pageNum;
             const page = await pdf.getPage(pageNum);
-            
-            // High Res Scale
             const viewport = page.getViewport({ scale: 2.0 });
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -293,17 +288,11 @@
 
             await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-            // Update Texture
             const tex = new THREE.CanvasTexture(canvas);
             tex.colorSpace = THREE.SRGBColorSpace;
-            
-            if (mesh.material.map) mesh.material.map.dispose(); // Cleanup old
+            if (mesh.material.map) mesh.material.map.dispose(); 
             mesh.material.map = tex;
             mesh.material.needsUpdate = true;
-            
-            // Update aspect ratio if needed (optional, simplistic here)
-            // const ratio = viewport.width / viewport.height;
-            // mesh.scale.x = mesh.geometry.parameters.height * ratio; 
         } catch(e) { console.error(e); }
         
         mesh.userData.isRendering = false;
@@ -312,7 +301,7 @@
     async function spawnScreen(position, data) {
         let width = 3, height = 1.8; 
         let material, videoElem = null;
-        const geometry = new THREE.PlaneGeometry(3, 1.8); // Default geometry size, scale later
+        const geometry = new THREE.PlaneGeometry(3, 1.8);
         
         const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
         screen.position.copy(position); 
@@ -322,17 +311,16 @@
         screen.userData = { isScreen: true, label: data.label, type: data.type };
 
         if (data.type === 'pdf') {
-            // LOAD PDF DOC
-            const pdf = await pdfjsLib.getDocument(data.buffer).promise;
+            // FIX: Clone the buffer so we don't detach the original
+            const clonedBuffer = data.buffer.slice(0);
+            const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
+            
             screen.userData.pdfDoc = pdf;
             screen.userData.pageNum = 1;
             screen.userData.totalPages = pdf.numPages;
             
-            // Initial Render
             await renderPdfPageToTexture(screen, 1);
-            
-            // Adjust Shape to Vertical
-            screen.scale.set(0.8, 1.4, 1); // Make it look like a paper
+            screen.scale.set(0.8, 1.4, 1); 
             screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffff00 })));
         
         } else if (data.type === 'video') {
@@ -361,16 +349,13 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
-    // --- 5. INPUT LOOP (WITH PAGINATION) ---
     function handleInput() {
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
         
-        // CHECK IF LOOKING AT PDF
         raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
         let lookingAtPdf = false;
         
-        // If menu is open, handle menu only
         if (isMenuOpen) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
             const targetPos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2.5));
@@ -388,49 +373,34 @@
             if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
             
         } else {
-            // WORLD INTERACTION
             const intersects = raycaster.intersectObjects(targets);
             if (intersects.length > 0) {
                 activeObject.obj = intersects[0].object;
-                
-                // IS IT A PDF?
-                if (activeObject.obj.userData.type === 'pdf') {
-                    lookingAtPdf = true;
-                }
-
+                if (activeObject.obj.userData.type === 'pdf') lookingAtPdf = true;
                 if (pad.buttons[1].pressed && !lastBtn.circle) { deleteObject(activeObject.obj); activeObject.obj = null; }
             } else { activeObject.obj = null; }
         }
 
-        // MOVEMENT VS PAGINATION LOGIC
-        const stickX = pad.axes[0];
-        const stickZ = pad.axes[1];
+        const stickX = pad.axes[0]; const stickZ = pad.axes[1];
 
         if (lookingAtPdf) {
-            // --- PDF READING MODE ---
-            // If sticking left/right significantly, turn page
             if (Math.abs(stickX) > 0.5) {
                 const now = Date.now();
                 if (now - lastPageTurnTime > PAGE_DEBOUNCE) {
                     const target = activeObject.obj;
-                    const dir = Math.sign(stickX); // +1 Right (Next), -1 Left (Prev)
+                    const dir = Math.sign(stickX); 
                     const newPage = target.userData.pageNum + dir;
-                    
                     if (newPage >= 1 && newPage <= target.userData.totalPages) {
                         renderPdfPageToTexture(target, newPage);
                         lastPageTurnTime = now;
                     }
                 }
             }
-            // Allow forward/back movement (Z axis) but DISABLE STRAFING (X axis)
             if (Math.abs(stickZ) > 0.1) {
                  camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                  dolly.position.addScaledVector(_moveDir, -stickZ * SPEED);
             }
-
         } else {
-            // --- NORMAL MOVEMENT MODE ---
-            // Normal Walking/Strafing logic
             if (Math.abs(stickX) > 0.1 || Math.abs(stickZ) > 0.1) {
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                 _strafeDir.crossVectors(camera.up, _moveDir).normalize();
@@ -439,7 +409,6 @@
             }
         }
 
-        // BUTTONS
         if (pad.buttons[2].pressed && !lastBtn.square) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; }
         lastBtn.square = pad.buttons[2].pressed;
 
@@ -469,18 +438,11 @@
         } else if (activeObject.obj) {
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
             ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
-            
-            const label = activeObject.obj.userData.label || "TARGET";
-            ctx.fillText(label, cx, cy + 80); 
-            ctx.fillText("[O] CLOSE", cx, cy + 120);
-
-            // PDF HUD HINT
+            ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80); ctx.fillText("[O] CLOSE", cx, cy + 120);
             if (activeObject.obj.userData.type === 'pdf') {
                 const page = activeObject.obj.userData.pageNum;
                 const total = activeObject.obj.userData.totalPages;
-                ctx.fillStyle = '#ffff00';
-                ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 160);
-                ctx.fillText("< STICK > TO TURN", cx, cy + 190);
+                ctx.fillStyle = '#ffff00'; ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 160); ctx.fillText("< STICK > TO TURN", cx, cy + 190);
             }
         } else {
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
