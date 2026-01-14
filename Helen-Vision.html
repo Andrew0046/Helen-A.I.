@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: WALL MOUNT</title>
+    <title>HELEN: SMART SELECT</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -44,8 +44,8 @@
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div class="status">
-        [ WALL MOUNT UPDATE ]<br>
-        Right Stick: Rotate/Tilt<br>Triggers: Push/Pull
+        [ SYSTEM PATCHED ]<br>
+        Smart Selection: ACTIVE<br>Hitbox Expanded.
     </div>
 
     <div class="btn-group">
@@ -94,8 +94,8 @@
     let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false };
     
     const SPEED = 0.1; 
-    const ROTATE_SPEED = 0.05; // Speed of rotation
-    const MOVE_SPEED = 0.05;   // Speed of Push/Pull
+    const ROTATE_SPEED = 0.05; 
+    const MOVE_SPEED = 0.05;
 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
@@ -264,6 +264,7 @@
     function spawnFromMenu(index) {
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+        // Use World Position for spawn
         const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
         spawnScreen(pos, db[index]);
         isMenuOpen = false; menuGroup.visible = false;
@@ -296,8 +297,6 @@
         
         const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
         screen.position.copy(position); 
-        
-        // Spawn facing player initially
         const pPos = camera.getWorldPosition(new THREE.Vector3());
         screen.lookAt(pPos.x, screen.position.y, pPos.z);
         
@@ -340,11 +339,13 @@
         raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
         let activeTarget = null;
         
-        // MENU LOGIC
         if (isMenuOpen) {
+            // MENU LOGIC
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
-            const targetPos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2.5));
+            const worldPos = camera.getWorldPosition(new THREE.Vector3());
+            const targetPos = worldPos.add(dir.multiplyScalar(2.5));
             menuGroup.position.copy(targetPos); menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
+            
             const intersects = raycaster.intersectObject(menuMesh);
             if (intersects.length > 0) {
                 const uvY = intersects[0].uv.y;
@@ -357,71 +358,71 @@
             if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
             
         } else {
-            // TARGET LOGIC
-            const intersects = raycaster.intersectObjects(targets);
+            // WORLD LOGIC - USE RECURSIVE RAYCAST
+            const intersects = raycaster.intersectObjects(targets, true); // TRUE = CHECK CHILDREN (WIREFRAME)
             if (intersects.length > 0) {
-                activeObject.obj = intersects[0].object;
-                activeTarget = activeObject.obj;
-                if (pad.buttons[1].pressed && !lastBtn.circle) { deleteObject(activeTarget); activeObject.obj = null; activeTarget = null; }
+                // FIND ROOT SCREEN OBJECT (BUBBLE UP)
+                let hit = intersects[0].object;
+                while(hit.parent && !hit.userData.isScreen && hit !== scene) {
+                    hit = hit.parent;
+                }
+                
+                if (hit.userData.isScreen) {
+                    activeObject.obj = hit;
+                    activeTarget = hit;
+                } else {
+                    activeObject.obj = null;
+                }
+
+                if (activeTarget && pad.buttons[1].pressed && !lastBtn.circle) { 
+                    deleteObject(activeTarget); activeObject.obj = null; activeTarget = null; 
+                }
             } else { activeObject.obj = null; }
         }
 
-        // --- STICK INPUTS ---
-        const leftStickX = pad.axes[0]; const leftStickY = pad.axes[1]; // WASD / Page
-        const rightStickX = pad.axes[2]; const rightStickY = pad.axes[3]; // Rotate / Tilt
+        const leftStickX = pad.axes[0]; const leftStickY = pad.axes[1]; 
+        const rightStickX = pad.axes[2]; const rightStickY = pad.axes[3]; 
 
-        // 1. ROTATION LOGIC (If Lookin at Object)
+        // MANIPULATION LOGIC
         if (activeTarget) {
-            // Right Stick X: Rotate Y (Yaw)
-            if (Math.abs(rightStickX) > 0.1) {
-                activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
-            }
-            // Right Stick Y: Rotate X (Pitch)
-            if (Math.abs(rightStickY) > 0.1) {
-                activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
-            }
+            // ROTATE
+            if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
+            if (Math.abs(rightStickY) > 0.1) activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
             
-            // Triggers (Buttons 6/7) for Distance Push/Pull
-            // Note: Gamepad API varies, usually 6=L2, 7=R2. They are buttons[].value or pressed.
-            // Let's assume standard mapping:
+            // PUSH/PULL
             const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
             const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
-            
             if (r2 > 0.1) {
-                // PULL towards player
-                const dir = new THREE.Vector3();
-                dir.subVectors(camera.position, activeTarget.position).normalize();
+                const dir = new THREE.Vector3(); dir.subVectors(camera.position, activeTarget.position).normalize();
                 activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * r2));
             }
             if (l2 > 0.1) {
-                // PUSH away
-                const dir = new THREE.Vector3();
-                dir.subVectors(activeTarget.position, camera.position).normalize();
+                const dir = new THREE.Vector3(); dir.subVectors(activeTarget.position, camera.position).normalize();
                 activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * l2));
             }
-        }
 
-        // 2. MOVEMENT / PDF LOGIC (Left Stick)
-        if (activeTarget && activeTarget.userData.type === 'pdf') {
-            // PDF Page Turn logic takes priority over strafing IF significant input
-             if (Math.abs(leftStickX) > 0.5) {
-                const now = Date.now();
-                if (now - lastPageTurnTime > PAGE_DEBOUNCE) {
-                    const dir = Math.sign(leftStickX); 
-                    const newPage = activeTarget.userData.pageNum + dir;
-                    if (newPage >= 1 && newPage <= activeTarget.userData.totalPages) {
-                        renderPdfPageToTexture(activeTarget, newPage);
-                        lastPageTurnTime = now;
+            // PDF PAGES
+            if (activeTarget.userData.type === 'pdf') {
+                if (Math.abs(leftStickX) > 0.5) {
+                    const now = Date.now();
+                    if (now - lastPageTurnTime > PAGE_DEBOUNCE) {
+                        const dir = Math.sign(leftStickX); 
+                        const newPage = activeTarget.userData.pageNum + dir;
+                        if (newPage >= 1 && newPage <= activeTarget.userData.totalPages) {
+                            renderPdfPageToTexture(activeTarget, newPage);
+                            lastPageTurnTime = now;
+                        }
                     }
                 }
-            }
-            // Allow Forward/Back movement
-            if (Math.abs(leftStickY) > 0.1) {
-                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                 dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
-            }
-        } else {
-            // Normal Movement
+                if (Math.abs(leftStickY) > 0.1) {
+                    camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+                    dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
+                }
+            } 
+        } 
+        
+        // NORMAL MOVE (If no PDF selected)
+        if (!activeTarget || (activeTarget && activeTarget.userData.type !== 'pdf')) {
             if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                 _strafeDir.crossVectors(camera.up, _moveDir).normalize();
@@ -430,7 +431,6 @@
             }
         }
 
-        // BUTTONS
         if (pad.buttons[2].pressed && !lastBtn.square) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; }
         lastBtn.square = pad.buttons[2].pressed;
 
@@ -441,7 +441,6 @@
             else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
         
-        // Manual Lens Cycle (Shoulder Buttons)
         if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastBtn.bumper && allBackCameras.length > 1) {
             const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
             startCameraStream(allBackCameras[idx]);
@@ -472,7 +471,6 @@
             ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80); 
             ctx.font = '16px Courier New';
             ctx.fillText("[R-STICK] ROTATE/TILT   [TRIG] PUSH/PULL", cx, cy + 120);
-            
             if (activeObject.obj.userData.type === 'pdf') {
                 const page = activeObject.obj.userData.pageNum;
                 const total = activeObject.obj.userData.totalPages;
