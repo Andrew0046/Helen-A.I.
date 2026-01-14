@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: WALL ALIGN</title>
+    <title>HELEN: WALL MOUNT</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -44,8 +44,8 @@
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div class="status">
-        [ MANIPULATION UPDATE ]<br>
-        Use Right Stick to align screens<br>with physical walls.
+        [ WALL MOUNT UPDATE ]<br>
+        Right Stick: Rotate/Tilt<br>Triggers: Push/Pull
     </div>
 
     <div class="btn-group">
@@ -54,8 +54,8 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [L-STICK] MOVE &nbsp;&nbsp;&nbsp; [R-STICK] ROTATE SCREEN<br>
-            [L1/R1] ZOOM or PAGE FLIP
+            [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
+            [L-STICK] MOVE &nbsp;&nbsp; [R-STICK] ROTATE
         </div>
     </div>
 </div>
@@ -89,12 +89,14 @@
     let hoveredFileIndex = -1;
 
     // CAMERAS
-    let torchCamId = null, wideCamId = null, activeCamId = null;
+    let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
     let visionMode = 0; 
-    let lastBtn = { x: false, circle: false, square: false, triangle: false, l1: false, r1: false };
+    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false };
     
     const SPEED = 0.1; 
-    const ROTATION_SPEED = 0.05; // How fast screens rotate
+    const ROTATE_SPEED = 0.05; // Speed of rotation
+    const MOVE_SPEED = 0.05;   // Speed of Push/Pull
+
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
     // --- 1. FILE PROCESSING ---
@@ -132,6 +134,7 @@
         if (!navigator.mediaDevices?.enumerateDevices) return;
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(d => d.kind === 'videoinput' && !d.label.toLowerCase().includes('front'));
+        allBackCameras = cameras.map(c => c.deviceId);
         
         for (const cam of cameras) {
             try {
@@ -262,7 +265,6 @@
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
         const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
-        
         spawnScreen(pos, db[index]);
         isMenuOpen = false; menuGroup.visible = false;
     }
@@ -271,28 +273,19 @@
         if (!mesh.userData.pdfDoc) return;
         if (mesh.userData.isRendering) return; 
         mesh.userData.isRendering = true;
-
         try {
             const pdf = mesh.userData.pdfDoc;
-            if (pageNum < 1) pageNum = 1;
-            if (pageNum > pdf.numPages) pageNum = pdf.numPages;
-            
+            if (pageNum < 1) pageNum = 1; if (pageNum > pdf.numPages) pageNum = pdf.numPages;
             mesh.userData.pageNum = pageNum;
             const page = await pdf.getPage(pageNum);
             const viewport = page.getViewport({ scale: 2.0 });
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
             canvas.height = viewport.height; canvas.width = viewport.width;
-
             await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.colorSpace = THREE.SRGBColorSpace;
+            const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace;
             if (mesh.material.map) mesh.material.map.dispose(); 
-            mesh.material.map = tex;
-            mesh.material.needsUpdate = true;
+            mesh.material.map = tex; mesh.material.needsUpdate = true;
         } catch(e) { console.error(e); }
-        
         mesh.userData.isRendering = false;
     }
 
@@ -303,6 +296,8 @@
         
         const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
         screen.position.copy(position); 
+        
+        // Spawn facing player initially
         const pPos = camera.getWorldPosition(new THREE.Vector3());
         screen.lookAt(pPos.x, screen.position.y, pPos.z);
         
@@ -311,29 +306,21 @@
         if (data.type === 'pdf') {
             const clonedBuffer = data.buffer.slice(0);
             const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
-            
-            screen.userData.pdfDoc = pdf;
-            screen.userData.pageNum = 1;
-            screen.userData.totalPages = pdf.numPages;
-            
+            screen.userData.pdfDoc = pdf; screen.userData.pageNum = 1; screen.userData.totalPages = pdf.numPages;
             await renderPdfPageToTexture(screen, 1);
             screen.scale.set(0.8, 1.4, 1); 
             screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffff00 })));
-        
         } else if (data.type === 'video') {
             videoElem = document.createElement('video'); videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; videoElem.loop = true; videoElem.muted = true; 
             videoElem.play().then(() => { videoElem.muted = false; });
             const tex = new THREE.VideoTexture(videoElem); tex.colorSpace = THREE.SRGBColorSpace;
-            screen.material.map = tex;
-            screen.userData.videoElement = videoElem;
+            screen.material.map = tex; screen.userData.videoElement = videoElem;
             screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
-        
         } else {
             const tex = new THREE.TextureLoader().load(data.src); tex.colorSpace = THREE.SRGBColorSpace;
             screen.material.map = tex;
             screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
         }
-
         scene.add(screen); targets.push(screen);
     }
 
@@ -346,19 +333,18 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
-    // --- 5. INPUT LOOP ---
     function handleInput() {
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
         
         raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-        let lookingAtPdf = false;
+        let activeTarget = null;
         
+        // MENU LOGIC
         if (isMenuOpen) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
             const targetPos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2.5));
             menuGroup.position.copy(targetPos); menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
-            
             const intersects = raycaster.intersectObject(menuMesh);
             if (intersects.length > 0) {
                 const uvY = intersects[0].uv.y;
@@ -371,62 +357,78 @@
             if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
             
         } else {
-            // WORLD INTERACTION
+            // TARGET LOGIC
             const intersects = raycaster.intersectObjects(targets);
             if (intersects.length > 0) {
                 activeObject.obj = intersects[0].object;
-                
-                if (activeObject.obj.userData.type === 'pdf') lookingAtPdf = true;
-
-                // ROTATE OBJECT WITH RIGHT STICK
-                const rsX = pad.axes[2] || 0; // Right Stick X
-                const rsY = pad.axes[3] || 0; // Right Stick Y
-                
-                if (Math.abs(rsX) > 0.1) activeObject.obj.rotation.y += rsX * ROTATION_SPEED;
-                if (Math.abs(rsY) > 0.1) activeObject.obj.rotation.x += rsY * ROTATION_SPEED;
-
-                // DELETE
-                if (pad.buttons[1].pressed && !lastBtn.circle) { deleteObject(activeObject.obj); activeObject.obj = null; }
+                activeTarget = activeObject.obj;
+                if (pad.buttons[1].pressed && !lastBtn.circle) { deleteObject(activeTarget); activeObject.obj = null; activeTarget = null; }
             } else { activeObject.obj = null; }
         }
 
-        // LEFT STICK: MOVEMENT
-        const stickX = pad.axes[0]; const stickZ = pad.axes[1];
-        if (Math.abs(stickX) > 0.1 || Math.abs(stickZ) > 0.1) {
-            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-            _strafeDir.crossVectors(camera.up, _moveDir).normalize();
-            dolly.position.addScaledVector(_moveDir, -stickZ * SPEED);
-            dolly.position.addScaledVector(_strafeDir, stickX * SPEED);
+        // --- STICK INPUTS ---
+        const leftStickX = pad.axes[0]; const leftStickY = pad.axes[1]; // WASD / Page
+        const rightStickX = pad.axes[2]; const rightStickY = pad.axes[3]; // Rotate / Tilt
+
+        // 1. ROTATION LOGIC (If Lookin at Object)
+        if (activeTarget) {
+            // Right Stick X: Rotate Y (Yaw)
+            if (Math.abs(rightStickX) > 0.1) {
+                activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
+            }
+            // Right Stick Y: Rotate X (Pitch)
+            if (Math.abs(rightStickY) > 0.1) {
+                activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
+            }
+            
+            // Triggers (Buttons 6/7) for Distance Push/Pull
+            // Note: Gamepad API varies, usually 6=L2, 7=R2. They are buttons[].value or pressed.
+            // Let's assume standard mapping:
+            const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
+            const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
+            
+            if (r2 > 0.1) {
+                // PULL towards player
+                const dir = new THREE.Vector3();
+                dir.subVectors(camera.position, activeTarget.position).normalize();
+                activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * r2));
+            }
+            if (l2 > 0.1) {
+                // PUSH away
+                const dir = new THREE.Vector3();
+                dir.subVectors(activeTarget.position, camera.position).normalize();
+                activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * l2));
+            }
         }
 
-        // SHOULDERS (L1/R1): CONTEXTUAL
-        const l1 = pad.buttons[4].pressed;
-        const r1 = pad.buttons[5].pressed;
-
-        if (lookingAtPdf) {
-            // PAGE TURN MODE
-            if ((l1 && !lastBtn.l1) || (r1 && !lastBtn.r1)) {
+        // 2. MOVEMENT / PDF LOGIC (Left Stick)
+        if (activeTarget && activeTarget.userData.type === 'pdf') {
+            // PDF Page Turn logic takes priority over strafing IF significant input
+             if (Math.abs(leftStickX) > 0.5) {
                 const now = Date.now();
                 if (now - lastPageTurnTime > PAGE_DEBOUNCE) {
-                    const dir = r1 ? 1 : -1;
-                    const target = activeObject.obj;
-                    const newPage = target.userData.pageNum + dir;
-                    if (newPage >= 1 && newPage <= target.userData.totalPages) {
-                        renderPdfPageToTexture(target, newPage);
+                    const dir = Math.sign(leftStickX); 
+                    const newPage = activeTarget.userData.pageNum + dir;
+                    if (newPage >= 1 && newPage <= activeTarget.userData.totalPages) {
+                        renderPdfPageToTexture(activeTarget, newPage);
                         lastPageTurnTime = now;
                     }
                 }
             }
+            // Allow Forward/Back movement
+            if (Math.abs(leftStickY) > 0.1) {
+                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+                 dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
+            }
         } else {
-            // CAMERA LENS CYCLE MODE
-            if ((l1 || r1) && (!lastBtn.l1 && !lastBtn.r1)) {
-                if (allBackCameras.length > 1) {
-                    const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
-                    startCameraStream(allBackCameras[idx]);
-                }
+            // Normal Movement
+            if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
+                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
+                dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
+                dolly.position.addScaledVector(_strafeDir, leftStickX * SPEED);
             }
         }
-        lastBtn.l1 = l1; lastBtn.r1 = r1;
 
         // BUTTONS
         if (pad.buttons[2].pressed && !lastBtn.square) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; }
@@ -438,8 +440,17 @@
             if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(()=>videoTrack?.applyConstraints({advanced:[{torch:true}]}));
             else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
+        
+        // Manual Lens Cycle (Shoulder Buttons)
+        if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastBtn.bumper && allBackCameras.length > 1) {
+            const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
+            startCameraStream(allBackCameras[idx]);
+        }
+        
         lastBtn.triangle = pad.buttons[3].pressed;
-        lastBtn.x = pad.buttons[0].pressed; lastBtn.circle = pad.buttons[1].pressed;
+        lastBtn.x = pad.buttons[0].pressed; 
+        lastBtn.circle = pad.buttons[1].pressed;
+        lastBtn.bumper = pad.buttons[4].pressed || pad.buttons[5].pressed;
     }
 
     function updateHUD() {
@@ -458,17 +469,15 @@
         } else if (activeObject.obj) {
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
             ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
+            ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80); 
+            ctx.font = '16px Courier New';
+            ctx.fillText("[R-STICK] ROTATE/TILT   [TRIG] PUSH/PULL", cx, cy + 120);
             
-            const label = activeObject.obj.userData.label || "TARGET";
-            ctx.fillText(label, cx, cy + 80); 
-            ctx.fillText("[R-STICK] ROTATE", cx, cy + 120);
-
             if (activeObject.obj.userData.type === 'pdf') {
                 const page = activeObject.obj.userData.pageNum;
                 const total = activeObject.obj.userData.totalPages;
-                ctx.fillStyle = '#ffff00';
+                ctx.fillStyle = '#ffff00'; ctx.font = '20px Courier New';
                 ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 160);
-                ctx.fillText("[L1/R1] FLIP PAGE", cx, cy + 190);
             }
         } else {
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
