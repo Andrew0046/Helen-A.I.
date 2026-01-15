@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: STATIC MODELS</title>
+    <title>HELEN: KINETIC ENGINE</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -46,8 +46,8 @@
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ RESTORE POINT FOUND</div>
     <div class="status">
-        [ SYSTEM UPDATED ]<br>
-        Auto-Rotation: DISABLED<br>Models are now static.
+        [ KINETIC ENGINE ONLINE ]<br>
+        Animation Support: ACTIVE<br>L1/R1: Cycle Animations
     </div>
 
     <div class="btn-group">
@@ -57,7 +57,7 @@
         
         <div class="controls-hint">
             [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
-            [R-STICK] ROTATE (Screen) / SCALE (Model)
+            [R-STICK] SCALE &nbsp;&nbsp; [L1/R1] ANIMATION
         </div>
     </div>
 </div>
@@ -75,8 +75,9 @@
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
+    let clock = new THREE.Clock(); // THE HEARTBEAT
     
-    // DATA
+    // DATA & STATE
     let CUSTOM_DATABASE = []; 
     const DEFAULT_DATABASE = [
         { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' }
@@ -103,7 +104,7 @@
     const SCALE_SPEED = 0.02; 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    if (localStorage.getItem('helen_layout_v5')) {
+    if (localStorage.getItem('helen_layout_v6')) {
         document.getElementById('restore-msg').style.display = 'block';
         pendingRestore = true;
     }
@@ -153,12 +154,12 @@
                 type: root.userData.type
             };
         });
-        localStorage.setItem('helen_layout_v5', JSON.stringify(layout));
+        localStorage.setItem('helen_layout_v6', JSON.stringify(layout));
         sysMessage = "MISSION SAVED"; updateMenuDisplay(); setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
     }
 
     function loadMission() {
-        const raw = localStorage.getItem('helen_layout_v5');
+        const raw = localStorage.getItem('helen_layout_v6');
         if (!raw) { sysMessage = "NO DATA FOUND"; updateMenuDisplay(); return; }
         const layout = JSON.parse(raw);
         let restoredCount = 0;
@@ -178,7 +179,7 @@
     }
 
     function clearMission() {
-        localStorage.removeItem('helen_layout_v5');
+        localStorage.removeItem('helen_layout_v6');
         [...targets].forEach(t => deleteObject(t));
         sysMessage = "DATABASE WIPED"; updateMenuDisplay();
     }
@@ -267,7 +268,7 @@
         animate();
     }
 
-    // --- 4. MENU & SPAWN ---
+    // --- 4. MENU SYSTEM ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
@@ -340,7 +341,7 @@
         }
     }
 
-    // --- 5. SPAWNING ---
+    // --- 5. MODEL SPAWNING & ANIMATION ---
     function spawnModel(position, data, rotation = null, scale = null) {
         const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
         const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
@@ -357,6 +358,9 @@
             targets = targets.filter(t => t !== placeholder);
 
             const model = data.type === 'fbx' ? loaded : loaded.scene;
+            const animations = data.type === 'fbx' ? loaded.animations : loaded.animations;
+
+            // NORMALIZE SCALE
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z) || 1; 
@@ -368,13 +372,33 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            model.userData = { isScreen: true, isModel: true, label: data.label, type: data.type };
+            // SETUP ANIMATION MIXER
+            let mixer = null;
+            if (animations && animations.length > 0) {
+                mixer = new THREE.AnimationMixer(model);
+                // Play first animation by default
+                const action = mixer.clipAction(animations[0]);
+                action.play();
+            }
+
+            model.userData = { 
+                isScreen: true, 
+                isModel: true, 
+                label: data.label, 
+                type: data.type,
+                mixer: mixer,
+                animations: animations,
+                activeAnimIndex: 0
+            };
+            
             const helper = new THREE.BoxHelper(model, 0x00ffff);
             model.add(helper);
 
             scene.add(model);
             targets.push(model);
-            sysMessage = "MODEL DEPLOYED"; updateMenuDisplay();
+            
+            sysMessage = mixer ? "ANIMATION ACTIVE" : "MODEL DEPLOYED"; 
+            updateMenuDisplay();
         }, undefined, (error) => {
             console.error(error);
             placeholder.material.color.setHex(0xff0000);
@@ -383,19 +407,18 @@
         });
     }
 
+    // --- 6. STANDARD SPAWNERS ---
     async function spawnScreen(position, data, rotation = null) {
         let width = 3, height = 1.8; 
         let material, videoElem = null;
         const geometry = new THREE.PlaneGeometry(3, 1.8);
         const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
         screen.position.copy(position); 
-        
         if (rotation) screen.rotation.copy(rotation);
         else {
             const pPos = camera.getWorldPosition(new THREE.Vector3());
             screen.lookAt(pPos.x, screen.position.y, pPos.z);
         }
-        
         screen.userData = { isScreen: true, label: data.label, type: data.type };
 
         if (data.type === 'pdf') {
@@ -447,6 +470,7 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
+    // --- 7. INPUT & ANIMATION LOGIC ---
     function handleInput() {
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
@@ -489,7 +513,7 @@
         const rightStickX = pad.axes[2]; const rightStickY = pad.axes[3]; 
 
         if (activeTarget) {
-            // ROTATE
+            // ROTATE / SCALE
             if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
             if (Math.abs(rightStickY) > 0.1) {
                 if (activeTarget.userData.isModel) {
@@ -499,18 +523,34 @@
                      activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
                 }
             }
-            // PUSH/PULL
-            const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
-            const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
-            if (r2 > 0.1) {
-                const dir = new THREE.Vector3(); dir.subVectors(camera.position, activeTarget.position).normalize();
-                activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * r2));
+            
+            // ANIMATION CYCLE (L1 / R1)
+            // Assuming L1=Btn4, R1=Btn5
+            const l1 = pad.buttons[4].pressed;
+            const r1 = pad.buttons[5].pressed;
+            
+            if ((l1 || r1) && !lastBtn.bumper && activeTarget.userData.mixer && activeTarget.userData.animations.length > 1) {
+                // Stop current action
+                const mixer = activeTarget.userData.mixer;
+                mixer.stopAllAction();
+                
+                // Advance Index
+                const anims = activeTarget.userData.animations;
+                let idx = activeTarget.userData.activeAnimIndex;
+                if (r1) idx = (idx + 1) % anims.length;
+                if (l1) idx = (idx - 1 + anims.length) % anims.length;
+                
+                // Play New
+                activeTarget.userData.activeAnimIndex = idx;
+                const action = mixer.clipAction(anims[idx]);
+                action.play();
+                
+                sysMessage = `ANIM: ${anims[idx].name || 'Track ' + idx}`;
+                updateMenuDisplay();
             }
-            if (l2 > 0.1) {
-                const dir = new THREE.Vector3(); dir.subVectors(activeTarget.position, camera.position).normalize();
-                activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * l2));
-            }
-            // PDF
+            lastBtn.bumper = l1 || r1;
+
+            // PDF PAGES
             if (activeTarget.userData.type === 'pdf') {
                 if (Math.abs(leftStickX) > 0.5) {
                     const now = Date.now();
@@ -522,10 +562,6 @@
                             lastPageTurnTime = now;
                         }
                     }
-                }
-                if (Math.abs(leftStickY) > 0.1) {
-                    camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                    dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
                 }
             } 
         } 
@@ -549,15 +585,9 @@
             else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
         
-        if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastBtn.bumper && allBackCameras.length > 1) {
-            const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
-            startCameraStream(allBackCameras[idx]);
-        }
-        
         lastBtn.triangle = pad.buttons[3].pressed;
         lastBtn.x = pad.buttons[0].pressed; 
         lastBtn.circle = pad.buttons[1].pressed;
-        lastBtn.bumper = pad.buttons[4].pressed || pad.buttons[5].pressed;
     }
 
     function updateHUD() {
@@ -580,9 +610,9 @@
             ctx.font = '16px Courier New';
             
             if (activeObject.obj.userData.isModel) {
-                 ctx.fillText("[R-STICK] ROTATE/SCALE", cx, cy + 120);
+                 ctx.fillText("[R-STICK] SCALE/ROT   [L1/R1] ANIM", cx, cy + 120);
             } else {
-                 ctx.fillText("[R-STICK] ROTATE/TILT", cx, cy + 120);
+                 ctx.fillText("[R-STICK] TILT/ROT", cx, cy + 120);
             }
             
             if (activeObject.obj.userData.type === 'pdf') {
@@ -598,7 +628,16 @@
     }
 
     function animate() {
-        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); renderer.render(scene, camera); });
+        renderer.setAnimationLoop(() => { 
+            const delta = clock.getDelta();
+            handleInput(); 
+            updateHUD(); 
+            // UPDATE ANIMATION MIXERS
+            targets.forEach(t => { 
+                if(t.userData.mixer) t.userData.mixer.update(delta);
+            }); 
+            renderer.render(scene, camera); 
+        });
     }
 </script>
 </body>
