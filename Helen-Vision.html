@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: ANIMATOR</title>
+    <title>HELEN: PROCEDURAL LIFE</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -44,20 +44,20 @@
 
 <div id="overlay">
     <h1>HELEN OS</h1>
-    <div id="restore-msg">⚠️ RESTORE POINT FOUND</div>
+    <div id="restore-msg">⚠️ SYSTEM RESTORED</div>
     <div class="status">
-        [ ANIMATION MODULE ONLINE ]<br>
-        Look at Model + Press [X]<br>to cycle clips.
+        [ PROCEDURAL ENGINE ]<br>
+        AI Animation: ONLINE<br>Models react to movement.
     </div>
 
     <div class="btn-group">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD DATABASE</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [□] MENU &nbsp;&nbsp; [X] CYCLE ANIM &nbsp;&nbsp; [O] DELETE<br>
-            [R-STICK] ROTATE / SCALE
+            [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
+            [L-STICK] MOVE/WALK &nbsp;&nbsp; [R-STICK] ROTATE
         </div>
     </div>
 </div>
@@ -75,10 +75,7 @@
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
-    
-    // ANIMATION ENGINE
-    const clock = new THREE.Clock();
-    let mixers = []; // Stores all active animation mixers
+    const clock = new THREE.Clock(); // For Animation Delta
     
     // DATA & STATE
     let CUSTOM_DATABASE = []; 
@@ -271,7 +268,84 @@
         animate();
     }
 
-    // --- 4. MENU & SPAWN ---
+    // --- 4. BONE MAPPING UTILITY ---
+    function mapBones(model) {
+        const boneMap = {};
+        model.traverse(child => {
+            if (child.isBone) {
+                const name = child.name.toLowerCase();
+                // Heuristic matching
+                if (name.includes('hip') || name.includes('pelvis') || name.includes('root')) boneMap.hips = child;
+                else if ((name.includes('spine') || name.includes('chest')) && !boneMap.spine) boneMap.spine = child;
+                else if (name.includes('head') || name.includes('neck')) boneMap.head = child;
+                // Arms
+                else if (name.includes('arm') || name.includes('shoulder')) {
+                    if (name.includes('l')) boneMap.leftArm = child;
+                    if (name.includes('r')) boneMap.rightArm = child;
+                }
+                // Legs
+                else if (name.includes('leg') || name.includes('thigh')) {
+                    if (name.includes('l')) boneMap.leftLeg = child;
+                    if (name.includes('r')) boneMap.rightLeg = child;
+                }
+                else if (name.includes('calf') || name.includes('knee')) {
+                    if (name.includes('l')) boneMap.leftCalf = child;
+                    if (name.includes('r')) boneMap.rightCalf = child;
+                }
+            }
+        });
+        return boneMap;
+    }
+
+    // --- 5. PROCEDURAL ANIMATION ENGINE ---
+    function updateProceduralAnimation(model, delta) {
+        if (!model.userData.bones) return;
+        const bones = model.userData.bones;
+        const state = model.userData.animState;
+
+        // Is model moving? (Based on userData "isMoving" set by input)
+        const targetSpeed = model.userData.isMoving ? 1.0 : 0.0;
+        state.smoothSpeed = THREE.MathUtils.lerp(state.smoothSpeed, targetSpeed, 0.1);
+        
+        // Accumulate Walk Cycle
+        const intensity = state.smoothSpeed;
+        state.walkAccumulator += delta * 5.0 * (0.1 + intensity); 
+        const wc = state.walkAccumulator;
+
+        // 1. IDLE BREATHING (Always Active)
+        const breath = Math.sin(wc * 0.5) * 0.05;
+        if (bones.spine) bones.spine.rotation.x = breath + (intensity * 0.2); // Lean forward when running
+        if (bones.head) bones.head.rotation.x = -breath; // Counter-rotate head
+
+        // 2. WALK CYCLE (Driven by Intensity)
+        if (intensity > 0.01) {
+            const runAmp = 0.5 * intensity;
+            const armAmp = 0.5 * intensity;
+
+            // Legs
+            if (bones.leftLeg) bones.leftLeg.rotation.x = Math.sin(wc) * runAmp;
+            if (bones.rightLeg) bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * runAmp;
+            
+            // Knees (Simple bend)
+            if (bones.leftCalf) bones.leftCalf.rotation.x = Math.max(0, -Math.sin(wc)) * runAmp * 2;
+            if (bones.rightCalf) bones.rightCalf.rotation.x = Math.max(0, -Math.sin(wc + Math.PI)) * runAmp * 2;
+
+            // Arms (Opposite to legs)
+            if (bones.leftArm) bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp;
+            if (bones.rightArm) bones.rightArm.rotation.x = Math.sin(wc) * armAmp;
+            
+            // Bobbing Hips
+            if (bones.hips) bones.hips.position.y = (Math.sin(wc * 2) * 0.02 * intensity);
+        } else {
+            // Return to Neutral
+            if (bones.leftLeg) bones.leftLeg.rotation.x *= 0.9;
+            if (bones.rightLeg) bones.rightLeg.rotation.x *= 0.9;
+            if (bones.leftArm) bones.leftArm.rotation.x *= 0.9;
+            if (bones.rightArm) bones.rightArm.rotation.x *= 0.9;
+        }
+    }
+
+    // --- 6. MENU & SPAWNING ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
@@ -344,7 +418,6 @@
         }
     }
 
-    // --- 5. LOADING AND SPAWNING (WITH ANIMATION) ---
     function spawnModel(position, data, rotation = null, scale = null) {
         const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
         const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
@@ -361,9 +434,21 @@
             targets = targets.filter(t => t !== placeholder);
 
             const model = data.type === 'fbx' ? loaded : loaded.scene;
-            const animations = data.type === 'fbx' ? loaded.animations : loaded.animations;
+            
+            // Map Bones for Animation
+            const bones = mapBones(model);
+            
+            // Init Animation State
+            model.userData = { 
+                isScreen: true, 
+                isModel: true, 
+                label: data.label, 
+                type: data.type,
+                bones: bones,
+                animState: { smoothSpeed: 0, walkAccumulator: 0 },
+                isMoving: false
+            };
 
-            // NORMALIZE SCALE
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z) || 1; 
@@ -375,34 +460,12 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            model.userData = { 
-                isScreen: true, 
-                isModel: true, 
-                label: data.label, 
-                type: data.type,
-                animations: animations || [],
-                currentAnimIndex: -1
-            };
-            
-            // ANIMATION MIXER SETUP
-            if (animations && animations.length > 0) {
-                const mixer = new THREE.AnimationMixer(model);
-                model.userData.mixer = mixer;
-                mixers.push(mixer);
-                
-                // Play first animation by default
-                model.userData.currentAnimIndex = 0;
-                const action = mixer.clipAction(animations[0]);
-                action.play();
-                model.userData.currentAction = action;
-                model.userData.label += ` [ANIM 1/${animations.length}]`;
-            }
-            
             const helper = new THREE.BoxHelper(model, 0x00ffff);
             model.add(helper);
 
             scene.add(model);
             targets.push(model);
+            
             sysMessage = "MODEL DEPLOYED"; updateMenuDisplay();
         }, undefined, (error) => {
             console.error(error);
@@ -472,10 +535,6 @@
         if (obj.userData.videoElement) {
             obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
         }
-        if (obj.userData.mixer) {
-            // Remove mixer from array
-            mixers = mixers.filter(m => m !== obj.userData.mixer);
-        }
         if (obj.material && obj.material.map) obj.material.map.dispose();
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
@@ -515,29 +574,6 @@
                 if (activeTarget && pad.buttons[1].pressed && !lastBtn.circle) { 
                     deleteObject(activeTarget); activeObject.obj = null; activeTarget = null; 
                 }
-                
-                // --- ANIMATION CYCLE (Button X / 0) ---
-                if (activeTarget && activeTarget.userData.mixer && pad.buttons[0].pressed && !lastBtn.x) {
-                    const anims = activeTarget.userData.animations;
-                    if (anims.length > 0) {
-                        // Stop current
-                        if (activeTarget.userData.currentAction) activeTarget.userData.currentAction.stop();
-                        
-                        // Advance index
-                        let nextIndex = (activeTarget.userData.currentAnimIndex + 1) % anims.length;
-                        activeTarget.userData.currentAnimIndex = nextIndex;
-                        
-                        // Play next
-                        const action = activeTarget.userData.mixer.clipAction(anims[nextIndex]);
-                        action.play();
-                        activeTarget.userData.currentAction = action;
-                        
-                        // Update Label temporarily
-                        // We strip the label to base then add animation info
-                        let baseLabel = activeTarget.userData.label.split(" [ANIM")[0];
-                        activeTarget.userData.label = `${baseLabel} [ANIM ${nextIndex+1}/${anims.length}]`;
-                    }
-                }
             } else { activeObject.obj = null; }
         }
 
@@ -545,7 +581,10 @@
         const rightStickX = pad.axes[2]; const rightStickY = pad.axes[3]; 
 
         if (activeTarget) {
-            // ROTATE
+            // Update Move State for Animation
+            activeTarget.userData.isMoving = (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1);
+
+            // ROTATE / SCALE
             if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
             if (Math.abs(rightStickY) > 0.1) {
                 if (activeTarget.userData.isModel) {
@@ -636,7 +675,11 @@
             ctx.font = '16px Courier New';
             
             if (activeObject.obj.userData.isModel) {
-                 ctx.fillText("[X] CYCLE ANIM   [R-STICK] SCALE", cx, cy + 120);
+                 ctx.fillText("[R-STICK] ROTATE/SCALE", cx, cy + 120);
+                 if(activeObject.obj.userData.isMoving) {
+                     ctx.fillStyle = '#00ff00';
+                     ctx.fillText(">> ANIMATION ENGAGED <<", cx, cy + 150);
+                 }
             } else {
                  ctx.fillText("[R-STICK] ROTATE/TILT", cx, cy + 120);
             }
@@ -656,11 +699,12 @@
     function animate() {
         renderer.setAnimationLoop(() => { 
             const delta = clock.getDelta();
-            // Update animations
-            mixers.forEach(m => m.update(delta));
-            
             handleInput(); 
             updateHUD(); 
+            // Animate Targets
+            targets.forEach(t => { 
+                if(t.userData.isModel) updateProceduralAnimation(t, delta);
+            }); 
             renderer.render(scene, camera); 
         });
     }
