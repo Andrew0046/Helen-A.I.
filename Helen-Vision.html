@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: MASTER COMMANDER</title>
+    <title>HELEN: HOLOGRAMS</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -40,14 +40,14 @@
 <body>
 
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
-<input type="file" id="intel-input" multiple accept="image/*,video/*,application/pdf" style="display:none">
+<input type="file" id="intel-input" multiple accept="image/*,video/*,application/pdf,.fbx,.glb,.gltf" style="display:none">
 
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ MISSION LAYOUT DETECTED</div>
     <div class="status">
-        [ MASTER SYSTEM ]<br>
-        Vision. Inventory. Persistence.<br>Total Control.
+        [ HOLOGRAM UPDATE ]<br>
+        Support: FBX / GLB / GLTF<br>R-Stick: Scale Models
     </div>
 
     <div class="btn-group">
@@ -56,8 +56,8 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [□] MENU (Save/Load) &nbsp;&nbsp; [X] SELECT<br>
-            [L-STICK] MOVE/PAGE &nbsp;&nbsp; [R-STICK] ROTATE
+            [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
+            [R-STICK] ROTATE SCREENS / SCALE MODELS
         </div>
     </div>
 </div>
@@ -65,6 +65,8 @@
 <script type="module">
     import * as THREE from 'three';
     import { VRButton } from 'three/addons/webxr/VRButton.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
     import WebXRPolyfill from 'webxr-polyfill';
 
     const polyfill = new WebXRPolyfill();
@@ -83,7 +85,7 @@
     let activeObject = { obj: null, progress: 0 }; 
     let lastPageTurnTime = 0;
     const PAGE_DEBOUNCE = 300; 
-    let pendingRestore = false; // Flag to trigger restore after VR starts
+    let pendingRestore = false; 
 
     // MENU
     let menuGroup, menuMesh, menuCtx, menuTexture;
@@ -99,10 +101,10 @@
     const SPEED = 0.1; 
     const ROTATE_SPEED = 0.05; 
     const MOVE_SPEED = 0.05;
+    const SCALE_SPEED = 0.02; // For Models
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    // --- 0. CHECK FOR SAVED DATA ---
-    if (localStorage.getItem('helen_layout_v1')) {
+    if (localStorage.getItem('helen_layout_v2')) {
         document.getElementById('restore-msg').style.display = 'block';
         pendingRestore = true;
     }
@@ -119,11 +121,17 @@
             for (let i = 0; i < e.target.files.length; i++) {
                 const file = e.target.files[i];
                 let name = file.name.toUpperCase();
-                // Simple unique ID based on name for matching logic
+                
                 if (file.type === 'application/pdf') {
                     const buffer = await file.arrayBuffer();
                     CUSTOM_DATABASE.push({ type: 'pdf', buffer: buffer, label: name });
                 } 
+                else if (file.name.endsWith('.fbx') || file.name.endsWith('.FBX')) {
+                    CUSTOM_DATABASE.push({ type: 'fbx', src: URL.createObjectURL(file), label: name });
+                }
+                else if (file.name.endsWith('.glb') || file.name.endsWith('.gltf') || file.name.endsWith('.GLB')) {
+                    CUSTOM_DATABASE.push({ type: 'glb', src: URL.createObjectURL(file), label: name });
+                }
                 else if (file.type.startsWith('video')) {
                     CUSTOM_DATABASE.push({ type: 'video', src: URL.createObjectURL(file), label: name });
                 } 
@@ -136,62 +144,51 @@
         }
     });
 
-    // --- 2. PERSISTENCE FUNCTIONS ---
+    // --- 2. PERSISTENCE ---
     function saveMission() {
         const layout = targets.map(t => {
-            // Find root object logic from recursive hit
             let root = t;
-            // Get data needed to respawn
             return {
                 label: root.userData.label,
                 pos: { x: root.position.x, y: root.position.y, z: root.position.z },
                 rot: { x: root.rotation.x, y: root.rotation.y, z: root.rotation.z },
+                scale: { x: root.scale.x, y: root.scale.y, z: root.scale.z }, // Save Scale for models
                 type: root.userData.type
             };
         });
-        
         try {
-            localStorage.setItem('helen_layout_v1', JSON.stringify(layout));
-            sysMessage = "MISSION SAVED";
-            updateMenuDisplay();
-            setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
+            localStorage.setItem('helen_layout_v2', JSON.stringify(layout));
+            sysMessage = "MISSION SAVED"; updateMenuDisplay(); setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
         } catch(e) { console.error(e); }
     }
 
     function loadMission() {
-        const raw = localStorage.getItem('helen_layout_v1');
-        if (!raw) {
-            sysMessage = "NO DATA FOUND"; updateMenuDisplay(); return;
-        }
-        
+        const raw = localStorage.getItem('helen_layout_v2');
+        if (!raw) { sysMessage = "NO DATA FOUND"; updateMenuDisplay(); return; }
         const layout = JSON.parse(raw);
         let restoredCount = 0;
-        
-        // Match layout items to loaded database files
         layout.forEach(item => {
-            // Find matching file in currently loaded database
             const dbItem = CUSTOM_DATABASE.find(f => f.label === item.label) || DEFAULT_DATABASE[0];
-            
-            // If we found a match (or falling back to default), spawn it
             if (dbItem) {
                 const pos = new THREE.Vector3(item.pos.x, item.pos.y, item.pos.z);
                 const rot = new THREE.Euler(item.rot.x, item.rot.y, item.rot.z);
-                spawnScreen(pos, dbItem, rot);
+                const scale = item.scale ? new THREE.Vector3(item.scale.x, item.scale.y, item.scale.z) : null;
+                
+                if (dbItem.type === 'fbx' || dbItem.type === 'glb') {
+                    spawnModel(pos, dbItem, rot, scale);
+                } else {
+                    spawnScreen(pos, dbItem, rot);
+                }
                 restoredCount++;
             }
         });
-
-        sysMessage = `RESTORED ${restoredCount} UNITS`;
-        updateMenuDisplay();
-        setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
+        sysMessage = `RESTORED ${restoredCount} UNITS`; updateMenuDisplay(); setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
     }
 
     function clearMission() {
-        localStorage.removeItem('helen_layout_v1');
-        // Clear scene
+        localStorage.removeItem('helen_layout_v2');
         [...targets].forEach(t => deleteObject(t));
-        sysMessage = "DATABASE WIPED";
-        updateMenuDisplay();
+        sysMessage = "DATABASE WIPED"; updateMenuDisplay();
     }
 
     // --- 3. HARDWARE & ENGINE ---
@@ -287,22 +284,14 @@
         btn.className = "primary"; btn.innerHTML = "ENTER VR";
         document.getElementById('vr-btn-container').appendChild(btn);
         
-        renderer.xr.addEventListener('sessionstart', () => { 
-            document.getElementById('overlay').style.display = 'none'; 
-            // Auto Restore check?
-            if(pendingRestore) {
-                // We don't auto restore because files might not be loaded yet. 
-                // We rely on the user to use the Menu -> Load.
-                sysMessage = "SAVED LAYOUT FOUND";
-            }
-        });
+        renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
 
         createMenuSystem();
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         animate();
     }
 
-    // --- 4. MENU & SPAWNING ---
+    // --- 4. MENU & SPAWN ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
@@ -321,7 +310,6 @@
         ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 80);
         ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
         
-        // SYS OPTIONS
         const sysOpts = [" [SAVE MISSION]", " [LOAD MISSION]", " [CLEAR ALL]"];
         ctx.textAlign = 'left'; ctx.font = '50px Courier New';
         let listY = 180;
@@ -359,18 +347,22 @@
     }
 
     function spawnFromMenu(index) {
-        // Handle System Options
         if (index === 0) { saveMission(); return; }
         if (index === 1) { loadMission(); return; }
         if (index === 2) { clearMission(); return; }
 
-        // Handle File Spawn
         const fileIndex = index - 3;
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         if (fileIndex >= 0 && fileIndex < db.length) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
             const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
-            spawnScreen(pos, db[fileIndex]);
+            
+            const item = db[fileIndex];
+            if (item.type === 'fbx' || item.type === 'glb') {
+                spawnModel(pos, item);
+            } else {
+                spawnScreen(pos, item);
+            }
             isMenuOpen = false; menuGroup.visible = false;
         }
     }
@@ -395,17 +387,44 @@
         mesh.userData.isRendering = false;
     }
 
+    function spawnModel(position, data, rotation = null, scale = null) {
+        const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
+        
+        loader.load(data.src, (loaded) => {
+            const model = data.type === 'fbx' ? loaded : loaded.scene;
+            
+            // Normalize scale initially roughly
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scaleFactor = 1.0 / maxDim; 
+            
+            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+            if (scale) model.scale.copy(scale); // Restore saved scale if exists
+
+            model.position.copy(position);
+            if (rotation) model.rotation.copy(rotation);
+            
+            model.userData = { isScreen: true, isModel: true, label: data.label, type: data.type };
+            
+            // Add a Bounding Box Helper (Wireframe) so we can select it easily
+            const helper = new THREE.BoxHelper(model, 0x00ffff);
+            model.add(helper);
+
+            scene.add(model);
+            targets.push(model);
+        });
+    }
+
     async function spawnScreen(position, data, rotation = null) {
         let width = 3, height = 1.8; 
         let material, videoElem = null;
         const geometry = new THREE.PlaneGeometry(3, 1.8);
-        
         const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
         screen.position.copy(position); 
         
-        if (rotation) {
-            screen.rotation.copy(rotation);
-        } else {
+        if (rotation) screen.rotation.copy(rotation);
+        else {
             const pPos = camera.getWorldPosition(new THREE.Vector3());
             screen.lookAt(pPos.x, screen.position.y, pPos.z);
         }
@@ -437,8 +456,7 @@
         if (obj.userData.videoElement) {
             obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
         }
-        if (obj.material.map) obj.material.map.dispose();
-        obj.material.dispose(); obj.geometry.dispose();
+        if (obj.material && obj.material.map) obj.material.map.dispose();
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
@@ -450,7 +468,6 @@
         let activeTarget = null;
         
         if (isMenuOpen) {
-            // MENU LOGIC (BODY LOCKED)
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
             const worldPos = camera.getWorldPosition(new THREE.Vector3());
             const targetPos = worldPos.add(dir.multiplyScalar(2.5));
@@ -461,7 +478,6 @@
                 const uvY = intersects[0].uv.y;
                 if (uvY < 0.82) {
                     const idx = Math.floor((0.82 - uvY) / 0.068);
-                    // 3 Sys opts + Database length
                     const totalItems = 3 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
                     if (idx >= 0 && idx < totalItems && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
                 }
@@ -469,7 +485,6 @@
             if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
             
         } else {
-            // WORLD LOGIC - RECURSIVE SMART SELECT
             const intersects = raycaster.intersectObjects(targets, true); 
             if (intersects.length > 0) {
                 let hit = intersects[0].object;
@@ -489,7 +504,16 @@
         if (activeTarget) {
             // ROTATE
             if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
-            if (Math.abs(rightStickY) > 0.1) activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
+            if (Math.abs(rightStickY) > 0.1) {
+                // If it's a model, Y-axis on Stick might mean SCALE instead of Pitch
+                if (activeTarget.userData.isModel) {
+                     // SCALE MODE
+                     const s = 1 + (rightStickY * -SCALE_SPEED); // Up grows, Down shrinks
+                     activeTarget.scale.multiplyScalar(s);
+                } else {
+                     activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
+                }
+            }
             
             // PUSH/PULL
             const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
@@ -523,7 +547,6 @@
             } 
         } 
         
-        // NORMAL MOVE
         if (!activeTarget || (activeTarget && activeTarget.userData.type !== 'pdf')) {
             if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
@@ -572,7 +595,13 @@
             ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
             ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80); 
             ctx.font = '16px Courier New';
-            ctx.fillText("[R-STICK] ROTATE   [TRIG] DISTANCE", cx, cy + 120);
+            
+            if (activeObject.obj.userData.isModel) {
+                 ctx.fillText("[R-STICK] ROTATE/SCALE", cx, cy + 120);
+            } else {
+                 ctx.fillText("[R-STICK] ROTATE/TILT", cx, cy + 120);
+            }
+            
             if (activeObject.obj.userData.type === 'pdf') {
                 const page = activeObject.obj.userData.pageNum;
                 const total = activeObject.obj.userData.totalPages;
@@ -586,7 +615,7 @@
     }
 
     function animate() {
-        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); renderer.render(scene, camera); });
+        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); targets.forEach(t => { if(t.userData.isModel) t.rotation.y += 0.005; }); renderer.render(scene, camera); });
     }
 </script>
 </body>
