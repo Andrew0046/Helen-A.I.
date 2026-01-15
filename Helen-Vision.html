@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: KINETIC ENGINE</title>
+    <title>HELEN: LIVING HOLOGRAMS</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -44,20 +44,20 @@
 
 <div id="overlay">
     <h1>HELEN OS</h1>
-    <div id="restore-msg">⚠️ RESTORE POINT FOUND</div>
+    <div id="restore-msg">⚠️ SYSTEM RESTORED</div>
     <div class="status">
-        [ KINETIC ENGINE ONLINE ]<br>
-        Animation Support: ACTIVE<br>L1/R1: Cycle Animations
+        [ LIVING HOLOGRAMS ]<br>
+        Procedural Animation: ONLINE<br>Physics Clock: SYNCED
     </div>
 
     <div class="btn-group">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD DATABASE</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
             [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
-            [R-STICK] SCALE &nbsp;&nbsp; [L1/R1] ANIMATION
+            [R-STICK] SCALE / ROTATE
         </div>
     </div>
 </div>
@@ -75,9 +75,8 @@
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
-    let clock = new THREE.Clock(); // THE HEARTBEAT
     
-    // DATA & STATE
+    // DATA
     let CUSTOM_DATABASE = []; 
     const DEFAULT_DATABASE = [
         { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' }
@@ -86,6 +85,9 @@
     let activeObject = { obj: null, progress: 0 }; 
     let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
+
+    // PHYSICS CLOCK
+    const clock = new THREE.Clock();
 
     // MENU
     let menuGroup, menuMesh, menuCtx, menuTexture;
@@ -146,9 +148,14 @@
     function saveMission() {
         const layout = targets.map(t => {
             let root = t;
+            // Get base position (minus float offset)
+            const basePos = root.userData.baseY !== undefined ? 
+                { x: root.position.x, y: root.userData.baseY, z: root.position.z } : 
+                { x: root.position.x, y: root.position.y, z: root.position.z };
+
             return {
                 label: root.userData.label,
-                pos: { x: root.position.x, y: root.position.y, z: root.position.z },
+                pos: basePos,
                 rot: { x: root.rotation.x, y: root.rotation.y, z: root.rotation.z },
                 scale: { x: root.scale.x, y: root.scale.y, z: root.scale.z },
                 type: root.userData.type
@@ -268,7 +275,7 @@
         animate();
     }
 
-    // --- 4. MENU SYSTEM ---
+    // --- 4. MENU ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
@@ -341,7 +348,7 @@
         }
     }
 
-    // --- 5. MODEL SPAWNING & ANIMATION ---
+    // --- 5. SPAWNING ---
     function spawnModel(position, data, rotation = null, scale = null) {
         const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
         const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
@@ -358,9 +365,6 @@
             targets = targets.filter(t => t !== placeholder);
 
             const model = data.type === 'fbx' ? loaded : loaded.scene;
-            const animations = data.type === 'fbx' ? loaded.animations : loaded.animations;
-
-            // NORMALIZE SCALE
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z) || 1; 
@@ -372,23 +376,14 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            // SETUP ANIMATION MIXER
-            let mixer = null;
-            if (animations && animations.length > 0) {
-                mixer = new THREE.AnimationMixer(model);
-                // Play first animation by default
-                const action = mixer.clipAction(animations[0]);
-                action.play();
-            }
-
+            // Mark for Auto-Animation
             model.userData = { 
                 isScreen: true, 
                 isModel: true, 
                 label: data.label, 
                 type: data.type,
-                mixer: mixer,
-                animations: animations,
-                activeAnimIndex: 0
+                baseY: position.y, // Store base Y for floating
+                animOffset: Math.random() * 100 // Random start frame
             };
             
             const helper = new THREE.BoxHelper(model, 0x00ffff);
@@ -396,9 +391,7 @@
 
             scene.add(model);
             targets.push(model);
-            
-            sysMessage = mixer ? "ANIMATION ACTIVE" : "MODEL DEPLOYED"; 
-            updateMenuDisplay();
+            sysMessage = "MODEL DEPLOYED"; updateMenuDisplay();
         }, undefined, (error) => {
             console.error(error);
             placeholder.material.color.setHex(0xff0000);
@@ -407,18 +400,19 @@
         });
     }
 
-    // --- 6. STANDARD SPAWNERS ---
     async function spawnScreen(position, data, rotation = null) {
         let width = 3, height = 1.8; 
         let material, videoElem = null;
         const geometry = new THREE.PlaneGeometry(3, 1.8);
         const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
         screen.position.copy(position); 
+        
         if (rotation) screen.rotation.copy(rotation);
         else {
             const pPos = camera.getWorldPosition(new THREE.Vector3());
             screen.lookAt(pPos.x, screen.position.y, pPos.z);
         }
+        
         screen.userData = { isScreen: true, label: data.label, type: data.type };
 
         if (data.type === 'pdf') {
@@ -470,7 +464,6 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
-    // --- 7. INPUT & ANIMATION LOGIC ---
     function handleInput() {
         const pads = navigator.getGamepads(); if(!pads[0]) return;
         const pad = pads[0];
@@ -513,44 +506,33 @@
         const rightStickX = pad.axes[2]; const rightStickY = pad.axes[3]; 
 
         if (activeTarget) {
-            // ROTATE / SCALE
-            if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
-            if (Math.abs(rightStickY) > 0.1) {
-                if (activeTarget.userData.isModel) {
+            if (activeTarget.userData.isModel) {
+                // UPDATE BASE Y if we scale or move it
+                if (Math.abs(rightStickY) > 0.1) {
+                     // Scaling or Moving? Let's use left stick for move, right for scale
                      const s = 1 + (rightStickY * -SCALE_SPEED); 
                      activeTarget.scale.multiplyScalar(s);
-                } else {
-                     activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
                 }
+                // ROTATE
+                if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
+            } else {
+                if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
+                if (Math.abs(rightStickY) > 0.1) activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
             }
             
-            // ANIMATION CYCLE (L1 / R1)
-            // Assuming L1=Btn4, R1=Btn5
-            const l1 = pad.buttons[4].pressed;
-            const r1 = pad.buttons[5].pressed;
-            
-            if ((l1 || r1) && !lastBtn.bumper && activeTarget.userData.mixer && activeTarget.userData.animations.length > 1) {
-                // Stop current action
-                const mixer = activeTarget.userData.mixer;
-                mixer.stopAllAction();
+            // PUSH/PULL (Updates BaseY for models)
+            const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
+            const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
+            if (r2 > 0.1 || l2 > 0.1) {
+                const dir = new THREE.Vector3(); dir.subVectors(activeTarget.position, camera.position).normalize();
+                if(r2 > 0.1) activeTarget.position.add(dir.multiplyScalar(-MOVE_SPEED * r2)); // Pull
+                if(l2 > 0.1) activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * l2)); // Push
                 
-                // Advance Index
-                const anims = activeTarget.userData.animations;
-                let idx = activeTarget.userData.activeAnimIndex;
-                if (r1) idx = (idx + 1) % anims.length;
-                if (l1) idx = (idx - 1 + anims.length) % anims.length;
-                
-                // Play New
-                activeTarget.userData.activeAnimIndex = idx;
-                const action = mixer.clipAction(anims[idx]);
-                action.play();
-                
-                sysMessage = `ANIM: ${anims[idx].name || 'Track ' + idx}`;
-                updateMenuDisplay();
+                // Update floating base
+                if(activeTarget.userData.baseY !== undefined) activeTarget.userData.baseY = activeTarget.position.y;
             }
-            lastBtn.bumper = l1 || r1;
 
-            // PDF PAGES
+            // PDF
             if (activeTarget.userData.type === 'pdf') {
                 if (Math.abs(leftStickX) > 0.5) {
                     const now = Date.now();
@@ -562,6 +544,10 @@
                             lastPageTurnTime = now;
                         }
                     }
+                }
+                if (Math.abs(leftStickY) > 0.1) {
+                    camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+                    dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
                 }
             } 
         } 
@@ -610,9 +596,9 @@
             ctx.font = '16px Courier New';
             
             if (activeObject.obj.userData.isModel) {
-                 ctx.fillText("[R-STICK] SCALE/ROT   [L1/R1] ANIM", cx, cy + 120);
+                 ctx.fillText("[R-STICK] ROTATE/SCALE", cx, cy + 120);
             } else {
-                 ctx.fillText("[R-STICK] TILT/ROT", cx, cy + 120);
+                 ctx.fillText("[R-STICK] ROTATE/TILT", cx, cy + 120);
             }
             
             if (activeObject.obj.userData.type === 'pdf') {
@@ -629,13 +615,20 @@
 
     function animate() {
         renderer.setAnimationLoop(() => { 
-            const delta = clock.getDelta();
             handleInput(); 
             updateHUD(); 
-            // UPDATE ANIMATION MIXERS
-            targets.forEach(t => { 
-                if(t.userData.mixer) t.userData.mixer.update(delta);
+            
+            // PROCEDURAL ANIMATION FOR MODELS
+            const t = clock.getElapsedTime();
+            targets.forEach(obj => { 
+                if(obj.userData.isModel && obj.userData.baseY !== undefined) {
+                    // Floating Sine Wave
+                    const offset = obj.userData.animOffset;
+                    obj.position.y = obj.userData.baseY + Math.sin(t + offset) * 0.05; // 5cm Float
+                    obj.rotation.y += 0.002; // Very slow drift
+                }
             }); 
+            
             renderer.render(scene, camera); 
         });
     }
