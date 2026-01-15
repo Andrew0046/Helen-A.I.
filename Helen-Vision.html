@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: VRM SUPPORT</title>
+    <title>HELEN: STATIC MODELS</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -46,8 +46,8 @@
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ RESTORE POINT FOUND</div>
     <div class="status">
-        [ VRM MODULE ACTIVE ]<br>
-        Export your Vroid as .VRM<br>to load it here.
+        [ SYSTEM UPDATED ]<br>
+        Auto-Rotation: DISABLED<br>Models are now static.
     </div>
 
     <div class="btn-group">
@@ -103,12 +103,12 @@
     const SCALE_SPEED = 0.02; 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    if (localStorage.getItem('helen_layout_v4')) {
+    if (localStorage.getItem('helen_layout_v5')) {
         document.getElementById('restore-msg').style.display = 'block';
         pendingRestore = true;
     }
 
-    // --- 1. FILE INPUT LOGIC (UPDATED FOR VRM) ---
+    // --- 1. FILE INPUT ---
     const input = document.getElementById('intel-input');
     const statusLabel = document.getElementById('file-status');
 
@@ -122,10 +122,8 @@
                 let name = file.name.toUpperCase();
                 let type = 'image'; 
 
-                // Check Extensions
                 if (name.endsWith('.PDF')) type = 'pdf';
                 else if (name.endsWith('.FBX')) type = 'fbx';
-                // VRM is basically a GLB, so we treat it as 'glb' for the loader
                 else if (name.endsWith('.GLB') || name.endsWith('.GLTF') || name.endsWith('.VRM')) type = 'glb';
                 else if (file.type.startsWith('video')) type = 'video';
                 else if (file.type.startsWith('image')) type = 'image';
@@ -155,12 +153,12 @@
                 type: root.userData.type
             };
         });
-        localStorage.setItem('helen_layout_v4', JSON.stringify(layout));
+        localStorage.setItem('helen_layout_v5', JSON.stringify(layout));
         sysMessage = "MISSION SAVED"; updateMenuDisplay(); setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
     }
 
     function loadMission() {
-        const raw = localStorage.getItem('helen_layout_v4');
+        const raw = localStorage.getItem('helen_layout_v5');
         if (!raw) { sysMessage = "NO DATA FOUND"; updateMenuDisplay(); return; }
         const layout = JSON.parse(raw);
         let restoredCount = 0;
@@ -180,7 +178,7 @@
     }
 
     function clearMission() {
-        localStorage.removeItem('helen_layout_v4');
+        localStorage.removeItem('helen_layout_v5');
         [...targets].forEach(t => deleteObject(t));
         sysMessage = "DATABASE WIPED"; updateMenuDisplay();
     }
@@ -342,7 +340,7 @@
         }
     }
 
-    // --- 5. LOADING AND SPAWNING ---
+    // --- 5. SPAWNING ---
     function spawnModel(position, data, rotation = null, scale = null) {
         const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
         const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
@@ -359,7 +357,6 @@
             targets = targets.filter(t => t !== placeholder);
 
             const model = data.type === 'fbx' ? loaded : loaded.scene;
-            
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z) || 1; 
@@ -372,13 +369,11 @@
             if (rotation) model.rotation.copy(rotation);
             
             model.userData = { isScreen: true, isModel: true, label: data.label, type: data.type };
-            
             const helper = new THREE.BoxHelper(model, 0x00ffff);
             model.add(helper);
 
             scene.add(model);
             targets.push(model);
-            
             sysMessage = "MODEL DEPLOYED"; updateMenuDisplay();
         }, undefined, (error) => {
             console.error(error);
@@ -603,7 +598,7 @@
     }
 
     function animate() {
-        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); targets.forEach(t => { if(t.userData.isModel) t.rotation.y += 0.005; }); renderer.render(scene, camera); });
+        renderer.setAnimationLoop(() => { handleInput(); updateHUD(); renderer.render(scene, camera); });
     }
 </script>
 </body>
