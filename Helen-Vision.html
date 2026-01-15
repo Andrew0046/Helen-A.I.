@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: PROCEDURAL LIFE</title>
+    <title>HELEN: AI COMPANION</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -21,7 +21,6 @@
         }
         .file-count { color: #00ff00; font-size: 12px; margin-top: -10px; text-align: right; display: none; }
         .controls-hint { font-size: 11px; color: #666; margin-top: 20px; text-align: left; width: 100%; }
-        #restore-msg { color: #ffff00; font-weight:bold; display:none; margin-bottom:10px; }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -44,20 +43,19 @@
 
 <div id="overlay">
     <h1>HELEN OS</h1>
-    <div id="restore-msg">⚠️ SYSTEM RESTORED</div>
     <div class="status">
-        [ PROCEDURAL ENGINE ]<br>
-        AI Animation: ONLINE<br>Models react to movement.
+        [ AI MODULE ONLINE ]<br>
+        Procedural Animation Engine Active.<br>Companion Mode: FOLLOW
     </div>
 
     <div class="btn-group">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD DATABASE</button>
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD AVATAR (VRM/GLB)</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
-            [L-STICK] MOVE/WALK &nbsp;&nbsp; [R-STICK] ROTATE
+            [□] MENU &nbsp;&nbsp; [X] SELECT<br>
+            AI moves autonomously.
         </div>
     </div>
 </div>
@@ -71,22 +69,32 @@
 
     const polyfill = new WebXRPolyfill();
 
-    let scene, camera, renderer, dolly;
+    let scene, camera, renderer, dolly, clock;
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
-    const clock = new THREE.Clock(); // For Animation Delta
     
-    // DATA & STATE
+    // AI STATE
+    let aiCompanion = null; // The active model
+    const aiConfig = {
+        turnSpeed: 2.0,
+        walkForce: 2.0,
+        runForce: 4.0,
+        friction: 5.0,
+        gravity: 9.8,
+        lerpSpeed: 0.1,
+        minDistance: 1.5, // Stop distance
+        maxDistance: 2.5  // Start walking distance
+    };
+    
+    // DATA
     let CUSTOM_DATABASE = []; 
     const DEFAULT_DATABASE = [
         { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' }
     ];
     let targets = []; 
     let activeObject = { obj: null, progress: 0 }; 
-    let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
-    let pendingRestore = false; 
-
+    
     // MENU
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
@@ -96,18 +104,8 @@
     // HARDWARE
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
     let visionMode = 0; 
-    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false };
-    
-    const SPEED = 0.1; 
-    const ROTATE_SPEED = 0.05; 
-    const MOVE_SPEED = 0.05;
-    const SCALE_SPEED = 0.02; 
+    let lastBtn = { x: false, circle: false, square: false, triangle: false };
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
-
-    if (localStorage.getItem('helen_layout_v6')) {
-        document.getElementById('restore-msg').style.display = 'block';
-        pendingRestore = true;
-    }
 
     // --- 1. FILE INPUT ---
     const input = document.getElementById('intel-input');
@@ -142,49 +140,7 @@
         }
     });
 
-    // --- 2. PERSISTENCE ---
-    function saveMission() {
-        const layout = targets.map(t => {
-            let root = t;
-            return {
-                label: root.userData.label,
-                pos: { x: root.position.x, y: root.position.y, z: root.position.z },
-                rot: { x: root.rotation.x, y: root.rotation.y, z: root.rotation.z },
-                scale: { x: root.scale.x, y: root.scale.y, z: root.scale.z },
-                type: root.userData.type
-            };
-        });
-        localStorage.setItem('helen_layout_v6', JSON.stringify(layout));
-        sysMessage = "MISSION SAVED"; updateMenuDisplay(); setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
-    }
-
-    function loadMission() {
-        const raw = localStorage.getItem('helen_layout_v6');
-        if (!raw) { sysMessage = "NO DATA FOUND"; updateMenuDisplay(); return; }
-        const layout = JSON.parse(raw);
-        let restoredCount = 0;
-        layout.forEach(item => {
-            const dbItem = CUSTOM_DATABASE.find(f => f.label === item.label) || DEFAULT_DATABASE[0];
-            if (dbItem) {
-                const pos = new THREE.Vector3(item.pos.x, item.pos.y, item.pos.z);
-                const rot = new THREE.Euler(item.rot.x, item.rot.y, item.rot.z);
-                const scale = item.scale ? new THREE.Vector3(item.scale.x, item.scale.y, item.scale.z) : null;
-                
-                if (dbItem.type === 'fbx' || dbItem.type === 'glb') spawnModel(pos, dbItem, rot, scale);
-                else spawnScreen(pos, dbItem, rot);
-                restoredCount++;
-            }
-        });
-        sysMessage = `RESTORED ${restoredCount} UNITS`; updateMenuDisplay(); setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
-    }
-
-    function clearMission() {
-        localStorage.removeItem('helen_layout_v6');
-        [...targets].forEach(t => deleteObject(t));
-        sysMessage = "DATABASE WIPED"; updateMenuDisplay();
-    }
-
-    // --- 3. HARDWARE & ENGINE ---
+    // --- 2. CAMERA & INIT ---
     async function scanCameras() {
         if (!navigator.mediaDevices?.enumerateDevices) return;
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -233,6 +189,7 @@
     `;
 
     function init3D() {
+        clock = new THREE.Clock();
         scene = new THREE.Scene();
         dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100); dolly.add(camera);
@@ -268,84 +225,184 @@
         animate();
     }
 
-    // --- 4. BONE MAPPING UTILITY ---
-    function mapBones(model) {
-        const boneMap = {};
-        model.traverse(child => {
-            if (child.isBone) {
-                const name = child.name.toLowerCase();
-                // Heuristic matching
-                if (name.includes('hip') || name.includes('pelvis') || name.includes('root')) boneMap.hips = child;
-                else if ((name.includes('spine') || name.includes('chest')) && !boneMap.spine) boneMap.spine = child;
-                else if (name.includes('head') || name.includes('neck')) boneMap.head = child;
-                // Arms
-                else if (name.includes('arm') || name.includes('shoulder')) {
-                    if (name.includes('l')) boneMap.leftArm = child;
-                    if (name.includes('r')) boneMap.rightArm = child;
-                }
-                // Legs
-                else if (name.includes('leg') || name.includes('thigh')) {
-                    if (name.includes('l')) boneMap.leftLeg = child;
-                    if (name.includes('r')) boneMap.rightLeg = child;
-                }
-                else if (name.includes('calf') || name.includes('knee')) {
-                    if (name.includes('l')) boneMap.leftCalf = child;
-                    if (name.includes('r')) boneMap.rightCalf = child;
-                }
+    // --- 3. HELPER: BONE FINDER ---
+    function findBones(model) {
+        const bones = {};
+        model.traverse(o => {
+            if (o.isBone) {
+                const n = o.name.toLowerCase();
+                if (n.includes('hips') || n.includes('pelvis')) bones.hips = o;
+                else if (n.includes('spine')) bones.spine = o;
+                else if (n.includes('left') && (n.includes('upleg') || n.includes('thigh'))) bones.leftLeg = o;
+                else if (n.includes('right') && (n.includes('upleg') || n.includes('thigh'))) bones.rightLeg = o;
+                else if (n.includes('left') && (n.includes('leg') || n.includes('calf') || n.includes('knee'))) bones.leftCalf = o;
+                else if (n.includes('right') && (n.includes('leg') || n.includes('calf') || n.includes('knee'))) bones.rightCalf = o;
+                else if (n.includes('left') && (n.includes('arm') || n.includes('shoulder'))) bones.leftArm = o;
+                else if (n.includes('right') && (n.includes('arm') || n.includes('shoulder'))) bones.rightArm = o;
+                else if (n.includes('left') && (n.includes('forearm') || n.includes('elbow'))) bones.leftForeArm = o;
+                else if (n.includes('right') && (n.includes('forearm') || n.includes('elbow'))) bones.rightForeArm = o;
             }
         });
-        return boneMap;
+        return bones;
     }
 
-    // --- 5. PROCEDURAL ANIMATION ENGINE ---
-    function updateProceduralAnimation(model, delta) {
-        if (!model.userData.bones) return;
-        const bones = model.userData.bones;
-        const state = model.userData.animState;
-
-        // Is model moving? (Based on userData "isMoving" set by input)
-        const targetSpeed = model.userData.isMoving ? 1.0 : 0.0;
-        state.smoothSpeed = THREE.MathUtils.lerp(state.smoothSpeed, targetSpeed, 0.1);
+    // --- 4. PROCEDURAL AI ENGINE ---
+    function updateAI(delta) {
+        if (!aiCompanion) return;
         
-        // Accumulate Walk Cycle
-        const intensity = state.smoothSpeed;
-        state.walkAccumulator += delta * 5.0 * (0.1 + intensity); 
+        const state = aiCompanion.userData.aiState;
+        const bones = aiCompanion.userData.bones;
+        const model = aiCompanion;
+
+        // A. DECISION MAKING (The "Cortana" Brain)
+        const playerPos = camera.getWorldPosition(new THREE.Vector3());
+        const aiPos = model.position;
+        const dist = playerPos.distanceTo(aiPos);
+        
+        let driveInput = 0;
+        let targetYRotation = model.rotation.y;
+
+        // Calculate Angle to Player
+        const dx = playerPos.x - aiPos.x;
+        const dz = playerPos.z - aiPos.z;
+        const angleToPlayer = Math.atan2(dx, dz); // Correct rotation Y
+
+        // Rotation smoothing
+        // Simple lerp for rotation
+        const diff = angleToPlayer - model.rotation.y;
+        // Normalize angle to -PI to PI
+        let angleDiff = Math.atan2(Math.sin(diff), Math.cos(diff));
+        
+        state.smoothTurn = angleDiff; 
+        model.rotation.y += state.smoothTurn * aiConfig.turnSpeed * delta;
+
+        // Movement Logic
+        if (dist > aiConfig.maxDistance) {
+            driveInput = 1.0; // Run to catch up
+        } else if (dist > aiConfig.minDistance) {
+            driveInput = 0.5; // Walk closer
+        } else {
+            driveInput = 0.0; // Stop
+        }
+
+        // B. PHYSICS
+        const force = (driveInput > 0.8) ? aiConfig.runForce : aiConfig.walkForce;
+        const forward = new THREE.Vector3(Math.sin(model.rotation.y), 0, Math.cos(model.rotation.y));
+        
+        if (driveInput > 0) {
+            state.velocity.x += forward.x * driveInput * force * delta;
+            state.velocity.z += forward.z * driveInput * force * delta;
+        }
+        
+        // Friction
+        state.velocity.x *= (1 - aiConfig.friction * delta);
+        state.velocity.z *= (1 - aiConfig.friction * delta);
+        
+        model.position.addScaledVector(state.velocity, delta);
+
+        // C. ANIMATION PROCEDURAL LOGIC
+        const moveSpeed = new THREE.Vector3(state.velocity.x, 0, state.velocity.z).length();
+        state.smoothSpeed = THREE.MathUtils.lerp(state.smoothSpeed, moveSpeed, aiConfig.lerpSpeed);
+        
+        const intensity = Math.min(state.smoothSpeed / 3.0, 1.0);
+        state.walkAccumulator += state.smoothSpeed * delta * 5.0; // Speed of legs
         const wc = state.walkAccumulator;
 
-        // 1. IDLE BREATHING (Always Active)
-        const breath = Math.sin(wc * 0.5) * 0.05;
-        if (bones.spine) bones.spine.rotation.x = breath + (intensity * 0.2); // Lean forward when running
-        if (bones.head) bones.head.rotation.x = -breath; // Counter-rotate head
-
-        // 2. WALK CYCLE (Driven by Intensity)
-        if (intensity > 0.01) {
-            const runAmp = 0.5 * intensity;
-            const armAmp = 0.5 * intensity;
-
-            // Legs
-            if (bones.leftLeg) bones.leftLeg.rotation.x = Math.sin(wc) * runAmp;
-            if (bones.rightLeg) bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * runAmp;
-            
-            // Knees (Simple bend)
-            if (bones.leftCalf) bones.leftCalf.rotation.x = Math.max(0, -Math.sin(wc)) * runAmp * 2;
-            if (bones.rightCalf) bones.rightCalf.rotation.x = Math.max(0, -Math.sin(wc + Math.PI)) * runAmp * 2;
-
-            // Arms (Opposite to legs)
-            if (bones.leftArm) bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp;
-            if (bones.rightArm) bones.rightArm.rotation.x = Math.sin(wc) * armAmp;
-            
-            // Bobbing Hips
-            if (bones.hips) bones.hips.position.y = (Math.sin(wc * 2) * 0.02 * intensity);
+        // Reset if standing still
+        if (intensity < 0.05) {
+            // Idle Pose
+            if(bones.leftArm) bones.leftArm.rotation.z = -1.2; 
+            if(bones.rightArm) bones.rightArm.rotation.z = 1.2;
+            if(bones.leftLeg) bones.leftLeg.rotation.x = THREE.MathUtils.lerp(bones.leftLeg.rotation.x, 0, 0.1);
+            if(bones.rightLeg) bones.rightLeg.rotation.x = THREE.MathUtils.lerp(bones.rightLeg.rotation.x, 0, 0.1);
         } else {
-            // Return to Neutral
-            if (bones.leftLeg) bones.leftLeg.rotation.x *= 0.9;
-            if (bones.rightLeg) bones.rightLeg.rotation.x *= 0.9;
-            if (bones.leftArm) bones.leftArm.rotation.x *= 0.9;
-            if (bones.rightArm) bones.rightArm.rotation.x *= 0.9;
+            // Walking/Running
+            const runAmp = 0.8 + (intensity * 0.5);
+            
+            // HIPS / BOUNCE
+            if(bones.hips) {
+                // Keep hips relative to original, adding bounce
+                bones.hips.position.y = (Math.sin(wc * 2) * 0.05 * intensity) + state.hipBaseY;
+            }
+
+            // LEGS
+            if(bones.leftLeg) bones.leftLeg.rotation.x = Math.sin(wc) * runAmp;
+            if(bones.rightLeg) bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * runAmp;
+            
+            // KNEES
+            if(bones.leftCalf) bones.leftCalf.rotation.x = Math.max(0, -Math.sin(wc) * 1.5) * runAmp;
+            if(bones.rightCalf) bones.rightCalf.rotation.x = Math.max(0, -Math.sin(wc + Math.PI) * 1.5) * runAmp;
+
+            // ARMS (Counter swing)
+            const armAmp = 0.5 + (intensity * 0.5);
+            if (bones.leftArm) {
+                bones.leftArm.rotation.z = -1.2; // A-Pose Correction
+                bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp;
+            }
+            if (bones.rightArm) {
+                bones.rightArm.rotation.z = 1.2;
+                bones.rightArm.rotation.x = Math.sin(wc) * armAmp;
+            }
+            
+            // FOREARMS
+            if(bones.leftForeArm) bones.leftForeArm.rotation.x = Math.max(0, Math.sin(wc + Math.PI)) * 1.5;
+            if(bones.rightForeArm) bones.rightForeArm.rotation.x = Math.max(0, Math.sin(wc)) * 1.5;
         }
     }
 
-    // --- 6. MENU & SPAWNING ---
+    // --- 5. SPAWN WITH AI INIT ---
+    function spawnModel(position, data) {
+        const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
+        const placeholder = new THREE.Mesh(boxGeo, boxMat);
+        placeholder.position.copy(position);
+        scene.add(placeholder);
+
+        const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
+        
+        loader.load(data.src, (loaded) => {
+            scene.remove(placeholder);
+            const model = data.type === 'fbx' ? loaded : loaded.scene;
+            
+            // Scale Normalize
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z) || 1; 
+            const scaleFactor = 1.8 / maxDim; // Aim for 1.8m height
+            
+            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+            model.position.copy(position);
+            
+            // AI INIT
+            const bones = findBones(model);
+            const hipY = bones.hips ? bones.hips.position.y : 0;
+            
+            model.userData = {
+                isScreen: true, isModel: true, label: "AI COMPANION", type: data.type,
+                // AI Data
+                bones: bones,
+                aiState: {
+                    velocity: new THREE.Vector3(),
+                    smoothSpeed: 0,
+                    walkAccumulator: 0,
+                    smoothTurn: 0,
+                    hipBaseY: hipY
+                }
+            };
+            
+            // Box Helper
+            model.add(new THREE.BoxHelper(model, 0x00ffff));
+            
+            scene.add(model);
+            targets.push(model);
+            
+            // SET AS ACTIVE AI
+            aiCompanion = model;
+            sysMessage = "AI ONLINE"; updateMenuDisplay();
+        });
+    }
+
+    // --- 6. MENU & SYSTEM (Simplified for length) ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
@@ -364,179 +421,49 @@
         ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 80);
         ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
         
-        const sysOpts = [" [SAVE MISSION]", " [LOAD MISSION]", " [CLEAR ALL]"];
-        ctx.textAlign = 'left'; ctx.font = '50px Courier New';
-        let listY = 180;
-        
-        for (let i=0; i<sysOpts.length; i++) {
-             if (i === hoveredFileIndex) {
-                ctx.fillStyle = '#ff0055'; ctx.fillRect(50, listY - 50, w - 100, 60);
-                ctx.fillStyle = '#fff'; ctx.fillText(sysOpts[i], 80, listY);
-            } else {
-                ctx.fillStyle = '#ff0055'; ctx.fillText(sysOpts[i], 80, listY);
-            }
-            listY += 70;
-        }
-
         ctx.fillStyle = '#00aaaa'; 
         const maxItems = 8;
         for (let i = 0; i < Math.min(db.length, maxItems); i++) {
-            const menuIndex = i + sysOpts.length;
-            if (menuIndex === hoveredFileIndex) {
-                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 100, 60);
-                ctx.fillStyle = '#fff'; ctx.fillText(`> ${db[i].label}`, 80, listY);
+            const y = 200 + (i*70);
+            if (i === hoveredFileIndex) {
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, y - 50, w - 100, 60);
+                ctx.fillStyle = '#fff'; ctx.fillText(`> ${db[i].label}`, 80, y);
             } else {
-                ctx.fillStyle = '#00aaaa'; ctx.fillText(`  ${db[i].label}`, 80, listY);
+                ctx.fillStyle = '#00aaaa'; ctx.fillText(`  ${db[i].label}`, 80, y);
             }
-            ctx.fillStyle = '#666'; ctx.fillText(db[i].type.toUpperCase(), w - 200, listY);
-            listY += 70;
+            ctx.fillStyle = '#666'; ctx.fillText(db[i].type.toUpperCase(), w - 200, y);
         }
-
         if (sysMessage) {
             ctx.fillStyle = '#00ff00'; ctx.fillRect(100, h/2 - 50, w-200, 100);
             ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.fillText(sysMessage, w/2, h/2 + 15);
         }
-
         menuTexture.needsUpdate = true;
     }
 
     function spawnFromMenu(index) {
-        if (index === 0) { saveMission(); return; }
-        if (index === 1) { loadMission(); return; }
-        if (index === 2) { clearMission(); return; }
-
-        const fileIndex = index - 3;
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-        if (fileIndex >= 0 && fileIndex < db.length) {
-            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-            const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
-            
-            const item = db[fileIndex];
-            if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
-            else spawnScreen(pos, item);
-            isMenuOpen = false; menuGroup.visible = false;
-        }
+        const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+        const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
+        const item = db[index];
+        if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
+        else spawnScreen(pos, item);
+        isMenuOpen = false; menuGroup.visible = false;
     }
 
-    function spawnModel(position, data, rotation = null, scale = null) {
-        const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-        const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
-        const placeholder = new THREE.Mesh(boxGeo, boxMat);
-        placeholder.position.copy(position);
-        placeholder.userData = { isScreen: true, isModel: true, label: "LOADING...", type: data.type };
-        scene.add(placeholder);
-        targets.push(placeholder);
-
-        const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
-        
-        loader.load(data.src, (loaded) => {
-            scene.remove(placeholder);
-            targets = targets.filter(t => t !== placeholder);
-
-            const model = data.type === 'fbx' ? loaded : loaded.scene;
-            
-            // Map Bones for Animation
-            const bones = mapBones(model);
-            
-            // Init Animation State
-            model.userData = { 
-                isScreen: true, 
-                isModel: true, 
-                label: data.label, 
-                type: data.type,
-                bones: bones,
-                animState: { smoothSpeed: 0, walkAccumulator: 0 },
-                isMoving: false
-            };
-
-            const box = new THREE.Box3().setFromObject(model);
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z) || 1; 
-            const scaleFactor = 1.0 / maxDim; 
-            
-            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-            if (scale) model.scale.copy(scale);
-
-            model.position.copy(position);
-            if (rotation) model.rotation.copy(rotation);
-            
-            const helper = new THREE.BoxHelper(model, 0x00ffff);
-            model.add(helper);
-
-            scene.add(model);
-            targets.push(model);
-            
-            sysMessage = "MODEL DEPLOYED"; updateMenuDisplay();
-        }, undefined, (error) => {
-            console.error(error);
-            placeholder.material.color.setHex(0xff0000);
-            placeholder.userData.label = "ERROR: LOAD FAILED";
-            sysMessage = "LOAD ERROR"; updateMenuDisplay();
-        });
-    }
-
-    async function spawnScreen(position, data, rotation = null) {
-        let width = 3, height = 1.8; 
-        let material, videoElem = null;
+    function spawnScreen(position, data) {
         const geometry = new THREE.PlaneGeometry(3, 1.8);
         const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
         screen.position.copy(position); 
-        
-        if (rotation) screen.rotation.copy(rotation);
-        else {
-            const pPos = camera.getWorldPosition(new THREE.Vector3());
-            screen.lookAt(pPos.x, screen.position.y, pPos.z);
-        }
-        
+        const pPos = camera.getWorldPosition(new THREE.Vector3()); screen.lookAt(pPos.x, screen.position.y, pPos.z);
         screen.userData = { isScreen: true, label: data.label, type: data.type };
-
-        if (data.type === 'pdf') {
-            const clonedBuffer = data.buffer.slice(0);
-            const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
-            screen.userData.pdfDoc = pdf; screen.userData.pageNum = 1; screen.userData.totalPages = pdf.numPages;
-            await renderPdfPageToTexture(screen, 1);
-            screen.scale.set(0.8, 1.4, 1); 
-            screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffff00 })));
-        } else if (data.type === 'video') {
-            videoElem = document.createElement('video'); videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; videoElem.loop = true; videoElem.muted = true; 
-            videoElem.play().then(() => { videoElem.muted = false; });
-            const tex = new THREE.VideoTexture(videoElem); tex.colorSpace = THREE.SRGBColorSpace;
-            screen.material.map = tex; screen.userData.videoElement = videoElem;
-            screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
+        if (data.type === 'video') {
+            const videoElem = document.createElement('video'); videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; videoElem.loop = true; videoElem.muted = true; videoElem.play();
+            screen.material.map = new THREE.VideoTexture(videoElem); screen.material.map.colorSpace = THREE.SRGBColorSpace;
+            screen.userData.videoElement = videoElem;
         } else {
-            const tex = new THREE.TextureLoader().load(data.src); tex.colorSpace = THREE.SRGBColorSpace;
-            screen.material.map = tex;
-            screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
+            new THREE.TextureLoader().load(data.src, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; screen.material.map = tex; });
         }
         scene.add(screen); targets.push(screen);
-    }
-    
-    async function renderPdfPageToTexture(mesh, pageNum) {
-        if (!mesh.userData.pdfDoc) return;
-        if (mesh.userData.isRendering) return; 
-        mesh.userData.isRendering = true;
-        try {
-            const pdf = mesh.userData.pdfDoc;
-            if (pageNum < 1) pageNum = 1; if (pageNum > pdf.numPages) pageNum = pdf.numPages;
-            mesh.userData.pageNum = pageNum;
-            const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 2.0 });
-            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-            canvas.height = viewport.height; canvas.width = viewport.width;
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace;
-            if (mesh.material.map) mesh.material.map.dispose(); 
-            mesh.material.map = tex; mesh.material.needsUpdate = true;
-        } catch(e) { console.error(e); }
-        mesh.userData.isRendering = false;
-    }
-
-    function deleteObject(obj) {
-        if (obj.userData.videoElement) {
-            obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
-        }
-        if (obj.material && obj.material.map) obj.material.map.dispose();
-        scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
     function handleInput() {
@@ -544,167 +471,41 @@
         const pad = pads[0];
         
         raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-        let activeTarget = null;
         
         if (isMenuOpen) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
-            const worldPos = camera.getWorldPosition(new THREE.Vector3());
-            const targetPos = worldPos.add(dir.multiplyScalar(2.5));
+            const targetPos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2.5));
             menuGroup.position.copy(targetPos); menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
-            
             const intersects = raycaster.intersectObject(menuMesh);
             if (intersects.length > 0) {
                 const uvY = intersects[0].uv.y;
                 if (uvY < 0.82) {
                     const idx = Math.floor((0.82 - uvY) / 0.068);
-                    const totalItems = 3 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
-                    if (idx >= 0 && idx < totalItems && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
+                    if (idx >= 0 && idx < 8 && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
                 }
-            } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
+            }
             if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
-            
-        } else {
-            const intersects = raycaster.intersectObjects(targets, true); 
-            if (intersects.length > 0) {
-                let hit = intersects[0].object;
-                while(hit.parent && !hit.userData.isScreen && hit !== scene) { hit = hit.parent; }
-                if (hit.userData.isScreen) { activeObject.obj = hit; activeTarget = hit; } 
-                else { activeObject.obj = null; }
-
-                if (activeTarget && pad.buttons[1].pressed && !lastBtn.circle) { 
-                    deleteObject(activeTarget); activeObject.obj = null; activeTarget = null; 
-                }
-            } else { activeObject.obj = null; }
         }
 
         const leftStickX = pad.axes[0]; const leftStickY = pad.axes[1]; 
-        const rightStickX = pad.axes[2]; const rightStickY = pad.axes[3]; 
-
-        if (activeTarget) {
-            // Update Move State for Animation
-            activeTarget.userData.isMoving = (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1);
-
-            // ROTATE / SCALE
-            if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
-            if (Math.abs(rightStickY) > 0.1) {
-                if (activeTarget.userData.isModel) {
-                     const s = 1 + (rightStickY * -SCALE_SPEED); 
-                     activeTarget.scale.multiplyScalar(s);
-                } else {
-                     activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
-                }
-            }
-            // PUSH/PULL
-            const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
-            const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
-            if (r2 > 0.1) {
-                const dir = new THREE.Vector3(); dir.subVectors(camera.position, activeTarget.position).normalize();
-                activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * r2));
-            }
-            if (l2 > 0.1) {
-                const dir = new THREE.Vector3(); dir.subVectors(activeTarget.position, camera.position).normalize();
-                activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * l2));
-            }
-            // PDF
-            if (activeTarget.userData.type === 'pdf') {
-                if (Math.abs(leftStickX) > 0.5) {
-                    const now = Date.now();
-                    if (now - lastPageTurnTime > PAGE_DEBOUNCE) {
-                        const dir = Math.sign(leftStickX); 
-                        const newPage = activeTarget.userData.pageNum + dir;
-                        if (newPage >= 1 && newPage <= activeTarget.userData.totalPages) {
-                            renderPdfPageToTexture(activeTarget, newPage);
-                            lastPageTurnTime = now;
-                        }
-                    }
-                }
-                if (Math.abs(leftStickY) > 0.1) {
-                    camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                    dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
-                }
-            } 
-        } 
-        
-        if (!activeTarget || (activeTarget && activeTarget.userData.type !== 'pdf')) {
-            if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
-                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
-                dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
-                dolly.position.addScaledVector(_strafeDir, leftStickX * SPEED);
-            }
+        if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
+            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+            _strafeDir.crossVectors(camera.up, _moveDir).normalize();
+            dolly.position.addScaledVector(_moveDir, -leftStickY * 0.1);
+            dolly.position.addScaledVector(_strafeDir, leftStickX * 0.1);
         }
 
         if (pad.buttons[2].pressed && !lastBtn.square) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; }
         lastBtn.square = pad.buttons[2].pressed;
-
-        if (pad.buttons[3].pressed && !lastBtn.triangle) {
-            visionMode = (visionMode + 1) % 3;
-            if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
-            if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(()=>videoTrack?.applyConstraints({advanced:[{torch:true}]}));
-            else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
-        }
-        
-        if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastBtn.bumper && allBackCameras.length > 1) {
-            const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
-            startCameraStream(allBackCameras[idx]);
-        }
-        
-        lastBtn.triangle = pad.buttons[3].pressed;
         lastBtn.x = pad.buttons[0].pressed; 
-        lastBtn.circle = pad.buttons[1].pressed;
-        lastBtn.bumper = pad.buttons[4].pressed || pad.buttons[5].pressed;
-    }
-
-    function updateHUD() {
-        if(!hudContext) return;
-        const ctx = hudContext; const w = 1024; const h = 1024; ctx.clearRect(0, 0, w, h);
-        
-        ctx.textAlign = 'right'; ctx.font = 'bold 30px Courier New';
-        if(visionMode === 1) { ctx.fillStyle = '#00ffff'; ctx.fillText("VISION: [CYBER]", w-40, 60); }
-        else if(visionMode === 2) { ctx.fillStyle = '#ff0000'; ctx.fillText("VISION: [VOID]", w-40, 60); }
-        else { ctx.fillStyle = 'rgba(0,255,255,0.5)'; ctx.fillText("VISION: [NORMAL]", w-40, 60); }
-
-        const cx = w/2; const cy = h/2;
-        if (isMenuOpen) {
-            ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center'; ctx.fillText("MENU OPEN", cx, cy + 200);
-            ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy); ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10); ctx.stroke();
-        } else if (activeObject.obj) {
-            ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
-            ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
-            ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80); 
-            ctx.font = '16px Courier New';
-            
-            if (activeObject.obj.userData.isModel) {
-                 ctx.fillText("[R-STICK] ROTATE/SCALE", cx, cy + 120);
-                 if(activeObject.obj.userData.isMoving) {
-                     ctx.fillStyle = '#00ff00';
-                     ctx.fillText(">> ANIMATION ENGAGED <<", cx, cy + 150);
-                 }
-            } else {
-                 ctx.fillText("[R-STICK] ROTATE/TILT", cx, cy + 120);
-            }
-            
-            if (activeObject.obj.userData.type === 'pdf') {
-                const page = activeObject.obj.userData.pageNum;
-                const total = activeObject.obj.userData.totalPages;
-                ctx.fillStyle = '#ffff00'; ctx.font = '20px Courier New';
-                ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 160);
-            }
-        } else {
-            ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
-        }
-        hudTexture.needsUpdate = true;
     }
 
     function animate() {
         renderer.setAnimationLoop(() => { 
             const delta = clock.getDelta();
             handleInput(); 
-            updateHUD(); 
-            // Animate Targets
-            targets.forEach(t => { 
-                if(t.userData.isModel) updateProceduralAnimation(t, delta);
-            }); 
+            // RUN AI
+            updateAI(delta);
             renderer.render(scene, camera); 
         });
     }
