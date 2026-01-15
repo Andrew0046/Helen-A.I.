@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: LIVING HOLOGRAMS</title>
+    <title>HELEN: ANIMATOR</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -44,20 +44,20 @@
 
 <div id="overlay">
     <h1>HELEN OS</h1>
-    <div id="restore-msg">⚠️ SYSTEM RESTORED</div>
+    <div id="restore-msg">⚠️ RESTORE POINT FOUND</div>
     <div class="status">
-        [ LIVING HOLOGRAMS ]<br>
-        Procedural Animation: ONLINE<br>Physics Clock: SYNCED
+        [ ANIMATION MODULE ONLINE ]<br>
+        Look at Model + Press [X]<br>to cycle clips.
     </div>
 
     <div class="btn-group">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD DATABASE</button>
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
-            [R-STICK] SCALE / ROTATE
+            [□] MENU &nbsp;&nbsp; [X] CYCLE ANIM &nbsp;&nbsp; [O] DELETE<br>
+            [R-STICK] ROTATE / SCALE
         </div>
     </div>
 </div>
@@ -76,7 +76,11 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // DATA
+    // ANIMATION ENGINE
+    const clock = new THREE.Clock();
+    let mixers = []; // Stores all active animation mixers
+    
+    // DATA & STATE
     let CUSTOM_DATABASE = []; 
     const DEFAULT_DATABASE = [
         { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' }
@@ -85,9 +89,6 @@
     let activeObject = { obj: null, progress: 0 }; 
     let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
-
-    // PHYSICS CLOCK
-    const clock = new THREE.Clock();
 
     // MENU
     let menuGroup, menuMesh, menuCtx, menuTexture;
@@ -148,14 +149,9 @@
     function saveMission() {
         const layout = targets.map(t => {
             let root = t;
-            // Get base position (minus float offset)
-            const basePos = root.userData.baseY !== undefined ? 
-                { x: root.position.x, y: root.userData.baseY, z: root.position.z } : 
-                { x: root.position.x, y: root.position.y, z: root.position.z };
-
             return {
                 label: root.userData.label,
-                pos: basePos,
+                pos: { x: root.position.x, y: root.position.y, z: root.position.z },
                 rot: { x: root.rotation.x, y: root.rotation.y, z: root.rotation.z },
                 scale: { x: root.scale.x, y: root.scale.y, z: root.scale.z },
                 type: root.userData.type
@@ -275,7 +271,7 @@
         animate();
     }
 
-    // --- 4. MENU ---
+    // --- 4. MENU & SPAWN ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
@@ -348,7 +344,7 @@
         }
     }
 
-    // --- 5. SPAWNING ---
+    // --- 5. LOADING AND SPAWNING (WITH ANIMATION) ---
     function spawnModel(position, data, rotation = null, scale = null) {
         const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
         const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
@@ -365,6 +361,9 @@
             targets = targets.filter(t => t !== placeholder);
 
             const model = data.type === 'fbx' ? loaded : loaded.scene;
+            const animations = data.type === 'fbx' ? loaded.animations : loaded.animations;
+
+            // NORMALIZE SCALE
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z) || 1; 
@@ -376,15 +375,28 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            // Mark for Auto-Animation
             model.userData = { 
                 isScreen: true, 
                 isModel: true, 
                 label: data.label, 
                 type: data.type,
-                baseY: position.y, // Store base Y for floating
-                animOffset: Math.random() * 100 // Random start frame
+                animations: animations || [],
+                currentAnimIndex: -1
             };
+            
+            // ANIMATION MIXER SETUP
+            if (animations && animations.length > 0) {
+                const mixer = new THREE.AnimationMixer(model);
+                model.userData.mixer = mixer;
+                mixers.push(mixer);
+                
+                // Play first animation by default
+                model.userData.currentAnimIndex = 0;
+                const action = mixer.clipAction(animations[0]);
+                action.play();
+                model.userData.currentAction = action;
+                model.userData.label += ` [ANIM 1/${animations.length}]`;
+            }
             
             const helper = new THREE.BoxHelper(model, 0x00ffff);
             model.add(helper);
@@ -460,6 +472,10 @@
         if (obj.userData.videoElement) {
             obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
         }
+        if (obj.userData.mixer) {
+            // Remove mixer from array
+            mixers = mixers.filter(m => m !== obj.userData.mixer);
+        }
         if (obj.material && obj.material.map) obj.material.map.dispose();
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
@@ -499,6 +515,29 @@
                 if (activeTarget && pad.buttons[1].pressed && !lastBtn.circle) { 
                     deleteObject(activeTarget); activeObject.obj = null; activeTarget = null; 
                 }
+                
+                // --- ANIMATION CYCLE (Button X / 0) ---
+                if (activeTarget && activeTarget.userData.mixer && pad.buttons[0].pressed && !lastBtn.x) {
+                    const anims = activeTarget.userData.animations;
+                    if (anims.length > 0) {
+                        // Stop current
+                        if (activeTarget.userData.currentAction) activeTarget.userData.currentAction.stop();
+                        
+                        // Advance index
+                        let nextIndex = (activeTarget.userData.currentAnimIndex + 1) % anims.length;
+                        activeTarget.userData.currentAnimIndex = nextIndex;
+                        
+                        // Play next
+                        const action = activeTarget.userData.mixer.clipAction(anims[nextIndex]);
+                        action.play();
+                        activeTarget.userData.currentAction = action;
+                        
+                        // Update Label temporarily
+                        // We strip the label to base then add animation info
+                        let baseLabel = activeTarget.userData.label.split(" [ANIM")[0];
+                        activeTarget.userData.label = `${baseLabel} [ANIM ${nextIndex+1}/${anims.length}]`;
+                    }
+                }
             } else { activeObject.obj = null; }
         }
 
@@ -506,32 +545,27 @@
         const rightStickX = pad.axes[2]; const rightStickY = pad.axes[3]; 
 
         if (activeTarget) {
-            if (activeTarget.userData.isModel) {
-                // UPDATE BASE Y if we scale or move it
-                if (Math.abs(rightStickY) > 0.1) {
-                     // Scaling or Moving? Let's use left stick for move, right for scale
+            // ROTATE
+            if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
+            if (Math.abs(rightStickY) > 0.1) {
+                if (activeTarget.userData.isModel) {
                      const s = 1 + (rightStickY * -SCALE_SPEED); 
                      activeTarget.scale.multiplyScalar(s);
+                } else {
+                     activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
                 }
-                // ROTATE
-                if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
-            } else {
-                if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
-                if (Math.abs(rightStickY) > 0.1) activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
             }
-            
-            // PUSH/PULL (Updates BaseY for models)
+            // PUSH/PULL
             const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
             const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
-            if (r2 > 0.1 || l2 > 0.1) {
-                const dir = new THREE.Vector3(); dir.subVectors(activeTarget.position, camera.position).normalize();
-                if(r2 > 0.1) activeTarget.position.add(dir.multiplyScalar(-MOVE_SPEED * r2)); // Pull
-                if(l2 > 0.1) activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * l2)); // Push
-                
-                // Update floating base
-                if(activeTarget.userData.baseY !== undefined) activeTarget.userData.baseY = activeTarget.position.y;
+            if (r2 > 0.1) {
+                const dir = new THREE.Vector3(); dir.subVectors(camera.position, activeTarget.position).normalize();
+                activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * r2));
             }
-
+            if (l2 > 0.1) {
+                const dir = new THREE.Vector3(); dir.subVectors(activeTarget.position, camera.position).normalize();
+                activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * l2));
+            }
             // PDF
             if (activeTarget.userData.type === 'pdf') {
                 if (Math.abs(leftStickX) > 0.5) {
@@ -571,9 +605,15 @@
             else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
         
+        if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastBtn.bumper && allBackCameras.length > 1) {
+            const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
+            startCameraStream(allBackCameras[idx]);
+        }
+        
         lastBtn.triangle = pad.buttons[3].pressed;
         lastBtn.x = pad.buttons[0].pressed; 
         lastBtn.circle = pad.buttons[1].pressed;
+        lastBtn.bumper = pad.buttons[4].pressed || pad.buttons[5].pressed;
     }
 
     function updateHUD() {
@@ -596,7 +636,7 @@
             ctx.font = '16px Courier New';
             
             if (activeObject.obj.userData.isModel) {
-                 ctx.fillText("[R-STICK] ROTATE/SCALE", cx, cy + 120);
+                 ctx.fillText("[X] CYCLE ANIM   [R-STICK] SCALE", cx, cy + 120);
             } else {
                  ctx.fillText("[R-STICK] ROTATE/TILT", cx, cy + 120);
             }
@@ -615,20 +655,12 @@
 
     function animate() {
         renderer.setAnimationLoop(() => { 
+            const delta = clock.getDelta();
+            // Update animations
+            mixers.forEach(m => m.update(delta));
+            
             handleInput(); 
             updateHUD(); 
-            
-            // PROCEDURAL ANIMATION FOR MODELS
-            const t = clock.getElapsedTime();
-            targets.forEach(obj => { 
-                if(obj.userData.isModel && obj.userData.baseY !== undefined) {
-                    // Floating Sine Wave
-                    const offset = obj.userData.animOffset;
-                    obj.position.y = obj.userData.baseY + Math.sin(t + offset) * 0.05; // 5cm Float
-                    obj.rotation.y += 0.002; // Very slow drift
-                }
-            }); 
-            
             renderer.render(scene, camera); 
         });
     }
