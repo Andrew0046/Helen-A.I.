@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: HOLOGRAMS</title>
+    <title>HELEN: VRM SUPPORT</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -40,14 +40,14 @@
 <body>
 
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
-<input type="file" id="intel-input" multiple accept="image/*,video/*,application/pdf,.fbx,.glb,.gltf" style="display:none">
+<input type="file" id="intel-input" multiple accept="*/*" style="display:none">
 
 <div id="overlay">
     <h1>HELEN OS</h1>
-    <div id="restore-msg">⚠️ MISSION LAYOUT DETECTED</div>
+    <div id="restore-msg">⚠️ RESTORE POINT FOUND</div>
     <div class="status">
-        [ HOLOGRAM UPDATE ]<br>
-        Support: FBX / GLB / GLTF<br>R-Stick: Scale Models
+        [ VRM MODULE ACTIVE ]<br>
+        Export your Vroid as .VRM<br>to load it here.
     </div>
 
     <div class="btn-group">
@@ -57,7 +57,7 @@
         
         <div class="controls-hint">
             [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
-            [R-STICK] ROTATE SCREENS / SCALE MODELS
+            [R-STICK] ROTATE (Screen) / SCALE (Model)
         </div>
     </div>
 </div>
@@ -76,15 +76,14 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // DATA & STATE
+    // DATA
     let CUSTOM_DATABASE = []; 
     const DEFAULT_DATABASE = [
         { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' }
     ];
     let targets = []; 
     let activeObject = { obj: null, progress: 0 }; 
-    let lastPageTurnTime = 0;
-    const PAGE_DEBOUNCE = 300; 
+    let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
 
     // MENU
@@ -101,15 +100,15 @@
     const SPEED = 0.1; 
     const ROTATE_SPEED = 0.05; 
     const MOVE_SPEED = 0.05;
-    const SCALE_SPEED = 0.02; // For Models
+    const SCALE_SPEED = 0.02; 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    if (localStorage.getItem('helen_layout_v2')) {
+    if (localStorage.getItem('helen_layout_v4')) {
         document.getElementById('restore-msg').style.display = 'block';
         pendingRestore = true;
     }
 
-    // --- 1. FILE PROCESSING ---
+    // --- 1. FILE INPUT LOGIC (UPDATED FOR VRM) ---
     const input = document.getElementById('intel-input');
     const statusLabel = document.getElementById('file-status');
 
@@ -121,22 +120,22 @@
             for (let i = 0; i < e.target.files.length; i++) {
                 const file = e.target.files[i];
                 let name = file.name.toUpperCase();
+                let type = 'image'; 
+
+                // Check Extensions
+                if (name.endsWith('.PDF')) type = 'pdf';
+                else if (name.endsWith('.FBX')) type = 'fbx';
+                // VRM is basically a GLB, so we treat it as 'glb' for the loader
+                else if (name.endsWith('.GLB') || name.endsWith('.GLTF') || name.endsWith('.VRM')) type = 'glb';
+                else if (file.type.startsWith('video')) type = 'video';
+                else if (file.type.startsWith('image')) type = 'image';
                 
-                if (file.type === 'application/pdf') {
+                if (type === 'pdf') {
                     const buffer = await file.arrayBuffer();
                     CUSTOM_DATABASE.push({ type: 'pdf', buffer: buffer, label: name });
                 } 
-                else if (file.name.endsWith('.fbx') || file.name.endsWith('.FBX')) {
-                    CUSTOM_DATABASE.push({ type: 'fbx', src: URL.createObjectURL(file), label: name });
-                }
-                else if (file.name.endsWith('.glb') || file.name.endsWith('.gltf') || file.name.endsWith('.GLB')) {
-                    CUSTOM_DATABASE.push({ type: 'glb', src: URL.createObjectURL(file), label: name });
-                }
-                else if (file.type.startsWith('video')) {
-                    CUSTOM_DATABASE.push({ type: 'video', src: URL.createObjectURL(file), label: name });
-                } 
-                else {
-                    CUSTOM_DATABASE.push({ type: 'image', src: URL.createObjectURL(file), label: name });
+                else if (type === 'fbx' || type === 'glb' || type === 'video' || type === 'image') {
+                    CUSTOM_DATABASE.push({ type: type, src: URL.createObjectURL(file), label: name });
                 }
             }
             statusLabel.innerText = `${CUSTOM_DATABASE.length} FILES READY`; statusLabel.style.color = '#00ff00';
@@ -152,18 +151,16 @@
                 label: root.userData.label,
                 pos: { x: root.position.x, y: root.position.y, z: root.position.z },
                 rot: { x: root.rotation.x, y: root.rotation.y, z: root.rotation.z },
-                scale: { x: root.scale.x, y: root.scale.y, z: root.scale.z }, // Save Scale for models
+                scale: { x: root.scale.x, y: root.scale.y, z: root.scale.z },
                 type: root.userData.type
             };
         });
-        try {
-            localStorage.setItem('helen_layout_v2', JSON.stringify(layout));
-            sysMessage = "MISSION SAVED"; updateMenuDisplay(); setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
-        } catch(e) { console.error(e); }
+        localStorage.setItem('helen_layout_v4', JSON.stringify(layout));
+        sysMessage = "MISSION SAVED"; updateMenuDisplay(); setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
     }
 
     function loadMission() {
-        const raw = localStorage.getItem('helen_layout_v2');
+        const raw = localStorage.getItem('helen_layout_v4');
         if (!raw) { sysMessage = "NO DATA FOUND"; updateMenuDisplay(); return; }
         const layout = JSON.parse(raw);
         let restoredCount = 0;
@@ -174,11 +171,8 @@
                 const rot = new THREE.Euler(item.rot.x, item.rot.y, item.rot.z);
                 const scale = item.scale ? new THREE.Vector3(item.scale.x, item.scale.y, item.scale.z) : null;
                 
-                if (dbItem.type === 'fbx' || dbItem.type === 'glb') {
-                    spawnModel(pos, dbItem, rot, scale);
-                } else {
-                    spawnScreen(pos, dbItem, rot);
-                }
+                if (dbItem.type === 'fbx' || dbItem.type === 'glb') spawnModel(pos, dbItem, rot, scale);
+                else spawnScreen(pos, dbItem, rot);
                 restoredCount++;
             }
         });
@@ -186,7 +180,7 @@
     }
 
     function clearMission() {
-        localStorage.removeItem('helen_layout_v2');
+        localStorage.removeItem('helen_layout_v4');
         [...targets].forEach(t => deleteObject(t));
         sysMessage = "DATABASE WIPED"; updateMenuDisplay();
     }
@@ -197,23 +191,7 @@
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(d => d.kind === 'videoinput' && !d.label.toLowerCase().includes('front'));
         allBackCameras = cameras.map(c => c.deviceId);
-        
-        for (const cam of cameras) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
-                const track = stream.getVideoTracks()[0];
-                if (track.getCapabilities().torch) torchCamId = cam.deviceId;
-                track.stop();
-            } catch(e) {}
-        }
-        if (torchCamId) {
-            const other = cameras.find(c => c.deviceId !== torchCamId);
-            if (other) wideCamId = other.deviceId;
-        } else if (cameras.length > 0) {
-            torchCamId = cameras[0].deviceId;
-            if(cameras.length > 1) wideCamId = cameras[1].deviceId;
-        }
-        startCameraStream(wideCamId || torchCamId);
+        startCameraStream(allBackCameras[0]);
     }
 
     async function startCameraStream(preferredId) {
@@ -358,61 +336,55 @@
             const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
             
             const item = db[fileIndex];
-            if (item.type === 'fbx' || item.type === 'glb') {
-                spawnModel(pos, item);
-            } else {
-                spawnScreen(pos, item);
-            }
+            if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
+            else spawnScreen(pos, item);
             isMenuOpen = false; menuGroup.visible = false;
         }
     }
 
-    async function renderPdfPageToTexture(mesh, pageNum) {
-        if (!mesh.userData.pdfDoc) return;
-        if (mesh.userData.isRendering) return; 
-        mesh.userData.isRendering = true;
-        try {
-            const pdf = mesh.userData.pdfDoc;
-            if (pageNum < 1) pageNum = 1; if (pageNum > pdf.numPages) pageNum = pdf.numPages;
-            mesh.userData.pageNum = pageNum;
-            const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 2.0 });
-            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-            canvas.height = viewport.height; canvas.width = viewport.width;
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace;
-            if (mesh.material.map) mesh.material.map.dispose(); 
-            mesh.material.map = tex; mesh.material.needsUpdate = true;
-        } catch(e) { console.error(e); }
-        mesh.userData.isRendering = false;
-    }
-
+    // --- 5. LOADING AND SPAWNING ---
     function spawnModel(position, data, rotation = null, scale = null) {
+        const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
+        const placeholder = new THREE.Mesh(boxGeo, boxMat);
+        placeholder.position.copy(position);
+        placeholder.userData = { isScreen: true, isModel: true, label: "LOADING...", type: data.type };
+        scene.add(placeholder);
+        targets.push(placeholder);
+
         const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
         
         loader.load(data.src, (loaded) => {
+            scene.remove(placeholder);
+            targets = targets.filter(t => t !== placeholder);
+
             const model = data.type === 'fbx' ? loaded : loaded.scene;
             
-            // Normalize scale initially roughly
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z);
+            const maxDim = Math.max(size.x, size.y, size.z) || 1; 
             const scaleFactor = 1.0 / maxDim; 
             
             model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-            if (scale) model.scale.copy(scale); // Restore saved scale if exists
+            if (scale) model.scale.copy(scale);
 
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
             model.userData = { isScreen: true, isModel: true, label: data.label, type: data.type };
             
-            // Add a Bounding Box Helper (Wireframe) so we can select it easily
             const helper = new THREE.BoxHelper(model, 0x00ffff);
             model.add(helper);
 
             scene.add(model);
             targets.push(model);
+            
+            sysMessage = "MODEL DEPLOYED"; updateMenuDisplay();
+        }, undefined, (error) => {
+            console.error(error);
+            placeholder.material.color.setHex(0xff0000);
+            placeholder.userData.label = "ERROR: LOAD FAILED";
+            sysMessage = "LOAD ERROR"; updateMenuDisplay();
         });
     }
 
@@ -450,6 +422,26 @@
             screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
         }
         scene.add(screen); targets.push(screen);
+    }
+    
+    async function renderPdfPageToTexture(mesh, pageNum) {
+        if (!mesh.userData.pdfDoc) return;
+        if (mesh.userData.isRendering) return; 
+        mesh.userData.isRendering = true;
+        try {
+            const pdf = mesh.userData.pdfDoc;
+            if (pageNum < 1) pageNum = 1; if (pageNum > pdf.numPages) pageNum = pdf.numPages;
+            mesh.userData.pageNum = pageNum;
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 2.0 });
+            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+            canvas.height = viewport.height; canvas.width = viewport.width;
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace;
+            if (mesh.material.map) mesh.material.map.dispose(); 
+            mesh.material.map = tex; mesh.material.needsUpdate = true;
+        } catch(e) { console.error(e); }
+        mesh.userData.isRendering = false;
     }
 
     function deleteObject(obj) {
@@ -505,16 +497,13 @@
             // ROTATE
             if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
             if (Math.abs(rightStickY) > 0.1) {
-                // If it's a model, Y-axis on Stick might mean SCALE instead of Pitch
                 if (activeTarget.userData.isModel) {
-                     // SCALE MODE
-                     const s = 1 + (rightStickY * -SCALE_SPEED); // Up grows, Down shrinks
+                     const s = 1 + (rightStickY * -SCALE_SPEED); 
                      activeTarget.scale.multiplyScalar(s);
                 } else {
                      activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
                 }
             }
-            
             // PUSH/PULL
             const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
             const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
@@ -526,8 +515,7 @@
                 const dir = new THREE.Vector3(); dir.subVectors(activeTarget.position, camera.position).normalize();
                 activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * l2));
             }
-
-            // PDF PAGES
+            // PDF
             if (activeTarget.userData.type === 'pdf') {
                 if (Math.abs(leftStickX) > 0.5) {
                     const now = Date.now();
