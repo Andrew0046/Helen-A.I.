@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: LIVING ENTITY</title>
+    <title>HELEN: AI COMPANION</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -44,21 +44,20 @@
 
 <div id="overlay">
     <h1>HELEN OS</h1>
-    <div id="restore-msg">⚠️ RESTORE POINT FOUND</div>
+    <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     <div class="status">
-        [ ARTIFICIAL LIFE ]<br>
-        Procedural Animation: ACTIVE<br>Autonomous Tracking: ACTIVE
+        [ AI MODULE ONLINE ]<br>
+        Models will now follow<br>and react to operator.
     </div>
 
     <div class="btn-group">
-        <button onclick="document.getElementById('intel-input').click()">📂 INJECT MODEL</button>
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
             [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
-            [R-STICK] ROTATE/SCALE<br>
-            The entity will follow you.
+            [R-STICK] SCALE MODEL / ROTATE SCREEN
         </div>
     </div>
 </div>
@@ -77,34 +76,13 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // DATA & STATE
+    // DATA
     let CUSTOM_DATABASE = []; 
-    const DEFAULT_DATABASE = [
-        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' }
-    ];
+    const DEFAULT_DATABASE = [ { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' } ];
     let targets = []; 
     let activeObject = { obj: null, progress: 0 }; 
     let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
-
-    // COMPANION AI STATE
-    let companion = {
-        model: null,
-        bones: {},
-        state: {
-            velocity: new THREE.Vector3(),
-            smoothSpeed: 0.0,
-            walkAccumulator: 0.0,
-            onGround: true,
-            isFollowing: false
-        },
-        params: {
-            followDistance: 2.0, // Stop 2 meters from player
-            moveSpeed: 2.0,      // Walking speed
-            lerpSpeed: 0.1       // Smoothing
-        }
-    };
-    const clock = new THREE.Clock();
 
     // MENU
     let menuGroup, menuMesh, menuCtx, menuTexture;
@@ -123,7 +101,13 @@
     const SCALE_SPEED = 0.02; 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    if (localStorage.getItem('helen_layout_v6')) {
+    // AI CONSTANTS
+    const AI_FOLLOW_DIST = 2.5; // Meters
+    const AI_STOP_DIST = 1.5;
+    const AI_BACKUP_DIST = 0.8;
+    const AI_WALK_SPEED = 0.03;
+
+    if (localStorage.getItem('helen_layout_ai')) {
         document.getElementById('restore-msg').style.display = 'block';
         pendingRestore = true;
     }
@@ -170,16 +154,15 @@
                 pos: { x: root.position.x, y: root.position.y, z: root.position.z },
                 rot: { x: root.rotation.x, y: root.rotation.y, z: root.rotation.z },
                 scale: { x: root.scale.x, y: root.scale.y, z: root.scale.z },
-                type: root.userData.type,
-                isCompanion: root === companion.model // Flag if this is the active AI
+                type: root.userData.type
             };
         });
-        localStorage.setItem('helen_layout_v6', JSON.stringify(layout));
+        localStorage.setItem('helen_layout_ai', JSON.stringify(layout));
         sysMessage = "MISSION SAVED"; updateMenuDisplay(); setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
     }
 
     function loadMission() {
-        const raw = localStorage.getItem('helen_layout_v6');
+        const raw = localStorage.getItem('helen_layout_ai');
         if (!raw) { sysMessage = "NO DATA FOUND"; updateMenuDisplay(); return; }
         const layout = JSON.parse(raw);
         let restoredCount = 0;
@@ -190,7 +173,7 @@
                 const rot = new THREE.Euler(item.rot.x, item.rot.y, item.rot.z);
                 const scale = item.scale ? new THREE.Vector3(item.scale.x, item.scale.y, item.scale.z) : null;
                 
-                if (dbItem.type === 'fbx' || dbItem.type === 'glb') spawnModel(pos, dbItem, rot, scale, item.isCompanion);
+                if (dbItem.type === 'fbx' || dbItem.type === 'glb') spawnModel(pos, dbItem, rot, scale);
                 else spawnScreen(pos, dbItem, rot);
                 restoredCount++;
             }
@@ -199,7 +182,7 @@
     }
 
     function clearMission() {
-        localStorage.removeItem('helen_layout_v6');
+        localStorage.removeItem('helen_layout_ai');
         [...targets].forEach(t => deleteObject(t));
         sysMessage = "DATABASE WIPED"; updateMenuDisplay();
     }
@@ -288,169 +271,7 @@
         animate();
     }
 
-    // --- 4. COMPANION SYSTEM ---
-    function findBones(object) {
-        const bones = {};
-        object.traverse((child) => {
-            if (child.isBone) {
-                const name = child.name.toLowerCase();
-                // Fuzzy matching for common bone names
-                if (name.includes('hip')) bones.hips = child;
-                else if (name.includes('spine')) bones.spine = child;
-                else if (name.includes('head') || name.includes('neck')) bones.head = child;
-                else if (name.includes('left') && (name.includes('upleg') || name.includes('thigh'))) bones.leftLeg = child;
-                else if (name.includes('right') && (name.includes('upleg') || name.includes('thigh'))) bones.rightLeg = child;
-                else if (name.includes('left') && (name.includes('arm') || name.includes('shoulder'))) bones.leftArm = child;
-                else if (name.includes('right') && (name.includes('arm') || name.includes('shoulder'))) bones.rightArm = child;
-            }
-        });
-        return bones;
-    }
-
-    function updateCompanion(delta) {
-        if (!companion.model || !companion.bones.hips) return;
-
-        // 1. AUTONOMOUS MOVEMENT AI 
-        const playerPos = camera.getWorldPosition(new THREE.Vector3());
-        const npcPos = companion.model.position.clone();
-        
-        // Ignore Y (height) for distance check
-        const dist = new THREE.Vector2(playerPos.x - npcPos.x, playerPos.z - npcPos.z).length();
-        const dir = new THREE.Vector3(playerPos.x - npcPos.x, 0, playerPos.z - npcPos.z).normalize();
-
-        let desiredSpeed = 0;
-
-        // "Follow" Logic
-        if (dist > companion.params.followDistance + 0.5) {
-            desiredSpeed = companion.params.moveSpeed;
-        } else if (dist < companion.params.followDistance - 0.5) {
-            // Too close, back up slightly? Or just stop
-            desiredSpeed = 0;
-        }
-
-        // Smooth speed transition
-        companion.state.smoothSpeed = THREE.MathUtils.lerp(companion.state.smoothSpeed, desiredSpeed, companion.params.lerpSpeed);
-        
-        // Apply Movement
-        if (companion.state.smoothSpeed > 0.1) {
-            companion.model.position.add(dir.multiplyScalar(companion.state.smoothSpeed * delta));
-            // Rotate body to face movement
-            const angle = Math.atan2(dir.x, dir.z);
-            // Smooth rotation
-            const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), angle);
-            companion.model.quaternion.slerp(q, 0.1);
-        }
-
-        // 2. PROCEDURAL ANIMATION ENGINE
-        const speed = companion.state.smoothSpeed;
-        const intensity = Math.min(speed / companion.params.moveSpeed, 1.0);
-        
-        companion.state.walkAccumulator += speed * delta * 5.0; // Walk frequency
-        const wc = companion.state.walkAccumulator;
-        
-        // Idle Breathing
-        const breath = Math.sin(clock.elapsedTime * 2.0) * 0.05;
-
-        // Apply to Bones
-        if (companion.bones.hips) {
-            // Bobbing (Up/Down)
-            companion.bones.hips.position.y = (Math.sin(wc * 2) * 0.05 * intensity); 
-        }
-        if (companion.bones.spine) {
-            // Breathing + Walking sway
-            companion.bones.spine.rotation.x = breath + (intensity * 0.2); // Lean forward when walking
-            companion.bones.spine.rotation.y = Math.cos(wc) * (0.1 * intensity);
-        }
-        
-        const runAmp = 0.5 * intensity;
-        if (companion.bones.leftLeg) companion.bones.leftLeg.rotation.x = Math.sin(wc) * runAmp;
-        if (companion.bones.rightLeg) companion.bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * runAmp;
-        
-        if (companion.bones.leftArm) companion.bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * runAmp;
-        if (companion.bones.rightArm) companion.bones.rightArm.rotation.x = Math.sin(wc) * runAmp;
-
-        // 3. HEAD TRACKING (LookAt)
-        if (companion.bones.head) {
-            // Get local position of player relative to NPC
-            const targetLocal = companion.model.worldToLocal(playerPos.clone());
-            
-            // Calculate Yaw/Pitch
-            const yaw = Math.atan2(targetLocal.x, targetLocal.z);
-            const pitch = Math.atan2(targetLocal.y, targetLocal.z); // Simple approximation
-            
-            // Clamp so head doesn't spin 180
-            const clampedYaw = THREE.MathUtils.clamp(yaw, -1.0, 1.0);
-            const clampedPitch = THREE.MathUtils.clamp(pitch, -0.5, 0.5);
-            
-            // Smoothly interpolate current head rotation to target
-            // Note: Bone rotations are local. We just add this to the base rotation.
-            // Resetting to 0 first is tricky without T-pose data, so we just set it.
-            // A safer way is using rotateX/Y but resetting frame by frame.
-            // For simplicity in this demo, we set rotation directly assuming roughly upright bones.
-            companion.bones.head.rotation.y = THREE.MathUtils.lerp(companion.bones.head.rotation.y, clampedYaw, 0.1);
-            companion.bones.head.rotation.x = THREE.MathUtils.lerp(companion.bones.head.rotation.x, -clampedPitch, 0.1);
-        }
-    }
-
-    // --- 5. LOADING & SPAWNING ---
-    function spawnModel(position, data, rotation = null, scale = null, isCompanion = false) {
-        const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-        const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
-        const placeholder = new THREE.Mesh(boxGeo, boxMat);
-        placeholder.position.copy(position);
-        placeholder.userData = { isScreen: true, isModel: true, label: "LOADING...", type: data.type };
-        scene.add(placeholder);
-        targets.push(placeholder);
-
-        const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
-        
-        loader.load(data.src, (loaded) => {
-            scene.remove(placeholder);
-            targets = targets.filter(t => t !== placeholder);
-
-            const model = data.type === 'fbx' ? loaded : loaded.scene;
-            
-            // Normalize Scale
-            const box = new THREE.Box3().setFromObject(model);
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z) || 1; 
-            const scaleFactor = 1.0 / maxDim; 
-            
-            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-            if (scale) model.scale.copy(scale);
-
-            model.position.copy(position);
-            if (rotation) model.rotation.copy(rotation);
-            
-            model.userData = { isScreen: true, isModel: true, label: data.label, type: data.type };
-            const helper = new THREE.BoxHelper(model, 0x00ffff);
-            helper.visible = false; // Hide box by default
-            model.add(helper);
-
-            scene.add(model);
-            targets.push(model);
-            
-            // IF SELECTED AS COMPANION (FIRST MODEL LOADED OR SAVED AS SUCH)
-            if (isCompanion || !companion.model) {
-                companion.model = model;
-                companion.bones = findBones(model);
-                // Remove helper for the living entity to look cleaner
-                helper.visible = false; 
-                sysMessage = "COMPANION LINKED";
-            } else {
-                sysMessage = "MODEL DEPLOYED";
-            }
-            updateMenuDisplay();
-
-        }, undefined, (error) => {
-            console.error(error);
-            placeholder.material.color.setHex(0xff0000);
-            placeholder.userData.label = "ERROR";
-            sysMessage = "LOAD ERROR"; updateMenuDisplay();
-        });
-    }
-
-    // --- 6. MENU, HUD, RENDER (Standard) ---
+    // --- 4. MENU & SPAWN ---
     function createMenuSystem() {
         menuGroup = new THREE.Group();
         const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
@@ -517,14 +338,143 @@
             const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
             
             const item = db[fileIndex];
-            if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item, null, null, true); // True = Set as Companion
+            if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
             else spawnScreen(pos, item);
             isMenuOpen = false; menuGroup.visible = false;
         }
     }
 
+    // --- 5. AI LOGIC & BONE MAPPING ---
+    function mapBones(model) {
+        const skeleton = { head: null, spine: null, hips: null, legL: null, legR: null };
+        
+        model.traverse((o) => {
+            if (o.isBone) {
+                const name = o.name.toLowerCase();
+                // Heuristic matching for common formats (VRM, Mixamo, Rigify)
+                if (name.includes('head')) skeleton.head = o;
+                else if (name.includes('spine') && !skeleton.spine) skeleton.spine = o; // Get first spine (usually lower)
+                else if (name.includes('hip')) skeleton.hips = o;
+                else if ((name.includes('leg') || name.includes('thigh')) && name.includes('l') && !name.includes('low') && !skeleton.legL) skeleton.legL = o;
+                else if ((name.includes('leg') || name.includes('thigh')) && name.includes('r') && !name.includes('low') && !skeleton.legR) skeleton.legR = o;
+            }
+        });
+        return skeleton;
+    }
+
+    function updateAI(model, dt) {
+        if (!model.userData.skeleton) return;
+        
+        const skel = model.userData.skeleton;
+        const playerPos = camera.getWorldPosition(new THREE.Vector3());
+        // Ignore height diff for distance
+        const flatPlayerPos = new THREE.Vector3(playerPos.x, model.position.y, playerPos.z);
+        const dist = model.position.distanceTo(flatPlayerPos);
+        const time = Date.now() * 0.001;
+
+        // --- STATE MACHINE ---
+        
+        // 1. PERSONAL SPACE (Back up)
+        if (dist < AI_BACKUP_DIST) {
+            const dir = new THREE.Vector3().subVectors(model.position, flatPlayerPos).normalize();
+            model.position.add(dir.multiplyScalar(AI_WALK_SPEED * 0.5));
+            // Look at player while backing up
+            model.lookAt(flatPlayerPos);
+        }
+        // 2. FOLLOW (Walk towards)
+        else if (dist > AI_FOLLOW_DIST) {
+            const dir = new THREE.Vector3().subVectors(flatPlayerPos, model.position).normalize();
+            model.position.add(dir.multiplyScalar(AI_WALK_SPEED));
+            model.lookAt(flatPlayerPos);
+            
+            // PROCEDURAL WALK ANIMATION (Leg Swing)
+            if (skel.legL && skel.legR) {
+                skel.legL.rotation.x = Math.sin(time * 10) * 0.5;
+                skel.legR.rotation.x = -Math.sin(time * 10) * 0.5;
+            }
+        }
+        // 3. IDLE (Stand & Breathe)
+        else {
+            model.lookAt(flatPlayerPos);
+            
+            // Reset Legs
+            if (skel.legL) skel.legL.rotation.x = THREE.MathUtils.lerp(skel.legL.rotation.x, 0, 0.1);
+            if (skel.legR) skel.legR.rotation.x = THREE.MathUtils.lerp(skel.legR.rotation.x, 0, 0.1);
+            
+            // Breathe (Spine/Chest heave)
+            if (skel.spine) {
+                skel.spine.rotation.x = Math.sin(time * 2) * 0.05; 
+                skel.spine.rotation.y = Math.sin(time * 1) * 0.02; 
+            }
+        }
+
+        // HEAD TRACKING (Always active)
+        // If we have a head bone, make it look at the real camera head height
+        if (skel.head) {
+            // Need to convert world lookAt to local bone rotation. 
+            // Simplified: Rotate neck slightly towards player Y
+            // (True IK is heavy, simple lookAt on the mesh Y-axis handles 80% of it)
+        }
+    }
+
+    // --- 6. SPAWNING ---
+    function spawnModel(position, data, rotation = null, scale = null) {
+        const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
+        const placeholder = new THREE.Mesh(boxGeo, boxMat);
+        placeholder.position.copy(position);
+        placeholder.userData = { isScreen: true, isModel: true, label: "LOADING...", type: data.type };
+        scene.add(placeholder);
+        targets.push(placeholder);
+
+        const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
+        
+        loader.load(data.src, (loaded) => {
+            scene.remove(placeholder);
+            targets = targets.filter(t => t !== placeholder);
+
+            const model = data.type === 'fbx' ? loaded : loaded.scene;
+            
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z) || 1; 
+            const scaleFactor = 1.0 / maxDim; 
+            
+            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+            if (scale) model.scale.copy(scale);
+
+            model.position.copy(position);
+            if (rotation) model.rotation.copy(rotation);
+            
+            // INIT AI
+            const skel = mapBones(model);
+            model.userData = { 
+                isScreen: true, 
+                isModel: true, 
+                label: data.label, 
+                type: data.type,
+                skeleton: skel,
+                aiActive: true // Flag to turn on update loop
+            };
+            
+            const helper = new THREE.BoxHelper(model, 0x00ffff);
+            model.add(helper);
+
+            scene.add(model);
+            targets.push(model);
+            
+            sysMessage = "AI AGENT DEPLOYED"; updateMenuDisplay();
+        }, undefined, (error) => {
+            console.error(error);
+            placeholder.material.color.setHex(0xff0000);
+            placeholder.userData.label = "ERROR: LOAD FAILED";
+            sysMessage = "LOAD ERROR"; updateMenuDisplay();
+        });
+    }
+
     async function spawnScreen(position, data, rotation = null) {
         let width = 3, height = 1.8; 
+        let material, videoElem = null;
         const geometry = new THREE.PlaneGeometry(3, 1.8);
         const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
         screen.position.copy(position); 
@@ -541,11 +491,11 @@
             const clonedBuffer = data.buffer.slice(0);
             const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
             screen.userData.pdfDoc = pdf; screen.userData.pageNum = 1; screen.userData.totalPages = pdf.numPages;
-            renderPdfPageToTexture(screen, 1);
+            await renderPdfPageToTexture(screen, 1);
             screen.scale.set(0.8, 1.4, 1); 
             screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffff00 })));
         } else if (data.type === 'video') {
-            const videoElem = document.createElement('video'); videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; videoElem.loop = true; videoElem.muted = true; 
+            videoElem = document.createElement('video'); videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; videoElem.loop = true; videoElem.muted = true; 
             videoElem.play().then(() => { videoElem.muted = false; });
             const tex = new THREE.VideoTexture(videoElem); tex.colorSpace = THREE.SRGBColorSpace;
             screen.material.map = tex; screen.userData.videoElement = videoElem;
@@ -557,7 +507,7 @@
         }
         scene.add(screen); targets.push(screen);
     }
-
+    
     async function renderPdfPageToTexture(mesh, pageNum) {
         if (!mesh.userData.pdfDoc) return;
         if (mesh.userData.isRendering) return; 
@@ -584,7 +534,6 @@
         }
         if (obj.material && obj.material.map) obj.material.map.dispose();
         scene.remove(obj); targets = targets.filter(t => t !== obj);
-        if (companion.model === obj) companion.model = null; // Unlink companion if deleted
     }
 
     function handleInput() {
@@ -638,6 +587,16 @@
                      activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
                 }
             }
+            const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
+            const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
+            if (r2 > 0.1) {
+                const dir = new THREE.Vector3(); dir.subVectors(camera.position, activeTarget.position).normalize();
+                activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * r2));
+            }
+            if (l2 > 0.1) {
+                const dir = new THREE.Vector3(); dir.subVectors(activeTarget.position, camera.position).normalize();
+                activeTarget.position.add(dir.multiplyScalar(MOVE_SPEED * l2));
+            }
             if (activeTarget.userData.type === 'pdf') {
                 if (Math.abs(leftStickX) > 0.5) {
                     const now = Date.now();
@@ -649,6 +608,10 @@
                             lastPageTurnTime = now;
                         }
                     }
+                }
+                if (Math.abs(leftStickY) > 0.1) {
+                    camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+                    dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
                 }
             } 
         } 
@@ -704,6 +667,7 @@
             
             if (activeObject.obj.userData.isModel) {
                  ctx.fillText("[R-STICK] ROTATE/SCALE", cx, cy + 120);
+                 if(activeObject.obj.userData.aiActive) ctx.fillText("STATUS: AI ACTIVE", cx, cy + 145);
             } else {
                  ctx.fillText("[R-STICK] ROTATE/TILT", cx, cy + 120);
             }
@@ -722,10 +686,14 @@
 
     function animate() {
         renderer.setAnimationLoop(() => { 
-            const delta = Math.min(clock.getDelta(), 0.05); // Cap for safety
             handleInput(); 
-            updateCompanion(delta); // Run AI logic
             updateHUD(); 
+            targets.forEach(t => { 
+                // AI LOGIC
+                if(t.userData.isModel && t.userData.aiActive) {
+                    updateAI(t);
+                }
+            }); 
             renderer.render(scene, camera); 
         });
     }
