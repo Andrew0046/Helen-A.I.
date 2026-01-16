@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: AI COMPANION (Auto-Rig Fixed)</title>
+    <title>HELEN: AI COMPANION (Debug Mode)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -46,8 +46,9 @@
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     <div class="status">
-        [ AI MODULE ONLINE ]<br>
-        Auto-Rigging System Active<br>Ready for Model Injection.
+        [ DEBUG MODE ONLINE ]<br>
+        Yellow Lines = Skeleton<br>
+        Open Console (F12) to see bone names.
     </div>
 
     <div class="btn-group">
@@ -344,67 +345,82 @@
         }
     }
 
-    // --- 5. ROBUST BONE MAPPING (Fixes T-Posing) ---
+    // --- 5. ROBUST BONE MAPPING (BRUTE FORCE VERSION) ---
     function mapBones(model) {
+        console.log("--- STARTING BONE SCAN ---");
         const skeleton = {
             hips: null, spine: null, head: null,
             leftLeg: null, rightLeg: null,
             leftCalf: null, rightCalf: null
         };
         
-        // Helper: Check if a name matches any of our target words
-        function matches(name, targets) {
-            return targets.some(t => name.includes(t));
-        }
+        let allBones = [];
 
-        // Helper: Determine side (Left/Right)
-        function isLeft(n) { return n.includes('left') || n.includes('_l_') || n.endsWith('_l') || n.startsWith('l_'); }
-        function isRight(n) { return n.includes('right') || n.includes('_r_') || n.endsWith('_r') || n.startsWith('r_'); }
-
+        // 1. Gather ALL bones first
         model.traverse((o) => {
             if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
-            if (!o.isBone) return;
-
-            const n = o.name.toLowerCase();
-
-            // 1. HIPS / ROOT (Look for Pelvis, Hips, Root, Waist)
-            if (!skeleton.hips && matches(n, ['hip', 'pelvis', 'root', 'waist', 'master'])) {
-                skeleton.hips = o;
+            if (o.isBone) {
+                console.log("FOUND BONE:", o.name); // DEBUG: Print names
+                allBones.push(o);
             }
+        });
 
-            // 2. SPINE (Look for Spine, Chest, Torso)
-            if (!skeleton.spine && matches(n, ['spine', 'chest', 'torso', 'body'])) {
-                skeleton.spine = o;
-            }
+        // Helper: Check if a name matches targets
+        function matches(name, targets) {
+            const n = name.toLowerCase();
+            return targets.some(t => n.includes(t));
+        }
+        function isLeft(n) { const l = n.toLowerCase(); return l.includes('left') || l.includes('_l_') || l.endsWith('_l') || l.startsWith('l_'); }
+        function isRight(n) { const r = n.toLowerCase(); return r.includes('right') || r.includes('_r_') || r.endsWith('_r') || r.startsWith('r_'); }
 
-            // 3. HEAD (Look for Head, Neck)
-            if (!skeleton.head && matches(n, ['head', 'neck'])) {
-                skeleton.head = o;
-            }
+        // 2. NAME MATCHING
+        allBones.forEach(o => {
+            const n = o.name;
+            if (!skeleton.hips && matches(n, ['hip', 'pelvis', 'root', 'waist', 'master', 'mixamorig:hips'])) skeleton.hips = o;
+            if (!skeleton.spine && matches(n, ['spine', 'chest', 'torso', 'body'])) skeleton.spine = o;
+            if (!skeleton.head && matches(n, ['head', 'neck'])) skeleton.head = o;
 
-            // 4. UPPER LEGS (Thighs)
-            if (matches(n, ['leg', 'thigh', 'hip', 'femur'])) {
-                // Exclude "lower" or "calf" to avoid confusion
+            if (matches(n, ['leg', 'thigh', 'hip', 'femur', 'up'])) {
                 if (!matches(n, ['low', 'calf', 'shin', 'foot', 'toe'])) {
                     if (!skeleton.leftLeg && isLeft(n)) skeleton.leftLeg = o;
                     if (!skeleton.rightLeg && isRight(n)) skeleton.rightLeg = o;
                 }
             }
-
-            // 5. LOWER LEGS (Calves)
             if (matches(n, ['low', 'calf', 'shin', 'knee', 'tibia'])) {
                 if (!skeleton.leftCalf && isLeft(n)) skeleton.leftCalf = o;
                 if (!skeleton.rightCalf && isRight(n)) skeleton.rightCalf = o;
             }
         });
 
-        // DEBUG: Print what we found to the console
+        // 3. POSITIONAL FALLBACK (If name matching FAILED)
+        if (skeleton.hips && (!skeleton.leftLeg || !skeleton.rightLeg)) {
+            console.log("⚠️ NAME MATCH FAILED. ATTEMPTING POSITIONAL SCAN...");
+            const hipPos = new THREE.Vector3();
+            skeleton.hips.getWorldPosition(hipPos);
+
+            // Sort bones by Y height (Top to Bottom)
+            // We want bones BELOW hips
+            const candidates = allBones.filter(b => {
+                const p = new THREE.Vector3();
+                b.getWorldPosition(p);
+                return p.y < hipPos.y - 0.1; // Must be significantly lower than hips
+            });
+
+            candidates.forEach(b => {
+                const p = new THREE.Vector3();
+                b.getWorldPosition(p);
+                // Check Left/Right relative to Model Center
+                // Assuming Model is facing Z, X is Left/Right
+                if (!skeleton.leftLeg && p.x > 0.1) { console.log("guessed Left Leg:", b.name); skeleton.leftLeg = b; }
+                if (!skeleton.rightLeg && p.x < -0.1) { console.log("guessed Right Leg:", b.name); skeleton.rightLeg = b; }
+            });
+        }
+
         console.log("AUTO-RIG REPORT:", 
             "HIPS:", skeleton.hips ? "✅" : "❌", 
             "L_LEG:", skeleton.leftLeg ? "✅" : "❌", 
             "R_LEG:", skeleton.rightLeg ? "✅" : "❌"
         );
-
         return skeleton;
     }
 
@@ -413,7 +429,6 @@
         
         const skel = model.userData.skeleton;
         const playerPos = camera.getWorldPosition(new THREE.Vector3());
-        // Ignore height diff for distance
         const flatPlayerPos = new THREE.Vector3(playerPos.x, model.position.y, playerPos.z);
         const dist = model.position.distanceTo(flatPlayerPos);
         const time = Date.now() * 0.001;
@@ -424,7 +439,6 @@
         if (dist < AI_BACKUP_DIST) {
             const dir = new THREE.Vector3().subVectors(model.position, flatPlayerPos).normalize();
             model.position.add(dir.multiplyScalar(AI_WALK_SPEED * 0.5));
-            // Look at player while backing up
             model.lookAt(flatPlayerPos);
         }
         // 2. FOLLOW (Walk towards)
@@ -433,27 +447,26 @@
             model.position.add(dir.multiplyScalar(AI_WALK_SPEED));
             model.lookAt(flatPlayerPos);
             
-            // PROCEDURAL WALK ANIMATION (Updated for new Skeleton keys)
+            // PROCEDURAL WALK ANIMATION
+            // Check if we found legs, otherwise we can't animate
             if (skel.leftLeg && skel.rightLeg) {
+                // Try rotating on X axis. If model is weird, this might look like a twist.
+                // But it should move SOMETHING.
                 skel.leftLeg.rotation.x = Math.sin(time * 10) * 0.5;
                 skel.rightLeg.rotation.x = -Math.sin(time * 10) * 0.5;
                 
-                // Add Knee bending if calves exist
                 if (skel.leftCalf) skel.leftCalf.rotation.x = Math.max(0, Math.sin(time * 10 - 0.5) * 0.8);
                 if (skel.rightCalf) skel.rightCalf.rotation.x = Math.max(0, -Math.sin(time * 10 - 0.5) * 0.8);
             }
         }
-        // 3. IDLE (Stand & Breathe)
+        // 3. IDLE
         else {
             model.lookAt(flatPlayerPos);
-            
-            // Reset Legs
             if (skel.leftLeg) skel.leftLeg.rotation.x = THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
             if (skel.rightLeg) skel.rightLeg.rotation.x = THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
             if (skel.leftCalf) skel.leftCalf.rotation.x = THREE.MathUtils.lerp(skel.leftCalf.rotation.x, 0, 0.1);
             if (skel.rightCalf) skel.rightCalf.rotation.x = THREE.MathUtils.lerp(skel.rightCalf.rotation.x, 0, 0.1);
             
-            // Breathe (Spine/Chest heave)
             if (skel.spine) {
                 skel.spine.rotation.x = Math.sin(time * 2) * 0.05; 
                 skel.spine.rotation.y = Math.sin(time * 1) * 0.02; 
@@ -489,6 +502,12 @@
 
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
+            
+            // --- DIAGNOSTIC: ADD SKELETON VISUALIZER ---
+            // This draws yellow lines. If you don't see them, the model has no bones.
+            const skelHelper = new THREE.SkeletonHelper(model);
+            skelHelper.material.linewidth = 2; // Thicker lines
+            scene.add(skelHelper);
             
             // INIT AI
             const skel = mapBones(model);
