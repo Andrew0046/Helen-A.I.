@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: VRM SPECIALIST</title>
+    <title>HELEN: HIGH PERFORMANCE</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -46,8 +46,9 @@
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     <div class="status">
-        [ VRM PROTOCOL ACTIVE ]<br>
-        Optimized for Helen 23.vrm
+        [ PERFORMANCE MODE ]<br>
+        Shadows: OFF | Physics: LIT<br>
+        Optimized for VRM
     </div>
 
     <div class="btn-group">
@@ -256,8 +257,11 @@
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
-        renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setSize(window.innerWidth, window.innerHeight); renderer.xr.enabled = true;
+        // --- PERFORMANCE FIX: LOWER RESOLUTION ---
+        renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
+        renderer.setPixelRatio(1); // Force 1:1 pixel ratio to stop lag on high-DPI screens
+        renderer.setSize(window.innerWidth, window.innerHeight); 
+        renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
         
         const btn = VRButton.createButton(renderer);
@@ -344,73 +348,36 @@
         }
     }
 
-    // --- 5. VRM SPECIFIC BONE MAPPING ---
+    // --- 5. EXACT VRM MAPPING (OPTIMIZED) ---
     function mapBones(model) {
-        console.log("--- STARTING VRM BONE SCAN ---");
+        // Optimized: Single traverse, no heavy regex logic, exact string matches
         const skeleton = {
             hips: null, spine: null, head: null,
-            leftLeg: null, rightLeg: null,
-            leftCalf: null, rightCalf: null
+            leftLeg: null, rightLeg: null, 
+            leftArm: null, rightArm: null // Added arms
         };
         
-        let allBones = [];
-
         model.traverse((o) => {
-            if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
-            if (o.isBone) {
-                console.log("BONE:", o.name); 
-                allBones.push(o);
-            }
+            // --- PERFORMANCE FIX: DISABLE SHADOWS ---
+            // VRM meshes are too heavy for shadow casting in this context
+            if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; }
+            if (!o.isBone) return;
+
+            const n = o.name;
+
+            // USE YOUR EXACT BONE NAMES
+            if (n === 'J_Bip_L_UpperArm') skeleton.leftArm = o;
+            if (n === 'J_Bip_R_UpperArm') skeleton.rightArm = o;
+            if (n === 'J_Bip_C_Neck') skeleton.neck = o; // mapped but not used by simple AI
+            if (n === 'J_Bip_C_Head') skeleton.head = o;
+            if (n === 'J_Bip_C_Spine') skeleton.spine = o;
+            
+            // WE MUST MAP LEGS FOR WALKING TO WORK
+            // Standard VRM names used here:
+            if (n === 'J_Bip_L_UpperLeg') skeleton.leftLeg = o;
+            if (n === 'J_Bip_R_UpperLeg') skeleton.rightLeg = o;
         });
 
-        function matches(name, targets) {
-            const n = name.toLowerCase();
-            return targets.some(t => n.includes(t));
-        }
-
-        allBones.forEach(o => {
-            const n = o.name; // Keep original case for VRM matching, convert in checks
-            const nl = n.toLowerCase();
-
-            // 1. HIPS: Standard VRM "J_Bip_C_Hips" or generic "Hips"
-            if (!skeleton.hips && (n.includes('J_Bip_C_Hips') || matches(nl, ['hip', 'pelvis', 'root', 'waist']))) {
-                skeleton.hips = o;
-            }
-
-            // 2. SPINE: VRM "J_Bip_C_Spine"
-            if (!skeleton.spine && (n.includes('J_Bip_C_Spine') || matches(nl, ['spine', 'chest', 'torso']))) {
-                skeleton.spine = o;
-            }
-
-            // 3. HEAD: VRM "J_Bip_C_Head"
-            if (!skeleton.head && (n.includes('J_Bip_C_Head') || matches(nl, ['head', 'neck']))) {
-                skeleton.head = o;
-            }
-
-            // 4. UPPER LEGS (THIGHS)
-            // VRM: J_Bip_L_UpperLeg / J_Bip_R_UpperLeg
-            if (n.includes('J_Bip_L_UpperLeg') || (matches(nl, ['leg', 'thigh', 'up']) && matches(nl, ['l_', 'left']) && !matches(nl, ['low', 'calf', 'shin']))) {
-                skeleton.leftLeg = o;
-            }
-            if (n.includes('J_Bip_R_UpperLeg') || (matches(nl, ['leg', 'thigh', 'up']) && matches(nl, ['r_', 'right']) && !matches(nl, ['low', 'calf', 'shin']))) {
-                skeleton.rightLeg = o;
-            }
-
-            // 5. LOWER LEGS (CALVES)
-            // VRM: J_Bip_L_LowerLeg / J_Bip_R_LowerLeg
-            if (n.includes('J_Bip_L_LowerLeg') || (matches(nl, ['low', 'calf', 'shin', 'knee']) && matches(nl, ['l_', 'left']))) {
-                skeleton.leftCalf = o;
-            }
-            if (n.includes('J_Bip_R_LowerLeg') || (matches(nl, ['low', 'calf', 'shin', 'knee']) && matches(nl, ['r_', 'right']))) {
-                skeleton.rightCalf = o;
-            }
-        });
-
-        console.log("VRM RIG REPORT:", 
-            "HIPS:", skeleton.hips ? "✅" : "❌", 
-            "L_LEG:", skeleton.leftLeg ? "✅" : "❌", 
-            "R_LEG:", skeleton.rightLeg ? "✅" : "❌"
-        );
         return skeleton;
     }
 
@@ -423,8 +390,6 @@
         const dist = model.position.distanceTo(flatPlayerPos);
         const time = Date.now() * 0.001;
 
-        // --- STATE MACHINE ---
-        
         // 1. PERSONAL SPACE
         if (dist < AI_BACKUP_DIST) {
             const dir = new THREE.Vector3().subVectors(model.position, flatPlayerPos).normalize();
@@ -437,15 +402,17 @@
             model.position.add(dir.multiplyScalar(AI_WALK_SPEED));
             model.lookAt(flatPlayerPos);
             
-            // WALK ANIMATION (VRM Friendly)
+            // WALK ANIMATION 
             if (skel.leftLeg && skel.rightLeg) {
-                // VRM bones usually need NEGATIVE rotation to lift leg forward? Depends on rig.
-                // Standard: X axis rotation.
                 skel.leftLeg.rotation.x = Math.sin(time * 10) * 0.5;
                 skel.rightLeg.rotation.x = -Math.sin(time * 10) * 0.5;
                 
-                if (skel.leftCalf) skel.leftCalf.rotation.x = -Math.abs(Math.sin(time * 10 - 0.5) * 0.8); // VRM knees bend backward (negative X) often
-                if (skel.rightCalf) skel.rightCalf.rotation.x = -Math.abs(-Math.sin(time * 10 - 0.5) * 0.8);
+                // Add arm swing for natural feel
+                if(skel.leftArm) skel.leftArm.rotation.z = 1.0; // T-pose fix (lower arm)
+                if(skel.rightArm) skel.rightArm.rotation.z = -1.0;
+
+                if(skel.leftArm) skel.leftArm.rotation.x = Math.sin(time * 10 + Math.PI) * 0.2;
+                if(skel.rightArm) skel.rightArm.rotation.x = Math.sin(time * 10) * 0.2;
             }
         }
         // 3. IDLE
@@ -453,9 +420,11 @@
             model.lookAt(flatPlayerPos);
             if (skel.leftLeg) skel.leftLeg.rotation.x = THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
             if (skel.rightLeg) skel.rightLeg.rotation.x = THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
-            if (skel.leftCalf) skel.leftCalf.rotation.x = THREE.MathUtils.lerp(skel.leftCalf.rotation.x, 0, 0.1);
-            if (skel.rightCalf) skel.rightCalf.rotation.x = THREE.MathUtils.lerp(skel.rightCalf.rotation.x, 0, 0.1);
             
+            // Reset arms to side
+            if(skel.leftArm) { skel.leftArm.rotation.z = 1.2; skel.leftArm.rotation.x = 0; }
+            if(skel.rightArm) { skel.rightArm.rotation.z = -1.2; skel.rightArm.rotation.x = 0; }
+
             if (skel.spine) {
                 skel.spine.rotation.x = Math.sin(time * 2) * 0.05; 
                 skel.spine.rotation.y = Math.sin(time * 1) * 0.02; 
@@ -492,10 +461,7 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            // --- SKELETON DEBUG VISUALIZER ---
-            const skelHelper = new THREE.SkeletonHelper(model);
-            skelHelper.material.linewidth = 2; 
-            scene.add(skelHelper);
+            // NO SKELETON DEBUG LINES (Saves frames)
             
             // INIT AI
             const skel = mapBones(model);
