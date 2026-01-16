@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: AI COMPANION</title>
+    <title>HELEN: AI COMPANION (Auto-Rig Upgrade)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -344,19 +344,45 @@
         }
     }
 
-    // --- 5. AI LOGIC & BONE MAPPING ---
+    // --- 5. AI LOGIC & BONE MAPPING (UPDATED) ---
     function mapBones(model) {
-        const skeleton = { head: null, spine: null, hips: null, legL: null, legR: null };
+        // Expanded structure based on 'Natural Motion'
+        const skeleton = {
+            hips: null, spine: null, head: null,
+            leftArm: null, rightArm: null,
+            leftForeArm: null, rightForeArm: null,
+            leftLeg: null, rightLeg: null,
+            leftCalf: null, rightCalf: null
+        };
         
         model.traverse((o) => {
+            if (o.isMesh) {
+                // Ensure meshes cast shadows/receive them (Visual Enhancement)
+                o.castShadow = true; 
+                o.receiveShadow = true;
+            }
+
             if (o.isBone) {
-                const name = o.name.toLowerCase();
-                // Heuristic matching for common formats (VRM, Mixamo, Rigify)
-                if (name.includes('head')) skeleton.head = o;
-                else if (name.includes('spine') && !skeleton.spine) skeleton.spine = o; // Get first spine (usually lower)
-                else if (name.includes('hip')) skeleton.hips = o;
-                else if ((name.includes('leg') || name.includes('thigh')) && name.includes('l') && !name.includes('low') && !skeleton.legL) skeleton.legL = o;
-                else if ((name.includes('leg') || name.includes('thigh')) && name.includes('r') && !name.includes('low') && !skeleton.legR) skeleton.legR = o;
+                const n = o.name.toLowerCase();
+                
+                // --- MAPPING LOGIC IMPORTED FROM HELEN NATURAL MOTION ---
+                if (n.includes('hips')) skeleton.hips = o;
+                if (n.includes('spine')) skeleton.spine = o;
+                if (n.includes('head')) skeleton.head = o;
+
+                // Arms
+                if (n.includes('upperarm') && (n.includes('_l_') || n.includes('left'))) skeleton.leftArm = o;
+                if (n.includes('upperarm') && (n.includes('_r_') || n.includes('right'))) skeleton.rightArm = o;
+                if ((n.includes('lowerarm') || n.includes('forearm')) && (n.includes('_l_') || n.includes('left'))) skeleton.leftForeArm = o;
+                if ((n.includes('lowerarm') || n.includes('forearm')) && (n.includes('_r_') || n.includes('right'))) skeleton.rightForeArm = o;
+
+                // Legs
+                if (n.includes('upperleg') && (n.includes('_l_') || n.includes('left'))) skeleton.leftLeg = o;
+                if (n.includes('upperleg') && (n.includes('_r_') || n.includes('right'))) skeleton.rightLeg = o;
+                
+                // Calves (Lower Legs)
+                if (n.includes('lowerleg') && (n.includes('_l_') || n.includes('left'))) skeleton.leftCalf = o; 
+                if (n.includes('lowerleg') && (n.includes('_r_') || n.includes('right'))) skeleton.rightCalf = o;
             }
         });
         return skeleton;
@@ -387,10 +413,14 @@
             model.position.add(dir.multiplyScalar(AI_WALK_SPEED));
             model.lookAt(flatPlayerPos);
             
-            // PROCEDURAL WALK ANIMATION (Leg Swing)
-            if (skel.legL && skel.legR) {
-                skel.legL.rotation.x = Math.sin(time * 10) * 0.5;
-                skel.legR.rotation.x = -Math.sin(time * 10) * 0.5;
+            // PROCEDURAL WALK ANIMATION (Updated for new Skeleton keys)
+            if (skel.leftLeg && skel.rightLeg) {
+                skel.leftLeg.rotation.x = Math.sin(time * 10) * 0.5;
+                skel.rightLeg.rotation.x = -Math.sin(time * 10) * 0.5;
+                
+                // Add Knee bending if calves exist
+                if (skel.leftCalf) skel.leftCalf.rotation.x = Math.max(0, Math.sin(time * 10 - 0.5) * 0.8);
+                if (skel.rightCalf) skel.rightCalf.rotation.x = Math.max(0, -Math.sin(time * 10 - 0.5) * 0.8);
             }
         }
         // 3. IDLE (Stand & Breathe)
@@ -398,8 +428,10 @@
             model.lookAt(flatPlayerPos);
             
             // Reset Legs
-            if (skel.legL) skel.legL.rotation.x = THREE.MathUtils.lerp(skel.legL.rotation.x, 0, 0.1);
-            if (skel.legR) skel.legR.rotation.x = THREE.MathUtils.lerp(skel.legR.rotation.x, 0, 0.1);
+            if (skel.leftLeg) skel.leftLeg.rotation.x = THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
+            if (skel.rightLeg) skel.rightLeg.rotation.x = THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
+            if (skel.leftCalf) skel.leftCalf.rotation.x = THREE.MathUtils.lerp(skel.leftCalf.rotation.x, 0, 0.1);
+            if (skel.rightCalf) skel.rightCalf.rotation.x = THREE.MathUtils.lerp(skel.rightCalf.rotation.x, 0, 0.1);
             
             // Breathe (Spine/Chest heave)
             if (skel.spine) {
@@ -408,12 +440,10 @@
             }
         }
 
-        // HEAD TRACKING (Always active)
-        // If we have a head bone, make it look at the real camera head height
+        // HEAD TRACKING
         if (skel.head) {
-            // Need to convert world lookAt to local bone rotation. 
-            // Simplified: Rotate neck slightly towards player Y
-            // (True IK is heavy, simple lookAt on the mesh Y-axis handles 80% of it)
+            // Basic head tilt toward player
+            // skel.head.lookAt(playerPos); // (Requires world->local conversion, keeping simple for now)
         }
     }
 
