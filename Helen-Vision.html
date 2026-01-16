@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: PLATINUM EDITION</title>
+    <title>HELEN: FINAL SYSTEM</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -46,9 +46,9 @@
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     <div class="status">
-        [ SYSTEM OPTIMIZED ]<br>
-        Lag: ELIMINATED | Physics: LOCKED<br>
-        Ready for Operation.
+        [ OPTICS CALIBRATED ]<br>
+        Near-Clip: 1cm | Material: 2-SIDED<br>
+        Visual Fidelity Maximized.
     </div>
 
     <div class="btn-group">
@@ -239,7 +239,11 @@
     function init3D() {
         scene = new THREE.Scene();
         dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100); dolly.add(camera);
+        
+        // --- FIX: NEAR CLIPPING PLANE ---
+        // Changed 0.1 to 0.01 (1cm) to allow very close viewing
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); 
+        dolly.add(camera);
 
         const video = document.getElementById('camera-feed');
         const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false; 
@@ -339,7 +343,6 @@
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         if (fileIndex >= 0 && fileIndex < db.length) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-            // --- FIX: GRAVITY SNAP ---
             const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
             pos.y = 0; // Force to Floor
             
@@ -359,8 +362,15 @@
         };
         
         model.traverse((o) => {
-            // PERFORMANCE: DISABLE SHADOWS
-            if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; }
+            // PERFORMANCE: DISABLE SHADOWS & ENABLE DOUBLE SIDE RENDERING
+            if (o.isMesh) { 
+                o.castShadow = false; 
+                o.receiveShadow = false;
+                // --- FIX: MATERIAL VISIBILITY ---
+                if (o.material) {
+                    o.material.side = THREE.DoubleSide; // Render both inside and out
+                }
+            }
             if (!o.isBone) return;
 
             const n = o.name;
@@ -451,7 +461,7 @@
             // --- SCALE NORMALIZATION ---
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
-            const center = box.getCenter(new THREE.Vector3()); // We need center offset
+            const center = box.getCenter(new THREE.Vector3()); 
             const maxDim = Math.max(size.x, size.y, size.z) || 1; 
             const scaleFactor = 1.0 / maxDim; 
             
@@ -461,27 +471,13 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            // --- FIX: PARENTED HITBOX (Zero Lag) ---
-            // 1. Create a wireframe box based on initial size
+            // --- PARENTED HITBOX (Zero Lag) ---
             const helperGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
             const helperMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent:true, opacity:0.5 });
             const helperMesh = new THREE.Mesh(helperGeo, helperMat);
             
-            // 2. Center it perfectly relative to model root
-            // If model root is (0,0,0) but mesh is shifted, this fixes it.
-            // We need to apply inverse scale because we are adding it to the scaled model
-            // Actually, we add it to the model, so it inherits scale. 
-            // We just need to offset it by the center-point relative to root.
-            // Note: 'center' is in world space if box is from world object.
-            // Let's rely on Box3 local.
-            
-            const localBox = new THREE.Box3().setFromObject(model); 
-            // Note: setFromObject uses World transforms. 
-            // We can cheat: Add helper, then center.
-            // Simplified: Just use a standard box centered at 0, height/2.
-            
-            helperMesh.position.y = size.y / 2; // Approximate center
-            model.add(helperMesh); // Make it a CHILD. It now scales/moves automatically.
+            helperMesh.position.y = size.y / 2; 
+            model.add(helperMesh); 
             
             // INIT AI
             const skel = mapBones(model);
@@ -723,10 +719,9 @@
             handleInput(); 
             updateHUD(); 
             targets.forEach(t => { 
-                // AI LOGIC & UPDATE
-                if(t.userData.isModel) {
-                    if(t.userData.aiActive) updateAI(t);
-                    // NO HELPER UPDATE NEEDED (Parented Physics)
+                // AI LOGIC
+                if(t.userData.isModel && t.userData.aiActive) {
+                    updateAI(t);
                 }
             }); 
             renderer.render(scene, camera); 
