@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: FINAL RIG</title>
+    <title>HELEN: GOLD MASTER</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -46,9 +46,9 @@
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     <div class="status">
-        [ ARMS INVERTED ]<br>
-        Correction applied.<br>
-        Optimized for Helen 23.vrm
+        [ SYSTEM NORMAL ]<br>
+        Gravity: ON | Hitboxes: CALIBRATED<br>
+        Ready for Helen 23.vrm
     </div>
 
     <div class="btn-group">
@@ -257,7 +257,7 @@
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
-        // --- PERFORMANCE: 1:1 RESOLUTION ---
+        // PERFORMANCE: 1:1 RESOLUTION
         renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
         renderer.setPixelRatio(1); 
         renderer.setSize(window.innerWidth, window.innerHeight); 
@@ -339,7 +339,10 @@
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         if (fileIndex >= 0 && fileIndex < db.length) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            // --- FIX: HOVERING BUG ---
+            // FORCE Y TO 0 (FLOOR)
             const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
+            pos.y = 0; // <--- This forces her to the ground
             
             const item = db[fileIndex];
             if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
@@ -348,7 +351,7 @@
         }
     }
 
-    // --- 5. EXACT VRM MAPPING (OPTIMIZED & INVERTED) ---
+    // --- 5. EXACT VRM MAPPING ---
     function mapBones(model) {
         const skeleton = {
             hips: null, spine: null, head: null,
@@ -363,7 +366,6 @@
 
             const n = o.name;
 
-            // USE YOUR EXACT BONE NAMES
             if (n === 'J_Bip_L_UpperArm') skeleton.leftArm = o;
             if (n === 'J_Bip_R_UpperArm') skeleton.rightArm = o;
             if (n === 'J_Bip_C_Neck') skeleton.neck = o;
@@ -382,6 +384,7 @@
         
         const skel = model.userData.skeleton;
         const playerPos = camera.getWorldPosition(new THREE.Vector3());
+        // Ignore Height for Distance Calc
         const flatPlayerPos = new THREE.Vector3(playerPos.x, model.position.y, playerPos.z);
         const dist = model.position.distanceTo(flatPlayerPos);
         const time = Date.now() * 0.001;
@@ -403,10 +406,9 @@
                 skel.leftLeg.rotation.x = Math.sin(time * 10) * 0.5;
                 skel.rightLeg.rotation.x = -Math.sin(time * 10) * 0.5;
                 
-                // --- INVERTED ARMS FOR WALK ---
-                // Original was 1.0/-1.0, flipped to -1.0/1.0
-                if(skel.leftArm) skel.leftArm.rotation.z = -1.2; // DOWN
-                if(skel.rightArm) skel.rightArm.rotation.z = 1.2; // DOWN
+                // INVERTED ARMS (Walk)
+                if(skel.leftArm) skel.leftArm.rotation.z = -1.2; 
+                if(skel.rightArm) skel.rightArm.rotation.z = 1.2; 
 
                 if(skel.leftArm) skel.leftArm.rotation.x = Math.sin(time * 10 + Math.PI) * 0.2;
                 if(skel.rightArm) skel.rightArm.rotation.x = Math.sin(time * 10) * 0.2;
@@ -418,9 +420,7 @@
             if (skel.leftLeg) skel.leftLeg.rotation.x = THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
             if (skel.rightLeg) skel.rightLeg.rotation.x = THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
             
-            // --- INVERTED ARMS FOR IDLE ---
-            // Original: Left 1.2, Right -1.2 (UP)
-            // Inverted: Left -1.2, Right 1.2 (DOWN)
+            // INVERTED ARMS (Idle)
             if(skel.leftArm) { skel.leftArm.rotation.z = -1.2; skel.leftArm.rotation.x = 0; }
             if(skel.rightArm) { skel.rightArm.rotation.z = 1.2; skel.rightArm.rotation.x = 0; }
 
@@ -460,6 +460,11 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
+            // --- FIX: BLUE BOX WIREFRAME ---
+            // Attached to SCENE, not Model (Fixes offset bug)
+            const helper = new THREE.BoxHelper(model, 0x00ffff);
+            scene.add(helper); // <--- THIS IS THE FIX
+            
             // INIT AI
             const skel = mapBones(model);
             model.userData = { 
@@ -468,12 +473,10 @@
                 label: data.label, 
                 type: data.type,
                 skeleton: skel,
-                aiActive: true // Flag to turn on update loop
+                aiActive: true, 
+                helper: helper // Store Ref
             };
             
-            const helper = new THREE.BoxHelper(model, 0x00ffff);
-            model.add(helper);
-
             scene.add(model);
             targets.push(model);
             
@@ -547,6 +550,12 @@
             obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
         }
         if (obj.material && obj.material.map) obj.material.map.dispose();
+        
+        // Remove helper if exists
+        if(obj.userData && obj.userData.helper) {
+            scene.remove(obj.userData.helper);
+        }
+
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
@@ -703,9 +712,10 @@
             handleInput(); 
             updateHUD(); 
             targets.forEach(t => { 
-                // AI LOGIC
-                if(t.userData.isModel && t.userData.aiActive) {
-                    updateAI(t);
+                // AI LOGIC & UPDATE
+                if(t.userData.isModel) {
+                    if(t.userData.aiActive) updateAI(t);
+                    if(t.userData.helper) t.userData.helper.update(); // Update Box
                 }
             }); 
             renderer.render(scene, camera); 
