@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: AI FINAL</title>
+    <title>HELEN: FINAL RIG</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -46,8 +46,9 @@
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     <div class="status">
-        [ SYSTEM ONLINE ]<br>
-        AI Skeleton: CALIBRATED<br>Arm Rest Pose: APPLIED
+        [ ARMS INVERTED ]<br>
+        Correction applied.<br>
+        Optimized for Helen 23.vrm
     </div>
 
     <div class="btn-group">
@@ -102,12 +103,12 @@
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
     // AI CONSTANTS
-    const AI_FOLLOW_DIST = 2.5; 
+    const AI_FOLLOW_DIST = 2.5; // Meters
     const AI_STOP_DIST = 1.5;
     const AI_BACKUP_DIST = 0.8;
     const AI_WALK_SPEED = 0.03;
 
-    if (localStorage.getItem('helen_layout_ai_v2')) {
+    if (localStorage.getItem('helen_layout_ai')) {
         document.getElementById('restore-msg').style.display = 'block';
         pendingRestore = true;
     }
@@ -157,12 +158,12 @@
                 type: root.userData.type
             };
         });
-        localStorage.setItem('helen_layout_ai_v2', JSON.stringify(layout));
+        localStorage.setItem('helen_layout_ai', JSON.stringify(layout));
         sysMessage = "MISSION SAVED"; updateMenuDisplay(); setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
     }
 
     function loadMission() {
-        const raw = localStorage.getItem('helen_layout_ai_v2');
+        const raw = localStorage.getItem('helen_layout_ai');
         if (!raw) { sysMessage = "NO DATA FOUND"; updateMenuDisplay(); return; }
         const layout = JSON.parse(raw);
         let restoredCount = 0;
@@ -182,7 +183,7 @@
     }
 
     function clearMission() {
-        localStorage.removeItem('helen_layout_ai_v2');
+        localStorage.removeItem('helen_layout_ai');
         [...targets].forEach(t => deleteObject(t));
         sysMessage = "DATABASE WIPED"; updateMenuDisplay();
     }
@@ -256,8 +257,11 @@
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
-        renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setSize(window.innerWidth, window.innerHeight); renderer.xr.enabled = true;
+        // --- PERFORMANCE: 1:1 RESOLUTION ---
+        renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
+        renderer.setPixelRatio(1); 
+        renderer.setSize(window.innerWidth, window.innerHeight); 
+        renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
         
         const btn = VRButton.createButton(renderer);
@@ -344,37 +348,33 @@
         }
     }
 
-    // --- 5. AI LOGIC & BONE MAPPING ---
+    // --- 5. EXACT VRM MAPPING (OPTIMIZED & INVERTED) ---
     function mapBones(model) {
-        // Updated to capture ARMS
-        const skeleton = { head: null, spine: null, hips: null, legL: null, legR: null, armL: null, armR: null };
+        const skeleton = {
+            hips: null, spine: null, head: null,
+            leftLeg: null, rightLeg: null, 
+            leftArm: null, rightArm: null 
+        };
         
         model.traverse((o) => {
-            if (o.isBone) {
-                const name = o.name.toLowerCase();
-                // Heuristic matching
-                if (name.includes('head')) skeleton.head = o;
-                else if (name.includes('spine') && !skeleton.spine) skeleton.spine = o;
-                else if (name.includes('hip')) skeleton.hips = o;
-                
-                // Legs
-                else if ((name.includes('leg') || name.includes('thigh')) && name.includes('l') && !name.includes('low') && !skeleton.legL) skeleton.legL = o;
-                else if ((name.includes('leg') || name.includes('thigh')) && name.includes('r') && !name.includes('low') && !skeleton.legR) skeleton.legR = o;
-                
-                // Arms (Search for 'arm', 'shoulder' is usually too high up)
-                else if ((name.includes('arm') || name.includes('shoulder')) && name.includes('l') && !name.includes('low') && !skeleton.armL) skeleton.armL = o;
-                else if ((name.includes('arm') || name.includes('shoulder')) && name.includes('r') && !name.includes('low') && !skeleton.armR) skeleton.armR = o;
-            }
-        });
-        return skeleton;
-    }
+            // PERFORMANCE: DISABLE SHADOWS
+            if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; }
+            if (!o.isBone) return;
 
-    // NEW FUNCTION: Force arms down instantly
-    function tameArms(skeleton) {
-        // Rotate ~70 degrees down (1.2 radians)
-        // Note: Axis depends on rig (Z or X). Usually Z for T-Pose.
-        if (skeleton.armL) skeleton.armL.rotation.z = 1.2; 
-        if (skeleton.armR) skeleton.armR.rotation.z = -1.2;
+            const n = o.name;
+
+            // USE YOUR EXACT BONE NAMES
+            if (n === 'J_Bip_L_UpperArm') skeleton.leftArm = o;
+            if (n === 'J_Bip_R_UpperArm') skeleton.rightArm = o;
+            if (n === 'J_Bip_C_Neck') skeleton.neck = o;
+            if (n === 'J_Bip_C_Head') skeleton.head = o;
+            if (n === 'J_Bip_C_Spine') skeleton.spine = o;
+            
+            if (n === 'J_Bip_L_UpperLeg') skeleton.leftLeg = o;
+            if (n === 'J_Bip_R_UpperLeg') skeleton.rightLeg = o;
+        });
+
+        return skeleton;
     }
 
     function updateAI(model, dt) {
@@ -386,43 +386,48 @@
         const dist = model.position.distanceTo(flatPlayerPos);
         const time = Date.now() * 0.001;
 
+        // 1. PERSONAL SPACE
         if (dist < AI_BACKUP_DIST) {
             const dir = new THREE.Vector3().subVectors(model.position, flatPlayerPos).normalize();
             model.position.add(dir.multiplyScalar(AI_WALK_SPEED * 0.5));
             model.lookAt(flatPlayerPos);
         }
+        // 2. FOLLOW
         else if (dist > AI_FOLLOW_DIST) {
             const dir = new THREE.Vector3().subVectors(flatPlayerPos, model.position).normalize();
             model.position.add(dir.multiplyScalar(AI_WALK_SPEED));
             model.lookAt(flatPlayerPos);
             
-            // Walk Anim
-            if (skel.legL && skel.legR) {
-                skel.legL.rotation.x = Math.sin(time * 10) * 0.5;
-                skel.legR.rotation.x = -Math.sin(time * 10) * 0.5;
-            }
-            // Swing Arms while walking
-            if (skel.armL && skel.armR) {
-                // Keep base offset (1.2) and add swing
-                skel.armL.rotation.z = 1.2 + (Math.sin(time * 10) * 0.1);
-                skel.armR.rotation.z = -1.2 - (Math.sin(time * 10) * 0.1);
+            // WALK ANIMATION 
+            if (skel.leftLeg && skel.rightLeg) {
+                skel.leftLeg.rotation.x = Math.sin(time * 10) * 0.5;
+                skel.rightLeg.rotation.x = -Math.sin(time * 10) * 0.5;
+                
+                // --- INVERTED ARMS FOR WALK ---
+                // Original was 1.0/-1.0, flipped to -1.0/1.0
+                if(skel.leftArm) skel.leftArm.rotation.z = -1.2; // DOWN
+                if(skel.rightArm) skel.rightArm.rotation.z = 1.2; // DOWN
+
+                if(skel.leftArm) skel.leftArm.rotation.x = Math.sin(time * 10 + Math.PI) * 0.2;
+                if(skel.rightArm) skel.rightArm.rotation.x = Math.sin(time * 10) * 0.2;
             }
         }
+        // 3. IDLE
         else {
             model.lookAt(flatPlayerPos);
-            // Idle Reset
-            if (skel.legL) skel.legL.rotation.x = THREE.MathUtils.lerp(skel.legL.rotation.x, 0, 0.1);
-            if (skel.legR) skel.legR.rotation.x = THREE.MathUtils.lerp(skel.legR.rotation.x, 0, 0.1);
+            if (skel.leftLeg) skel.leftLeg.rotation.x = THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
+            if (skel.rightLeg) skel.rightLeg.rotation.x = THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
             
-            // Breathe
+            // --- INVERTED ARMS FOR IDLE ---
+            // Original: Left 1.2, Right -1.2 (UP)
+            // Inverted: Left -1.2, Right 1.2 (DOWN)
+            if(skel.leftArm) { skel.leftArm.rotation.z = -1.2; skel.leftArm.rotation.x = 0; }
+            if(skel.rightArm) { skel.rightArm.rotation.z = 1.2; skel.rightArm.rotation.x = 0; }
+
             if (skel.spine) {
                 skel.spine.rotation.x = Math.sin(time * 2) * 0.05; 
                 skel.spine.rotation.y = Math.sin(time * 1) * 0.02; 
             }
-            
-            // Relax Arms
-            if (skel.armL) skel.armL.rotation.z = 1.2 + (Math.sin(time * 1) * 0.02);
-            if (skel.armR) skel.armR.rotation.z = -1.2 - (Math.sin(time * 1) * 0.02);
         }
     }
 
@@ -455,17 +460,15 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            // INIT AI & TAME ARMS
+            // INIT AI
             const skel = mapBones(model);
-            tameArms(skel); // Force arms down immediately
-            
             model.userData = { 
                 isScreen: true, 
                 isModel: true, 
                 label: data.label, 
                 type: data.type,
                 skeleton: skel,
-                aiActive: true 
+                aiActive: true // Flag to turn on update loop
             };
             
             const helper = new THREE.BoxHelper(model, 0x00ffff);
@@ -700,6 +703,7 @@
             handleInput(); 
             updateHUD(); 
             targets.forEach(t => { 
+                // AI LOGIC
                 if(t.userData.isModel && t.userData.aiActive) {
                     updateAI(t);
                 }
