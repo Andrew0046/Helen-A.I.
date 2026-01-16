@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: AI COMPANION (Auto-Rig Upgrade)</title>
+    <title>HELEN: AI COMPANION (Auto-Rig Fixed)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -47,7 +47,7 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     <div class="status">
         [ AI MODULE ONLINE ]<br>
-        Models will now follow<br>and react to operator.
+        Auto-Rigging System Active<br>Ready for Model Injection.
     </div>
 
     <div class="btn-group">
@@ -344,47 +344,67 @@
         }
     }
 
-    // --- 5. AI LOGIC & BONE MAPPING (UPDATED) ---
+    // --- 5. ROBUST BONE MAPPING (Fixes T-Posing) ---
     function mapBones(model) {
-        // Expanded structure based on 'Natural Motion'
         const skeleton = {
             hips: null, spine: null, head: null,
-            leftArm: null, rightArm: null,
-            leftForeArm: null, rightForeArm: null,
             leftLeg: null, rightLeg: null,
             leftCalf: null, rightCalf: null
         };
         
+        // Helper: Check if a name matches any of our target words
+        function matches(name, targets) {
+            return targets.some(t => name.includes(t));
+        }
+
+        // Helper: Determine side (Left/Right)
+        function isLeft(n) { return n.includes('left') || n.includes('_l_') || n.endsWith('_l') || n.startsWith('l_'); }
+        function isRight(n) { return n.includes('right') || n.includes('_r_') || n.endsWith('_r') || n.startsWith('r_'); }
+
         model.traverse((o) => {
-            if (o.isMesh) {
-                // Ensure meshes cast shadows/receive them (Visual Enhancement)
-                o.castShadow = true; 
-                o.receiveShadow = true;
+            if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+            if (!o.isBone) return;
+
+            const n = o.name.toLowerCase();
+
+            // 1. HIPS / ROOT (Look for Pelvis, Hips, Root, Waist)
+            if (!skeleton.hips && matches(n, ['hip', 'pelvis', 'root', 'waist', 'master'])) {
+                skeleton.hips = o;
             }
 
-            if (o.isBone) {
-                const n = o.name.toLowerCase();
-                
-                // --- MAPPING LOGIC IMPORTED FROM HELEN NATURAL MOTION ---
-                if (n.includes('hips')) skeleton.hips = o;
-                if (n.includes('spine')) skeleton.spine = o;
-                if (n.includes('head')) skeleton.head = o;
+            // 2. SPINE (Look for Spine, Chest, Torso)
+            if (!skeleton.spine && matches(n, ['spine', 'chest', 'torso', 'body'])) {
+                skeleton.spine = o;
+            }
 
-                // Arms
-                if (n.includes('upperarm') && (n.includes('_l_') || n.includes('left'))) skeleton.leftArm = o;
-                if (n.includes('upperarm') && (n.includes('_r_') || n.includes('right'))) skeleton.rightArm = o;
-                if ((n.includes('lowerarm') || n.includes('forearm')) && (n.includes('_l_') || n.includes('left'))) skeleton.leftForeArm = o;
-                if ((n.includes('lowerarm') || n.includes('forearm')) && (n.includes('_r_') || n.includes('right'))) skeleton.rightForeArm = o;
+            // 3. HEAD (Look for Head, Neck)
+            if (!skeleton.head && matches(n, ['head', 'neck'])) {
+                skeleton.head = o;
+            }
 
-                // Legs
-                if (n.includes('upperleg') && (n.includes('_l_') || n.includes('left'))) skeleton.leftLeg = o;
-                if (n.includes('upperleg') && (n.includes('_r_') || n.includes('right'))) skeleton.rightLeg = o;
-                
-                // Calves (Lower Legs)
-                if (n.includes('lowerleg') && (n.includes('_l_') || n.includes('left'))) skeleton.leftCalf = o; 
-                if (n.includes('lowerleg') && (n.includes('_r_') || n.includes('right'))) skeleton.rightCalf = o;
+            // 4. UPPER LEGS (Thighs)
+            if (matches(n, ['leg', 'thigh', 'hip', 'femur'])) {
+                // Exclude "lower" or "calf" to avoid confusion
+                if (!matches(n, ['low', 'calf', 'shin', 'foot', 'toe'])) {
+                    if (!skeleton.leftLeg && isLeft(n)) skeleton.leftLeg = o;
+                    if (!skeleton.rightLeg && isRight(n)) skeleton.rightLeg = o;
+                }
+            }
+
+            // 5. LOWER LEGS (Calves)
+            if (matches(n, ['low', 'calf', 'shin', 'knee', 'tibia'])) {
+                if (!skeleton.leftCalf && isLeft(n)) skeleton.leftCalf = o;
+                if (!skeleton.rightCalf && isRight(n)) skeleton.rightCalf = o;
             }
         });
+
+        // DEBUG: Print what we found to the console
+        console.log("AUTO-RIG REPORT:", 
+            "HIPS:", skeleton.hips ? "✅" : "❌", 
+            "L_LEG:", skeleton.leftLeg ? "✅" : "❌", 
+            "R_LEG:", skeleton.rightLeg ? "✅" : "❌"
+        );
+
         return skeleton;
     }
 
@@ -438,12 +458,6 @@
                 skel.spine.rotation.x = Math.sin(time * 2) * 0.05; 
                 skel.spine.rotation.y = Math.sin(time * 1) * 0.02; 
             }
-        }
-
-        // HEAD TRACKING
-        if (skel.head) {
-            // Basic head tilt toward player
-            // skel.head.lookAt(playerPos); // (Requires world->local conversion, keeping simple for now)
         }
     }
 
