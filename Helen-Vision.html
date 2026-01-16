@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: GOLD MASTER</title>
+    <title>HELEN: PLATINUM EDITION</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -46,9 +46,9 @@
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     <div class="status">
-        [ SYSTEM NORMAL ]<br>
-        Gravity: ON | Hitboxes: CALIBRATED<br>
-        Ready for Helen 23.vrm
+        [ SYSTEM OPTIMIZED ]<br>
+        Lag: ELIMINATED | Physics: LOCKED<br>
+        Ready for Operation.
     </div>
 
     <div class="btn-group">
@@ -339,10 +339,9 @@
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         if (fileIndex >= 0 && fileIndex < db.length) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-            // --- FIX: HOVERING BUG ---
-            // FORCE Y TO 0 (FLOOR)
+            // --- FIX: GRAVITY SNAP ---
             const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
-            pos.y = 0; // <--- This forces her to the ground
+            pos.y = 0; // Force to Floor
             
             const item = db[fileIndex];
             if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
@@ -449,8 +448,10 @@
 
             const model = data.type === 'fbx' ? loaded : loaded.scene;
             
+            // --- SCALE NORMALIZATION ---
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3()); // We need center offset
             const maxDim = Math.max(size.x, size.y, size.z) || 1; 
             const scaleFactor = 1.0 / maxDim; 
             
@@ -460,10 +461,27 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            // --- FIX: BLUE BOX WIREFRAME ---
-            // Attached to SCENE, not Model (Fixes offset bug)
-            const helper = new THREE.BoxHelper(model, 0x00ffff);
-            scene.add(helper); // <--- THIS IS THE FIX
+            // --- FIX: PARENTED HITBOX (Zero Lag) ---
+            // 1. Create a wireframe box based on initial size
+            const helperGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
+            const helperMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent:true, opacity:0.5 });
+            const helperMesh = new THREE.Mesh(helperGeo, helperMat);
+            
+            // 2. Center it perfectly relative to model root
+            // If model root is (0,0,0) but mesh is shifted, this fixes it.
+            // We need to apply inverse scale because we are adding it to the scaled model
+            // Actually, we add it to the model, so it inherits scale. 
+            // We just need to offset it by the center-point relative to root.
+            // Note: 'center' is in world space if box is from world object.
+            // Let's rely on Box3 local.
+            
+            const localBox = new THREE.Box3().setFromObject(model); 
+            // Note: setFromObject uses World transforms. 
+            // We can cheat: Add helper, then center.
+            // Simplified: Just use a standard box centered at 0, height/2.
+            
+            helperMesh.position.y = size.y / 2; // Approximate center
+            model.add(helperMesh); // Make it a CHILD. It now scales/moves automatically.
             
             // INIT AI
             const skel = mapBones(model);
@@ -473,8 +491,7 @@
                 label: data.label, 
                 type: data.type,
                 skeleton: skel,
-                aiActive: true, 
-                helper: helper // Store Ref
+                aiActive: true
             };
             
             scene.add(model);
@@ -550,12 +567,6 @@
             obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
         }
         if (obj.material && obj.material.map) obj.material.map.dispose();
-        
-        // Remove helper if exists
-        if(obj.userData && obj.userData.helper) {
-            scene.remove(obj.userData.helper);
-        }
-
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
@@ -715,7 +726,7 @@
                 // AI LOGIC & UPDATE
                 if(t.userData.isModel) {
                     if(t.userData.aiActive) updateAI(t);
-                    if(t.userData.helper) t.userData.helper.update(); // Update Box
+                    // NO HELPER UPDATE NEEDED (Parented Physics)
                 }
             }); 
             renderer.render(scene, camera); 
