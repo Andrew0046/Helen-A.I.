@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: FINAL SYSTEM</title>
+    <title>HELEN: AI VOICE INTEGRATION</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         #overlay {
@@ -14,6 +14,15 @@
         }
         .status { margin-top: 10px; font-size: 14px; color: #aaa; text-align: center; line-height: 1.5; }
         .btn-group { display: flex; flex-direction: column; gap: 15px; margin-top: 30px; width: 80%; max-width: 300px; }
+        
+        /* NEW: API KEY INPUT STYLE */
+        #api-key {
+            background: #001111; border: 2px solid #00ffff; color: #00ffff;
+            padding: 10px; font-family: 'Courier New', monospace; font-weight: bold;
+            text-align: center; width: 100%; margin-bottom: 10px; outline: none;
+        }
+        #api-key::placeholder { color: #005555; }
+
         button {
             padding: 15px; font-size: 16px; font-weight: bold; font-family: 'Courier New', monospace;
             background: transparent; color: #00ffff; border: 2px solid #00ffff; 
@@ -45,20 +54,26 @@
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
+    
+    <div style="width: 80%; max-width: 300px;">
+        <input type="password" id="api-key" placeholder="ENTER GEMINI API KEY">
+    </div>
+
     <div class="status">
-        [ OPTICS CALIBRATED ]<br>
-        Near-Clip: 1cm | Material: 2-SIDED<br>
-        Visual Fidelity Maximized.
+        [ VOICE MODULE INSTALLED ]<br>
+        1. Enter Gemini Key above<br>
+        2. Load Model<br>
+        3. Press DOWN ARROW to Speak
     </div>
 
     <div class="btn-group">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
+        <button onclick="saveKeyAndLoad()">📂 LOAD INTEL</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
             [□] MENU &nbsp;&nbsp; [X] SELECT &nbsp;&nbsp; [O] DELETE<br>
-            [R-STICK] SCALE MODEL / ROTATE SCREEN
+            [D-PAD DOWN] VOICE COMMAND
         </div>
     </div>
 </div>
@@ -71,6 +86,18 @@
     import WebXRPolyfill from 'webxr-polyfill';
 
     const polyfill = new WebXRPolyfill();
+
+    // --- GLOBAL API HANDLING ---
+    window.saveKeyAndLoad = function() {
+        const key = document.getElementById('api-key').value;
+        if(key.length > 5) localStorage.setItem('helen_gemini_key', key);
+        document.getElementById('intel-input').click();
+    };
+
+    // Load saved key if exists
+    if(localStorage.getItem('helen_gemini_key')) {
+        document.getElementById('api-key').value = localStorage.getItem('helen_gemini_key');
+    }
 
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext;
@@ -91,10 +118,14 @@
     let hoveredFileIndex = -1;
     let sysMessage = "";
 
+    // VOICE STATE
+    let isListening = false;
+    let isSpeaking = false;
+
     // HARDWARE
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
     let visionMode = 0; 
-    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false };
+    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false, dpadDown: false };
     
     const SPEED = 0.1; 
     const ROTATE_SPEED = 0.05; 
@@ -103,7 +134,7 @@
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
     // AI CONSTANTS
-    const AI_FOLLOW_DIST = 2.5; // Meters
+    const AI_FOLLOW_DIST = 2.5; 
     const AI_STOP_DIST = 1.5;
     const AI_BACKUP_DIST = 0.8;
     const AI_WALK_SPEED = 0.03;
@@ -240,8 +271,7 @@
         scene = new THREE.Scene();
         dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
         
-        // --- FIX: NEAR CLIPPING PLANE ---
-        // Changed 0.1 to 0.01 (1cm) to allow very close viewing
+        // OPTICS: 1cm Near Clip
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); 
         dolly.add(camera);
 
@@ -261,7 +291,6 @@
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
-        // PERFORMANCE: 1:1 RESOLUTION
         renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
         renderer.setPixelRatio(1); 
         renderer.setSize(window.innerWidth, window.innerHeight); 
@@ -298,7 +327,8 @@
         ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 80);
         ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
         
-        const sysOpts = [" [SAVE MISSION]", " [LOAD MISSION]", " [CLEAR ALL]"];
+        // UPDATED MENU: ADDED VOICE COMMS
+        const sysOpts = [" [SAVE MISSION]", " [LOAD MISSION]", " [CLEAR ALL]", " [VOICE COMMS]"];
         ctx.textAlign = 'left'; ctx.font = '50px Courier New';
         let listY = 180;
         
@@ -334,17 +364,115 @@
         menuTexture.needsUpdate = true;
     }
 
+    // --- 5. VOICE & GEMINI LOGIC ---
+    function triggerVoice() {
+        if(isListening || isSpeaking) return;
+        
+        // Browser support check
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) { sysMessage = "NO VOICE SUPPORT"; updateMenuDisplay(); return; }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+            isListening = true;
+            sysMessage = "LISTENING...";
+            updateMenuDisplay();
+            updateHUD(); // Show in HUD too
+        };
+
+        recognition.onend = () => {
+            isListening = false;
+            // If we didn't get results yet, clear message
+            if(sysMessage === "LISTENING...") { sysMessage = ""; updateMenuDisplay(); updateHUD(); }
+        };
+
+        recognition.onresult = (event) => {
+            const speechResult = event.results[0][0].transcript;
+            console.log('User said: ', speechResult);
+            sysMessage = "PROCESSING..."; updateMenuDisplay(); updateHUD();
+            callGemini(speechResult);
+        };
+
+        recognition.start();
+    }
+
+    async function callGemini(text) {
+        const apiKey = localStorage.getItem('helen_gemini_key') || document.getElementById('api-key').value;
+        if (!apiKey) {
+            sysMessage = "MISSING API KEY"; updateMenuDisplay();
+            speak("Please enter an API Key.");
+            return;
+        }
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        
+        const systemPrompt = "You are HELEN, a tactical AI OS. Keep responses short, concise, robotic, and military-style. Do not use emojis. You are piloting a 3D interface.";
+        
+        const payload = {
+            contents: [{
+                parts: [{ text: systemPrompt + "\nUser: " + text + "\nHelen:" }]
+            }]
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            if(data.candidates && data.candidates[0].content) {
+                const reply = data.candidates[0].content.parts[0].text;
+                sysMessage = "SPEAKING..."; updateMenuDisplay(); updateHUD();
+                speak(reply);
+            } else {
+                sysMessage = "COMM ERROR"; updateMenuDisplay();
+            }
+
+        } catch (error) {
+            console.error(error);
+            sysMessage = "NET ERROR"; updateMenuDisplay();
+        }
+    }
+
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            isSpeaking = true;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.1; // Slightly faster
+            utterance.pitch = 1.0;
+            
+            // Try to find a good female voice
+            const voices = window.speechSynthesis.getVoices();
+            const preferred = voices.find(v => v.name.includes('Google US English') || v.name.includes('Zira') || v.name.includes('Female'));
+            if(preferred) utterance.voice = preferred;
+
+            utterance.onend = () => {
+                isSpeaking = false;
+                sysMessage = ""; updateMenuDisplay(); updateHUD();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
     function spawnFromMenu(index) {
         if (index === 0) { saveMission(); return; }
         if (index === 1) { loadMission(); return; }
         if (index === 2) { clearMission(); return; }
+        if (index === 3) { triggerVoice(); isMenuOpen = false; menuGroup.visible = false; return; } // VOICE COMMS
 
-        const fileIndex = index - 3;
+        const fileIndex = index - 4; // Shifted by 1
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         if (fileIndex >= 0 && fileIndex < db.length) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
             const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
-            pos.y = 0; // Force to Floor
+            pos.y = 0; 
             
             const item = db[fileIndex];
             if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
@@ -353,7 +481,7 @@
         }
     }
 
-    // --- 5. EXACT VRM MAPPING ---
+    // --- 6. EXACT VRM MAPPING ---
     function mapBones(model) {
         const skeleton = {
             hips: null, spine: null, head: null,
@@ -362,14 +490,10 @@
         };
         
         model.traverse((o) => {
-            // PERFORMANCE: DISABLE SHADOWS & ENABLE DOUBLE SIDE RENDERING
             if (o.isMesh) { 
                 o.castShadow = false; 
                 o.receiveShadow = false;
-                // --- FIX: MATERIAL VISIBILITY ---
-                if (o.material) {
-                    o.material.side = THREE.DoubleSide; // Render both inside and out
-                }
+                if (o.material) o.material.side = THREE.DoubleSide; 
             }
             if (!o.isBone) return;
 
@@ -393,46 +517,35 @@
         
         const skel = model.userData.skeleton;
         const playerPos = camera.getWorldPosition(new THREE.Vector3());
-        // Ignore Height for Distance Calc
         const flatPlayerPos = new THREE.Vector3(playerPos.x, model.position.y, playerPos.z);
         const dist = model.position.distanceTo(flatPlayerPos);
         const time = Date.now() * 0.001;
 
-        // 1. PERSONAL SPACE
         if (dist < AI_BACKUP_DIST) {
             const dir = new THREE.Vector3().subVectors(model.position, flatPlayerPos).normalize();
             model.position.add(dir.multiplyScalar(AI_WALK_SPEED * 0.5));
             model.lookAt(flatPlayerPos);
         }
-        // 2. FOLLOW
         else if (dist > AI_FOLLOW_DIST) {
             const dir = new THREE.Vector3().subVectors(flatPlayerPos, model.position).normalize();
             model.position.add(dir.multiplyScalar(AI_WALK_SPEED));
             model.lookAt(flatPlayerPos);
             
-            // WALK ANIMATION 
             if (skel.leftLeg && skel.rightLeg) {
                 skel.leftLeg.rotation.x = Math.sin(time * 10) * 0.5;
                 skel.rightLeg.rotation.x = -Math.sin(time * 10) * 0.5;
-                
-                // INVERTED ARMS (Walk)
                 if(skel.leftArm) skel.leftArm.rotation.z = -1.2; 
                 if(skel.rightArm) skel.rightArm.rotation.z = 1.2; 
-
                 if(skel.leftArm) skel.leftArm.rotation.x = Math.sin(time * 10 + Math.PI) * 0.2;
                 if(skel.rightArm) skel.rightArm.rotation.x = Math.sin(time * 10) * 0.2;
             }
         }
-        // 3. IDLE
         else {
             model.lookAt(flatPlayerPos);
             if (skel.leftLeg) skel.leftLeg.rotation.x = THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
             if (skel.rightLeg) skel.rightLeg.rotation.x = THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
-            
-            // INVERTED ARMS (Idle)
             if(skel.leftArm) { skel.leftArm.rotation.z = -1.2; skel.leftArm.rotation.x = 0; }
             if(skel.rightArm) { skel.rightArm.rotation.z = 1.2; skel.rightArm.rotation.x = 0; }
-
             if (skel.spine) {
                 skel.spine.rotation.x = Math.sin(time * 2) * 0.05; 
                 skel.spine.rotation.y = Math.sin(time * 1) * 0.02; 
@@ -440,7 +553,6 @@
         }
     }
 
-    // --- 6. SPAWNING ---
     function spawnModel(position, data, rotation = null, scale = null) {
         const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
         const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
@@ -458,10 +570,8 @@
 
             const model = data.type === 'fbx' ? loaded : loaded.scene;
             
-            // --- SCALE NORMALIZATION ---
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
-            const center = box.getCenter(new THREE.Vector3()); 
             const maxDim = Math.max(size.x, size.y, size.z) || 1; 
             const scaleFactor = 1.0 / maxDim; 
             
@@ -471,24 +581,14 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            // --- PARENTED HITBOX (Zero Lag) ---
             const helperGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
             const helperMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent:true, opacity:0.5 });
             const helperMesh = new THREE.Mesh(helperGeo, helperMat);
-            
             helperMesh.position.y = size.y / 2; 
             model.add(helperMesh); 
             
-            // INIT AI
             const skel = mapBones(model);
-            model.userData = { 
-                isScreen: true, 
-                isModel: true, 
-                label: data.label, 
-                type: data.type,
-                skeleton: skel,
-                aiActive: true
-            };
+            model.userData = { isScreen: true, isModel: true, label: data.label, type: data.type, skeleton: skel, aiActive: true };
             
             scene.add(model);
             targets.push(model);
@@ -584,7 +684,8 @@
                 const uvY = intersects[0].uv.y;
                 if (uvY < 0.82) {
                     const idx = Math.floor((0.82 - uvY) / 0.068);
-                    const totalItems = 3 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
+                    // Updated Menu Size calculation
+                    const totalItems = 4 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
                     if (idx >= 0 && idx < totalItems && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
                 }
             } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
@@ -670,6 +771,12 @@
             startCameraStream(allBackCameras[idx]);
         }
         
+        // --- VOICE TRIGGER (D-PAD DOWN: Button 13 usually) ---
+        if (pad.buttons[13] && pad.buttons[13].pressed && !lastBtn.dpadDown) {
+            triggerVoice();
+        }
+        if (pad.buttons[13]) lastBtn.dpadDown = pad.buttons[13].pressed;
+
         lastBtn.triangle = pad.buttons[3].pressed;
         lastBtn.x = pad.buttons[0].pressed; 
         lastBtn.circle = pad.buttons[1].pressed;
@@ -709,6 +816,15 @@
                 ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 160);
             }
         } else {
+            // VOICE STATUS HUD
+            if(isListening) {
+                 ctx.fillStyle = '#00ff00'; ctx.textAlign = 'center'; ctx.font = '40px Courier New';
+                 ctx.fillText("LISTENING...", cx, cy + 150);
+            } else if (isSpeaking) {
+                 ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center'; ctx.font = '40px Courier New';
+                 ctx.fillText("HELEN SPEAKING", cx, cy + 150);
+            }
+
             ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
         }
         hudTexture.needsUpdate = true;
@@ -719,7 +835,6 @@
             handleInput(); 
             updateHUD(); 
             targets.forEach(t => { 
-                // AI LOGIC
                 if(t.userData.isModel && t.userData.aiActive) {
                     updateAI(t);
                 }
