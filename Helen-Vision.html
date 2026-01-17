@@ -181,7 +181,7 @@
         
         const systemPrompt = "You are HELEN, a highly advanced tactical AI companion. Your responses must be extremely short, concise, and robotic. Military style. Maximum 2 sentences. Do not use markdown.";
         
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
         const data = {
             contents: [{ parts: [{ text: systemPrompt + "\nUSER: " + prompt }] }]
         };
@@ -839,3 +839,4 @@
 </script>
 </body>
 </html>
+
