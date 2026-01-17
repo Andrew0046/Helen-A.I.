@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: GITHUB STABLE</title>
+    <title>HELEN: GITHUB COMMANDER</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         
@@ -79,8 +79,8 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [D-PAD DOWN] TALK TO HELEN<br>
-            [R-STICK] SCALE / [X] SELECT
+            [D-PAD DOWN] TALK <br>
+            [D-PAD UP] STAY / FOLLOW
         </div>
     </div>
 </div>
@@ -125,7 +125,8 @@
     // HARDWARE
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
     let visionMode = 0; 
-    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false, dpadDown: false };
+    // ADDED dpadUp to tracker
+    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false, dpadDown: false, dpadUp: false };
     
     const SPEED = 0.1; 
     const ROTATE_SPEED = 0.05; 
@@ -397,6 +398,16 @@
 
         createMenuSystem();
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        
+        // KEYBOARD SHORTCUTS FOR DEBUG
+        window.addEventListener('keydown', (e) => {
+            if(e.key === 'f') { // Freeze toggle via Keyboard
+                if (targets.length > 0 && targets[0].userData.isModel) {
+                    targets[0].userData.isPaused = !targets[0].userData.isPaused;
+                }
+            }
+        });
+
         animate();
     }
 
@@ -512,6 +523,28 @@
     function updateAI(model, dt) {
         if (!model.userData.skeleton) return;
         
+        // --- STAY / FREEZE COMMAND ---
+        if (model.userData.isPaused) {
+            // Stand still, breathe, but look at player
+            const playerPos = camera.getWorldPosition(new THREE.Vector3());
+            const flatPlayerPos = new THREE.Vector3(playerPos.x, model.position.y, playerPos.z);
+            model.lookAt(flatPlayerPos);
+            
+            // RESET POSE TO IDLE
+            const skel = model.userData.skeleton;
+            const time = Date.now() * 0.001;
+            if (skel.leftLeg) skel.leftLeg.rotation.x = THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
+            if (skel.rightLeg) skel.rightLeg.rotation.x = THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
+            if(skel.leftArm) { skel.leftArm.rotation.z = -1.2; skel.leftArm.rotation.x = 0; }
+            if(skel.rightArm) { skel.rightArm.rotation.z = 1.2; skel.rightArm.rotation.x = 0; }
+            if (skel.spine) {
+                skel.spine.rotation.x = Math.sin(time * 2) * 0.05; 
+                skel.spine.rotation.y = Math.sin(time * 1) * 0.02; 
+            }
+            return; // EXIT FUNCTION SO SHE DOESN'T WALK
+        }
+
+        // --- NORMAL BEHAVIOR ---
         const skel = model.userData.skeleton;
         const playerPos = camera.getWorldPosition(new THREE.Vector3());
         const flatPlayerPos = new THREE.Vector3(playerPos.x, model.position.y, playerPos.z);
@@ -593,7 +626,15 @@
             model.add(helperMesh); 
             
             const skel = mapBones(model);
-            model.userData = { isScreen: true, isModel: true, label: data.label, type: data.type, skeleton: skel, aiActive: true };
+            model.userData = { 
+                isScreen: true, 
+                isModel: true, 
+                label: data.label, 
+                type: data.type, 
+                skeleton: skel, 
+                aiActive: true,
+                isPaused: false // Default: Follow
+            };
             
             scene.add(model);
             targets.push(model);
@@ -759,6 +800,7 @@
             }
         }
 
+        // --- NEW: VOICE TRIGGER (D-PAD DOWN = Index 13) ---
         if (pad.buttons[13].pressed && !lastBtn.dpadDown) {
             if(recognition) {
                 if(isListening) recognition.stop();
@@ -766,6 +808,14 @@
             }
         }
         lastBtn.dpadDown = pad.buttons[13].pressed;
+
+        // --- NEW: TOGGLE STAY/FOLLOW (D-PAD UP = Index 12) ---
+        if (pad.buttons[12].pressed && !lastBtn.dpadUp) {
+            if (activeObject.obj && activeObject.obj.userData.isModel) {
+                activeObject.obj.userData.isPaused = !activeObject.obj.userData.isPaused;
+            }
+        }
+        lastBtn.dpadUp = pad.buttons[12].pressed;
 
         if (pad.buttons[2].pressed && !lastBtn.square) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; }
         lastBtn.square = pad.buttons[2].pressed;
@@ -812,7 +862,11 @@
             
             if (activeObject.obj.userData.isModel) {
                  ctx.fillText("[R-STICK] ROTATE/SCALE", cx, cy + 120);
-                 if(activeObject.obj.userData.aiActive) ctx.fillText("STATUS: AI ACTIVE", cx, cy + 145);
+                 if(activeObject.obj.userData.aiActive) {
+                     const status = activeObject.obj.userData.isPaused ? "HOLDING POSITION" : "FOLLOWING OPERATOR";
+                     ctx.fillStyle = activeObject.obj.userData.isPaused ? '#ffff00' : '#00ff00';
+                     ctx.fillText(`STATUS: ${status}`, cx, cy + 145);
+                 }
             } else {
                  ctx.fillText("[R-STICK] ROTATE/TILT", cx, cy + 120);
             }
