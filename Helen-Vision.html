@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: ULTIMATE AI OS</title>
+    <title>HELEN: GITHUB EDITION</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         
@@ -46,7 +46,8 @@
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
                 "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "webxr-polyfill": "https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.module.js"
+                "webxr-polyfill": "https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.module.js",
+                "@google/generative-ai": "https://esm.run/@google/generative-ai"
             }
         }
     </script>
@@ -61,12 +62,12 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ SYSTEM OFFLINE ]<br>
-        Awaiting Security Clearance...
+        [ SECURITY CHECK ]<br>
+        Enter API Credentials.
     </div>
 
     <div id="api-container">
-        <input type="password" id="gemini-key" placeholder="PASTE GEMINI API KEY HERE">
+        <input type="password" id="gemini-key" placeholder="PASTE GEMINI API KEY">
         <button onclick="saveKey()" id="init-btn">INITIALIZE SYSTEM</button>
     </div>
 
@@ -87,9 +88,7 @@
     import { VRButton } from 'three/addons/webxr/VRButton.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
-    import WebXRPolyfill from 'webxr-polyfill';
-
-    const polyfill = new WebXRPolyfill();
+    import { GoogleGenerativeAI } from "@google/generative-ai"; // OFFICIAL GOOGLE SDK
 
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext;
@@ -98,11 +97,12 @@
     
     // --- AI & VOICE VARIABLES ---
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
+    let genAI, model;
     let recognition; 
     let synth = window.speechSynthesis;
     let isListening = false;
     let isSpeaking = false;
-    let aiStatus = "STANDBY"; // IDLE, LISTENING, THINKING, SPEAKING
+    let aiStatus = "STANDBY"; 
 
     // DATA
     let CUSTOM_DATABASE = []; 
@@ -143,7 +143,7 @@
             GEMINI_KEY = key;
             checkAuth();
         } else {
-            alert("INVALID KEY DETECTED");
+            alert("INVALID KEY");
         }
     };
 
@@ -152,14 +152,23 @@
             document.getElementById('api-container').style.display = 'none';
             document.getElementById('main-controls').style.display = 'flex';
             document.getElementById('system-status').innerHTML = "[ SYSTEM ONLINE ]<br>Gemini Link Established.<br>Voice Modules Active.";
-            initVoice();
+            
+            // INITIALIZE GOOGLE AI SDK
+            try {
+                genAI = new GoogleGenerativeAI(GEMINI_KEY);
+                model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+                initVoice();
+            } catch(e) {
+                console.error("AI INIT FAILED", e);
+                document.getElementById('system-status').innerText = "AI INIT FAILED";
+            }
         }
     }
 
-    // Initialize Speech Recognition
     function initVoice() {
-        if ('webkitSpeechRecognition' in window) {
-            recognition = new webkitSpeechRecognition();
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
             recognition.continuous = false;
             recognition.lang = 'en-US';
             
@@ -179,51 +188,38 @@
     async function askGemini(prompt) {
         aiStatus = "THINKING..."; updateHUD();
         
-        const systemPrompt = "You are HELEN, a highly advanced tactical AI companion. Your responses must be extremely short, concise, and robotic. Military style. Maximum 2 sentences. Do not use markdown.";
-        
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
-        const data = {
-            contents: [{ parts: [{ text: systemPrompt + "\nUSER: " + prompt }] }]
-        };
-
         try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            const json = await response.json();
-            const reply = json.candidates[0].content.parts[0].text;
-            console.log("Gemini:", reply);
-            speak(reply);
+            const systemContext = "You are HELEN, a highly advanced tactical AI companion. Your responses must be short, concise, and robotic. Military style. Maximum 2 sentences.";
+            
+            const result = await model.generateContent(systemContext + "\nUSER INPUT: " + prompt);
+            const response = await result.response;
+            const text = response.text();
+            
+            console.log("Gemini:", text);
+            speak(text);
         } catch (error) {
-            console.error(error);
-            aiStatus = "COMM ERROR";
-            speak("Connection to mainframe lost.");
+            console.error("AI Error:", error);
+            aiStatus = "NET ERROR";
+            speak("Signal jammed. Check secure connection.");
         }
     }
 
     function speak(text) {
         if (synth.speaking) synth.cancel();
-        
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.1; // Slightly faster/robotic
+        utterance.rate = 1.1; 
         utterance.pitch = 1.0;
         
-        // Try to find a female/Google voice
         const voices = synth.getVoices();
         const preferred = voices.find(v => v.name.includes("Google US English") || v.name.includes("Female"));
         if(preferred) utterance.voice = preferred;
 
-        utterance.onstart = () => { isSpeaking = true; aiStatus = "SPEAKING: " + text.substring(0, 15) + "..."; updateHUD(); };
+        utterance.onstart = () => { isSpeaking = true; aiStatus = "SPEAKING"; updateHUD(); };
         utterance.onend = () => { isSpeaking = false; aiStatus = "STANDBY"; updateHUD(); };
-        
         synth.speak(utterance);
     }
     
-    // Check auth immediately on load
     if(GEMINI_KEY) checkAuth();
-
 
     if (localStorage.getItem('helen_layout_ai')) {
         document.getElementById('restore-msg').style.display = 'block';
@@ -356,7 +352,7 @@
     function init3D() {
         scene = new THREE.Scene();
         dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
-        // NEAR CLIP FIX
+        // NEAR CLIP 1cm FIX
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); dolly.add(camera);
 
         const video = document.getElementById('camera-feed');
@@ -375,7 +371,7 @@
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
-        // PERFORMANCE: 1:1 RESOLUTION
+        // 1:1 RESOLUTION FIX
         renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
         renderer.setPixelRatio(1); 
         renderer.setSize(window.innerWidth, window.innerHeight); 
@@ -412,7 +408,6 @@
         ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 80);
         ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
         
-        // ADDED VOICE OPTION
         const sysOpts = [" [SAVE MISSION]", " [LOAD MISSION]", " [CLEAR ALL]", " [VOICE COMMS]"];
         ctx.textAlign = 'left'; ctx.font = '50px Courier New';
         let listY = 180;
@@ -466,7 +461,7 @@
         if (fileIndex >= 0 && fileIndex < db.length) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
             const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
-            pos.y = 0; // GRAVITY FIX
+            pos.y = 0; 
             
             const item = db[fileIndex];
             if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
@@ -475,7 +470,7 @@
         }
     }
 
-    // --- 5. EXACT VRM MAPPING ---
+    // --- 5. EXACT VRM MAPPING (J_Bip) ---
     function mapBones(model) {
         const skeleton = {
             hips: null, spine: null, head: null,
@@ -486,7 +481,7 @@
         model.traverse((o) => {
             if (o.isMesh) { 
                 o.castShadow = false; o.receiveShadow = false;
-                if (o.material) o.material.side = THREE.DoubleSide; 
+                if (o.material) o.material.side = THREE.DoubleSide; // DOUBLE SIDED VISIBILITY FIX
             }
             if (!o.isBone) return;
             const n = o.name;
@@ -527,6 +522,7 @@
             if (skel.leftLeg && skel.rightLeg) {
                 skel.leftLeg.rotation.x = Math.sin(time * 10) * 0.5;
                 skel.rightLeg.rotation.x = -Math.sin(time * 10) * 0.5;
+                // INVERTED ARMS
                 if(skel.leftArm) skel.leftArm.rotation.z = -1.2; 
                 if(skel.rightArm) skel.rightArm.rotation.z = 1.2; 
                 if(skel.leftArm) skel.leftArm.rotation.x = Math.sin(time * 10 + Math.PI) * 0.2;
@@ -538,6 +534,7 @@
             model.lookAt(flatPlayerPos);
             if (skel.leftLeg) skel.leftLeg.rotation.x = THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
             if (skel.rightLeg) skel.rightLeg.rotation.x = THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
+            // INVERTED ARMS
             if(skel.leftArm) { skel.leftArm.rotation.z = -1.2; skel.leftArm.rotation.x = 0; }
             if(skel.rightArm) { skel.rightArm.rotation.z = 1.2; skel.rightArm.rotation.x = 0; }
             if (skel.spine) {
@@ -576,7 +573,7 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            // PARENTED HITBOX
+            // PARENTED HITBOX (NO LAG)
             const helperGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
             const helperMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent:true, opacity:0.5 });
             const helperMesh = new THREE.Mesh(helperGeo, helperMat);
@@ -679,7 +676,6 @@
                 const uvY = intersects[0].uv.y;
                 if (uvY < 0.82) {
                     const idx = Math.floor((0.82 - uvY) / 0.068);
-                    // UPDATE: Added extra item for Voice
                     const totalItems = 4 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
                     if (idx >= 0 && idx < totalItems && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
                 }
@@ -751,7 +747,7 @@
             }
         }
 
-        // --- NEW: VOICE TRIGGER (D-PAD DOWN = Index 13) ---
+        // --- TRIGGER VOICE WITH D-PAD DOWN (Index 13) ---
         if (pad.buttons[13].pressed && !lastBtn.dpadDown) {
             if(recognition) {
                 if(isListening) recognition.stop();
@@ -785,13 +781,11 @@
         if(!hudContext) return;
         const ctx = hudContext; const w = 1024; const h = 1024; ctx.clearRect(0, 0, w, h);
         
-        // --- TOP RIGHT STATUS ---
         ctx.textAlign = 'right'; ctx.font = 'bold 30px Courier New';
         if(visionMode === 1) { ctx.fillStyle = '#00ffff'; ctx.fillText("VISION: [CYBER]", w-40, 60); }
         else if(visionMode === 2) { ctx.fillStyle = '#ff0000'; ctx.fillText("VISION: [VOID]", w-40, 60); }
         else { ctx.fillStyle = 'rgba(0,255,255,0.5)'; ctx.fillText("VISION: [NORMAL]", w-40, 60); }
 
-        // --- AI STATUS (TOP LEFT) ---
         ctx.textAlign = 'left'; ctx.fillStyle = isSpeaking ? '#00ff00' : (isListening ? '#ff0055' : '#00ffff');
         ctx.fillText(`AI: [${aiStatus}]`, 40, 60);
 
@@ -839,4 +833,3 @@
 </script>
 </body>
 </html>
-
