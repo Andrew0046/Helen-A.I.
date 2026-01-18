@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: SCROLL UPGRADE</title>
+    <title>HELEN: OMNI-EYE SYSTEM</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         
@@ -37,6 +37,13 @@
         .file-count { color: #00ff00; font-size: 12px; margin-top: -10px; text-align: right; display: none; }
         .controls-hint { font-size: 11px; color: #666; margin-top: 20px; text-align: left; width: 100%; }
         #restore-msg { color: #ffff00; font-weight:bold; display:none; margin-bottom:10px; }
+        
+        /* FLASH EFFECT FOR SCANNING */
+        #flash {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff; opacity: 0; pointer-events: none; z-index: 200;
+            transition: opacity 0.1s;
+        }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -47,7 +54,8 @@
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
                 "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "webxr-polyfill": "https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.module.js"
+                "webxr-polyfill": "https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.module.js",
+                "@google/generative-ai": "https://esm.run/@google/generative-ai"
             }
         }
     </script>
@@ -55,16 +63,16 @@
 <body>
 
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
-<input type="file" id="intel-input" multiple accept="*/*" style="display:none">
+<canvas id="vision-canvas" style="display:none;"></canvas> <div id="flash"></div> <input type="file" id="intel-input" multiple accept="*/*" style="display:none">
 
 <div id="overlay">
     <h1>HELEN OS</h1>
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ SCROLL SYSTEM ONLINE ]<br>
-        1. Click RESET SYSTEM below.<br>
-        2. Enter Key.
+        [ OMNI-EYE UPGRADE ]<br>
+        Visual Cortex Integrated.<br>
+        Enter Key to Activate.
     </div>
 
     <div id="api-container">
@@ -80,6 +88,7 @@
         
         <div class="controls-hint">
             [D-PAD DOWN] TALK <br>
+            [D-PAD LEFT] VISUAL SCAN (NEW)<br>
             [D-PAD UP] STAY / FOLLOW <br>
             [R-STICK] SCROLL MENU
         </div>
@@ -91,9 +100,7 @@
     import { VRButton } from 'three/addons/webxr/VRButton.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
-    
-    // DIRECT IMPORT FOR GITHUB STABILITY
-    import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+    import { GoogleGenerativeAI } from "@google/generative-ai";
 
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext;
@@ -121,15 +128,16 @@
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
     let hoveredFileIndex = -1;
-    let menuScrollIndex = 0; // Tracks top visible item
-    let lastMenuScrollTime = 0; // Debounce for stick
-    const MAX_MENU_VISIBLE = 9; // How many items fit on screen
+    let menuScrollIndex = 0; 
+    let lastMenuScrollTime = 0; 
+    const MAX_MENU_VISIBLE = 9; 
     let sysMessage = "";
 
     // HARDWARE
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
     let visionMode = 0; 
-    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false, dpadDown: false, dpadUp: false };
+    // ADDED dpadLeft
+    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false, dpadDown: false, dpadUp: false, dpadLeft: false };
     
     const SPEED = 0.1; 
     const ROTATE_SPEED = 0.05; 
@@ -165,7 +173,7 @@
         if (GEMINI_KEY) {
             document.getElementById('api-container').style.display = 'none';
             document.getElementById('main-controls').style.display = 'flex';
-            document.getElementById('system-status').innerHTML = "[ SYSTEM ONLINE ]<br>Gemini Link Established.<br>Voice Modules Active.";
+            document.getElementById('system-status').innerHTML = "[ SYSTEM ONLINE ]<br>Visual Cortex Active.<br>Ready for Inspection.";
             
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
@@ -195,6 +203,52 @@
             };
         } else {
             sysMessage = "NO VOICE SUPPORT";
+        }
+    }
+
+    // --- NEW: VISION SYSTEM ---
+    async function performVisualScan() {
+        if (!model) return;
+        
+        // 1. VISUAL FX
+        aiStatus = "CAPTURING VISUALS..."; updateHUD();
+        const flash = document.getElementById('flash');
+        flash.style.opacity = 0.8;
+        setTimeout(() => { flash.style.opacity = 0; }, 100);
+
+        // 2. CAPTURE IMAGE
+        const video = document.getElementById('camera-feed');
+        const canvas = document.getElementById('vision-canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // 3. CONVERT TO BASE64
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        const base64Image = dataUrl.split(',')[1]; // Remove "data:image/jpeg;base64," header
+
+        // 4. SEND TO GEMINI
+        aiStatus = "ANALYZING TARGET..."; updateHUD();
+        
+        try {
+            const prompt = "Analyze this image. Briefly describe what you see tactically. Identify objects, environment, or threats. Keep it under 2 sentences.";
+            const imagePart = {
+                inlineData: {
+                    data: base64Image,
+                    mimeType: "image/jpeg"
+                }
+            };
+
+            const result = await model.generateContent([prompt, imagePart]);
+            const response = await result.response;
+            const text = response.text();
+            
+            console.log("Vision Analysis:", text);
+            speak(text);
+        } catch (error) {
+            console.error("Vision Error:", error);
+            aiStatus = "VISUAL ERROR";
+            speak("Visual sensors malfunctioned.");
         }
     }
 
@@ -438,7 +492,8 @@
             { label: "[SAVE MISSION]", type: "sys" },
             { label: "[LOAD MISSION]", type: "sys" },
             { label: "[CLEAR ALL]", type: "sys" },
-            { label: "[VOICE COMMS]", type: "sys" }
+            { label: "[VOICE COMMS]", type: "sys" },
+            { label: "[VISUAL SCAN]", type: "sys" } // ADDED SCAN OPTION TO MENU
         ];
         
         const fullList = [...sysOpts, ...db];
@@ -506,8 +561,14 @@
             setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500);
             return; 
         }
+        if (index === 4) { // VISUAL SCAN TRIGGER
+            performVisualScan();
+            updateMenuDisplay();
+            setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500);
+            return;
+        }
 
-        const fileIndex = index - 4; // Offset by 4 system items
+        const fileIndex = index - 5; // Offset by 5 system items
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         
         if (fileIndex >= 0 && fileIndex < db.length) {
@@ -758,7 +819,7 @@
             if (Math.abs(pad.axes[3]) > 0.5) {
                 const now = Date.now();
                 if (now - lastMenuScrollTime > 150) { // Debounce speed
-                    const fullListSize = 4 + (CUSTOM_DATABASE.length || 1); // 4 system options
+                    const fullListSize = 5 + (CUSTOM_DATABASE.length || 1); // 5 system options
                     if (pad.axes[3] > 0) menuScrollIndex++; // Down
                     else menuScrollIndex--; // Up
                     
@@ -778,7 +839,7 @@
                     // Convert Visual Index to Real Index
                     if (visualIdx >= 0 && visualIdx < MAX_MENU_VISIBLE) {
                         const realIdx = visualIdx + menuScrollIndex;
-                        const fullListSize = 4 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
+                        const fullListSize = 5 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
                         
                         if (realIdx < fullListSize && hoveredFileIndex !== realIdx) { 
                             hoveredFileIndex = realIdx; 
@@ -790,7 +851,6 @@
             if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
             
         } else {
-            // ... (Target interaction code stays same) ...
             const intersects = raycaster.intersectObjects(targets, true); 
             if (intersects.length > 0) {
                 let hit = intersects[0].object;
@@ -855,7 +915,7 @@
             }
         }
 
-        // --- NEW: VOICE TRIGGER (D-PAD DOWN = Index 13) ---
+        // --- TRIGGER VOICE WITH D-PAD DOWN (Index 13) ---
         if (pad.buttons[13].pressed && !lastBtn.dpadDown) {
             if(recognition) {
                 if(isListening) recognition.stop();
@@ -864,7 +924,13 @@
         }
         lastBtn.dpadDown = pad.buttons[13].pressed;
 
-        // --- NEW: TOGGLE STAY/FOLLOW (D-PAD UP = Index 12) ---
+        // --- NEW: TRIGGER VISION SCAN WITH D-PAD LEFT (Index 14) ---
+        if (pad.buttons[14].pressed && !lastBtn.dpadLeft) {
+            performVisualScan();
+        }
+        lastBtn.dpadLeft = pad.buttons[14].pressed;
+
+        // --- TOGGLE STAY/FOLLOW (D-PAD UP = Index 12) ---
         if (pad.buttons[12].pressed && !lastBtn.dpadUp) {
             if (activeObject.obj && activeObject.obj.userData.isModel) {
                 activeObject.obj.userData.isPaused = !activeObject.obj.userData.isPaused;
