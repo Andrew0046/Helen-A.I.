@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: GITHUB COMMANDER</title>
+    <title>HELEN: SCROLL UPGRADE</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         
@@ -62,7 +62,7 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ SYSTEM OFFLINE ]<br>
+        [ SCROLL SYSTEM ONLINE ]<br>
         1. Click RESET SYSTEM below.<br>
         2. Enter Key.
     </div>
@@ -80,7 +80,8 @@
         
         <div class="controls-hint">
             [D-PAD DOWN] TALK <br>
-            [D-PAD UP] STAY / FOLLOW
+            [D-PAD UP] STAY / FOLLOW <br>
+            [R-STICK] SCROLL MENU
         </div>
     </div>
 </div>
@@ -116,16 +117,18 @@
     let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
 
-    // MENU
+    // MENU & SCROLLING
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
     let hoveredFileIndex = -1;
+    let menuScrollIndex = 0; // Tracks top visible item
+    let lastMenuScrollTime = 0; // Debounce for stick
+    const MAX_MENU_VISIBLE = 9; // How many items fit on screen
     let sysMessage = "";
 
     // HARDWARE
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
     let visionMode = 0; 
-    // ADDED dpadUp to tracker
     let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false, dpadDown: false, dpadUp: false };
     
     const SPEED = 0.1; 
@@ -142,7 +145,7 @@
 
     // --- 0. API & VOICE SETUP ---
     window.saveKey = function() {
-        const key = document.getElementById('gemini-key').value.trim(); // Trim spaces!
+        const key = document.getElementById('gemini-key').value.trim(); 
         if(key.length > 20) {
             localStorage.setItem('helen_gemini_key', key);
             GEMINI_KEY = key;
@@ -164,7 +167,6 @@
             document.getElementById('main-controls').style.display = 'flex';
             document.getElementById('system-status').innerHTML = "[ SYSTEM ONLINE ]<br>Gemini Link Established.<br>Voice Modules Active.";
             
-            // INITIALIZE GOOGLE AI SDK
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
                 model = genAI.getGenerativeModel({ model: "gemini-2.5-flash"});
@@ -201,7 +203,6 @@
         
         try {
             const systemContext = "You are HELEN, a tactical AI companion. Reply in 1 short sentence.";
-            
             const result = await model.generateContent(systemContext + "\nUSER: " + prompt);
             const response = await result.response;
             const text = response.text();
@@ -210,7 +211,6 @@
             speak(text);
         } catch (error) {
             console.error("AI Error:", error);
-            // PRINT ACTUAL ERROR TO HUD
             aiStatus = "ERR: " + error.message.substring(0, 15);
             speak("System Error. Check Console.");
         }
@@ -423,39 +423,66 @@
         scene.add(menuGroup); menuGroup.visible = false;
     }
 
+    // --- UPDATED: SCROLLABLE MENU DISPLAY ---
     function updateMenuDisplay() {
         const ctx = menuCtx; const w = 1024; const h = 1024;
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+        
+        // Background
         ctx.fillStyle = 'rgba(0, 10, 20, 0.9)'; ctx.fillRect(0, 0, w, h);
         ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 80);
         ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
         
-        // ADDED VOICE OPTION
-        const sysOpts = [" [SAVE MISSION]", " [LOAD MISSION]", " [CLEAR ALL]", " [VOICE COMMS]"];
+        // Combine all items into one list
+        const sysOpts = [
+            { label: "[SAVE MISSION]", type: "sys" },
+            { label: "[LOAD MISSION]", type: "sys" },
+            { label: "[CLEAR ALL]", type: "sys" },
+            { label: "[VOICE COMMS]", type: "sys" }
+        ];
+        
+        const fullList = [...sysOpts, ...db];
+        const totalItems = fullList.length;
+        
         ctx.textAlign = 'left'; ctx.font = '50px Courier New';
         let listY = 180;
         
-        for (let i=0; i<sysOpts.length; i++) {
-             if (i === hoveredFileIndex) {
-                ctx.fillStyle = '#ff0055'; ctx.fillRect(50, listY - 50, w - 100, 60);
-                ctx.fillStyle = '#fff'; ctx.fillText(sysOpts[i], 80, listY);
-            } else {
-                ctx.fillStyle = '#ff0055'; ctx.fillText(sysOpts[i], 80, listY);
-            }
-            listY += 70;
+        // Draw Scrollbar Track if needed
+        if (totalItems > MAX_MENU_VISIBLE) {
+            const trackHeight = MAX_MENU_VISIBLE * 70;
+            const scrollPercent = menuScrollIndex / (totalItems - MAX_MENU_VISIBLE);
+            const thumbHeight = (MAX_MENU_VISIBLE / totalItems) * trackHeight;
+            const thumbY = 130 + (scrollPercent * (trackHeight - thumbHeight));
+            
+            // Track
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.1)';
+            ctx.fillRect(w - 30, 130, 10, trackHeight);
+            
+            // Thumb
+            ctx.fillStyle = '#00ffff';
+            ctx.fillRect(w - 30, thumbY, 10, thumbHeight);
         }
 
-        ctx.fillStyle = '#00aaaa'; 
-        const maxItems = 6;
-        for (let i = 0; i < Math.min(db.length, maxItems); i++) {
-            const menuIndex = i + sysOpts.length;
-            if (menuIndex === hoveredFileIndex) {
-                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 100, 60);
-                ctx.fillStyle = '#fff'; ctx.fillText(`> ${db[i].label}`, 80, listY);
+        // Draw Visible Items
+        for (let i = 0; i < MAX_MENU_VISIBLE; i++) {
+            const realIndex = menuScrollIndex + i;
+            if (realIndex >= totalItems) break;
+            
+            const item = fullList[realIndex];
+            const isHovered = (realIndex === hoveredFileIndex);
+            
+            if (isHovered) {
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 60, 60);
+                ctx.fillStyle = '#fff'; ctx.fillText(`> ${item.label}`, 80, listY);
             } else {
-                ctx.fillStyle = '#00aaaa'; ctx.fillText(`  ${db[i].label}`, 80, listY);
+                ctx.fillStyle = item.type === 'sys' ? '#ff0055' : '#00aaaa';
+                ctx.fillText(`  ${item.label}`, 80, listY);
             }
-            ctx.fillStyle = '#666'; ctx.fillText(db[i].type.toUpperCase(), w - 200, listY);
+            
+            if (item.type !== 'sys') {
+                ctx.fillStyle = '#666'; ctx.fillText(item.type.toUpperCase(), w - 200, listY);
+            }
+            
             listY += 70;
         }
 
@@ -468,6 +495,7 @@
     }
 
     function spawnFromMenu(index) {
+        // Index comes in as Real Index from handleInput
         if (index === 0) { saveMission(); return; }
         if (index === 1) { loadMission(); return; }
         if (index === 2) { clearMission(); return; }
@@ -479,8 +507,9 @@
             return; 
         }
 
-        const fileIndex = index - 4;
+        const fileIndex = index - 4; // Offset by 4 system items
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+        
         if (fileIndex >= 0 && fileIndex < db.length) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
             const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
@@ -724,18 +753,44 @@
             const targetPos = worldPos.add(dir.multiplyScalar(2.5));
             menuGroup.position.copy(targetPos); menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
             
+            // --- MENU SCROLLING LOGIC ---
+            // Use Right Stick Y (Axis 3) to scroll
+            if (Math.abs(pad.axes[3]) > 0.5) {
+                const now = Date.now();
+                if (now - lastMenuScrollTime > 150) { // Debounce speed
+                    const fullListSize = 4 + (CUSTOM_DATABASE.length || 1); // 4 system options
+                    if (pad.axes[3] > 0) menuScrollIndex++; // Down
+                    else menuScrollIndex--; // Up
+                    
+                    // Clamp
+                    menuScrollIndex = Math.max(0, Math.min(menuScrollIndex, fullListSize - MAX_MENU_VISIBLE));
+                    lastMenuScrollTime = now;
+                    updateMenuDisplay();
+                }
+            }
+
             const intersects = raycaster.intersectObject(menuMesh);
             if (intersects.length > 0) {
                 const uvY = intersects[0].uv.y;
                 if (uvY < 0.82) {
-                    const idx = Math.floor((0.82 - uvY) / 0.068);
-                    const totalItems = 4 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
-                    if (idx >= 0 && idx < totalItems && hoveredFileIndex !== idx) { hoveredFileIndex = idx; updateMenuDisplay(); }
+                    const visualIdx = Math.floor((0.82 - uvY) / 0.068);
+                    
+                    // Convert Visual Index to Real Index
+                    if (visualIdx >= 0 && visualIdx < MAX_MENU_VISIBLE) {
+                        const realIdx = visualIdx + menuScrollIndex;
+                        const fullListSize = 4 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
+                        
+                        if (realIdx < fullListSize && hoveredFileIndex !== realIdx) { 
+                            hoveredFileIndex = realIdx; 
+                            updateMenuDisplay(); 
+                        }
+                    }
                 }
             } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
             if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
             
         } else {
+            // ... (Target interaction code stays same) ...
             const intersects = raycaster.intersectObjects(targets, true); 
             if (intersects.length > 0) {
                 let hit = intersects[0].object;
