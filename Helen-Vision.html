@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: VR CINEMA</title>
+    <title>HELEN: PROTOCOL MNEMOSYNE</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         
@@ -72,8 +72,8 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ VR CINEMA ONLINE ]<br>
-        Direct Video Feed Active.<br>
+        [ MEMORY BANKS DETECTED ]<br>
+        Protocol Mnemosyne Active.<br>
         Enter Key to Resume.
     </div>
 
@@ -84,7 +84,7 @@
     </div>
 
     <div class="btn-group" id="main-controls" style="display:none;">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL / MP4</button>
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
@@ -109,6 +109,7 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
+    // --- AI & MEMORY VARIABLES ---
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
     let genAI, model;
     let recognition; 
@@ -117,6 +118,7 @@
     let isSpeaking = false;
     let aiStatus = "STANDBY"; 
     
+    // MEMORY ARRAY
     let chatHistory = [];
     try {
         const saved = localStorage.getItem('helen_chat_history');
@@ -130,7 +132,7 @@
     let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
 
-    // MENU
+    // MENU & SCROLLING
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
     let hoveredFileIndex = -1;
@@ -162,14 +164,14 @@
             GEMINI_KEY = key;
             checkAuth();
         } else {
-            alert("KEY TOO SHORT.");
+            alert("KEY TOO SHORT. CHECK CLIPBOARD.");
         }
     };
 
     window.resetSystem = function() {
         localStorage.removeItem('helen_gemini_key');
         localStorage.removeItem('helen_layout_ai');
-        localStorage.removeItem('helen_chat_history'); 
+        localStorage.removeItem('helen_chat_history'); // Wipe memory
         location.reload();
     }
 
@@ -181,9 +183,10 @@
             
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
+                // System Prompt is now part of the config
                 model = genAI.getGenerativeModel({ 
-                    model: "gemini-1.5-flash",
-                    systemInstruction: "You are HELEN, a tactical AI companion. Responses short & robotic."
+                    model: "gemini-2.5-flash",
+                    systemInstruction: "You are HELEN, a highly advanced tactical AI companion. Your responses must be extremely short, concise, and robotic. Military style. Maximum 2 sentences. You have persistent memory of past conversations."
                 });
                 initVoice();
             } catch(e) {
@@ -232,16 +235,22 @@
         aiStatus = "ANALYZING TARGET..."; updateHUD();
         
         try {
+            // Note: Vision requests are typically stateless or require careful handling with history.
+            // For simplicity, visual scans are one-off but we can add the result to memory.
             const prompt = "Analyze this image. Briefly describe what you see tactically.";
             const imagePart = { inlineData: { data: base64Image, mimeType: "image/jpeg" } };
+            
             const result = await model.generateContent([prompt, imagePart]);
             const response = await result.response;
             const text = response.text();
             
             console.log("Vision Analysis:", text);
+            
+            // Add visual event to memory
             chatHistory.push({ role: "user", parts: [{ text: "[User showed an image]" }] });
             chatHistory.push({ role: "model", parts: [{ text: text }] });
             saveMemory();
+            
             speak(text);
         } catch (error) {
             console.error("Vision Error:", error);
@@ -252,20 +261,32 @@
 
     async function askGemini(prompt) {
         aiStatus = "THINKING..."; updateHUD();
+        
         try {
+            // Start Chat with History
             const chat = model.startChat({
                 history: chatHistory,
-                generationConfig: { maxOutputTokens: 100 },
+                generationConfig: {
+                    maxOutputTokens: 100,
+                },
             });
+
             const result = await chat.sendMessage(prompt);
             const response = await result.response;
             const text = response.text();
             
             console.log("Gemini:", text);
+            
+            // Update Local History (SDK manages internal history, but we need to persist it)
+            // We manually push to our tracking array so we can save it
             chatHistory.push({ role: "user", parts: [{ text: prompt }] });
             chatHistory.push({ role: "model", parts: [{ text: text }] });
             
-            if(chatHistory.length > 20) chatHistory = chatHistory.slice(chatHistory.length - 20);
+            // Prune memory if too long (Keep last 20 turns)
+            if(chatHistory.length > 20) {
+                chatHistory = chatHistory.slice(chatHistory.length - 20);
+            }
+            
             saveMemory();
             speak(text);
         } catch (error) {
@@ -275,7 +296,10 @@
         }
     }
     
-    function saveMemory() { localStorage.setItem('helen_chat_history', JSON.stringify(chatHistory)); }
+    function saveMemory() {
+        localStorage.setItem('helen_chat_history', JSON.stringify(chatHistory));
+    }
+    
     function wipeMemory() {
         chatHistory = [];
         localStorage.removeItem('helen_chat_history');
@@ -287,10 +311,13 @@
     function speak(text) {
         if (synth.speaking) synth.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.1; utterance.pitch = 1.0;
+        utterance.rate = 1.1; 
+        utterance.pitch = 1.0;
+        
         const voices = synth.getVoices();
         const preferred = voices.find(v => v.name.includes("Google US English") || v.name.includes("Female"));
         if(preferred) utterance.voice = preferred;
+
         utterance.onstart = () => { isSpeaking = true; aiStatus = "SPEAKING"; updateHUD(); };
         utterance.onend = () => { isSpeaking = false; aiStatus = "STANDBY"; updateHUD(); };
         synth.speak(utterance);
@@ -316,7 +343,6 @@
                 let name = file.name.toUpperCase();
                 let type = 'image'; 
 
-                // --- IMPORTANT: SUPPORT LOCAL VIDEO ---
                 if (name.endsWith('.PDF')) type = 'pdf';
                 else if (name.endsWith('.FBX')) type = 'fbx';
                 else if (name.endsWith('.GLB') || name.endsWith('.GLTF') || name.endsWith('.VRM')) type = 'glb';
@@ -427,6 +453,7 @@
     function init3D() {
         scene = new THREE.Scene();
         dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
+        // NEAR CLIP FIX
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); dolly.add(camera);
 
         const video = document.getElementById('camera-feed');
@@ -445,6 +472,7 @@
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
+        // PERFORMANCE: 1:1 RESOLUTION
         renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
         renderer.setPixelRatio(1); 
         renderer.setSize(window.innerWidth, window.innerHeight); 
@@ -458,10 +486,7 @@
         renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
 
         createMenuSystem();
-        window.addEventListener('resize', () => { 
-            camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); 
-            renderer.setSize(window.innerWidth, window.innerHeight); 
-        });
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         
         window.addEventListener('keydown', (e) => {
             if(e.key === 'f') { 
@@ -499,8 +524,7 @@
             { label: "[CLEAR ALL]", type: "sys" },
             { label: "[VOICE COMMS]", type: "sys" },
             { label: "[VISUAL SCAN]", type: "sys" },
-            { label: "[WIPE MEMORY]", type: "sys" },
-            { label: "[VR CINEMA]", type: "sys" } // REPLACED YOUTUBE
+            { label: "[WIPE MEMORY]", type: "sys" } // NEW OPTION
         ];
         
         const fullList = [...sysOpts, ...db];
@@ -559,16 +583,18 @@
             setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500);
             return; 
         }
-        if (index === 4) { performVisualScan(); updateMenuDisplay(); setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500); return; }
-        if (index === 5) { wipeMemory(); return; }
-        if (index === 6) { 
-            // SPAWN VR CINEMA (Direct Sample File)
-            spawnVideoScreen("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", "SAMPLE_MOVIE.MP4");
-            isMenuOpen = false; menuGroup.visible = false; 
-            return; 
+        if (index === 4) { 
+            performVisualScan();
+            updateMenuDisplay();
+            setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500);
+            return;
+        }
+        if (index === 5) { // WIPE MEMORY
+            wipeMemory();
+            return;
         }
 
-        const fileIndex = index - 7; 
+        const fileIndex = index - 6; // Adjusted for new menu item
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         
         if (fileIndex >= 0 && fileIndex < db.length) {
@@ -578,52 +604,9 @@
             
             const item = db[fileIndex];
             if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
-            else if(item.type === 'video') spawnVideoScreen(item.src, item.label);
             else spawnScreen(pos, item);
             isMenuOpen = false; menuGroup.visible = false;
         }
-    }
-
-    // --- NEW: VR CINEMA SPAWNER ---
-    function spawnVideoScreen(url, label) {
-        // Create Video Element (Invisible)
-        const video = document.createElement('video');
-        video.src = url;
-        video.crossOrigin = "anonymous";
-        video.loop = true;
-        video.muted = false; // VR supports audio!
-        video.play();
-
-        // Create Video Texture
-        const videoTexture = new THREE.VideoTexture(video);
-        videoTexture.colorSpace = THREE.SRGBColorSpace;
-        
-        // Create Curved Screen Geometry
-        const geometry = new THREE.CylinderGeometry(5, 5, 4, 32, 1, true, Math.PI + 0.5, Math.PI - 1);
-        // Flip it inside out so we see it from the center
-        geometry.scale(-1, 1, 1); 
-        
-        const material = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
-        const screenMesh = new THREE.Mesh(geometry, material);
-        
-        // Position in front of camera
-        const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
-        const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(6));
-        screenMesh.position.copy(pos);
-        screenMesh.lookAt(camera.position);
-        
-        screenMesh.userData = { isScreen: true, videoElement: video, label: label || "VR CINEMA" };
-        
-        // Add Frame
-        const frameMat = new THREE.LineBasicMaterial({ color: 0xff0055 });
-        const wireframe = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), frameMat);
-        screenMesh.add(wireframe);
-
-        scene.add(screenMesh);
-        targets.push(screenMesh);
-        
-        sysMessage = "CINEMA MODE ACTIVE";
-        updateMenuDisplay();
     }
 
     function mapBones(model) {
@@ -843,7 +826,7 @@
             if (Math.abs(pad.axes[3]) > 0.5) {
                 const now = Date.now();
                 if (now - lastMenuScrollTime > 150) { 
-                    const fullListSize = 7 + (CUSTOM_DATABASE.length || 1); 
+                    const fullListSize = 6 + (CUSTOM_DATABASE.length || 1); 
                     if (pad.axes[3] > 0) menuScrollIndex++; 
                     else menuScrollIndex--; 
                     
@@ -861,7 +844,7 @@
                     
                     if (visualIdx >= 0 && visualIdx < MAX_MENU_VISIBLE) {
                         const realIdx = visualIdx + menuScrollIndex;
-                        const fullListSize = 7 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
+                        const fullListSize = 6 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
                         
                         if (realIdx < fullListSize && hoveredFileIndex !== realIdx) { 
                             hoveredFileIndex = realIdx; 
@@ -877,7 +860,7 @@
             if (intersects.length > 0) {
                 let hit = intersects[0].object;
                 while(hit.parent && !hit.userData.isScreen && hit !== scene) { hit = hit.parent; }
-                if (hit.userData.isScreen || hit.userData.isModel) { activeObject.obj = hit; activeTarget = hit; } 
+                if (hit.userData.isScreen) { activeObject.obj = hit; activeTarget = hit; } 
                 else { activeObject.obj = null; }
 
                 if (activeTarget && pad.buttons[1].pressed && !lastBtn.circle) { 
