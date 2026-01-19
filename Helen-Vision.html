@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: PROTOCOL MNEMOSYNE</title>
+    <title>HELEN: FINAL SYSTEM</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         
@@ -72,8 +72,8 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ MEMORY BANKS DETECTED ]<br>
-        Protocol Mnemosyne Active.<br>
+        [ SYSTEM ONLINE ]<br>
+        Memory & High-Res Optics Active.<br>
         Enter Key to Resume.
     </div>
 
@@ -171,7 +171,7 @@
     window.resetSystem = function() {
         localStorage.removeItem('helen_gemini_key');
         localStorage.removeItem('helen_layout_ai');
-        localStorage.removeItem('helen_chat_history'); // Wipe memory
+        localStorage.removeItem('helen_chat_history'); 
         location.reload();
     }
 
@@ -183,10 +183,9 @@
             
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
-                // System Prompt is now part of the config
                 model = genAI.getGenerativeModel({ 
-                    model: "gemini-2.5-flash",
-                    systemInstruction: "You are HELEN, a highly advanced tactical AI companion. Your responses must be extremely short, concise, and robotic. Military style. Maximum 2 sentences. You have persistent memory of past conversations."
+                    model: "gemini-1.5-flash",
+                    systemInstruction: "You are HELEN, a highly advanced tactical AI companion. Responses concise & robotic. You have memory."
                 });
                 initVoice();
             } catch(e) {
@@ -235,9 +234,7 @@
         aiStatus = "ANALYZING TARGET..."; updateHUD();
         
         try {
-            // Note: Vision requests are typically stateless or require careful handling with history.
-            // For simplicity, visual scans are one-off but we can add the result to memory.
-            const prompt = "Analyze this image. Briefly describe what you see tactically.";
+            const prompt = "Analyze this image tactically.";
             const imagePart = { inlineData: { data: base64Image, mimeType: "image/jpeg" } };
             
             const result = await model.generateContent([prompt, imagePart]);
@@ -246,7 +243,6 @@
             
             console.log("Vision Analysis:", text);
             
-            // Add visual event to memory
             chatHistory.push({ role: "user", parts: [{ text: "[User showed an image]" }] });
             chatHistory.push({ role: "model", parts: [{ text: text }] });
             saveMemory();
@@ -263,12 +259,9 @@
         aiStatus = "THINKING..."; updateHUD();
         
         try {
-            // Start Chat with History
             const chat = model.startChat({
                 history: chatHistory,
-                generationConfig: {
-                    maxOutputTokens: 100,
-                },
+                generationConfig: { maxOutputTokens: 100 },
             });
 
             const result = await chat.sendMessage(prompt);
@@ -277,15 +270,10 @@
             
             console.log("Gemini:", text);
             
-            // Update Local History (SDK manages internal history, but we need to persist it)
-            // We manually push to our tracking array so we can save it
             chatHistory.push({ role: "user", parts: [{ text: prompt }] });
             chatHistory.push({ role: "model", parts: [{ text: text }] });
             
-            // Prune memory if too long (Keep last 20 turns)
-            if(chatHistory.length > 20) {
-                chatHistory = chatHistory.slice(chatHistory.length - 20);
-            }
+            if(chatHistory.length > 20) chatHistory = chatHistory.slice(chatHistory.length - 20);
             
             saveMemory();
             speak(text);
@@ -296,9 +284,7 @@
         }
     }
     
-    function saveMemory() {
-        localStorage.setItem('helen_chat_history', JSON.stringify(chatHistory));
-    }
+    function saveMemory() { localStorage.setItem('helen_chat_history', JSON.stringify(chatHistory)); }
     
     function wipeMemory() {
         chatHistory = [];
@@ -311,13 +297,10 @@
     function speak(text) {
         if (synth.speaking) synth.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.1; 
-        utterance.pitch = 1.0;
-        
+        utterance.rate = 1.1; utterance.pitch = 1.0;
         const voices = synth.getVoices();
         const preferred = voices.find(v => v.name.includes("Google US English") || v.name.includes("Female"));
         if(preferred) utterance.voice = preferred;
-
         utterance.onstart = () => { isSpeaking = true; aiStatus = "SPEAKING"; updateHUD(); };
         utterance.onend = () => { isSpeaking = false; aiStatus = "STANDBY"; updateHUD(); };
         synth.speak(utterance);
@@ -453,7 +436,6 @@
     function init3D() {
         scene = new THREE.Scene();
         dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
-        // NEAR CLIP FIX
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); dolly.add(camera);
 
         const video = document.getElementById('camera-feed');
@@ -472,8 +454,7 @@
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
-        // PERFORMANCE: 1:1 RESOLUTION
-        renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" }); // Enabled Antialias
         renderer.setPixelRatio(1); 
         renderer.setSize(window.innerWidth, window.innerHeight); 
         renderer.xr.enabled = true;
@@ -524,7 +505,7 @@
             { label: "[CLEAR ALL]", type: "sys" },
             { label: "[VOICE COMMS]", type: "sys" },
             { label: "[VISUAL SCAN]", type: "sys" },
-            { label: "[WIPE MEMORY]", type: "sys" } // NEW OPTION
+            { label: "[WIPE MEMORY]", type: "sys" }
         ];
         
         const fullList = [...sysOpts, ...db];
@@ -589,12 +570,12 @@
             setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500);
             return;
         }
-        if (index === 5) { // WIPE MEMORY
+        if (index === 5) { 
             wipeMemory();
             return;
         }
 
-        const fileIndex = index - 6; // Adjusted for new menu item
+        const fileIndex = index - 6; 
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         
         if (fileIndex >= 0 && fileIndex < db.length) {
@@ -746,11 +727,12 @@
         });
     }
 
+    // --- UPGRADED SPAWN SCREEN FOR HIGH RES PDF & ASPECT RATIO ---
     async function spawnScreen(position, data, rotation = null) {
-        let width = 3, height = 1.8; 
-        let material, videoElem = null;
-        const geometry = new THREE.PlaneGeometry(3, 1.8);
-        const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+        // Init with 1x1 plane, transparent until loaded
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent:true, opacity:0.9 });
+        const screen = new THREE.Mesh(geometry, material);
         screen.position.copy(position); 
         
         if (rotation) screen.rotation.copy(rotation);
@@ -764,24 +746,42 @@
         if (data.type === 'pdf') {
             const clonedBuffer = data.buffer.slice(0);
             const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
-            screen.userData.pdfDoc = pdf; screen.userData.pageNum = 1; screen.userData.totalPages = pdf.numPages;
-            await renderPdfPageToTexture(screen, 1);
-            screen.scale.set(0.8, 1.4, 1); 
+            screen.userData.pdfDoc = pdf; 
+            screen.userData.pageNum = 1; 
+            screen.userData.totalPages = pdf.numPages;
+            
+            // Add yellow border
             screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffff00 })));
+            
+            // Render High Res
+            await renderPdfPageToTexture(screen, 1);
+            
         } else if (data.type === 'video') {
-            videoElem = document.createElement('video'); videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; videoElem.loop = true; videoElem.muted = true; 
+            const videoElem = document.createElement('video'); videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; videoElem.loop = true; videoElem.muted = true; 
             videoElem.play().then(() => { videoElem.muted = false; });
             const tex = new THREE.VideoTexture(videoElem); tex.colorSpace = THREE.SRGBColorSpace;
             screen.material.map = tex; screen.userData.videoElement = videoElem;
+            screen.scale.set(3, 1.8, 1); // Default video scale
             screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
         } else {
-            const tex = new THREE.TextureLoader().load(data.src); tex.colorSpace = THREE.SRGBColorSpace;
+            // Image with auto-aspect
+            const tex = new THREE.TextureLoader().load(data.src); 
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.anisotropy = renderer.capabilities.getMaxAnisotropy(); // FILTERING
             screen.material.map = tex;
+            
+            const img = new Image();
+            img.src = data.src;
+            img.onload = () => {
+                const aspect = img.width / img.height;
+                screen.scale.set(1.8 * aspect, 1.8, 1); // Fit to height 1.8m
+            }
             screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
         }
         scene.add(screen); targets.push(screen);
     }
     
+    // --- UPGRADED PDF RENDERER ---
     async function renderPdfPageToTexture(mesh, pageNum) {
         if (!mesh.userData.pdfDoc) return;
         if (mesh.userData.isRendering) return; 
@@ -791,13 +791,29 @@
             if (pageNum < 1) pageNum = 1; if (pageNum > pdf.numPages) pageNum = pdf.numPages;
             mesh.userData.pageNum = pageNum;
             const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 2.0 });
+            
+            // SCALE 3.0 FOR 4K CLARITY
+            const viewport = page.getViewport({ scale: 3.0 });
             const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
             canvas.height = viewport.height; canvas.width = viewport.width;
+            
             await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace;
+            
+            const tex = new THREE.CanvasTexture(canvas); 
+            tex.colorSpace = THREE.SRGBColorSpace;
+            // FILTERING FOR READABILITY
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            
             if (mesh.material.map) mesh.material.map.dispose(); 
-            mesh.material.map = tex; mesh.material.needsUpdate = true;
+            mesh.material.map = tex; 
+            mesh.material.needsUpdate = true;
+            
+            // RESHAPE MESH TO MATCH PAPER
+            const aspectRatio = viewport.width / viewport.height;
+            mesh.scale.set(1.8 * aspectRatio, 1.8, 1);
+            
         } catch(e) { console.error(e); }
         mesh.userData.isRendering = false;
     }
