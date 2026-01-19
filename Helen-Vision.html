@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: MEDIA PORTAL</title>
+    <title>HELEN: VR CINEMA</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         
@@ -72,8 +72,8 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ MEDIA MODULE INSTALLED ]<br>
-        CSS3D Renderer Active.<br>
+        [ VR CINEMA ONLINE ]<br>
+        Direct Video Feed Active.<br>
         Enter Key to Resume.
     </div>
 
@@ -84,7 +84,7 @@
     </div>
 
     <div class="btn-group" id="main-controls" style="display:none;">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL / MP4</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
@@ -103,15 +103,12 @@
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
     import { GoogleGenerativeAI } from "@google/generative-ai";
-    // IMPORT CSS RENDERER FOR WEB PAGES
-    import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
-    let scene, camera, renderer, cssRenderer, dolly;
+    let scene, camera, renderer, dolly;
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // --- AI & MEMORY VARIABLES ---
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
     let genAI, model;
     let recognition; 
@@ -133,7 +130,7 @@
     let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
 
-    // MENU & SCROLLING
+    // MENU
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
     let hoveredFileIndex = -1;
@@ -237,7 +234,6 @@
         try {
             const prompt = "Analyze this image. Briefly describe what you see tactically.";
             const imagePart = { inlineData: { data: base64Image, mimeType: "image/jpeg" } };
-            
             const result = await model.generateContent([prompt, imagePart]);
             const response = await result.response;
             const text = response.text();
@@ -320,6 +316,7 @@
                 let name = file.name.toUpperCase();
                 let type = 'image'; 
 
+                // --- IMPORTANT: SUPPORT LOCAL VIDEO ---
                 if (name.endsWith('.PDF')) type = 'pdf';
                 else if (name.endsWith('.FBX')) type = 'fbx';
                 else if (name.endsWith('.GLB') || name.endsWith('.GLTF') || name.endsWith('.VRM')) type = 'glb';
@@ -448,22 +445,10 @@
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
-        // --- 1. SETUP CSS3D RENDERER ---
-        cssRenderer = new CSS3DRenderer();
-        cssRenderer.setSize(window.innerWidth, window.innerHeight);
-        cssRenderer.domElement.style.position = 'absolute';
-        cssRenderer.domElement.style.top = '0';
-        // Note: CSS3D sits ON TOP. It captures clicks.
-        document.body.appendChild(cssRenderer.domElement);
-
         renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
         renderer.setPixelRatio(1); 
         renderer.setSize(window.innerWidth, window.innerHeight); 
         renderer.xr.enabled = true;
-        // The WebGL canvas goes UNDER the CSS3D layer
-        renderer.domElement.style.position = 'absolute';
-        renderer.domElement.style.top = '0';
-        renderer.domElement.style.zIndex = '-1'; 
         document.body.appendChild(renderer.domElement);
         
         const btn = VRButton.createButton(renderer);
@@ -476,7 +461,6 @@
         window.addEventListener('resize', () => { 
             camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); 
             renderer.setSize(window.innerWidth, window.innerHeight); 
-            cssRenderer.setSize(window.innerWidth, window.innerHeight);
         });
         
         window.addEventListener('keydown', (e) => {
@@ -516,7 +500,7 @@
             { label: "[VOICE COMMS]", type: "sys" },
             { label: "[VISUAL SCAN]", type: "sys" },
             { label: "[WIPE MEMORY]", type: "sys" },
-            { label: "[LOAD YOUTUBE]", type: "sys" } // NEW
+            { label: "[VR CINEMA]", type: "sys" } // REPLACED YOUTUBE
         ];
         
         const fullList = [...sysOpts, ...db];
@@ -577,9 +561,14 @@
         }
         if (index === 4) { performVisualScan(); updateMenuDisplay(); setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500); return; }
         if (index === 5) { wipeMemory(); return; }
-        if (index === 6) { spawnYouTube(); isMenuOpen = false; menuGroup.visible = false; return; }
+        if (index === 6) { 
+            // SPAWN VR CINEMA (Direct Sample File)
+            spawnVideoScreen("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", "SAMPLE_MOVIE.MP4");
+            isMenuOpen = false; menuGroup.visible = false; 
+            return; 
+        }
 
-        const fileIndex = index - 7; // Offset for new items
+        const fileIndex = index - 7; 
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         
         if (fileIndex >= 0 && fileIndex < db.length) {
@@ -589,41 +578,52 @@
             
             const item = db[fileIndex];
             if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
+            else if(item.type === 'video') spawnVideoScreen(item.src, item.label);
             else spawnScreen(pos, item);
             isMenuOpen = false; menuGroup.visible = false;
         }
     }
 
-    // --- NEW: SPAWN YOUTUBE WINDOW ---
-    function spawnYouTube() {
-        const div = document.createElement('div');
-        div.style.width = '480px';
-        div.style.height = '360px';
-        div.style.backgroundColor = '#000';
-        
-        const iframe = document.createElement('iframe');
-        iframe.style.width = '480px';
-        iframe.style.height = '360px';
-        iframe.style.border = '2px solid #00ffff';
-        iframe.src = 'https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&mute=0';
-        div.appendChild(iframe);
+    // --- NEW: VR CINEMA SPAWNER ---
+    function spawnVideoScreen(url, label) {
+        // Create Video Element (Invisible)
+        const video = document.createElement('video');
+        video.src = url;
+        video.crossOrigin = "anonymous";
+        video.loop = true;
+        video.muted = false; // VR supports audio!
+        video.play();
 
-        const object = new CSS3DObject(div);
+        // Create Video Texture
+        const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.colorSpace = THREE.SRGBColorSpace;
         
-        // Position it in front of camera
-        const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-        const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2));
-        object.position.copy(pos);
-        object.lookAt(camera.position);
+        // Create Curved Screen Geometry
+        const geometry = new THREE.CylinderGeometry(5, 5, 4, 32, 1, true, Math.PI + 0.5, Math.PI - 1);
+        // Flip it inside out so we see it from the center
+        geometry.scale(-1, 1, 1); 
         
-        // Scale it down to match 3D world units (pixels to meters)
-        object.scale.set(0.005, 0.005, 0.005);
+        const material = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
+        const screenMesh = new THREE.Mesh(geometry, material);
         
-        object.userData = { isScreen: true, label: "YOUTUBE LINK" };
+        // Position in front of camera
+        const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
+        const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(6));
+        screenMesh.position.copy(pos);
+        screenMesh.lookAt(camera.position);
         
-        scene.add(object);
-        targets.push(object); // Add to targets so we can delete it later? 
-        // Note: Raycaster doesn't work on CSS objects easily, interaction is via DOM events
+        screenMesh.userData = { isScreen: true, videoElement: video, label: label || "VR CINEMA" };
+        
+        // Add Frame
+        const frameMat = new THREE.LineBasicMaterial({ color: 0xff0055 });
+        const wireframe = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), frameMat);
+        screenMesh.add(wireframe);
+
+        scene.add(screenMesh);
+        targets.push(screenMesh);
+        
+        sysMessage = "CINEMA MODE ACTIVE";
+        updateMenuDisplay();
     }
 
     function mapBones(model) {
@@ -820,19 +820,11 @@
     }
 
     function deleteObject(obj) {
-        // Handle normal objects
         if (obj.userData.videoElement) {
             obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
         }
         if (obj.material && obj.material.map) obj.material.map.dispose();
-        scene.remove(obj); 
-        
-        // Handle CSS objects
-        if (obj.element && obj.element.parentNode) {
-            obj.element.parentNode.removeChild(obj.element);
-        }
-        
-        targets = targets.filter(t => t !== obj);
+        scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
     function handleInput() {
@@ -851,7 +843,7 @@
             if (Math.abs(pad.axes[3]) > 0.5) {
                 const now = Date.now();
                 if (now - lastMenuScrollTime > 150) { 
-                    const fullListSize = 7 + (CUSTOM_DATABASE.length || 1); // 7 system items
+                    const fullListSize = 7 + (CUSTOM_DATABASE.length || 1); 
                     if (pad.axes[3] > 0) menuScrollIndex++; 
                     else menuScrollIndex--; 
                     
@@ -1051,16 +1043,12 @@
         renderer.setAnimationLoop(() => { 
             handleInput(); 
             updateHUD(); 
-            
-            // --- SYNC BOTH RENDERERS ---
-            cssRenderer.render(scene, camera);
-            renderer.render(scene, camera);
-            
             targets.forEach(t => { 
                 if(t.userData.isModel && t.userData.aiActive) {
                     updateAI(t);
                 }
             }); 
+            renderer.render(scene, camera); 
         });
     }
 </script>
