@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: PROTOCOL MNEMOSYNE</title>
+    <title>HELEN: MEDIA PORTAL</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         
@@ -72,8 +72,8 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ MEMORY BANKS DETECTED ]<br>
-        Protocol Mnemosyne Active.<br>
+        [ MEDIA MODULE INSTALLED ]<br>
+        CSS3D Renderer Active.<br>
         Enter Key to Resume.
     </div>
 
@@ -103,8 +103,10 @@
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
     import { GoogleGenerativeAI } from "@google/generative-ai";
+    // IMPORT CSS RENDERER FOR WEB PAGES
+    import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
-    let scene, camera, renderer, dolly;
+    let scene, camera, renderer, cssRenderer, dolly;
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
@@ -118,7 +120,6 @@
     let isSpeaking = false;
     let aiStatus = "STANDBY"; 
     
-    // MEMORY ARRAY
     let chatHistory = [];
     try {
         const saved = localStorage.getItem('helen_chat_history');
@@ -164,14 +165,14 @@
             GEMINI_KEY = key;
             checkAuth();
         } else {
-            alert("KEY TOO SHORT. CHECK CLIPBOARD.");
+            alert("KEY TOO SHORT.");
         }
     };
 
     window.resetSystem = function() {
         localStorage.removeItem('helen_gemini_key');
         localStorage.removeItem('helen_layout_ai');
-        localStorage.removeItem('helen_chat_history'); // Wipe memory
+        localStorage.removeItem('helen_chat_history'); 
         location.reload();
     }
 
@@ -183,10 +184,9 @@
             
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
-                // System Prompt is now part of the config
                 model = genAI.getGenerativeModel({ 
-                    model: "gemini-2.5-flash",
-                    systemInstruction: "You are HELEN, a highly advanced tactical AI companion. Your responses must be extremely short, concise, and robotic. Military style. Maximum 2 sentences. You have persistent memory of past conversations."
+                    model: "gemini-1.5-flash",
+                    systemInstruction: "You are HELEN, a tactical AI companion. Responses short & robotic."
                 });
                 initVoice();
             } catch(e) {
@@ -235,8 +235,6 @@
         aiStatus = "ANALYZING TARGET..."; updateHUD();
         
         try {
-            // Note: Vision requests are typically stateless or require careful handling with history.
-            // For simplicity, visual scans are one-off but we can add the result to memory.
             const prompt = "Analyze this image. Briefly describe what you see tactically.";
             const imagePart = { inlineData: { data: base64Image, mimeType: "image/jpeg" } };
             
@@ -245,12 +243,9 @@
             const text = response.text();
             
             console.log("Vision Analysis:", text);
-            
-            // Add visual event to memory
             chatHistory.push({ role: "user", parts: [{ text: "[User showed an image]" }] });
             chatHistory.push({ role: "model", parts: [{ text: text }] });
             saveMemory();
-            
             speak(text);
         } catch (error) {
             console.error("Vision Error:", error);
@@ -261,32 +256,20 @@
 
     async function askGemini(prompt) {
         aiStatus = "THINKING..."; updateHUD();
-        
         try {
-            // Start Chat with History
             const chat = model.startChat({
                 history: chatHistory,
-                generationConfig: {
-                    maxOutputTokens: 100,
-                },
+                generationConfig: { maxOutputTokens: 100 },
             });
-
             const result = await chat.sendMessage(prompt);
             const response = await result.response;
             const text = response.text();
             
             console.log("Gemini:", text);
-            
-            // Update Local History (SDK manages internal history, but we need to persist it)
-            // We manually push to our tracking array so we can save it
             chatHistory.push({ role: "user", parts: [{ text: prompt }] });
             chatHistory.push({ role: "model", parts: [{ text: text }] });
             
-            // Prune memory if too long (Keep last 20 turns)
-            if(chatHistory.length > 20) {
-                chatHistory = chatHistory.slice(chatHistory.length - 20);
-            }
-            
+            if(chatHistory.length > 20) chatHistory = chatHistory.slice(chatHistory.length - 20);
             saveMemory();
             speak(text);
         } catch (error) {
@@ -296,10 +279,7 @@
         }
     }
     
-    function saveMemory() {
-        localStorage.setItem('helen_chat_history', JSON.stringify(chatHistory));
-    }
-    
+    function saveMemory() { localStorage.setItem('helen_chat_history', JSON.stringify(chatHistory)); }
     function wipeMemory() {
         chatHistory = [];
         localStorage.removeItem('helen_chat_history');
@@ -311,13 +291,10 @@
     function speak(text) {
         if (synth.speaking) synth.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.1; 
-        utterance.pitch = 1.0;
-        
+        utterance.rate = 1.1; utterance.pitch = 1.0;
         const voices = synth.getVoices();
         const preferred = voices.find(v => v.name.includes("Google US English") || v.name.includes("Female"));
         if(preferred) utterance.voice = preferred;
-
         utterance.onstart = () => { isSpeaking = true; aiStatus = "SPEAKING"; updateHUD(); };
         utterance.onend = () => { isSpeaking = false; aiStatus = "STANDBY"; updateHUD(); };
         synth.speak(utterance);
@@ -453,7 +430,6 @@
     function init3D() {
         scene = new THREE.Scene();
         dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
-        // NEAR CLIP FIX
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); dolly.add(camera);
 
         const video = document.getElementById('camera-feed');
@@ -472,11 +448,22 @@
         scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
-        // PERFORMANCE: 1:1 RESOLUTION
+        // --- 1. SETUP CSS3D RENDERER ---
+        cssRenderer = new CSS3DRenderer();
+        cssRenderer.setSize(window.innerWidth, window.innerHeight);
+        cssRenderer.domElement.style.position = 'absolute';
+        cssRenderer.domElement.style.top = '0';
+        // Note: CSS3D sits ON TOP. It captures clicks.
+        document.body.appendChild(cssRenderer.domElement);
+
         renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
         renderer.setPixelRatio(1); 
         renderer.setSize(window.innerWidth, window.innerHeight); 
         renderer.xr.enabled = true;
+        // The WebGL canvas goes UNDER the CSS3D layer
+        renderer.domElement.style.position = 'absolute';
+        renderer.domElement.style.top = '0';
+        renderer.domElement.style.zIndex = '-1'; 
         document.body.appendChild(renderer.domElement);
         
         const btn = VRButton.createButton(renderer);
@@ -486,7 +473,11 @@
         renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
 
         createMenuSystem();
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        window.addEventListener('resize', () => { 
+            camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); 
+            renderer.setSize(window.innerWidth, window.innerHeight); 
+            cssRenderer.setSize(window.innerWidth, window.innerHeight);
+        });
         
         window.addEventListener('keydown', (e) => {
             if(e.key === 'f') { 
@@ -524,7 +515,8 @@
             { label: "[CLEAR ALL]", type: "sys" },
             { label: "[VOICE COMMS]", type: "sys" },
             { label: "[VISUAL SCAN]", type: "sys" },
-            { label: "[WIPE MEMORY]", type: "sys" } // NEW OPTION
+            { label: "[WIPE MEMORY]", type: "sys" },
+            { label: "[LOAD YOUTUBE]", type: "sys" } // NEW
         ];
         
         const fullList = [...sysOpts, ...db];
@@ -583,18 +575,11 @@
             setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500);
             return; 
         }
-        if (index === 4) { 
-            performVisualScan();
-            updateMenuDisplay();
-            setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500);
-            return;
-        }
-        if (index === 5) { // WIPE MEMORY
-            wipeMemory();
-            return;
-        }
+        if (index === 4) { performVisualScan(); updateMenuDisplay(); setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500); return; }
+        if (index === 5) { wipeMemory(); return; }
+        if (index === 6) { spawnYouTube(); isMenuOpen = false; menuGroup.visible = false; return; }
 
-        const fileIndex = index - 6; // Adjusted for new menu item
+        const fileIndex = index - 7; // Offset for new items
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         
         if (fileIndex >= 0 && fileIndex < db.length) {
@@ -607,6 +592,38 @@
             else spawnScreen(pos, item);
             isMenuOpen = false; menuGroup.visible = false;
         }
+    }
+
+    // --- NEW: SPAWN YOUTUBE WINDOW ---
+    function spawnYouTube() {
+        const div = document.createElement('div');
+        div.style.width = '480px';
+        div.style.height = '360px';
+        div.style.backgroundColor = '#000';
+        
+        const iframe = document.createElement('iframe');
+        iframe.style.width = '480px';
+        iframe.style.height = '360px';
+        iframe.style.border = '2px solid #00ffff';
+        iframe.src = 'https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&mute=0';
+        div.appendChild(iframe);
+
+        const object = new CSS3DObject(div);
+        
+        // Position it in front of camera
+        const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+        const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2));
+        object.position.copy(pos);
+        object.lookAt(camera.position);
+        
+        // Scale it down to match 3D world units (pixels to meters)
+        object.scale.set(0.005, 0.005, 0.005);
+        
+        object.userData = { isScreen: true, label: "YOUTUBE LINK" };
+        
+        scene.add(object);
+        targets.push(object); // Add to targets so we can delete it later? 
+        // Note: Raycaster doesn't work on CSS objects easily, interaction is via DOM events
     }
 
     function mapBones(model) {
@@ -803,11 +820,19 @@
     }
 
     function deleteObject(obj) {
+        // Handle normal objects
         if (obj.userData.videoElement) {
             obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
         }
         if (obj.material && obj.material.map) obj.material.map.dispose();
-        scene.remove(obj); targets = targets.filter(t => t !== obj);
+        scene.remove(obj); 
+        
+        // Handle CSS objects
+        if (obj.element && obj.element.parentNode) {
+            obj.element.parentNode.removeChild(obj.element);
+        }
+        
+        targets = targets.filter(t => t !== obj);
     }
 
     function handleInput() {
@@ -826,7 +851,7 @@
             if (Math.abs(pad.axes[3]) > 0.5) {
                 const now = Date.now();
                 if (now - lastMenuScrollTime > 150) { 
-                    const fullListSize = 6 + (CUSTOM_DATABASE.length || 1); 
+                    const fullListSize = 7 + (CUSTOM_DATABASE.length || 1); // 7 system items
                     if (pad.axes[3] > 0) menuScrollIndex++; 
                     else menuScrollIndex--; 
                     
@@ -844,7 +869,7 @@
                     
                     if (visualIdx >= 0 && visualIdx < MAX_MENU_VISIBLE) {
                         const realIdx = visualIdx + menuScrollIndex;
-                        const fullListSize = 6 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
+                        const fullListSize = 7 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
                         
                         if (realIdx < fullListSize && hoveredFileIndex !== realIdx) { 
                             hoveredFileIndex = realIdx; 
@@ -860,7 +885,7 @@
             if (intersects.length > 0) {
                 let hit = intersects[0].object;
                 while(hit.parent && !hit.userData.isScreen && hit !== scene) { hit = hit.parent; }
-                if (hit.userData.isScreen) { activeObject.obj = hit; activeTarget = hit; } 
+                if (hit.userData.isScreen || hit.userData.isModel) { activeObject.obj = hit; activeTarget = hit; } 
                 else { activeObject.obj = null; }
 
                 if (activeTarget && pad.buttons[1].pressed && !lastBtn.circle) { 
@@ -1026,12 +1051,16 @@
         renderer.setAnimationLoop(() => { 
             handleInput(); 
             updateHUD(); 
+            
+            // --- SYNC BOTH RENDERERS ---
+            cssRenderer.render(scene, camera);
+            renderer.render(scene, camera);
+            
             targets.forEach(t => { 
                 if(t.userData.isModel && t.userData.aiActive) {
                     updateAI(t);
                 }
             }); 
-            renderer.render(scene, camera); 
         });
     }
 </script>
