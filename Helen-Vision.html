@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: OMNI-CONTROL (VR FIXED)</title>
+    <title>HELEN: OMNI-CONTROL (VR HYBRID)</title>
     <style>
-        body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; /* Helps prevent mobile scrolling */ }
+        body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -89,7 +89,7 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [DRAG] MOVE (MOUSE/TOUCH)<br>
+            [MOUSE/TOUCH] DRAG (2D) or HOLD (VR)<br>
             [X] GRAB / [□] MENU<br>
             [L-STICK] MOVE / [R-STICK] ROTATE<br>
             [D-PAD] TALK / STAY / INSPECT / SCAN
@@ -117,7 +117,6 @@
     let isSpeaking = false;
     let aiStatus = "STANDBY"; 
     
-    // MEMORY
     let chatHistory = [];
     try {
         const saved = localStorage.getItem('helen_chat_history');
@@ -128,19 +127,18 @@
     const DEFAULT_DATABASE = [ { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' } ];
     let targets = []; 
     
-    // GRAB LOGIC VARIABLES
     let activeObject = { obj: null, progress: 0 }; 
     let grabbedObject = null; 
     
     let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
 
-    // --- UNIVERSAL CONTROL VARIABLES (MOUSE + TOUCH) ---
+    // --- INPUT VARIABLES ---
     let isMouseDown = false;
     let previousMousePosition = { x: 0, y: 0 };
     const MOUSE_SENSITIVITY = 0.02;
+    const VR_WALK_SPEED = 0.05; // Speed for "Hold to Walk"
 
-    // MENU & SCROLLING
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
     let hoveredFileIndex = -1;
@@ -159,7 +157,6 @@
     const SCALE_SPEED = 0.02; 
     const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
 
-    // VECTORS FOR GRAB MOVEMENT
     const _camRight = new THREE.Vector3();
     const _camUp = new THREE.Vector3();
 
@@ -415,7 +412,7 @@
         }
     `;
     
-    // --- UNIVERSAL CONTROL (MOUSE & TOUCH) ---
+    // --- UPDATED INPUT HANDLING (NORMAL VS VR) ---
     function initMouseControl() {
         function getPos(e) {
             if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -433,26 +430,27 @@
 
         const onMove = (e) => {
             if (!isMouseDown || !dolly || isMenuOpen) return;
-            // Block scrolling on mobile
             if(e.preventDefault) e.preventDefault();
 
-            const pos = getPos(e);
-            const deltaX = pos.x - previousMousePosition.x;
-            const deltaY = pos.y - previousMousePosition.y;
-            previousMousePosition = pos;
-            
-            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-            _strafeDir.crossVectors(camera.up, _moveDir).normalize();
-            
-            dolly.position.addScaledVector(_moveDir, -deltaY * MOUSE_SENSITIVITY);
-            dolly.position.addScaledVector(_strafeDir, deltaX * MOUSE_SENSITIVITY);
+            // ONLY DRAG IF NOT IN VR
+            if (!renderer.xr.isPresenting) {
+                const pos = getPos(e);
+                const deltaX = pos.x - previousMousePosition.x;
+                const deltaY = pos.y - previousMousePosition.y;
+                previousMousePosition = pos;
+                
+                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
+                
+                dolly.position.addScaledVector(_moveDir, -deltaY * MOUSE_SENSITIVITY);
+                dolly.position.addScaledVector(_strafeDir, deltaX * MOUSE_SENSITIVITY);
+            }
         };
 
         window.addEventListener('mousedown', (e) => { if(e.button === 0) onDown(e); });
         window.addEventListener('mouseup', onUp);
         window.addEventListener('mousemove', onMove);
 
-        // Passive: false allows us to use preventDefault() to stop scrolling
         window.addEventListener('touchstart', onDown, { passive: false });
         window.addEventListener('touchend', onUp);
         window.addEventListener('touchmove', onMove, { passive: false });
@@ -485,9 +483,7 @@
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
         
-        // --- INIT CONTROLS ---
         initMouseControl();
-        // ---------------------
 
         const btn = VRButton.createButton(renderer);
         btn.className = "primary"; btn.innerHTML = "ENTER VR";
@@ -646,7 +642,7 @@
         const dist = model.position.distanceTo(flatPlayerPos);
         const time = Date.now() * 0.001;
 
-        if (model.userData.enableHeadTracking !== false && !grabbedObject) { // Don't track if grabbed
+        if (model.userData.enableHeadTracking !== false && !grabbedObject) { 
             model.lookAt(flatPlayerPos);
         }
 
@@ -837,21 +833,25 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
-    // --- UPDATED: VR-READY INPUT HANDLER ---
+    // --- MAIN INPUT HANDLER ---
     function handleInput() {
-        // 1. SCAN ALL GAMEPADS (Fixes VR Controller Issues)
+        // 1. MOBILE VR "WALK" (Cardboard Style)
+        // If holding touch in VR mode, walk forward in gaze direction
+        if (renderer.xr.isPresenting && isMouseDown) {
+            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+            dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
+        }
+
+        // 2. VR CONTROLLERS
         const pads = navigator.getGamepads();
         let pad = null;
-        
-        // Find the first gamepad that is connected and has axes/buttons
         for (let i = 0; i < pads.length; i++) {
             if (pads[i] && pads[i].buttons.length > 0) {
                 pad = pads[i];
-                break; // Use the first active one found
+                break; 
             }
         }
         
-        // If no controller found, just return (Mouse logic handles itself separately)
         if (!pad) return;
 
         raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
@@ -863,7 +863,6 @@
             const targetPos = worldPos.add(dir.multiplyScalar(2.5));
             menuGroup.position.copy(targetPos); menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
             
-            // Check axis existence before reading
             if (pad.axes.length > 3 && Math.abs(pad.axes[3]) > 0.5) {
                 const now = Date.now();
                 if (now - lastMenuScrollTime > 150) { 
@@ -896,7 +895,6 @@
             if (pad.buttons[0] && pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
             
         } else {
-            // --- GRAB LOGIC ---
             if (pad.buttons[0] && pad.buttons[0].pressed && !lastBtn.x) {
                 if (grabbedObject) {
                     grabbedObject = null;
@@ -930,13 +928,11 @@
             }
         }
 
-        // --- SAFELY READ AXES (VR Controllers sometimes have fewer axes) ---
         const leftStickX = pad.axes.length > 0 ? pad.axes[0] : 0;
         const leftStickY = pad.axes.length > 1 ? pad.axes[1] : 0;
         const rightStickX = pad.axes.length > 2 ? pad.axes[2] : 0;
         const rightStickY = pad.axes.length > 3 ? pad.axes[3] : 0;
 
-        // --- MOVEMENT LOGIC ---
         if (grabbedObject) {
             if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
@@ -999,7 +995,6 @@
             }
         }
 
-        // --- BUTTON CHECKS (Safe Access) ---
         if (pad.buttons[13] && pad.buttons[13].pressed && !lastBtn.dpadDown) {
             if(recognition) { if(isListening) recognition.stop(); else recognition.start(); }
         }
@@ -1051,7 +1046,6 @@
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy); ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10); ctx.stroke();
         } else if (activeObject.obj) {
             
-            // --- GRAB FEEDBACK ---
             if (grabbedObject) {
                 ctx.strokeStyle = '#ff0055'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, 50, 0, 2*Math.PI); ctx.stroke();
                 ctx.fillStyle = '#ff0055'; ctx.textAlign = 'center'; ctx.font = '24px Courier New';
