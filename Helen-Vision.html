@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: OMNI-CONTROL (VR HYBRID)</title>
+    <title>HELEN: OMNI-CONTROL (RIGHT CLICK MENU)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -89,10 +89,10 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [MOUSE/TOUCH] DRAG (2D) or HOLD (VR)<br>
+            [LEFT CLICK] DRAG CAMERA<br>
+            [RIGHT CLICK] OPEN MENU<br>
             [X] GRAB / [□] MENU<br>
-            [L-STICK] MOVE / [R-STICK] ROTATE<br>
-            [D-PAD] TALK / STAY / INSPECT / SCAN
+            [L-STICK] MOVE / [R-STICK] ROTATE
         </div>
     </div>
 </div>
@@ -137,7 +137,7 @@
     let isMouseDown = false;
     let previousMousePosition = { x: 0, y: 0 };
     const MOUSE_SENSITIVITY = 0.02;
-    const VR_WALK_SPEED = 0.05; // Speed for "Hold to Walk"
+    const VR_WALK_SPEED = 0.05;
 
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
@@ -412,18 +412,35 @@
         }
     `;
     
-    // --- UPDATED INPUT HANDLING (NORMAL VS VR) ---
+    // --- UPDATED INPUT HANDLING (NORMAL VS VR + RIGHT CLICK MENU) ---
     function initMouseControl() {
         function getPos(e) {
             if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
             return { x: e.clientX, y: e.clientY };
         }
 
+        // 1. Prevent Default Right-Click Menu
+        window.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
         const onDown = (e) => {
+            // Check Mouse Button
+            if (e.button === 2) {
+                // RIGHT CLICK: Toggle Menu
+                isMenuOpen = !isMenuOpen;
+                menuGroup.visible = isMenuOpen;
+                return;
+            }
+
             if (isMenuOpen) return;
-            isMouseDown = true;
-            const pos = getPos(e);
-            previousMousePosition = pos;
+
+            // LEFT CLICK (0) or TOUCH: Start Drag
+            if (e.button === 0 || e.type === 'touchstart') {
+                isMouseDown = true;
+                const pos = getPos(e);
+                previousMousePosition = pos;
+            }
         };
 
         const onUp = () => { isMouseDown = false; };
@@ -447,7 +464,7 @@
             }
         };
 
-        window.addEventListener('mousedown', (e) => { if(e.button === 0) onDown(e); });
+        window.addEventListener('mousedown', onDown);
         window.addEventListener('mouseup', onUp);
         window.addEventListener('mousemove', onMove);
 
