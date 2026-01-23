@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: MANIPULATOR</title>
+    <title>HELEN: MANIPULATOR (MOUSE ENABLED)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
         
@@ -89,6 +89,7 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
+            [MOUSE] DRAG TO MOVE<br>
             [X] GRAB / [□] MENU<br>
             [L-STICK] MOVE / [R-STICK] ROTATE<br>
             [D-PAD] TALK / STAY / INSPECT / SCAN
@@ -127,12 +128,17 @@
     const DEFAULT_DATABASE = [ { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' } ];
     let targets = []; 
     
-    // --- NEW: GRAB LOGIC VARIABLES ---
+    // GRAB LOGIC VARIABLES
     let activeObject = { obj: null, progress: 0 }; 
     let grabbedObject = null; // LOCKED OBJECT
     
     let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
+
+    // MOUSE CONTROL VARIABLES (NEW)
+    let isMouseDown = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    const MOUSE_SENSITIVITY = 0.02;
 
     // MENU & SCROLLING
     let menuGroup, menuMesh, menuCtx, menuTexture;
@@ -408,6 +414,31 @@
             } else gl_FragColor = color; 
         }
     `;
+    
+    // --- NEW: MOUSE CONTROL INIT ---
+    function initMouseControl() {
+        window.addEventListener('mousedown', (e) => {
+            if (e.button === 0 && !isMenuOpen) {
+                isMouseDown = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isMouseDown || !dolly || isMenuOpen) return;
+            const deltaX = e.clientX - previousMousePosition.x;
+            const deltaY = e.clientY - previousMousePosition.y;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+            
+            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+            _strafeDir.crossVectors(camera.up, _moveDir).normalize();
+            
+            dolly.position.addScaledVector(_moveDir, -deltaY * MOUSE_SENSITIVITY);
+            dolly.position.addScaledVector(_strafeDir, deltaX * MOUSE_SENSITIVITY);
+        });
+    }
 
     function init3D() {
         scene = new THREE.Scene();
@@ -436,6 +467,10 @@
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
         
+        // --- INIT MOUSE ---
+        initMouseControl();
+        // ------------------
+
         const btn = VRButton.createButton(renderer);
         btn.className = "primary"; btn.innerHTML = "ENTER VR";
         document.getElementById('vr-btn-container').appendChild(btn);
