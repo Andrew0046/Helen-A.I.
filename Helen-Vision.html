@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: MANIPULATOR (MOUSE ENABLED)</title>
+    <title>HELEN: OMNI-CONTROL</title>
     <style>
-        body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; }
+        body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; /* Helps prevent mobile scrolling */ }
         
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -89,7 +89,7 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [MOUSE] DRAG TO MOVE<br>
+            [DRAG] MOVE (MOUSE/TOUCH)<br>
             [X] GRAB / [□] MENU<br>
             [L-STICK] MOVE / [R-STICK] ROTATE<br>
             [D-PAD] TALK / STAY / INSPECT / SCAN
@@ -130,12 +130,12 @@
     
     // GRAB LOGIC VARIABLES
     let activeObject = { obj: null, progress: 0 }; 
-    let grabbedObject = null; // LOCKED OBJECT
+    let grabbedObject = null; 
     
     let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
 
-    // MOUSE CONTROL VARIABLES (NEW)
+    // --- UNIVERSAL CONTROL VARIABLES (MOUSE + TOUCH) ---
     let isMouseDown = false;
     let previousMousePosition = { x: 0, y: 0 };
     const MOUSE_SENSITIVITY = 0.02;
@@ -415,29 +415,47 @@
         }
     `;
     
-    // --- NEW: MOUSE CONTROL INIT ---
+    // --- UNIVERSAL CONTROL (MOUSE & TOUCH) ---
     function initMouseControl() {
-        window.addEventListener('mousedown', (e) => {
-            if (e.button === 0 && !isMenuOpen) {
-                isMouseDown = true;
-                previousMousePosition = { x: e.clientX, y: e.clientY };
-            }
-        });
+        function getPos(e) {
+            if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            return { x: e.clientX, y: e.clientY };
+        }
 
-        window.addEventListener('mouseup', () => { isMouseDown = false; });
+        const onDown = (e) => {
+            if (isMenuOpen) return;
+            isMouseDown = true;
+            const pos = getPos(e);
+            previousMousePosition = pos;
+        };
 
-        window.addEventListener('mousemove', (e) => {
+        const onUp = () => { isMouseDown = false; };
+
+        const onMove = (e) => {
             if (!isMouseDown || !dolly || isMenuOpen) return;
-            const deltaX = e.clientX - previousMousePosition.x;
-            const deltaY = e.clientY - previousMousePosition.y;
-            previousMousePosition = { x: e.clientX, y: e.clientY };
+            // Block scrolling on mobile
+            if(e.preventDefault) e.preventDefault();
+
+            const pos = getPos(e);
+            const deltaX = pos.x - previousMousePosition.x;
+            const deltaY = pos.y - previousMousePosition.y;
+            previousMousePosition = pos;
             
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
             _strafeDir.crossVectors(camera.up, _moveDir).normalize();
             
             dolly.position.addScaledVector(_moveDir, -deltaY * MOUSE_SENSITIVITY);
             dolly.position.addScaledVector(_strafeDir, deltaX * MOUSE_SENSITIVITY);
-        });
+        };
+
+        window.addEventListener('mousedown', (e) => { if(e.button === 0) onDown(e); });
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('mousemove', onMove);
+
+        // Passive: false allows us to use preventDefault() to stop scrolling
+        window.addEventListener('touchstart', onDown, { passive: false });
+        window.addEventListener('touchend', onUp);
+        window.addEventListener('touchmove', onMove, { passive: false });
     }
 
     function init3D() {
@@ -467,9 +485,9 @@
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
         
-        // --- INIT MOUSE ---
+        // --- INIT CONTROLS ---
         initMouseControl();
-        // ------------------
+        // ---------------------
 
         const btn = VRButton.createButton(renderer);
         btn.className = "primary"; btn.innerHTML = "ENTER VR";
