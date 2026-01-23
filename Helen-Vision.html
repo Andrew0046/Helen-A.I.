@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: OMNI-CONTROL</title>
+    <title>HELEN: OMNI-CONTROL (VR FIXED)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; /* Helps prevent mobile scrolling */ }
         
@@ -837,10 +837,23 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
+    // --- UPDATED: VR-READY INPUT HANDLER ---
     function handleInput() {
-        const pads = navigator.getGamepads(); if(!pads[0]) return;
-        const pad = pads[0];
+        // 1. SCAN ALL GAMEPADS (Fixes VR Controller Issues)
+        const pads = navigator.getGamepads();
+        let pad = null;
         
+        // Find the first gamepad that is connected and has axes/buttons
+        for (let i = 0; i < pads.length; i++) {
+            if (pads[i] && pads[i].buttons.length > 0) {
+                pad = pads[i];
+                break; // Use the first active one found
+            }
+        }
+        
+        // If no controller found, just return (Mouse logic handles itself separately)
+        if (!pad) return;
+
         raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
         let activeTarget = null;
         
@@ -850,7 +863,8 @@
             const targetPos = worldPos.add(dir.multiplyScalar(2.5));
             menuGroup.position.copy(targetPos); menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
             
-            if (Math.abs(pad.axes[3]) > 0.5) {
+            // Check axis existence before reading
+            if (pad.axes.length > 3 && Math.abs(pad.axes[3]) > 0.5) {
                 const now = Date.now();
                 if (now - lastMenuScrollTime > 150) { 
                     const fullListSize = 6 + (CUSTOM_DATABASE.length || 1); 
@@ -868,11 +882,9 @@
                 const uvY = intersects[0].uv.y;
                 if (uvY < 0.82) {
                     const visualIdx = Math.floor((0.82 - uvY) / 0.068);
-                    
                     if (visualIdx >= 0 && visualIdx < MAX_MENU_VISIBLE) {
                         const realIdx = visualIdx + menuScrollIndex;
                         const fullListSize = 6 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
-                        
                         if (realIdx < fullListSize && hoveredFileIndex !== realIdx) { 
                             hoveredFileIndex = realIdx; 
                             updateMenuDisplay(); 
@@ -880,17 +892,15 @@
                     }
                 }
             } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
-            if (pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
+            
+            if (pad.buttons[0] && pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
             
         } else {
             // --- GRAB LOGIC ---
-            // Trigger Toggle: Button 0 (X/A)
-            if (pad.buttons[0].pressed && !lastBtn.x) {
+            if (pad.buttons[0] && pad.buttons[0].pressed && !lastBtn.x) {
                 if (grabbedObject) {
-                    // Release
                     grabbedObject = null;
                 } else {
-                    // Try to Grab
                     const intersects = raycaster.intersectObjects(targets, true);
                     if (intersects.length > 0) {
                         let hit = intersects[0].object;
@@ -902,7 +912,6 @@
                 }
             }
             
-            // Set Active Target: Either Grabbed Obj or Raycast Result
             if (grabbedObject) {
                 activeObject.obj = grabbedObject;
                 activeTarget = grabbedObject;
@@ -914,37 +923,35 @@
                     if (hit.userData.isScreen || hit.userData.isModel) { activeObject.obj = hit; activeTarget = hit; } 
                     else { activeObject.obj = null; }
 
-                    if (activeTarget && pad.buttons[1].pressed && !lastBtn.circle) { 
+                    if (activeTarget && pad.buttons[1] && pad.buttons[1].pressed && !lastBtn.circle) { 
                         deleteObject(activeTarget); activeObject.obj = null; activeTarget = null; 
                     }
                 } else { activeObject.obj = null; }
             }
         }
 
-        const leftStickX = pad.axes[0]; const leftStickY = pad.axes[1]; 
-        const rightStickX = pad.axes[2]; const rightStickY = pad.axes[3]; 
+        // --- SAFELY READ AXES (VR Controllers sometimes have fewer axes) ---
+        const leftStickX = pad.axes.length > 0 ? pad.axes[0] : 0;
+        const leftStickY = pad.axes.length > 1 ? pad.axes[1] : 0;
+        const rightStickX = pad.axes.length > 2 ? pad.axes[2] : 0;
+        const rightStickY = pad.axes.length > 3 ? pad.axes[3] : 0;
 
         // --- MOVEMENT LOGIC ---
         if (grabbedObject) {
-            // GRAB MODE: Left Stick moves Object (X/Y)
             if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                 _camRight.crossVectors(camera.up, _moveDir).normalize();
                 _camUp.copy(camera.up);
-                
-                // Invert Y for screen feel
                 grabbedObject.position.addScaledVector(_camRight, leftStickX * SPEED);
                 grabbedObject.position.addScaledVector(_camUp, -leftStickY * SPEED);
             }
-            // Z-Depth with Triggers
-            const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
-            const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
+            const l2 = (pad.buttons[6] && pad.buttons[6].value) ? pad.buttons[6].value : 0;
+            const r2 = (pad.buttons[7] && pad.buttons[7].value) ? pad.buttons[7].value : 0;
             if (Math.abs(r2) > 0.1 || Math.abs(l2) > 0.1) {
                 const dir = new THREE.Vector3().subVectors(grabbedObject.position, camera.position).normalize();
                 const zSpeed = (r2 - l2) * MOVE_SPEED;
                 grabbedObject.position.addScaledVector(dir, zSpeed);
             }
-            // Rotate/Scale with Right Stick
             if (Math.abs(rightStickX) > 0.1) grabbedObject.rotation.y += rightStickX * ROTATE_SPEED;
             if (Math.abs(rightStickY) > 0.1) {
                 if (grabbedObject.userData.isModel) {
@@ -955,7 +962,6 @@
                 }
             }
         } else if (activeTarget) {
-            // HOVER MODE: Right Stick Rotates/Scales
             if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
             if (Math.abs(rightStickY) > 0.1) {
                 if (activeTarget.userData.isModel) {
@@ -965,21 +971,17 @@
                      activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
                 }
             }
-            // PDF Page Turning with Left Stick (Only if not grabbing)
-            if (activeTarget.userData.type === 'pdf') {
-                if (Math.abs(leftStickX) > 0.5) {
-                    const now = Date.now();
-                    if (now - lastPageTurnTime > PAGE_DEBOUNCE) {
-                        const dir = Math.sign(leftStickX); 
-                        const newPage = activeTarget.userData.pageNum + dir;
-                        if (newPage >= 1 && newPage <= activeTarget.userData.totalPages) {
-                            renderPdfPageToTexture(activeTarget, newPage);
-                            lastPageTurnTime = now;
-                        }
+            if (activeTarget.userData.type === 'pdf' && Math.abs(leftStickX) > 0.5) {
+                const now = Date.now();
+                if (now - lastPageTurnTime > PAGE_DEBOUNCE) {
+                    const dir = Math.sign(leftStickX); 
+                    const newPage = activeTarget.userData.pageNum + dir;
+                    if (newPage >= 1 && newPage <= activeTarget.userData.totalPages) {
+                        renderPdfPageToTexture(activeTarget, newPage);
+                        lastPageTurnTime = now;
                     }
                 }
             } 
-            // Fallthrough: If NOT holding stick for PDF, move Camera
             if (activeTarget.userData.type !== 'pdf' || Math.abs(leftStickX) < 0.5) {
                  if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
                     camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
@@ -989,7 +991,6 @@
                 }
             }
         } else {
-            // NO TARGET: Left Stick Moves Camera
             if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                 _strafeDir.crossVectors(camera.up, _moveDir).normalize();
@@ -998,59 +999,38 @@
             }
         }
 
-        // --- NEW: VOICE TRIGGER (D-PAD DOWN = Index 13) ---
-        if (pad.buttons[13].pressed && !lastBtn.dpadDown) {
-            if(recognition) {
-                if(isListening) recognition.stop();
-                else recognition.start();
-            }
+        // --- BUTTON CHECKS (Safe Access) ---
+        if (pad.buttons[13] && pad.buttons[13].pressed && !lastBtn.dpadDown) {
+            if(recognition) { if(isListening) recognition.stop(); else recognition.start(); }
         }
-        lastBtn.dpadDown = pad.buttons[13].pressed;
+        lastBtn.dpadDown = pad.buttons[13] ? pad.buttons[13].pressed : false;
 
-        if (pad.buttons[14].pressed && !lastBtn.dpadLeft) {
-            performVisualScan();
+        if (pad.buttons[14] && pad.buttons[14].pressed && !lastBtn.dpadLeft) performVisualScan();
+        lastBtn.dpadLeft = pad.buttons[14] ? pad.buttons[14].pressed : false;
+
+        if (pad.buttons[12] && pad.buttons[12].pressed && !lastBtn.dpadUp) {
+            if (activeObject.obj && activeObject.obj.userData.isModel) activeObject.obj.userData.isPaused = !activeObject.obj.userData.isPaused;
         }
-        lastBtn.dpadLeft = pad.buttons[14].pressed;
+        lastBtn.dpadUp = pad.buttons[12] ? pad.buttons[12].pressed : false;
 
-        if (pad.buttons[12].pressed && !lastBtn.dpadUp) {
+        if (pad.buttons[15] && pad.buttons[15].pressed && !lastBtn.dpadRight) {
             if (activeObject.obj && activeObject.obj.userData.isModel) {
-                activeObject.obj.userData.isPaused = !activeObject.obj.userData.isPaused;
+                activeObject.obj.userData.enableHeadTracking = !activeObject.obj.userData.enableHeadTracking;
             }
         }
-        lastBtn.dpadUp = pad.buttons[12].pressed;
+        lastBtn.dpadRight = pad.buttons[15] ? pad.buttons[15].pressed : false;
 
-        if (pad.buttons[15].pressed && !lastBtn.dpadRight) {
-            if (activeObject.obj && activeObject.obj.userData.isModel) {
-                if (activeObject.obj.userData.enableHeadTracking === undefined) {
-                    activeObject.obj.userData.enableHeadTracking = false; 
-                } else {
-                    activeObject.obj.userData.enableHeadTracking = !activeObject.obj.userData.enableHeadTracking;
-                }
-            }
-        }
-        lastBtn.dpadRight = pad.buttons[15].pressed;
-
-        if (pad.buttons[2].pressed && !lastBtn.square) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; }
-        lastBtn.square = pad.buttons[2].pressed;
+        if (pad.buttons[2] && pad.buttons[2].pressed && !lastBtn.square) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; }
+        lastBtn.square = pad.buttons[2] ? pad.buttons[2].pressed : false;
         
-        // Button 0 (X) is handled in logic above
-        lastBtn.x = pad.buttons[0].pressed; 
+        lastBtn.x = pad.buttons[0] ? pad.buttons[0].pressed : false; 
 
-        if (pad.buttons[3].pressed && !lastBtn.triangle) {
+        if (pad.buttons[3] && pad.buttons[3].pressed && !lastBtn.triangle) {
             visionMode = (visionMode + 1) % 3;
             if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
-            if (visionMode === 1 && torchCamId) startCameraStream(torchCamId).then(()=>videoTrack?.applyConstraints({advanced:[{torch:true}]}));
-            else { videoTrack?.applyConstraints({advanced:[{torch:false}]}); if(visionMode === 0 && wideCamId) setTimeout(()=>startCameraStream(wideCamId),300); }
         }
-        
-        if ((pad.buttons[4].pressed || pad.buttons[5].pressed) && !lastBtn.bumper && allBackCameras.length > 1) {
-            const idx = (allBackCameras.indexOf(activeCamId) + 1) % allBackCameras.length;
-            startCameraStream(allBackCameras[idx]);
-        }
-        
-        lastBtn.triangle = pad.buttons[3].pressed;
-        lastBtn.circle = pad.buttons[1].pressed;
-        lastBtn.bumper = pad.buttons[4].pressed || pad.buttons[5].pressed;
+        lastBtn.triangle = pad.buttons[3] ? pad.buttons[3].pressed : false;
+        lastBtn.circle = pad.buttons[1] ? pad.buttons[1].pressed : false;
     }
 
     function updateHUD() {
