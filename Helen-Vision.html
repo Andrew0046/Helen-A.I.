@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: OMNI-CONTROL (VR HYBRID)</title>
+    <title>HELEN: OMNI-CONTROL (VR DRAG)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -89,7 +89,7 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [MOUSE/TOUCH] DRAG (2D) or HOLD (VR)<br>
+            [DRAG] MOVE (ALWAYS ACTIVE)<br>
             [X] GRAB / [□] MENU<br>
             [L-STICK] MOVE / [R-STICK] ROTATE<br>
             [D-PAD] TALK / STAY / INSPECT / SCAN
@@ -137,7 +137,6 @@
     let isMouseDown = false;
     let previousMousePosition = { x: 0, y: 0 };
     const MOUSE_SENSITIVITY = 0.02;
-    const VR_WALK_SPEED = 0.05; // Speed for "Hold to Walk"
 
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
@@ -412,7 +411,7 @@
         }
     `;
     
-    // --- UPDATED INPUT HANDLING (NORMAL VS VR) ---
+    // --- UPDATED INPUT HANDLING (ALWAYS DRAG) ---
     function initMouseControl() {
         function getPos(e) {
             if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -432,19 +431,17 @@
             if (!isMouseDown || !dolly || isMenuOpen) return;
             if(e.preventDefault) e.preventDefault();
 
-            // ONLY DRAG IF NOT IN VR
-            if (!renderer.xr.isPresenting) {
-                const pos = getPos(e);
-                const deltaX = pos.x - previousMousePosition.x;
-                const deltaY = pos.y - previousMousePosition.y;
-                previousMousePosition = pos;
-                
-                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
-                
-                dolly.position.addScaledVector(_moveDir, -deltaY * MOUSE_SENSITIVITY);
-                dolly.position.addScaledVector(_strafeDir, deltaX * MOUSE_SENSITIVITY);
-            }
+            // ALWAYS EXECUTE DRAG LOGIC (EVEN IN VR)
+            const pos = getPos(e);
+            const deltaX = pos.x - previousMousePosition.x;
+            const deltaY = pos.y - previousMousePosition.y;
+            previousMousePosition = pos;
+            
+            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+            _strafeDir.crossVectors(camera.up, _moveDir).normalize();
+            
+            dolly.position.addScaledVector(_moveDir, -deltaY * MOUSE_SENSITIVITY);
+            dolly.position.addScaledVector(_strafeDir, deltaX * MOUSE_SENSITIVITY);
         };
 
         window.addEventListener('mousedown', (e) => { if(e.button === 0) onDown(e); });
@@ -835,14 +832,7 @@
 
     // --- MAIN INPUT HANDLER ---
     function handleInput() {
-        // 1. MOBILE VR "WALK" (Cardboard Style)
-        // If holding touch in VR mode, walk forward in gaze direction
-        if (renderer.xr.isPresenting && isMouseDown) {
-            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-            dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
-        }
-
-        // 2. VR CONTROLLERS
+        // VR CONTROLLERS
         const pads = navigator.getGamepads();
         let pad = null;
         for (let i = 0; i < pads.length; i++) {
