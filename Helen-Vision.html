@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: OMNI-CONTROL (RIGHT CLICK MENU)</title>
+    <title>HELEN: OMNI-CONTROL (FINAL)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -89,8 +89,8 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [LEFT CLICK] DRAG CAMERA<br>
-            [RIGHT CLICK] OPEN MENU<br>
+            [L-CLICK] DRAG / [R-CLICK] MENU<br>
+            [TOUCH] DRAG / [VR-HOLD] WALK<br>
             [X] GRAB / [□] MENU<br>
             [L-STICK] MOVE / [R-STICK] ROTATE
         </div>
@@ -721,6 +721,14 @@
 
             const model = data.type === 'fbx' ? loaded : loaded.scene;
             
+            // --- OPTIMIZATION: DISABLE RAYCAST ON COMPLEX MESHES ---
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.raycast = function() {}; // Returns nothing, saving CPU
+                }
+            });
+            // -------------------------------------------------------
+
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z) || 1; 
@@ -732,10 +740,15 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
+            // Create the HITBOX (This is what we will actually interact with)
             const helperGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
             const helperMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent:true, opacity:0.5 });
             const helperMesh = new THREE.Mesh(helperGeo, helperMat);
             helperMesh.position.y = size.y / 2; 
+            
+            // Force the box to be raycastable
+            helperMesh.raycast = THREE.Mesh.prototype.raycast;
+            
             model.add(helperMesh); 
             
             const skel = mapBones(model);
