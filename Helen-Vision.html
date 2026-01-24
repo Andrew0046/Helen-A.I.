@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: SENSOR LINK</title>
+    <title>HELEN: OMNI-CONTROL (FINAL)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -43,9 +43,6 @@
             background: #fff; opacity: 0; pointer-events: none; z-index: 200;
             transition: opacity 0.1s;
         }
-        
-        /* New Gyro Status */
-        #gyro-status { position:absolute; top:10px; right:10px; color:#00ff00; font-size:12px; display:none; }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -67,7 +64,6 @@
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
 <canvas id="vision-canvas" style="display:none;"></canvas>
 <div id="flash"></div>
-<div id="gyro-status">[ SENSORS ACTIVE ]</div>
 
 <input type="file" id="intel-input" multiple accept="*/*" style="display:none">
 
@@ -88,14 +84,13 @@
     </div>
 
     <div class="btn-group" id="main-controls" style="display:none;">
-        <button onclick="requestSensorAccess()" style="border-color:#00ff00; color:#00ff00;">📡 LINK SENSORS (PHONE)</button>
         <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [TILT PHONE] LOOK AROUND<br>
-            [TOUCH] MOVE / [VR-HOLD] WALK<br>
+            [L-CLICK] DRAG / [R-CLICK] MENU<br>
+            [TOUCH] DRAG / [VR-HOLD] WALK<br>
             [X] GRAB / [□] MENU<br>
             [L-STICK] MOVE / [R-STICK] ROTATE
         </div>
@@ -107,17 +102,12 @@
     import { VRButton } from 'three/addons/webxr/VRButton.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
-    import { DeviceOrientationControls } from 'three/addons/controls/DeviceOrientationControls.js';
     import { GoogleGenerativeAI } from "@google/generative-ai";
 
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
-    
-    // --- SENSOR CONTROLS ---
-    let gyroControls = null;
-    let isGyroActive = false;
     
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
     let genAI, model;
@@ -143,6 +133,7 @@
     let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
     let pendingRestore = false; 
 
+    // --- INPUT VARIABLES ---
     let isMouseDown = false;
     let previousMousePosition = { x: 0, y: 0 };
     const MOUSE_SENSITIVITY = 0.02;
@@ -190,40 +181,6 @@
         localStorage.removeItem('helen_layout_ai');
         localStorage.removeItem('helen_chat_history'); 
         location.reload();
-    }
-    
-    // --- NEW: SENSOR PERMISSION HANDLER ---
-    window.requestSensorAccess = async function() {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            try {
-                const response = await DeviceOrientationEvent.requestPermission();
-                if (response === 'granted') {
-                    activateGyro();
-                } else {
-                    alert("PERMISSION DENIED. SENSORS LOCKED.");
-                }
-            } catch (e) {
-                console.error(e);
-                alert("SENSOR ERROR");
-            }
-        } else {
-            // Non-iOS or older devices don't need permission
-            activateGyro();
-        }
-    };
-
-    function activateGyro() {
-        if (!camera) return;
-        gyroControls = new DeviceOrientationControls(camera);
-        isGyroActive = true;
-        document.getElementById('gyro-status').style.display = 'block';
-        
-        // Hide overlay if sensors are active to let user see
-        if (document.getElementById('main-controls').style.display !== 'none') {
-             // Optional: close overlay immediately? 
-             // document.getElementById('overlay').style.display = 'none';
-             sysMessage = "SENSORS LINKED"; updateMenuDisplay();
-        }
     }
 
     function checkAuth() {
@@ -455,18 +412,22 @@
         }
     `;
     
+    // --- UPDATED INPUT HANDLING (NORMAL VS VR + RIGHT CLICK MENU) ---
     function initMouseControl() {
         function getPos(e) {
             if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
             return { x: e.clientX, y: e.clientY };
         }
 
+        // 1. Prevent Default Right-Click Menu
         window.addEventListener('contextmenu', (e) => {
             e.preventDefault();
         });
 
         const onDown = (e) => {
+            // Check Mouse Button
             if (e.button === 2) {
+                // RIGHT CLICK: Toggle Menu
                 isMenuOpen = !isMenuOpen;
                 menuGroup.visible = isMenuOpen;
                 return;
@@ -474,6 +435,7 @@
 
             if (isMenuOpen) return;
 
+            // LEFT CLICK (0) or TOUCH: Start Drag
             if (e.button === 0 || e.type === 'touchstart') {
                 isMouseDown = true;
                 const pos = getPos(e);
@@ -487,11 +449,8 @@
             if (!isMouseDown || !dolly || isMenuOpen) return;
             if(e.preventDefault) e.preventDefault();
 
-            // NORMAL MODE (Touch Drag)
+            // ONLY DRAG IF NOT IN VR
             if (!renderer.xr.isPresenting) {
-                // If Gyro is active, touch only moves POSITION, not ROTATION
-                // Or we can mix them. For now, let's allow dragging to strafe if Gyro is on.
-                
                 const pos = getPos(e);
                 const deltaX = pos.x - previousMousePosition.x;
                 const deltaY = pos.y - previousMousePosition.y;
@@ -500,10 +459,6 @@
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                 _strafeDir.crossVectors(camera.up, _moveDir).normalize();
                 
-                // If Gyro is active, maybe we don't want drag to rotate?
-                // Actually, let's keep the drag behavior:
-                // Drag Y = Forward/Back
-                // Drag X = Strafe Left/Right (Standard mobile game controls)
                 dolly.position.addScaledVector(_moveDir, -deltaY * MOUSE_SENSITIVITY);
                 dolly.position.addScaledVector(_strafeDir, deltaX * MOUSE_SENSITIVITY);
             }
@@ -766,8 +721,13 @@
 
             const model = data.type === 'fbx' ? loaded : loaded.scene;
             
-            // OPTIMIZATION: Disable internal raycasting
-            model.traverse((child) => { if (child.isMesh) child.raycast = function() {}; });
+            // --- OPTIMIZATION: DISABLE RAYCAST ON COMPLEX MESHES ---
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.raycast = function() {}; // Returns nothing, saving CPU
+                }
+            });
+            // -------------------------------------------------------
 
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
@@ -780,11 +740,15 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
+            // Create the HITBOX (This is what we will actually interact with)
             const helperGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
             const helperMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent:true, opacity:0.5 });
             const helperMesh = new THREE.Mesh(helperGeo, helperMat);
             helperMesh.position.y = size.y / 2; 
+            
+            // Force the box to be raycastable
             helperMesh.raycast = THREE.Mesh.prototype.raycast;
+            
             model.add(helperMesh); 
             
             const skel = mapBones(model);
@@ -901,12 +865,8 @@
 
     // --- MAIN INPUT HANDLER ---
     function handleInput() {
-        // NEW: GYRO UPDATES
-        if (isGyroActive && gyroControls) {
-            gyroControls.update();
-        }
-
-        // 1. MOBILE VR "WALK"
+        // 1. MOBILE VR "WALK" (Cardboard Style)
+        // If holding touch in VR mode, walk forward in gaze direction
         if (renderer.xr.isPresenting && isMouseDown) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
             dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
@@ -1174,3 +1134,4 @@
 </script>
 </body>
 </html>
+
