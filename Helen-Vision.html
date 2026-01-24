@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: SENSOR LINK</title>
+    <title>HELEN: OMNI-CONTROL (FINAL)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -85,14 +85,14 @@
 
     <div class="btn-group" id="main-controls" style="display:none;">
         <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
-        <button onclick="requestSensorAccess()" id="sensor-btn" style="border-color:#ffff00; color:#ffff00;">[ LINK SENSORS ]</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [PHONE] TILT TO LOOK / HOLD TO WALK<br>
-            [MOUSE] DRAG / [R-CLICK] MENU<br>
-            [X] GRAB / [□] MENU
+            [L-CLICK] DRAG / [R-CLICK] MENU<br>
+            [TOUCH] DRAG / [VR-HOLD] WALK<br>
+            [X] GRAB / [□] MENU<br>
+            [L-STICK] MOVE / [R-STICK] ROTATE
         </div>
     </div>
 </div>
@@ -100,7 +100,6 @@
 <script type="module">
     import * as THREE from 'three';
     import { VRButton } from 'three/addons/webxr/VRButton.js';
-    import { DeviceOrientationControls } from 'three/addons/controls/DeviceOrientationControls.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
     import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -109,10 +108,6 @@
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
-    
-    // SENSOR VARIABLES
-    let deviceControls = null;
-    let isSensorActive = false;
     
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
     let genAI, model;
@@ -169,38 +164,6 @@
     const AI_STOP_DIST = 1.5;
     const AI_BACKUP_DIST = 0.8;
     const AI_WALK_SPEED = 0.03;
-
-    // --- SENSOR PERMISSION HANDLER ---
-    window.requestSensorAccess = async function() {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            // iOS 13+ requires explicit permission
-            try {
-                const response = await DeviceOrientationEvent.requestPermission();
-                if (response === 'granted') {
-                    activateSensorControls();
-                } else {
-                    alert("PERMISSION DENIED. CHECK SETTINGS.");
-                }
-            } catch (error) {
-                console.error(error);
-                alert("ERROR LINKING SENSORS");
-            }
-        } else {
-            // Non-iOS devices (Android) usually just work
-            activateSensorControls();
-        }
-    };
-
-    function activateSensorControls() {
-        deviceControls = new DeviceOrientationControls(camera);
-        deviceControls.connect();
-        isSensorActive = true;
-        document.getElementById('sensor-btn').innerHTML = "[ SENSORS ONLINE ]";
-        document.getElementById('sensor-btn').style.color = "#00ff00";
-        document.getElementById('sensor-btn').style.borderColor = "#00ff00";
-        sysMessage = "GYRO LINK ESTABLISHED";
-        if(isMenuOpen) updateMenuDisplay();
-    }
 
     window.saveKey = function() {
         const key = document.getElementById('gemini-key').value.trim(); 
@@ -449,19 +412,22 @@
         }
     `;
     
-    // --- INPUT HANDLING ---
+    // --- UPDATED INPUT HANDLING (NORMAL VS VR + RIGHT CLICK MENU) ---
     function initMouseControl() {
         function getPos(e) {
             if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
             return { x: e.clientX, y: e.clientY };
         }
 
+        // 1. Prevent Default Right-Click Menu
         window.addEventListener('contextmenu', (e) => {
             e.preventDefault();
         });
 
         const onDown = (e) => {
+            // Check Mouse Button
             if (e.button === 2) {
+                // RIGHT CLICK: Toggle Menu
                 isMenuOpen = !isMenuOpen;
                 menuGroup.visible = isMenuOpen;
                 return;
@@ -469,6 +435,7 @@
 
             if (isMenuOpen) return;
 
+            // LEFT CLICK (0) or TOUCH: Start Drag
             if (e.button === 0 || e.type === 'touchstart') {
                 isMouseDown = true;
                 const pos = getPos(e);
@@ -482,8 +449,8 @@
             if (!isMouseDown || !dolly || isMenuOpen) return;
             if(e.preventDefault) e.preventDefault();
 
-            // ONLY DRAG IF SENSORS ARE OFF AND NOT IN VR
-            if (!renderer.xr.isPresenting && !isSensorActive) {
+            // ONLY DRAG IF NOT IN VR
+            if (!renderer.xr.isPresenting) {
                 const pos = getPos(e);
                 const deltaX = pos.x - previousMousePosition.x;
                 const deltaY = pos.y - previousMousePosition.y;
@@ -757,7 +724,7 @@
             // --- OPTIMIZATION: DISABLE RAYCAST ON COMPLEX MESHES ---
             model.traverse((child) => {
                 if (child.isMesh) {
-                    child.raycast = function() {}; 
+                    child.raycast = function() {}; // Returns nothing, saving CPU
                 }
             });
             // -------------------------------------------------------
@@ -773,11 +740,13 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
+            // Create the HITBOX (This is what we will actually interact with)
             const helperGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
             const helperMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent:true, opacity:0.5 });
             const helperMesh = new THREE.Mesh(helperGeo, helperMat);
             helperMesh.position.y = size.y / 2; 
             
+            // Force the box to be raycastable
             helperMesh.raycast = THREE.Mesh.prototype.raycast;
             
             model.add(helperMesh); 
@@ -896,23 +865,14 @@
 
     // --- MAIN INPUT HANDLER ---
     function handleInput() {
-        // --- DEVICE SENSOR CONTROL ---
-        if (isSensorActive && deviceControls) {
-            deviceControls.update();
-            // If holding touch in Sensor Mode, Walk forward
-            if (isMouseDown) {
-                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
-            }
-        }
-
-        // --- MOBILE VR "WALK" ---
+        // 1. MOBILE VR "WALK" (Cardboard Style)
+        // If holding touch in VR mode, walk forward in gaze direction
         if (renderer.xr.isPresenting && isMouseDown) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
             dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
         }
 
-        // --- GAMEPAD / VR CONTROLLER ---
+        // 2. VR CONTROLLERS
         const pads = navigator.getGamepads();
         let pad = null;
         for (let i = 0; i < pads.length; i++) {
@@ -1174,3 +1134,4 @@
 </script>
 </body>
 </html>
+
