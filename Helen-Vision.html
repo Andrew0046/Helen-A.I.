@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: OMNI-CONTROL (FINAL)</title>
+    <title>HELEN: GAZE PROTOCOL</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -72,9 +72,9 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ MANIPULATOR MODULE ]<br>
-        Tactical Grab Active.<br>
-        Press [X] to Grab/Release.
+        [ GAZE PROTOCOL ONLINE ]<br>
+        Look DOWN at the Dashboard arrows<br>
+        to move without a controller.
     </div>
 
     <div id="api-container">
@@ -89,10 +89,9 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
+            [GAZE] LOOK AT ARROWS TO MOVE<br>
             [L-CLICK] DRAG / [R-CLICK] MENU<br>
-            [TOUCH] DRAG / [VR-HOLD] WALK<br>
-            [X] GRAB / [□] MENU<br>
-            [L-STICK] MOVE / [R-STICK] ROTATE
+            [VR] HOLD TO WALK
         </div>
     </div>
 </div>
@@ -109,6 +108,14 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
+    // --- GAZE CONTROL VARIABLES ---
+    let reticle;
+    let gazeButtons = []; // Stores the 3 arrows
+    let gazeGroup;        // The dashboard object
+    const GAZE_SPEED = 0.05;
+    const GAZE_ROTATE_SPEED = 0.03;
+    // ------------------------------
+
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
     let genAI, model;
     let recognition; 
@@ -187,7 +194,7 @@
         if (GEMINI_KEY) {
             document.getElementById('api-container').style.display = 'none';
             document.getElementById('main-controls').style.display = 'flex';
-            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Manipulator Arm Ready.<br>Grab Mode Standing By.`;
+            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Gaze Dashboard Active.<br>Look DOWN to Move.`;
             
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
@@ -412,30 +419,18 @@
         }
     `;
     
-    // --- UPDATED INPUT HANDLING (NORMAL VS VR + RIGHT CLICK MENU) ---
+    // --- INPUT HANDLING ---
     function initMouseControl() {
         function getPos(e) {
             if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
             return { x: e.clientX, y: e.clientY };
         }
 
-        // 1. Prevent Default Right-Click Menu
-        window.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
+        window.addEventListener('contextmenu', (e) => { e.preventDefault(); });
 
         const onDown = (e) => {
-            // Check Mouse Button
-            if (e.button === 2) {
-                // RIGHT CLICK: Toggle Menu
-                isMenuOpen = !isMenuOpen;
-                menuGroup.visible = isMenuOpen;
-                return;
-            }
-
+            if (e.button === 2) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; return; }
             if (isMenuOpen) return;
-
-            // LEFT CLICK (0) or TOUCH: Start Drag
             if (e.button === 0 || e.type === 'touchstart') {
                 isMouseDown = true;
                 const pos = getPos(e);
@@ -448,17 +443,13 @@
         const onMove = (e) => {
             if (!isMouseDown || !dolly || isMenuOpen) return;
             if(e.preventDefault) e.preventDefault();
-
-            // ONLY DRAG IF NOT IN VR
             if (!renderer.xr.isPresenting) {
                 const pos = getPos(e);
                 const deltaX = pos.x - previousMousePosition.x;
                 const deltaY = pos.y - previousMousePosition.y;
                 previousMousePosition = pos;
-                
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                 _strafeDir.crossVectors(camera.up, _moveDir).normalize();
-                
                 dolly.position.addScaledVector(_moveDir, -deltaY * MOUSE_SENSITIVITY);
                 dolly.position.addScaledVector(_strafeDir, deltaX * MOUSE_SENSITIVITY);
             }
@@ -467,10 +458,81 @@
         window.addEventListener('mousedown', onDown);
         window.addEventListener('mouseup', onUp);
         window.addEventListener('mousemove', onMove);
-
         window.addEventListener('touchstart', onDown, { passive: false });
         window.addEventListener('touchend', onUp);
         window.addEventListener('touchmove', onMove, { passive: false });
+    }
+
+    // --- NEW: GAZE UI & LOGIC ---
+    function createGazeUI() {
+        // 1. Create Dashboard (Attached to Body/Dolly)
+        gazeGroup = new THREE.Group();
+        gazeGroup.position.set(0, -0.8, -1.5); // 1.5m in front, 0.8m down
+        gazeGroup.rotation.x = -0.3; // Tilted up to face user
+        dolly.add(gazeGroup);
+
+        // 2. Create Arrows
+        const makeArrow = (name, x, rotZ, color) => {
+            const shape = new THREE.Shape();
+            shape.moveTo(0, 0.2); shape.lineTo(0.15, -0.1); shape.lineTo(-0.15, -0.1); shape.lineTo(0, 0.2); // Triangle
+            const geo = new THREE.ShapeGeometry(shape);
+            const mat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide });
+            const arrow = new THREE.Mesh(geo, mat);
+            arrow.position.x = x;
+            arrow.rotation.z = rotZ;
+            arrow.userData = { isGazeBtn: true, action: name, baseScale: 1 };
+            
+            // Add a backing plate for easier hitting
+            const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 }));
+            plate.position.z = -0.01;
+            arrow.add(plate);
+            
+            gazeGroup.add(arrow);
+            gazeButtons.push(arrow);
+        };
+
+        makeArrow("FORWARD", 0, 0, 0x00ff00);         // Center (Green)
+        makeArrow("LEFT", -0.5, 1.57, 0x00ffff);      // Left (Cyan)
+        makeArrow("RIGHT", 0.5, -1.57, 0x00ffff);     // Right (Cyan)
+
+        // 3. Create Reticle (Attached to Camera/Head)
+        const ringGeo = new THREE.RingGeometry(0.02, 0.03, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false });
+        reticle = new THREE.Mesh(ringGeo, ringMat);
+        reticle.position.z = -1; // 1m in front of face
+        camera.add(reticle);
+    }
+
+    function handleGaze() {
+        if (!gazeGroup) return;
+
+        // Cast ray from center of screen
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        const intersects = raycaster.intersectObjects(gazeButtons, false);
+
+        // Reset all buttons visual state
+        gazeButtons.forEach(b => {
+            b.scale.setScalar(1);
+            b.material.color.setHex(b.userData.action === "FORWARD" ? 0x00ff00 : 0x00ffff);
+        });
+
+        if (intersects.length > 0) {
+            const btn = intersects[0].object;
+            btn.scale.setScalar(1.2); // Hover effect
+            btn.material.color.setHex(0xff0055); // Active Color
+
+            // EXECUTE ACTION
+            if (btn.userData.action === "FORWARD") {
+                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+                dolly.position.addScaledVector(_moveDir, GAZE_SPEED);
+            }
+            else if (btn.userData.action === "LEFT") {
+                dolly.rotation.y += GAZE_ROTATE_SPEED;
+            }
+            else if (btn.userData.action === "RIGHT") {
+                dolly.rotation.y -= GAZE_ROTATE_SPEED;
+            }
+        }
     }
 
     function init3D() {
@@ -501,6 +563,7 @@
         document.body.appendChild(renderer.domElement);
         
         initMouseControl();
+        createGazeUI(); // <--- INIT GAZE UI
 
         const btn = VRButton.createButton(renderer);
         btn.className = "primary"; btn.innerHTML = "ENTER VR";
@@ -721,13 +784,11 @@
 
             const model = data.type === 'fbx' ? loaded : loaded.scene;
             
-            // --- OPTIMIZATION: DISABLE RAYCAST ON COMPLEX MESHES ---
             model.traverse((child) => {
                 if (child.isMesh) {
-                    child.raycast = function() {}; // Returns nothing, saving CPU
+                    child.raycast = function() {}; // Optimization: Disable CPU heavy raycasts
                 }
             });
-            // -------------------------------------------------------
 
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
@@ -740,13 +801,10 @@
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
             
-            // Create the HITBOX (This is what we will actually interact with)
             const helperGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
             const helperMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent:true, opacity:0.5 });
             const helperMesh = new THREE.Mesh(helperGeo, helperMat);
             helperMesh.position.y = size.y / 2; 
-            
-            // Force the box to be raycastable
             helperMesh.raycast = THREE.Mesh.prototype.raycast;
             
             model.add(helperMesh); 
@@ -863,16 +921,12 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
-    // --- MAIN INPUT HANDLER ---
     function handleInput() {
-        // 1. MOBILE VR "WALK" (Cardboard Style)
-        // If holding touch in VR mode, walk forward in gaze direction
         if (renderer.xr.isPresenting && isMouseDown) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
             dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
         }
 
-        // 2. VR CONTROLLERS
         const pads = navigator.getGamepads();
         let pad = null;
         for (let i = 0; i < pads.length; i++) {
@@ -1122,6 +1176,7 @@
     function animate() {
         renderer.setAnimationLoop(() => { 
             handleInput(); 
+            handleGaze(); // <--- NEW GAZE LOOP
             updateHUD(); 
             targets.forEach(t => { 
                 if(t.userData.isModel && t.userData.aiActive) {
@@ -1134,4 +1189,3 @@
 </script>
 </body>
 </html>
-
