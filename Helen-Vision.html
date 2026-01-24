@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: SENSOR FUSION</title>
+    <title>HELEN: OMNI-CONTROL (FINAL)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -73,7 +73,7 @@
     
     <div class="status" id="system-status">
         [ MANIPULATOR MODULE ]<br>
-        Sensor Fusion: Standby.<br>
+        Tactical Grab Active.<br>
         Press [X] to Grab/Release.
     </div>
 
@@ -85,15 +85,14 @@
 
     <div class="btn-group" id="main-controls" style="display:none;">
         <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
-        <button onclick="enableSensors()" id="sensor-btn">📡 ACQUIRE SENSORS</button>
-        
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [MOTION] LOOK AROUND<br>
-            [TOUCH] HOLD TO WALK<br>
-            [X] GRAB / [R-CLICK] MENU
+            [L-CLICK] DRAG / [R-CLICK] MENU<br>
+            [TOUCH] DRAG / [VR-HOLD] WALK<br>
+            [X] GRAB / [□] MENU<br>
+            [L-STICK] MOVE / [R-STICK] ROTATE
         </div>
     </div>
 </div>
@@ -103,12 +102,9 @@
     import { VRButton } from 'three/addons/webxr/VRButton.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
-    // IMPORT DEVICE CONTROLS
-    import { DeviceOrientationControls } from 'three/addons/controls/DeviceOrientationControls.js';
     import { GoogleGenerativeAI } from "@google/generative-ai";
 
     let scene, camera, renderer, dolly;
-    let motionControls = null; // Variable for sensor controls
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
@@ -168,36 +164,6 @@
     const AI_STOP_DIST = 1.5;
     const AI_BACKUP_DIST = 0.8;
     const AI_WALK_SPEED = 0.03;
-
-    // --- NEW FUNCTION: ENABLE SENSORS ---
-    window.enableSensors = function() {
-        // iOS 13+ requires Permission Request
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission()
-                .then(response => {
-                    if (response === 'granted') {
-                        activateMotionControls();
-                    } else {
-                        alert("PERMISSION DENIED");
-                    }
-                })
-                .catch(console.error);
-        } else {
-            // Android / Non-iOS 13 just works
-            activateMotionControls();
-        }
-    };
-
-    function activateMotionControls() {
-        if(!camera) return;
-        motionControls = new DeviceOrientationControls(camera);
-        document.getElementById('sensor-btn').style.display = 'none'; // Hide button once active
-        sysMessage = "SENSORS ACTIVE"; 
-        updateMenuDisplay();
-        
-        // Update Status
-        document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>SENSORS ACTIVE.<br>Tilt to Look / Tap to Walk.`;
-    }
 
     window.saveKey = function() {
         const key = document.getElementById('gemini-key').value.trim(); 
@@ -446,7 +412,7 @@
         }
     `;
     
-    // --- UPDATED INPUT HANDLING (MOTION + TOUCH) ---
+    // --- UPDATED INPUT HANDLING (NORMAL VS VR + RIGHT CLICK MENU) ---
     function initMouseControl() {
         function getPos(e) {
             if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -482,17 +448,6 @@
         const onMove = (e) => {
             if (!isMouseDown || !dolly || isMenuOpen) return;
             if(e.preventDefault) e.preventDefault();
-
-            // IF MOTION CONTROLS ARE ON, TOUCH BECOMES WALK
-            if (motionControls) {
-                // Simply move forward while touching
-                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
-                // Also update previous pos to stop jump when releasing
-                const pos = getPos(e);
-                previousMousePosition = pos;
-                return;
-            }
 
             // ONLY DRAG IF NOT IN VR
             if (!renderer.xr.isPresenting) {
@@ -910,12 +865,8 @@
 
     // --- MAIN INPUT HANDLER ---
     function handleInput() {
-        // UPDATE SENSORS
-        if (motionControls) {
-            motionControls.update();
-        }
-
         // 1. MOBILE VR "WALK" (Cardboard Style)
+        // If holding touch in VR mode, walk forward in gaze direction
         if (renderer.xr.isPresenting && isMouseDown) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
             dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
@@ -1183,3 +1134,4 @@
 </script>
 </body>
 </html>
+
