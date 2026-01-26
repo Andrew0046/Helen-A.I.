@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: GAZE PROTOCOL</title>
+    <title>HELEN: COCKPIT MK.II</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -72,9 +72,9 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ GAZE PROTOCOL ONLINE ]<br>
-        Look DOWN at the Dashboard arrows<br>
-        to move without a controller.
+        [ COCKPIT MK.II INITIALIZED ]<br>
+        Holographic Flight Deck Active.<br>
+        Look DOWN to Pilot.
     </div>
 
     <div id="api-container">
@@ -89,7 +89,7 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [GAZE] LOOK AT ARROWS TO MOVE<br>
+            [GAZE] PILOT COCKPIT<br>
             [L-CLICK] DRAG / [R-CLICK] MENU<br>
             [VR] HOLD TO WALK
         </div>
@@ -108,12 +108,20 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // --- GAZE CONTROL VARIABLES ---
+    // --- COCKPIT MK.II VARIABLES ---
     let reticle;
-    let gazeButtons = []; // Stores the 3 arrows
-    let gazeGroup;        // The dashboard object
-    const GAZE_SPEED = 0.05;
-    const GAZE_ROTATE_SPEED = 0.03;
+    let cockpitGroup; 
+    let cockpitPanels = [];
+    
+    // SMOOTH MOVEMENT VARIABLES
+    let currentSpeed = 0;
+    let targetSpeed = 0;
+    let currentRot = 0;
+    let targetRot = 0;
+    const ACCEL = 0.005;
+    const MAX_SPEED = 0.08;
+    const ROT_ACCEL = 0.002;
+    const MAX_ROT = 0.04;
     // ------------------------------
 
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
@@ -194,7 +202,7 @@
         if (GEMINI_KEY) {
             document.getElementById('api-container').style.display = 'none';
             document.getElementById('main-controls').style.display = 'flex';
-            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Gaze Dashboard Active.<br>Look DOWN to Move.`;
+            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Cockpit Mk.II Active.<br>Look DOWN to Pilot.`;
             
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
@@ -463,75 +471,100 @@
         window.addEventListener('touchmove', onMove, { passive: false });
     }
 
-    // --- NEW: GAZE UI & LOGIC ---
-    function createGazeUI() {
-        // 1. Create Dashboard (Attached to Body/Dolly)
-        gazeGroup = new THREE.Group();
-        gazeGroup.position.set(0, -0.8, -1.5); // 1.5m in front, 0.8m down
-        gazeGroup.rotation.x = -0.3; // Tilted up to face user
-        dolly.add(gazeGroup);
+    // --- COCKPIT MK.II CREATION ---
+    function createCockpit() {
+        cockpitGroup = new THREE.Group();
+        cockpitGroup.position.set(0, -0.6, -1.2); 
+        cockpitGroup.rotation.x = -0.5; 
+        dolly.add(cockpitGroup);
 
-        // 2. Create Arrows
-        const makeArrow = (name, x, rotZ, color) => {
-            const shape = new THREE.Shape();
-            shape.moveTo(0, 0.2); shape.lineTo(0.15, -0.1); shape.lineTo(-0.15, -0.1); shape.lineTo(0, 0.2); // Triangle
-            const geo = new THREE.ShapeGeometry(shape);
-            const mat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide });
-            const arrow = new THREE.Mesh(geo, mat);
-            arrow.position.x = x;
-            arrow.rotation.z = rotZ;
-            arrow.userData = { isGazeBtn: true, action: name, baseScale: 1 };
-            
-            // Add a backing plate for easier hitting
-            const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 }));
-            plate.position.z = -0.01;
-            arrow.add(plate);
-            
-            gazeGroup.add(arrow);
-            gazeButtons.push(arrow);
-        };
+        const createLabel = (text) => {
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
+            const c = canvas.getContext('2d');
+            c.fillStyle = '#000000'; c.fillRect(0,0,256,128); // Black BG
+            c.strokeStyle = '#00ffff'; c.lineWidth = 10; c.strokeRect(5,5,246,118); // Border
+            c.fillStyle = '#00ffff'; c.font = 'bold 40px Courier New'; c.textAlign = 'center';
+            c.fillText(text, 128, 75);
+            const tex = new THREE.CanvasTexture(canvas);
+            return tex;
+        }
 
-        makeArrow("FORWARD", 0, 0, 0x00ff00);         // Center (Green)
-        makeArrow("LEFT", -0.5, 1.57, 0x00ffff);      // Left (Cyan)
-        makeArrow("RIGHT", 0.5, -1.57, 0x00ffff);     // Right (Cyan)
+        const makePanel = (name, x, y, w, h, tex, rotY) => {
+            const geo = new THREE.PlaneGeometry(w, h);
+            const mat = new THREE.MeshBasicMaterial({ 
+                map: tex, 
+                transparent: true, 
+                opacity: 0.6, 
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending 
+            });
+            const panel = new THREE.Mesh(geo, mat);
+            panel.position.set(x, y, 0);
+            panel.rotation.y = rotY;
+            panel.userData = { action: name, baseOpacity: 0.6 };
+            cockpitGroup.add(panel);
+            cockpitPanels.push(panel);
+            return panel;
+        }
 
-        // 3. Create Reticle (Attached to Camera/Head)
-        const ringGeo = new THREE.RingGeometry(0.02, 0.03, 32);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false });
+        // Center Panel (Thrust)
+        makePanel("FORWARD", 0, 0, 0.6, 0.4, createLabel("THRUST"), 0);
+        
+        // Left Panel
+        makePanel("LEFT", -0.7, 0.1, 0.5, 0.3, createLabel("YAW <"), 0.4);
+        
+        // Right Panel
+        makePanel("RIGHT", 0.7, 0.1, 0.5, 0.3, createLabel("YAW >"), -0.4);
+
+        // Reticle
+        const ringGeo = new THREE.RingGeometry(0.015, 0.02, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, opacity: 0.8, transparent: true });
         reticle = new THREE.Mesh(ringGeo, ringMat);
-        reticle.position.z = -1; // 1m in front of face
+        reticle.position.z = -1;
         camera.add(reticle);
     }
 
-    function handleGaze() {
-        if (!gazeGroup) return;
+    // --- COCKPIT LOGIC (SMOOTH MOVEMENT) ---
+    function handleCockpit() {
+        if (!cockpitGroup) return;
 
-        // Cast ray from center of screen
         raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-        const intersects = raycaster.intersectObjects(gazeButtons, false);
+        const intersects = raycaster.intersectObjects(cockpitPanels, false);
 
-        // Reset all buttons visual state
-        gazeButtons.forEach(b => {
-            b.scale.setScalar(1);
-            b.material.color.setHex(b.userData.action === "FORWARD" ? 0x00ff00 : 0x00ffff);
+        // 1. Reset targets
+        targetSpeed = 0;
+        targetRot = 0;
+        
+        cockpitPanels.forEach(p => {
+            p.material.opacity = 0.5;
+            p.material.color.setHex(0xffffff);
+            p.scale.setScalar(1.0);
         });
 
+        // 2. Detect Gaze
         if (intersects.length > 0) {
-            const btn = intersects[0].object;
-            btn.scale.setScalar(1.2); // Hover effect
-            btn.material.color.setHex(0xff0055); // Active Color
+            const p = intersects[0].object;
+            p.material.opacity = 1.0;
+            p.material.color.setHex(0x00ff00);
+            p.scale.setScalar(1.05);
 
-            // EXECUTE ACTION
-            if (btn.userData.action === "FORWARD") {
-                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                dolly.position.addScaledVector(_moveDir, GAZE_SPEED);
-            }
-            else if (btn.userData.action === "LEFT") {
-                dolly.rotation.y += GAZE_ROTATE_SPEED;
-            }
-            else if (btn.userData.action === "RIGHT") {
-                dolly.rotation.y -= GAZE_ROTATE_SPEED;
-            }
+            if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
+            if (p.userData.action === "LEFT") targetRot = MAX_ROT;
+            if (p.userData.action === "RIGHT") targetRot = -MAX_ROT;
+        }
+
+        // 3. Smooth Interpolation (Inertia)
+        currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.1);
+        currentRot = THREE.MathUtils.lerp(currentRot, targetRot, 0.1);
+
+        // 4. Apply Physics
+        if (Math.abs(currentSpeed) > 0.001) {
+            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+            dolly.position.addScaledVector(_moveDir, currentSpeed);
+        }
+        
+        if (Math.abs(currentRot) > 0.001) {
+            dolly.rotation.y += currentRot;
         }
     }
 
@@ -563,7 +596,7 @@
         document.body.appendChild(renderer.domElement);
         
         initMouseControl();
-        createGazeUI(); // <--- INIT GAZE UI
+        createCockpit(); // <--- MK.II COCKPIT
 
         const btn = VRButton.createButton(renderer);
         btn.className = "primary"; btn.innerHTML = "ENTER VR";
@@ -1176,7 +1209,7 @@
     function animate() {
         renderer.setAnimationLoop(() => { 
             handleInput(); 
-            handleGaze(); // <--- NEW GAZE LOOP
+            handleCockpit(); // <--- MK.II LOGIC
             updateHUD(); 
             targets.forEach(t => { 
                 if(t.userData.isModel && t.userData.aiActive) {
