@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: COCKPIT MK.II</title>
+    <title>HELEN: HOVERBOARD OS</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -72,9 +72,9 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ COCKPIT MK.II INITIALIZED ]<br>
-        Holographic Flight Deck Active.<br>
-        Look DOWN to Pilot.
+        [ HOVERBOARD PROTOCOL ]<br>
+        Controls Projected on Floor.<br>
+        Look DOWN to Navigate.
     </div>
 
     <div id="api-container">
@@ -89,7 +89,7 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [GAZE] PILOT COCKPIT<br>
+            [GAZE] LOOK AT FLOOR TO MOVE<br>
             [L-CLICK] DRAG / [R-CLICK] MENU<br>
             [VR] HOLD TO WALK
         </div>
@@ -113,7 +113,6 @@
     let cockpitGroup; 
     let cockpitPanels = [];
     
-    // SMOOTH MOVEMENT VARIABLES
     let currentSpeed = 0;
     let targetSpeed = 0;
     let currentRot = 0;
@@ -122,7 +121,6 @@
     const MAX_SPEED = 0.08;
     const ROT_ACCEL = 0.002;
     const MAX_ROT = 0.04;
-    // ------------------------------
 
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
     let genAI, model;
@@ -427,7 +425,6 @@
         }
     `;
     
-    // --- INPUT HANDLING ---
     function initMouseControl() {
         function getPos(e) {
             if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -471,77 +468,80 @@
         window.addEventListener('touchmove', onMove, { passive: false });
     }
 
-    // --- COCKPIT MK.II CREATION ---
+    // --- HOVERBOARD INTERFACE (FLOOR MOUNTED) ---
     function createCockpit() {
         cockpitGroup = new THREE.Group();
-        cockpitGroup.position.set(0, -0.6, -1.2); 
-        cockpitGroup.rotation.x = -0.5; 
+        
+        // MOVED TO FLOOR: 1.7m down (average height), 1.0m forward
+        cockpitGroup.position.set(0, -1.7, -1.0); 
+        
+        // ROTATED FLAT: Facing up at the user
+        cockpitGroup.rotation.x = -Math.PI / 2; 
+        
         dolly.add(cockpitGroup);
 
         const createLabel = (text) => {
             const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
             const c = canvas.getContext('2d');
-            c.fillStyle = '#000000'; c.fillRect(0,0,256,128); // Black BG
-            c.strokeStyle = '#00ffff'; c.lineWidth = 10; c.strokeRect(5,5,246,118); // Border
+            // Transparent BG, just glowing text/border
+            c.strokeStyle = '#00ffff'; c.lineWidth = 10; c.strokeRect(5,5,246,118); 
             c.fillStyle = '#00ffff'; c.font = 'bold 40px Courier New'; c.textAlign = 'center';
             c.fillText(text, 128, 75);
-            const tex = new THREE.CanvasTexture(canvas);
-            return tex;
+            return new THREE.CanvasTexture(canvas);
         }
 
-        const makePanel = (name, x, y, w, h, tex, rotY) => {
+        const makePanel = (name, x, y, w, h, tex) => {
             const geo = new THREE.PlaneGeometry(w, h);
             const mat = new THREE.MeshBasicMaterial({ 
                 map: tex, 
                 transparent: true, 
-                opacity: 0.6, 
+                opacity: 0.4, 
                 side: THREE.DoubleSide,
                 blending: THREE.AdditiveBlending 
             });
             const panel = new THREE.Mesh(geo, mat);
-            panel.position.set(x, y, 0);
-            panel.rotation.y = rotY;
-            panel.userData = { action: name, baseOpacity: 0.6 };
+            // Note: Z is now "forward" on the floor plane relative to the group
+            panel.position.set(x, y, 0); 
+            panel.userData = { action: name, baseOpacity: 0.4 };
             cockpitGroup.add(panel);
             cockpitPanels.push(panel);
             return panel;
         }
 
-        // Center Panel (Thrust)
-        makePanel("FORWARD", 0, 0, 0.6, 0.4, createLabel("THRUST"), 0);
+        // Center Panel (Thrust) - Placed further forward on the floor
+        makePanel("FORWARD", 0, 0.4, 0.8, 0.5, createLabel("▲ MOVE ▲"));
         
-        // Left Panel
-        makePanel("LEFT", -0.7, 0.1, 0.5, 0.3, createLabel("YAW <"), 0.4);
+        // Left Panel (Rotate)
+        makePanel("LEFT", -0.9, 0, 0.6, 0.4, createLabel("◄ TURN"));
         
-        // Right Panel
-        makePanel("RIGHT", 0.7, 0.1, 0.5, 0.3, createLabel("YAW >"), -0.4);
+        // Right Panel (Rotate)
+        makePanel("RIGHT", 0.9, 0, 0.6, 0.4, createLabel("TURN ►"));
 
-        // Reticle
-        const ringGeo = new THREE.RingGeometry(0.015, 0.02, 32);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, opacity: 0.8, transparent: true });
-        reticle = new THREE.Mesh(ringGeo, ringMat);
-        reticle.position.z = -1;
-        camera.add(reticle);
+        // Reticle (Keep attached to camera face)
+        if(!reticle) {
+            const ringGeo = new THREE.RingGeometry(0.015, 0.02, 32);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, opacity: 0.8, transparent: true });
+            reticle = new THREE.Mesh(ringGeo, ringMat);
+            reticle.position.z = -1;
+            camera.add(reticle);
+        }
     }
 
-    // --- COCKPIT LOGIC (SMOOTH MOVEMENT) ---
     function handleCockpit() {
         if (!cockpitGroup) return;
 
         raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
         const intersects = raycaster.intersectObjects(cockpitPanels, false);
 
-        // 1. Reset targets
         targetSpeed = 0;
         targetRot = 0;
         
         cockpitPanels.forEach(p => {
-            p.material.opacity = 0.5;
+            p.material.opacity = 0.4;
             p.material.color.setHex(0xffffff);
             p.scale.setScalar(1.0);
         });
 
-        // 2. Detect Gaze
         if (intersects.length > 0) {
             const p = intersects[0].object;
             p.material.opacity = 1.0;
@@ -553,11 +553,9 @@
             if (p.userData.action === "RIGHT") targetRot = -MAX_ROT;
         }
 
-        // 3. Smooth Interpolation (Inertia)
         currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.1);
         currentRot = THREE.MathUtils.lerp(currentRot, targetRot, 0.1);
 
-        // 4. Apply Physics
         if (Math.abs(currentSpeed) > 0.001) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
             dolly.position.addScaledVector(_moveDir, currentSpeed);
