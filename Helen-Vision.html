@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL MENU</title>
+    <title>HELEN: HOVERBOARD OS</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -72,9 +72,9 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ SYSTEM ONLINE ]<br>
-        Look DOWN to Access Menu.<br>
-        Activate Flight Mode to Move.
+        [ HOVERBOARD PROTOCOL ]<br>
+        Controls Projected on Floor.<br>
+        Look DOWN to Navigate.
     </div>
 
     <div id="api-container">
@@ -89,7 +89,7 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [GAZE] LOOK AT FLOOR MENU<br>
+            [GAZE] LOOK AT FLOOR TO MOVE<br>
             [L-CLICK] DRAG / [R-CLICK] MENU<br>
             [VR] HOLD TO WALK
         </div>
@@ -108,17 +108,19 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // --- COCKPIT VARIABLES ---
+    // --- COCKPIT MK.II VARIABLES ---
     let reticle;
-    let cockpitGroup;
-    let flightModeActive = false; // TOGGLE STATE
-    let floorMenuBtn = null;      // The "Menu" button
-    let flightControls = [];      // The Arrows
+    let cockpitGroup; 
+    let cockpitPanels = [];
     
-    // SMOOTH MOVEMENT
-    let currentSpeed = 0; let targetSpeed = 0;
-    let currentRot = 0; let targetRot = 0;
-    const MAX_SPEED = 0.08; const MAX_ROT = 0.04;
+    let currentSpeed = 0;
+    let targetSpeed = 0;
+    let currentRot = 0;
+    let targetRot = 0;
+    const ACCEL = 0.005;
+    const MAX_SPEED = 0.08;
+    const ROT_ACCEL = 0.002;
+    const MAX_ROT = 0.04;
 
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
     let genAI, model;
@@ -198,7 +200,7 @@
         if (GEMINI_KEY) {
             document.getElementById('api-container').style.display = 'none';
             document.getElementById('main-controls').style.display = 'flex';
-            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Floor Menu Active.<br>Look DOWN to Access.`;
+            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Cockpit Mk.II Active.<br>Look DOWN to Pilot.`;
             
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
@@ -466,52 +468,56 @@
         window.addEventListener('touchmove', onMove, { passive: false });
     }
 
-    // --- COCKPIT MK.III (TOGGLEABLE) ---
+    // --- HOVERBOARD INTERFACE (FLOOR MOUNTED) ---
     function createCockpit() {
         cockpitGroup = new THREE.Group();
-        cockpitGroup.position.set(0, -1.7, -1.0); 
+        
+        // MOVED TO FLOOR: 1.7m down (average height), 1.0m forward
+        cockpitGroup.position.set(0, 0.9, -1.0); 
+        
+        // ROTATED FLAT: Facing up at the user
         cockpitGroup.rotation.x = -Math.PI / 2; 
+        
         dolly.add(cockpitGroup);
 
-        const createLabel = (text, color='#00ffff') => {
+        const createLabel = (text) => {
             const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
             const c = canvas.getContext('2d');
-            c.strokeStyle = color; c.lineWidth = 10; c.strokeRect(5,5,246,118); 
-            c.fillStyle = color; c.font = 'bold 40px Courier New'; c.textAlign = 'center';
+            // Transparent BG, just glowing text/border
+            c.strokeStyle = '#00ffff'; c.lineWidth = 10; c.strokeRect(5,5,246,118); 
+            c.fillStyle = '#00ffff'; c.font = 'bold 40px Courier New'; c.textAlign = 'center';
             c.fillText(text, 128, 75);
             return new THREE.CanvasTexture(canvas);
         }
 
-        const makePanel = (name, x, y, w, h, tex, groupToAdd) => {
+        const makePanel = (name, x, y, w, h, tex) => {
             const geo = new THREE.PlaneGeometry(w, h);
-            const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.4, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+            const mat = new THREE.MeshBasicMaterial({ 
+                map: tex, 
+                transparent: true, 
+                opacity: 0.4, 
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending 
+            });
             const panel = new THREE.Mesh(geo, mat);
+            // Note: Z is now "forward" on the floor plane relative to the group
             panel.position.set(x, y, 0); 
-            panel.userData = { action: name };
-            groupToAdd.push(panel);
+            panel.userData = { action: name, baseOpacity: 0.4 };
             cockpitGroup.add(panel);
+            cockpitPanels.push(panel);
             return panel;
         }
 
-        // 1. MENU BUTTON (Default State)
-        // Positioned centrally
-        floorMenuBtn = makePanel("OPEN_MENU", 0, 0.4, 0.8, 0.5, createLabel("[ MENU ]", '#00ff00'), []);
+        // Center Panel (Thrust) - Placed further forward on the floor
+        makePanel("FORWARD", 0, 0.4, 0.8, 0.5, createLabel("▲ MOVE ▲"));
         
-        // 2. FLIGHT CONTROLS (Hidden by default)
-        const arrows = [];
-        makePanel("FORWARD", 0, 0.4, 0.8, 0.5, createLabel("▲ MOVE ▲"), arrows);
-        makePanel("LEFT", -0.9, 0, 0.6, 0.4, createLabel("◄ TURN"), arrows);
-        makePanel("RIGHT", 0.9, 0, 0.6, 0.4, createLabel("TURN ►"), arrows);
+        // Left Panel (Rotate)
+        makePanel("LEFT", -0.9, 0, 0.6, 0.4, createLabel("◄ TURN"));
         
-        // Add a small "Close" button to flight controls so user isn't trapped
-        makePanel("EXIT_FLIGHT", 0, -0.4, 0.4, 0.2, createLabel("[ X ]", '#ff0055'), arrows);
+        // Right Panel (Rotate)
+        makePanel("RIGHT", 0.9, 0, 0.6, 0.4, createLabel("TURN ►"));
 
-        flightControls = arrows;
-        
-        // Initial Visibility State
-        updateCockpitVisibility();
-
-        // Reticle
+        // Reticle (Keep attached to camera face)
         if(!reticle) {
             const ringGeo = new THREE.RingGeometry(0.015, 0.02, 32);
             const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, opacity: 0.8, transparent: true });
@@ -521,55 +527,32 @@
         }
     }
 
-    function updateCockpitVisibility() {
-        if (flightModeActive) {
-            floorMenuBtn.visible = false;
-            flightControls.forEach(p => p.visible = true);
-        } else {
-            floorMenuBtn.visible = true;
-            flightControls.forEach(p => p.visible = false);
-        }
-    }
-
     function handleCockpit() {
         if (!cockpitGroup) return;
 
         raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-        
-        // Only intersect visible objects
-        const interactiveObjects = flightModeActive ? flightControls : [floorMenuBtn];
-        const intersects = raycaster.intersectObjects(interactiveObjects, false);
+        const intersects = raycaster.intersectObjects(cockpitPanels, false);
 
         targetSpeed = 0;
         targetRot = 0;
         
-        interactiveObjects.forEach(p => {
+        cockpitPanels.forEach(p => {
             p.material.opacity = 0.4;
+            p.material.color.setHex(0xffffff);
             p.scale.setScalar(1.0);
         });
 
         if (intersects.length > 0) {
             const p = intersects[0].object;
             p.material.opacity = 1.0;
+            p.material.color.setHex(0x00ff00);
             p.scale.setScalar(1.05);
 
-            // LOGIC
-            if (p.userData.action === "OPEN_MENU") {
-                if (!isMenuOpen) {
-                    isMenuOpen = true; 
-                    menuGroup.visible = true;
-                }
-            }
-            else if (p.userData.action === "EXIT_FLIGHT") {
-                flightModeActive = false;
-                updateCockpitVisibility();
-            }
-            else if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
-            else if (p.userData.action === "LEFT") targetRot = MAX_ROT;
-            else if (p.userData.action === "RIGHT") targetRot = -MAX_ROT;
+            if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
+            if (p.userData.action === "LEFT") targetRot = MAX_ROT;
+            if (p.userData.action === "RIGHT") targetRot = -MAX_ROT;
         }
 
-        // Apply Movement
         currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.1);
         currentRot = THREE.MathUtils.lerp(currentRot, targetRot, 0.1);
 
@@ -577,6 +560,7 @@
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
             dolly.position.addScaledVector(_moveDir, currentSpeed);
         }
+        
         if (Math.abs(currentRot) > 0.001) {
             dolly.rotation.y += currentRot;
         }
@@ -610,7 +594,7 @@
         document.body.appendChild(renderer.domElement);
         
         initMouseControl();
-        createCockpit(); // <--- MK.III TOGGLEABLE COCKPIT
+        createCockpit(); // <--- MK.II COCKPIT
 
         const btn = VRButton.createButton(renderer);
         btn.className = "primary"; btn.innerHTML = "ENTER VR";
@@ -651,11 +635,7 @@
         ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 80);
         ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
         
-        const flightText = flightModeActive ? "[DEACTIVATE FLIGHT]" : "[ACTIVATE FLIGHT]";
-        const flightColor = flightModeActive ? '#ff0055' : '#00ff00';
-
         const sysOpts = [
-            { label: flightText, type: "sys", color: flightColor }, // DYNAMIC OPTION
             { label: "[SAVE MISSION]", type: "sys" },
             { label: "[LOAD MISSION]", type: "sys" },
             { label: "[CLEAR ALL]", type: "sys" },
@@ -690,7 +670,7 @@
                 ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 60, 60);
                 ctx.fillStyle = '#fff'; ctx.fillText(`> ${item.label}`, 80, listY);
             } else {
-                ctx.fillStyle = item.color ? item.color : (item.type === 'sys' ? '#ff0055' : '#00aaaa');
+                ctx.fillStyle = item.type === 'sys' ? '#ff0055' : '#00aaaa';
                 ctx.fillText(`  ${item.label}`, 80, listY);
             }
             
@@ -710,28 +690,20 @@
     }
 
     function spawnFromMenu(index) {
-        if (index === 0) { 
-            flightModeActive = !flightModeActive; 
-            updateCockpitVisibility();
-            sysMessage = flightModeActive ? "FLIGHT MODE ON" : "FLIGHT MODE OFF";
-            updateMenuDisplay();
-            setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500);
-            return; 
-        }
-        if (index === 1) { saveMission(); return; }
-        if (index === 2) { loadMission(); return; }
-        if (index === 3) { clearMission(); return; }
-        if (index === 4) { 
+        if (index === 0) { saveMission(); return; }
+        if (index === 1) { loadMission(); return; }
+        if (index === 2) { clearMission(); return; }
+        if (index === 3) { 
             if(recognition) recognition.start(); 
             else sysMessage = "VOICE NOT READY"; 
             updateMenuDisplay();
             setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500);
             return; 
         }
-        if (index === 5) { performVisualScan(); updateMenuDisplay(); setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500); return; }
-        if (index === 6) { wipeMemory(); return; }
+        if (index === 4) { performVisualScan(); updateMenuDisplay(); setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500); return; }
+        if (index === 5) { wipeMemory(); return; }
 
-        const fileIndex = index - 7; 
+        const fileIndex = index - 6; 
         const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         
         if (fileIndex >= 0 && fileIndex < db.length) {
@@ -845,7 +817,7 @@
             
             model.traverse((child) => {
                 if (child.isMesh) {
-                    child.raycast = function() {}; 
+                    child.raycast = function() {}; // Optimization: Disable CPU heavy raycasts
                 }
             });
 
@@ -1171,13 +1143,8 @@
         lastBtn.circle = pad.buttons[1] ? pad.buttons[1].pressed : false;
     }
 
-    let lastHudState = ""; 
     function updateHUD() {
         if(!hudContext) return;
-        const currentState = `M:${isMenuOpen}|S:${isSpeaking}|L:${isListening}|V:${visionMode}|G:${grabbedObject ? 'YES' : 'NO'}|T:${activeObject.obj ? activeObject.obj.uuid : 'NONE'}|A:${aiStatus}`;
-        if (currentState === lastHudState) return;
-        lastHudState = currentState; 
-
         const ctx = hudContext; const w = 1024; const h = 1024; ctx.clearRect(0, 0, w, h);
         
         ctx.textAlign = 'right'; ctx.font = 'bold 30px Courier New';
@@ -1198,18 +1165,37 @@
                 ctx.strokeStyle = '#ff0055'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, 50, 0, 2*Math.PI); ctx.stroke();
                 ctx.fillStyle = '#ff0055'; ctx.textAlign = 'center'; ctx.font = '24px Courier New';
                 ctx.fillText("STATUS: MANIPULATING", cx, cy + 80);
-                ctx.fillText("[RELEASE] TO DROP", cx, cy + 110);
+                ctx.fillText("[L-STICK] MOVE X/Y", cx, cy + 110);
+                ctx.fillText("[TRIGGERS] MOVE Z", cx, cy + 140);
+                ctx.fillText("[X] RELEASE", cx, cy + 170);
+                
             } else {
                 ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
                 ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
                 ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80); 
+                ctx.font = '16px Courier New';
                 
                 if (activeObject.obj.userData.isModel) {
+                     ctx.fillText("[R-STICK] ROTATE/SCALE", cx, cy + 120);
                      if(activeObject.obj.userData.aiActive) {
-                         const status = activeObject.obj.userData.isPaused ? "HOLDING" : "FOLLOWING";
+                         const status = activeObject.obj.userData.isPaused ? "HOLDING POSITION" : "FOLLOWING OPERATOR";
+                         const trackStatus = activeObject.obj.userData.enableHeadTracking ? "TRACKING: ON" : "TRACKING: OFF (INSPECT)";
+                         
                          ctx.fillStyle = activeObject.obj.userData.isPaused ? '#ffff00' : '#00ff00';
-                         ctx.fillText(`AI: ${status}`, cx, cy + 145);
+                         ctx.fillText(`STATUS: ${status}`, cx, cy + 145);
+                         ctx.fillStyle = activeObject.obj.userData.enableHeadTracking ? '#00ffff' : '#ff0055';
+                         ctx.fillText(trackStatus, cx, cy + 170);
                      }
+                } else {
+                     ctx.fillText("[R-STICK] ROTATE/TILT", cx, cy + 120);
+                     ctx.fillStyle = '#00ff00'; ctx.fillText("[X] GRAB OBJECT", cx, cy + 145);
+                }
+                
+                if (activeObject.obj.userData.type === 'pdf') {
+                    const page = activeObject.obj.userData.pageNum;
+                    const total = activeObject.obj.userData.totalPages;
+                    ctx.fillStyle = '#ffff00'; ctx.font = '20px Courier New';
+                    ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 180);
                 }
             }
         } else {
@@ -1221,7 +1207,7 @@
     function animate() {
         renderer.setAnimationLoop(() => { 
             handleInput(); 
-            handleCockpit(); 
+            handleCockpit(); // <--- MK.II LOGIC
             updateHUD(); 
             targets.forEach(t => { 
                 if(t.userData.isModel && t.userData.aiActive) {
