@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: 3D COCKPIT</title>
+    <title>HELEN: 3D COCKPIT V2</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -90,6 +90,7 @@
         
         <div class="controls-hint">
             [GAZE] LOOK AT ARROWS TO MOVE<br>
+            [GAZE] LOOK AT RED SQUARE FOR MENU<br>
             [L-CLICK] DRAG / [R-CLICK] MENU<br>
             [VR] HOLD TO WALK
         </div>
@@ -112,6 +113,7 @@
     let reticle;
     let cockpitGroup; 
     let cockpitPanels = [];
+    let lastMenuToggleTime = 0; // Debounce for gaze menu
     
     let currentSpeed = 0;
     let targetSpeed = 0;
@@ -484,6 +486,7 @@
         return arrow;
     }
 
+    // --- COCKPIT UPDATE: ADDED MENU BUTTON ---
     function createCockpit() {
         if(cockpitGroup) { dolly.remove(cockpitGroup); }
         cockpitGroup = new THREE.Group();
@@ -492,6 +495,7 @@
         dolly.add(cockpitGroup);
         cockpitPanels = [];
 
+        // 1. Forward Arrow
         const fwd = createChevron(0x00ff00);
         fwd.position.set(0, 0.5, 0); 
         fwd.userData = { action: "FORWARD", baseScale: 1.5 };
@@ -499,6 +503,7 @@
         cockpitGroup.add(fwd);
         cockpitPanels.push(fwd);
 
+        // 2. Left Arrow
         const left = createChevron(0x00ffff);
         left.position.set(-0.6, 0, 0);
         left.rotation.z = Math.PI / 2;
@@ -506,6 +511,7 @@
         cockpitGroup.add(left);
         cockpitPanels.push(left);
 
+        // 3. Right Arrow
         const right = createChevron(0x00ffff);
         right.position.set(0.6, 0, 0);
         right.rotation.z = -Math.PI / 2;
@@ -513,6 +519,25 @@
         cockpitGroup.add(right);
         cockpitPanels.push(right);
 
+        // 4. NEW MENU BUTTON (Red Square)
+        const menuBtnGeo = new THREE.PlaneGeometry(0.3, 0.3);
+        const menuBtnMat = new THREE.MeshBasicMaterial({ 
+            color: 0xff0055, 
+            side: THREE.DoubleSide, 
+            transparent: true, 
+            opacity: 0.5 
+        });
+        const menuBtn = new THREE.Mesh(menuBtnGeo, menuBtnMat);
+        menuBtn.position.set(0, -0.4, 0); // Below forward arrow
+        menuBtn.userData = { action: "TOGGLE_MENU", baseScale: 1 };
+        const edges = new THREE.EdgesGeometry(menuBtnGeo);
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xff0055 }));
+        menuBtn.add(line);
+        
+        cockpitGroup.add(menuBtn);
+        cockpitPanels.push(menuBtn);
+
+        // Reticle (Crosshair)
         if(!reticle) {
             const ringGeo = new THREE.RingGeometry(0.015, 0.02, 32);
             const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, opacity: 0.8, transparent: true });
@@ -548,6 +573,17 @@
             if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
             if (p.userData.action === "LEFT") targetRot = MAX_ROT;
             if (p.userData.action === "RIGHT") targetRot = -MAX_ROT;
+            
+            // --- NEW: GAZE MENU TOGGLE LOGIC ---
+            if (p.userData.action === "TOGGLE_MENU") {
+                const now = Date.now();
+                if (now - lastMenuToggleTime > 1500) { // 1.5 second debounce
+                    isMenuOpen = !isMenuOpen;
+                    menuGroup.visible = isMenuOpen;
+                    if(isMenuOpen) updateMenuDisplay();
+                    lastMenuToggleTime = now;
+                }
+            }
         }
 
         currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.1);
