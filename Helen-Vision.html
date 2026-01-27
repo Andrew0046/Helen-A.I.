@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: HOVERBOARD OS</title>
+    <title>HELEN: 3D COCKPIT</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -72,9 +72,9 @@
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ HOVERBOARD PROTOCOL ]<br>
-        Controls Projected on Floor.<br>
-        Look DOWN to Navigate.
+        [ COCKPIT MK.III ]<br>
+        3D Holographic Navigation Active.<br>
+        Look DOWN at the Chevrons.
     </div>
 
     <div id="api-container">
@@ -89,7 +89,7 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [GAZE] LOOK AT FLOOR TO MOVE<br>
+            [GAZE] LOOK AT ARROWS TO MOVE<br>
             [L-CLICK] DRAG / [R-CLICK] MENU<br>
             [VR] HOLD TO WALK
         </div>
@@ -108,7 +108,7 @@
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     
-    // --- COCKPIT MK.II VARIABLES ---
+    // --- COCKPIT MK.III VARIABLES ---
     let reticle;
     let cockpitGroup; 
     let cockpitPanels = [];
@@ -159,6 +159,9 @@
     let lastMenuScrollTime = 0; 
     const MAX_MENU_VISIBLE = 9; 
     let sysMessage = "";
+    
+    // HUD Optimization
+    let lastHudState = "";
 
     let torchCamId = null, wideCamId = null, activeCamId = null, allBackCameras = [];
     let visionMode = 0; 
@@ -200,7 +203,7 @@
         if (GEMINI_KEY) {
             document.getElementById('api-container').style.display = 'none';
             document.getElementById('main-controls').style.display = 'flex';
-            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Cockpit Mk.II Active.<br>Look DOWN to Pilot.`;
+            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Cockpit Mk.III Active.<br>Look DOWN to Pilot.`;
             
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
@@ -468,56 +471,48 @@
         window.addEventListener('touchmove', onMove, { passive: false });
     }
 
-    // --- HOVERBOARD INTERFACE (FLOOR MOUNTED) ---
+    // --- 3D ARROW GENERATOR ---
+    function createChevron(color) {
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 0.3); shape.lineTo(0.3, -0.2); shape.lineTo(0, -0.1);
+        shape.lineTo(-0.3, -0.2); shape.lineTo(0, 0.3);
+        const geo = new THREE.ShapeGeometry(shape);
+        const mat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+        const arrow = new THREE.Mesh(geo, mat);
+        const glow = new THREE.Mesh(new THREE.CircleGeometry(0.35, 32), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.1 }));
+        arrow.add(glow);
+        return arrow;
+    }
+
     function createCockpit() {
+        if(cockpitGroup) { dolly.remove(cockpitGroup); }
         cockpitGroup = new THREE.Group();
-        
-        // MOVED TO FLOOR: 1.7m down (average height), 1.0m forward
-        cockpitGroup.position.set(0, 0.9, -1.0); 
-        
-        // ROTATED FLAT: Facing up at the user
-        cockpitGroup.rotation.x = -Math.PI / 2; 
-        
+        cockpitGroup.position.set(0, -1.6, -1.0); 
+        cockpitGroup.rotation.x = -Math.PI / 2 + 0.2; 
         dolly.add(cockpitGroup);
+        cockpitPanels = [];
 
-        const createLabel = (text) => {
-            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
-            const c = canvas.getContext('2d');
-            // Transparent BG, just glowing text/border
-            c.strokeStyle = '#00ffff'; c.lineWidth = 10; c.strokeRect(5,5,246,118); 
-            c.fillStyle = '#00ffff'; c.font = 'bold 40px Courier New'; c.textAlign = 'center';
-            c.fillText(text, 128, 75);
-            return new THREE.CanvasTexture(canvas);
-        }
+        const fwd = createChevron(0x00ff00);
+        fwd.position.set(0, 0.5, 0); 
+        fwd.userData = { action: "FORWARD", baseScale: 1.5 };
+        fwd.scale.setScalar(1.5);
+        cockpitGroup.add(fwd);
+        cockpitPanels.push(fwd);
 
-        const makePanel = (name, x, y, w, h, tex) => {
-            const geo = new THREE.PlaneGeometry(w, h);
-            const mat = new THREE.MeshBasicMaterial({ 
-                map: tex, 
-                transparent: true, 
-                opacity: 0.4, 
-                side: THREE.DoubleSide,
-                blending: THREE.AdditiveBlending 
-            });
-            const panel = new THREE.Mesh(geo, mat);
-            // Note: Z is now "forward" on the floor plane relative to the group
-            panel.position.set(x, y, 0); 
-            panel.userData = { action: name, baseOpacity: 0.4 };
-            cockpitGroup.add(panel);
-            cockpitPanels.push(panel);
-            return panel;
-        }
+        const left = createChevron(0x00ffff);
+        left.position.set(-0.6, 0, 0);
+        left.rotation.z = Math.PI / 2;
+        left.userData = { action: "LEFT", baseScale: 1 };
+        cockpitGroup.add(left);
+        cockpitPanels.push(left);
 
-        // Center Panel (Thrust) - Placed further forward on the floor
-        makePanel("FORWARD", 0, 0.4, 0.8, 0.5, createLabel("▲ MOVE ▲"));
-        
-        // Left Panel (Rotate)
-        makePanel("LEFT", -0.9, 0, 0.6, 0.4, createLabel("◄ TURN"));
-        
-        // Right Panel (Rotate)
-        makePanel("RIGHT", 0.9, 0, 0.6, 0.4, createLabel("TURN ►"));
+        const right = createChevron(0x00ffff);
+        right.position.set(0.6, 0, 0);
+        right.rotation.z = -Math.PI / 2;
+        right.userData = { action: "RIGHT", baseScale: 1 };
+        cockpitGroup.add(right);
+        cockpitPanels.push(right);
 
-        // Reticle (Keep attached to camera face)
         if(!reticle) {
             const ringGeo = new THREE.RingGeometry(0.015, 0.02, 32);
             const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, opacity: 0.8, transparent: true });
@@ -529,6 +524,9 @@
 
     function handleCockpit() {
         if (!cockpitGroup) return;
+        
+        const time = Date.now() * 0.003;
+        cockpitGroup.position.y = -1.6 + Math.sin(time) * 0.02;
 
         raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
         const intersects = raycaster.intersectObjects(cockpitPanels, false);
@@ -538,15 +536,14 @@
         
         cockpitPanels.forEach(p => {
             p.material.opacity = 0.4;
-            p.material.color.setHex(0xffffff);
-            p.scale.setScalar(1.0);
+            p.scale.setScalar(p.userData.baseScale);
+            if(p.children[0]) p.children[0].rotation.z += 0.01;
         });
 
         if (intersects.length > 0) {
             const p = intersects[0].object;
             p.material.opacity = 1.0;
-            p.material.color.setHex(0x00ff00);
-            p.scale.setScalar(1.05);
+            p.scale.setScalar(p.userData.baseScale * 1.2);
 
             if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
             if (p.userData.action === "LEFT") targetRot = MAX_ROT;
@@ -594,7 +591,7 @@
         document.body.appendChild(renderer.domElement);
         
         initMouseControl();
-        createCockpit(); // <--- MK.II COCKPIT
+        createCockpit(); // <--- MK.III COCKPIT
 
         const btn = VRButton.createButton(renderer);
         btn.className = "primary"; btn.innerHTML = "ENTER VR";
@@ -952,6 +949,7 @@
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
+    // --- MAIN INPUT HANDLER ---
     function handleInput() {
         if (renderer.xr.isPresenting && isMouseDown) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
@@ -1145,6 +1143,11 @@
 
     function updateHUD() {
         if(!hudContext) return;
+        
+        const currentState = `M:${isMenuOpen}|S:${isSpeaking}|L:${isListening}|V:${visionMode}|G:${grabbedObject ? 'YES' : 'NO'}|T:${activeObject.obj ? activeObject.obj.uuid : 'NONE'}|A:${aiStatus}`;
+        if (currentState === lastHudState) return;
+        lastHudState = currentState; 
+
         const ctx = hudContext; const w = 1024; const h = 1024; ctx.clearRect(0, 0, w, h);
         
         ctx.textAlign = 'right'; ctx.font = 'bold 30px Courier New';
@@ -1173,29 +1176,13 @@
                 ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 2*Math.PI); ctx.stroke();
                 ctx.textAlign = 'center'; ctx.font = '20px Courier New'; ctx.fillStyle = '#fff'; 
                 ctx.fillText(activeObject.obj.userData.label || "TARGET", cx, cy + 80); 
-                ctx.font = '16px Courier New';
                 
                 if (activeObject.obj.userData.isModel) {
-                     ctx.fillText("[R-STICK] ROTATE/SCALE", cx, cy + 120);
                      if(activeObject.obj.userData.aiActive) {
-                         const status = activeObject.obj.userData.isPaused ? "HOLDING POSITION" : "FOLLOWING OPERATOR";
-                         const trackStatus = activeObject.obj.userData.enableHeadTracking ? "TRACKING: ON" : "TRACKING: OFF (INSPECT)";
-                         
+                         const status = activeObject.obj.userData.isPaused ? "HOLDING" : "FOLLOWING";
                          ctx.fillStyle = activeObject.obj.userData.isPaused ? '#ffff00' : '#00ff00';
-                         ctx.fillText(`STATUS: ${status}`, cx, cy + 145);
-                         ctx.fillStyle = activeObject.obj.userData.enableHeadTracking ? '#00ffff' : '#ff0055';
-                         ctx.fillText(trackStatus, cx, cy + 170);
+                         ctx.fillText(`AI: ${status}`, cx, cy + 145);
                      }
-                } else {
-                     ctx.fillText("[R-STICK] ROTATE/TILT", cx, cy + 120);
-                     ctx.fillStyle = '#00ff00'; ctx.fillText("[X] GRAB OBJECT", cx, cy + 145);
-                }
-                
-                if (activeObject.obj.userData.type === 'pdf') {
-                    const page = activeObject.obj.userData.pageNum;
-                    const total = activeObject.obj.userData.totalPages;
-                    ctx.fillStyle = '#ffff00'; ctx.font = '20px Courier New';
-                    ctx.fillText(`PAGE ${page} / ${total}`, cx, cy + 180);
                 }
             }
         } else {
@@ -1207,7 +1194,7 @@
     function animate() {
         renderer.setAnimationLoop(() => { 
             handleInput(); 
-            handleCockpit(); // <--- MK.II LOGIC
+            handleCockpit(); 
             updateHUD(); 
             targets.forEach(t => { 
                 if(t.userData.isModel && t.userData.aiActive) {
