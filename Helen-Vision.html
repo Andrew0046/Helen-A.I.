@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V2.2</title>
+    <title>HELEN: TACTICAL OS V2.3</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -754,11 +754,19 @@
         if (fileIndex >= 0 && fileIndex < db.length) {
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
             const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
-            pos.y = 0; 
             
             const item = db[fileIndex];
-            if (item.type === 'fbx' || item.type === 'glb') spawnModel(pos, item);
-            else spawnScreen(pos, item);
+            
+            // --- TACTICAL POSITIONING FIX ---
+            if (item.type === 'fbx' || item.type === 'glb') {
+                pos.y = 0; // Models stay on the ground
+                spawnModel(pos, item);
+            } else {
+                pos.y = 1.6; // Intel Screens float at Eye Level
+                spawnScreen(pos, item);
+            }
+            // ---------------------------------
+            
             isMenuOpen = false; menuGroup.visible = false;
         }
     }
