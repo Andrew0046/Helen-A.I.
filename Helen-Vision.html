@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V2.4 (GAZE)</title>
+    <title>HELEN: TACTICAL OS V2.5 (FULL GAZE)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -91,7 +91,7 @@
         <div class="controls-hint">
             [GAZE] LOOK AT ARROWS TO MOVE<br>
             [GAZE] LOOK AT RED SQUARE FOR MENU<br>
-            [GAZE] STARE AT MENU ITEM TO CLICK<br>
+            [GAZE] STARE AT > ARROW TO FLIP PDF<br>
             [VR] HOLD TO WALK
         </div>
     </div>
@@ -144,7 +144,7 @@
     let activeObject = { obj: null, progress: 0 }; 
     let grabbedObject = null; 
     
-    let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 300; 
+    let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 2000; // Slower for gaze safety
     let pendingRestore = false; 
 
     // --- INPUT VARIABLES ---
@@ -161,9 +161,10 @@
     const MAX_MENU_VISIBLE = 9; 
     let sysMessage = "";
     
-    // --- NEW: GAZE SELECTION VARIABLES ---
-    let menuSelectionTimer = 0; // Tracks start of gaze
-    let gazeProgress = 0;       // 0.0 to 1.0 for HUD display
+    // --- GAZE VARIABLES ---
+    let menuSelectionTimer = 0; 
+    let gazeProgress = 0;       
+    let hoveredPageButton = null; // Track PDF arrows
 
     // HUD Optimization
     let lastHudState = "";
@@ -937,6 +938,20 @@
             border.raycast = function() {}; 
             screen.add(border);
         };
+        
+        // --- PAGE CONTROL BUTTONS ---
+        const createPageButton = (dir) => {
+            const s = new THREE.Shape();
+            if(dir === 'next') { s.moveTo(0,0.2); s.lineTo(0.2,0); s.lineTo(0,-0.2); }
+            else { s.moveTo(0,0.2); s.lineTo(-0.2,0); s.lineTo(0,-0.2); }
+            const g = new THREE.ShapeGeometry(s);
+            const m = new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(g, m);
+            mesh.userData = { isButton: true, action: dir === 'next' ? 'NEXT_PAGE' : 'PREV_PAGE' };
+            // Position relative to screen
+            mesh.position.set(dir === 'next' ? 0.7 : -0.7, 0, 0.05);
+            screen.add(mesh);
+        }
 
         if (data.type === 'pdf') {
             const clonedBuffer = data.buffer.slice(0);
@@ -946,6 +961,10 @@
             screen.userData.totalPages = pdf.numPages;
             
             addGhostBorder(0xffff00); 
+            
+            // Add Controls
+            createPageButton('next');
+            createPageButton('prev');
             
             await renderPdfPageToTexture(screen, 1);
             
@@ -1026,7 +1045,7 @@
 
         gazeProgress = 0; // Reset progress by default
 
-        // GAZE SELECTION LOGIC
+        // 1. MENU GAZE LOGIC
         if (isMenuOpen && menuMesh) {
             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
             const intersects = raycaster.intersectObject(menuMesh);
@@ -1045,7 +1064,7 @@
                                 updateMenuDisplay();
                             } else {
                                 const elapsed = Date.now() - menuSelectionTimer;
-                                gazeProgress = Math.min(elapsed / 1500, 1.0); // 1.5 Seconds for click
+                                gazeProgress = Math.min(elapsed / 1500, 1.0); 
                                 if (elapsed > 1500) {
                                     spawnFromMenu(realIdx);
                                     hoveredFileIndex = -1;
@@ -1058,22 +1077,62 @@
             } else {
                 if (hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); }
             }
+        } 
+        
+        // 2. WORLD OBJECT GAZE LOGIC (Buttons & Highlighting)
+        else {
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            // Recursive raycast to find buttons (children of screens)
+            const intersects = raycaster.intersectObjects(targets, true);
+            
+            if (intersects.length > 0) {
+                let hit = intersects[0].object;
+                
+                // CHECK FOR BUTTON HIT
+                if (hit.userData.isButton) {
+                    if (hoveredPageButton !== hit) {
+                        hoveredPageButton = hit;
+                        menuSelectionTimer = Date.now();
+                    } else {
+                        const elapsed = Date.now() - menuSelectionTimer;
+                        gazeProgress = Math.min(elapsed / 1500, 1.0);
+                        if (elapsed > 1500) {
+                            const screen = hit.parent;
+                            const dir = hit.userData.action === 'NEXT_PAGE' ? 1 : -1;
+                            if (screen && screen.userData.type === 'pdf') {
+                                const newPage = screen.userData.pageNum + dir;
+                                if(newPage >= 1 && newPage <= screen.userData.totalPages) {
+                                    renderPdfPageToTexture(screen, newPage);
+                                }
+                            }
+                            menuSelectionTimer = Date.now() + 2000; // Reset
+                        }
+                    }
+                } else {
+                    hoveredPageButton = null;
+                    
+                    // NORMAL OBJECT HIGHLIGHT
+                    while(hit.parent && !hit.userData.isScreen && hit !== scene) { hit = hit.parent; }
+                    if (hit.userData.isScreen || hit.userData.isModel) { 
+                         if(!grabbedObject) activeObject.obj = hit; 
+                    } 
+                }
+            } else {
+                hoveredPageButton = null;
+                if(!grabbedObject) activeObject.obj = null;
+            }
         }
 
+        // 3. GAMEPAD LOGIC (Optional)
         const pads = navigator.getGamepads();
         let pad = null;
         for (let i = 0; i < pads.length; i++) {
-            if (pads[i] && pads[i].buttons.length > 0) {
-                pad = pads[i];
-                break; 
-            }
+            if (pads[i] && pads[i].buttons.length > 0) { pad = pads[i]; break; }
         }
         
         if (!pad) return;
 
-        raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-        let activeTarget = null;
-        
+        // ... (Gamepad controls for moving/grabbing) ...
         if (isMenuOpen) {
             if (pad.axes.length > 3 && Math.abs(pad.axes[3]) > 0.5) {
                 const now = Date.now();
@@ -1081,7 +1140,6 @@
                     const fullListSize = 6 + (CUSTOM_DATABASE.length || 1); 
                     if (pad.axes[3] > 0) menuScrollIndex++; 
                     else menuScrollIndex--; 
-                    
                     menuScrollIndex = Math.max(0, Math.min(menuScrollIndex, fullListSize - MAX_MENU_VISIBLE));
                     lastMenuScrollTime = now;
                     updateMenuDisplay();
@@ -1094,32 +1152,8 @@
                 if (grabbedObject) {
                     grabbedObject = null;
                 } else {
-                    const intersects = raycaster.intersectObjects(targets, true);
-                    if (intersects.length > 0) {
-                        let hit = intersects[0].object;
-                        while(hit.parent && !hit.userData.isScreen && hit !== scene) { hit = hit.parent; }
-                        if (hit.userData.isScreen || hit.userData.isModel) { 
-                            grabbedObject = hit; 
-                        } 
-                    }
+                    if (activeObject.obj) grabbedObject = activeObject.obj;
                 }
-            }
-            
-            if (grabbedObject) {
-                activeObject.obj = grabbedObject;
-                activeTarget = grabbedObject;
-            } else {
-                const intersects = raycaster.intersectObjects(targets, true); 
-                if (intersects.length > 0) {
-                    let hit = intersects[0].object;
-                    while(hit.parent && !hit.userData.isScreen && hit !== scene) { hit = hit.parent; }
-                    if (hit.userData.isScreen || hit.userData.isModel) { activeObject.obj = hit; activeTarget = hit; } 
-                    else { activeObject.obj = null; }
-
-                    if (activeTarget && pad.buttons[1] && pad.buttons[1].pressed && !lastBtn.circle) { 
-                        deleteObject(activeTarget); activeObject.obj = null; activeTarget = null; 
-                    }
-                } else { activeObject.obj = null; }
             }
         }
 
@@ -1152,36 +1186,8 @@
                      grabbedObject.rotation.x += rightStickY * ROTATE_SPEED;
                 }
             }
-        } else if (activeTarget) {
-            if (Math.abs(rightStickX) > 0.1) activeTarget.rotation.y += rightStickX * ROTATE_SPEED;
-            if (Math.abs(rightStickY) > 0.1) {
-                if (activeTarget.userData.isModel) {
-                     const s = 1 + (rightStickY * -SCALE_SPEED); 
-                     activeTarget.scale.multiplyScalar(s);
-                } else {
-                     activeTarget.rotation.x += rightStickY * ROTATE_SPEED;
-                }
-            }
-            if (activeTarget.userData.type === 'pdf' && Math.abs(leftStickX) > 0.5) {
-                const now = Date.now();
-                if (now - lastPageTurnTime > PAGE_DEBOUNCE) {
-                    const dir = Math.sign(leftStickX); 
-                    const newPage = activeTarget.userData.pageNum + dir;
-                    if (newPage >= 1 && newPage <= activeTarget.userData.totalPages) {
-                        renderPdfPageToTexture(activeTarget, newPage);
-                        lastPageTurnTime = now;
-                    }
-                }
-            } 
-            if (activeTarget.userData.type !== 'pdf' || Math.abs(leftStickX) < 0.5) {
-                 if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
-                    camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                    _strafeDir.crossVectors(camera.up, _moveDir).normalize();
-                    dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
-                    dolly.position.addScaledVector(_strafeDir, leftStickX * SPEED);
-                }
-            }
         } else {
+            // Free movement if not grabbing
             if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                 _strafeDir.crossVectors(camera.up, _moveDir).normalize();
