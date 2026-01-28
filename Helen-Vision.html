@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V2.3</title>
+    <title>HELEN: TACTICAL OS V2.4 (GAZE)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -91,7 +91,7 @@
         <div class="controls-hint">
             [GAZE] LOOK AT ARROWS TO MOVE<br>
             [GAZE] LOOK AT RED SQUARE FOR MENU<br>
-            [L-CLICK] DRAG / [R-CLICK] MENU<br>
+            [GAZE] STARE AT MENU ITEM TO CLICK<br>
             [VR] HOLD TO WALK
         </div>
     </div>
@@ -161,6 +161,10 @@
     const MAX_MENU_VISIBLE = 9; 
     let sysMessage = "";
     
+    // --- NEW: GAZE SELECTION VARIABLES ---
+    let menuSelectionTimer = 0; // Tracks start of gaze
+    let gazeProgress = 0;       // 0.0 to 1.0 for HUD display
+
     // HUD Optimization
     let lastHudState = "";
 
@@ -575,7 +579,7 @@
                     menuGroup.visible = isMenuOpen;
                     if(isMenuOpen) {
                         updateMenuDisplay();
-                        updateMenuPosition(); // <--- SNAP INSTANTLY
+                        updateMenuPosition(); 
                     }
                     lastMenuToggleTime = now;
                 }
@@ -595,18 +599,14 @@
         }
     }
 
-    // --- NEW HELPER FUNCTION FOR MENU POSITIONING ---
     function updateMenuPosition() {
         if (!isMenuOpen || !menuGroup) return;
-        
         const dir = new THREE.Vector3(); 
         camera.getWorldDirection(dir); 
         dir.y = 0; 
         dir.normalize();
-        
         const worldPos = camera.getWorldPosition(new THREE.Vector3());
         const targetPos = worldPos.add(dir.multiplyScalar(2.5));
-        
         menuGroup.position.copy(targetPos); 
         menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
     }
@@ -757,15 +757,13 @@
             
             const item = db[fileIndex];
             
-            // --- TACTICAL POSITIONING FIX ---
             if (item.type === 'fbx' || item.type === 'glb') {
-                pos.y = 0; // Models stay on the ground
+                pos.y = 0; 
                 spawnModel(pos, item);
             } else {
-                pos.y = 1.6; // Intel Screens float at Eye Level
+                pos.y = 1.6; 
                 spawnScreen(pos, item);
             }
-            // ---------------------------------
             
             isMenuOpen = false; menuGroup.visible = false;
         }
@@ -931,13 +929,12 @@
         
         screen.userData = { isScreen: true, label: data.label, type: data.type };
 
-        // --- GHOST BORDER FUNCTION ---
         const addGhostBorder = (color) => {
             const border = new THREE.LineSegments(
                 new THREE.EdgesGeometry(geometry), 
                 new THREE.LineBasicMaterial({ color: color })
             );
-            border.raycast = function() {}; // <--- DISABLES HIT DETECTION
+            border.raycast = function() {}; 
             screen.add(border);
         };
 
@@ -948,7 +945,7 @@
             screen.userData.pageNum = 1; 
             screen.userData.totalPages = pdf.numPages;
             
-            addGhostBorder(0xffff00); // Yellow border, no hit detection
+            addGhostBorder(0xffff00); 
             
             await renderPdfPageToTexture(screen, 1);
             
@@ -1027,6 +1024,42 @@
             dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
         }
 
+        gazeProgress = 0; // Reset progress by default
+
+        // GAZE SELECTION LOGIC
+        if (isMenuOpen && menuMesh) {
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            const intersects = raycaster.intersectObject(menuMesh);
+            if (intersects.length > 0) {
+                const uvY = intersects[0].uv.y;
+                if (uvY < 0.82) {
+                    const visualIdx = Math.floor((0.82 - uvY) / 0.068);
+                    if (visualIdx >= 0 && visualIdx < MAX_MENU_VISIBLE) {
+                        const realIdx = visualIdx + menuScrollIndex;
+                        const fullListSize = 6 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
+                        
+                        if (realIdx < fullListSize) {
+                            if (hoveredFileIndex !== realIdx) {
+                                hoveredFileIndex = realIdx;
+                                menuSelectionTimer = Date.now(); 
+                                updateMenuDisplay();
+                            } else {
+                                const elapsed = Date.now() - menuSelectionTimer;
+                                gazeProgress = Math.min(elapsed / 1500, 1.0); // 1.5 Seconds for click
+                                if (elapsed > 1500) {
+                                    spawnFromMenu(realIdx);
+                                    hoveredFileIndex = -1;
+                                    menuSelectionTimer = Date.now() + 5000;
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                if (hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); }
+            }
+        }
+
         const pads = navigator.getGamepads();
         let pad = null;
         for (let i = 0; i < pads.length; i++) {
@@ -1054,23 +1087,6 @@
                     updateMenuDisplay();
                 }
             }
-
-            const intersects = raycaster.intersectObject(menuMesh);
-            if (intersects.length > 0) {
-                const uvY = intersects[0].uv.y;
-                if (uvY < 0.82) {
-                    const visualIdx = Math.floor((0.82 - uvY) / 0.068);
-                    if (visualIdx >= 0 && visualIdx < MAX_MENU_VISIBLE) {
-                        const realIdx = visualIdx + menuScrollIndex;
-                        const fullListSize = 6 + (CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE.length : DEFAULT_DATABASE.length);
-                        if (realIdx < fullListSize && hoveredFileIndex !== realIdx) { 
-                            hoveredFileIndex = realIdx; 
-                            updateMenuDisplay(); 
-                        }
-                    }
-                }
-            } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
-            
             if (pad.buttons[0] && pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
             
         } else {
@@ -1210,7 +1226,7 @@
     function updateHUD() {
         if(!hudContext) return;
         
-        const currentState = `M:${isMenuOpen}|S:${isSpeaking}|L:${isListening}|V:${visionMode}|G:${grabbedObject ? 'YES' : 'NO'}|T:${activeObject.obj ? activeObject.obj.uuid : 'NONE'}|A:${aiStatus}`;
+        const currentState = `M:${isMenuOpen}|S:${isSpeaking}|L:${isListening}|V:${visionMode}|G:${grabbedObject ? 'YES' : 'NO'}|T:${activeObject.obj ? activeObject.obj.uuid : 'NONE'}|A:${aiStatus}|P:${gazeProgress.toFixed(2)}`;
         if (currentState === lastHudState) return;
         lastHudState = currentState; 
 
@@ -1225,6 +1241,16 @@
         ctx.fillText(`AI: [${aiStatus}]`, 40, 60);
 
         const cx = w/2; const cy = h/2;
+        
+        // --- GAZE LOADING RING ---
+        if (gazeProgress > 0.05) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, 60, -Math.PI/2, (-Math.PI/2) + (Math.PI * 2 * gazeProgress));
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = '#00ffff';
+            ctx.stroke();
+        }
+
         if (isMenuOpen) {
             ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center'; ctx.fillText("MENU OPEN", cx, cy + 200);
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy); ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10); ctx.stroke();
@@ -1261,7 +1287,7 @@
         renderer.setAnimationLoop(() => { 
             handleInput(); 
             handleCockpit(); 
-            updateMenuPosition(); // <--- FIXED: LOCKS MENU TO FACE
+            updateMenuPosition(); 
             updateHUD(); 
             targets.forEach(t => { 
                 if(t.userData.isModel && t.userData.aiActive) {
