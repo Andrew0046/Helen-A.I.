@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: 3D COCKPIT V2.1</title>
+    <title>HELEN: TACTICAL OS V2.2</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -923,13 +923,25 @@
         
         screen.userData = { isScreen: true, label: data.label, type: data.type };
 
+        // --- GHOST BORDER FUNCTION ---
+        const addGhostBorder = (color) => {
+            const border = new THREE.LineSegments(
+                new THREE.EdgesGeometry(geometry), 
+                new THREE.LineBasicMaterial({ color: color })
+            );
+            border.raycast = function() {}; // <--- DISABLES HIT DETECTION
+            screen.add(border);
+        };
+
         if (data.type === 'pdf') {
             const clonedBuffer = data.buffer.slice(0);
             const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
             screen.userData.pdfDoc = pdf; 
             screen.userData.pageNum = 1; 
             screen.userData.totalPages = pdf.numPages;
-            screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffff00 })));
+            
+            addGhostBorder(0xffff00); // Yellow border, no hit detection
+            
             await renderPdfPageToTexture(screen, 1);
             
         } else if (data.type === 'video') {
@@ -938,7 +950,9 @@
             const tex = new THREE.VideoTexture(videoElem); tex.colorSpace = THREE.SRGBColorSpace;
             screen.material.map = tex; screen.userData.videoElement = videoElem;
             screen.scale.set(3, 1.8, 1); 
-            screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
+            
+            addGhostBorder(0x00ffff);
+            
         } else {
             const tex = new THREE.TextureLoader().load(data.src); 
             tex.colorSpace = THREE.SRGBColorSpace;
@@ -951,7 +965,8 @@
                 const aspect = img.width / img.height;
                 screen.scale.set(1.8 * aspect, 1.8, 1); 
             }
-            screen.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
+            
+            addGhostBorder(0x00ffff);
         }
         scene.add(screen); targets.push(screen);
     }
@@ -1238,7 +1253,7 @@
         renderer.setAnimationLoop(() => { 
             handleInput(); 
             handleCockpit(); 
-            updateMenuPosition(); // <--- FIXED: RUNS EVERY FRAME
+            updateMenuPosition(); // <--- FIXED: LOCKS MENU TO FACE
             updateHUD(); 
             targets.forEach(t => { 
                 if(t.userData.isModel && t.userData.aiActive) {
