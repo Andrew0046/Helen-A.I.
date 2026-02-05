@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V2.7 (DELETE RESTORED)</title>
+    <title>HELEN: TACTICAL OS V2.8 (EXTENDED INTEL)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -89,9 +89,9 @@
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [GAZE] LOOK AT ARROWS TO MOVE<br>
-            [GAZE] LOOK AT RED SQUARE FOR MENU<br>
+            [GAZE] ARROWS: MOVE / RED SQUARE: MENU<br>
             [GAZE] STARE AT > ARROW TO FLIP PDF<br>
+            [GAZE] STARE AT AUDIO ORB TO PLAY<br>
             [BTN 1] DELETE TARGET
         </div>
     </div>
@@ -108,6 +108,7 @@
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
+    let audioListener; // NEW: 3D Audio Listener
     
     // --- COCKPIT MK.III VARIABLES ---
     let reticle;
@@ -328,9 +329,13 @@
                 const file = e.target.files[i];
                 let name = file.name.toUpperCase();
                 let type = 'image'; 
+                
+                // --- NEW TYPE DETECTION ---
                 if (name.endsWith('.PDF')) type = 'pdf';
                 else if (name.endsWith('.FBX')) type = 'fbx';
                 else if (name.endsWith('.GLB') || name.endsWith('.GLTF') || name.endsWith('.VRM')) type = 'glb';
+                else if (name.endsWith('.MP3') || name.endsWith('.WAV') || name.endsWith('.OGG')) type = 'audio';
+                else if (name.endsWith('.CSV')) type = 'chart';
                 else if (file.type.startsWith('video')) type = 'video';
                 else if (file.type.startsWith('image')) type = 'image';
                 
@@ -338,6 +343,14 @@
                     const buffer = await file.arrayBuffer();
                     CUSTOM_DATABASE.push({ type: 'pdf', buffer: buffer, label: name });
                 } 
+                else if (type === 'chart') {
+                    const text = await file.text();
+                    CUSTOM_DATABASE.push({ type: 'chart', data: text, label: name });
+                }
+                else if (type === 'audio') {
+                     // Store blob URL
+                     CUSTOM_DATABASE.push({ type: 'audio', src: URL.createObjectURL(file), label: name });
+                }
                 else if (type === 'fbx' || type === 'glb' || type === 'video' || type === 'image') {
                     CUSTOM_DATABASE.push({ type: type, src: URL.createObjectURL(file), label: name });
                 }
@@ -374,6 +387,8 @@
                 const scale = item.scale ? new THREE.Vector3(item.scale.x, item.scale.y, item.scale.z) : null;
                 
                 if (dbItem.type === 'fbx' || dbItem.type === 'glb') spawnModel(pos, dbItem, rot, scale);
+                else if (dbItem.type === 'audio') spawnAudio(pos, dbItem);
+                else if (dbItem.type === 'chart') spawnChart(pos, dbItem);
                 else spawnScreen(pos, dbItem, rot);
                 restoredCount++;
             }
@@ -616,6 +631,10 @@
         scene = new THREE.Scene();
         dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); dolly.add(camera);
+        
+        // --- AUDIO SYSTEM INIT ---
+        audioListener = new THREE.AudioListener();
+        camera.add(audioListener);
 
         const video = document.getElementById('camera-feed');
         const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false; 
@@ -761,6 +780,12 @@
             if (item.type === 'fbx' || item.type === 'glb') {
                 pos.y = 0; 
                 spawnModel(pos, item);
+            } else if (item.type === 'audio') {
+                pos.y = 1.6;
+                spawnAudio(pos, item);
+            } else if (item.type === 'chart') {
+                pos.y = 1.0;
+                spawnChart(pos, item);
             } else {
                 pos.y = 1.6; 
                 spawnScreen(pos, item);
@@ -768,6 +793,107 @@
             
             isMenuOpen = false; menuGroup.visible = false;
         }
+    }
+    
+    // --- NEW: AUDIO SPAWN LOGIC ---
+    function spawnAudio(position, data) {
+        const geo = new THREE.IcosahedronGeometry(0.3, 1);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+        const orb = new THREE.Mesh(geo, mat);
+        orb.position.copy(position);
+        
+        const sound = new THREE.Audio(audioListener);
+        const loader = new THREE.AudioLoader();
+        loader.load(data.src, function(buffer) {
+            sound.setBuffer(buffer);
+            sound.setLoop(true);
+            sound.setVolume(0.5);
+            // sound.play(); // Auto-play is annoying, let user toggle
+        });
+        
+        orb.userData = { 
+            isScreen: true, // Treat as screen for dragging
+            isAudio: true, 
+            sound: sound, 
+            isPlaying: false, 
+            label: data.label,
+            type: 'audio' 
+        };
+        
+        // Add ghost border for hit detection consistency
+        const border = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.7,0.7), new THREE.MeshBasicMaterial({visible:false}));
+        orb.add(border);
+        
+        scene.add(orb);
+        targets.push(orb);
+    }
+    
+    // --- NEW: CHART SPAWN LOGIC ---
+    function spawnChart(position, data) {
+        const lines = data.data.split('\n');
+        const chartGroup = new THREE.Group();
+        chartGroup.position.copy(position);
+        
+        let maxVal = 0;
+        const parsed = [];
+        
+        lines.forEach(l => {
+            const parts = l.split(',');
+            if(parts.length >= 2) {
+                const label = parts[0].trim();
+                const val = parseFloat(parts[1]);
+                if(!isNaN(val)) {
+                    parsed.push({label, val});
+                    if(val > maxVal) maxVal = val;
+                }
+            }
+        });
+        
+        const baseSize = 0.2;
+        const spacing = 0.3;
+        
+        parsed.forEach((item, i) => {
+            const h = (item.val / maxVal) * 1.5; // Max height 1.5m
+            const geo = new THREE.BoxGeometry(baseSize, h, baseSize);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 });
+            const bar = new THREE.Mesh(geo, mat);
+            bar.position.set((i * spacing) - ((parsed.length*spacing)/2), h/2, 0);
+            
+            // Add Label Text (Canvas Texture)
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.fillRect(0,0,256,128);
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 40px Courier New'; ctx.textAlign='center';
+            ctx.fillText(item.label, 128, 50);
+            ctx.fillStyle = '#00ffff'; ctx.fillText(item.val, 128, 100);
+            
+            const tex = new THREE.CanvasTexture(canvas);
+            const labelGeo = new THREE.PlaneGeometry(0.4, 0.2);
+            const labelMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+            const labelMesh = new THREE.Mesh(labelGeo, labelMat);
+            labelMesh.position.y = h + 0.2;
+            bar.add(labelMesh);
+            
+            chartGroup.add(bar);
+        });
+        
+        // Add base plate
+        const baseGeo = new THREE.PlaneGeometry(parsed.length * spacing + 0.2, 0.5);
+        const baseMat = new THREE.MeshBasicMaterial({ color: 0x005555, side: THREE.DoubleSide });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.rotation.x = -Math.PI/2;
+        chartGroup.add(base);
+        
+        chartGroup.userData = { isScreen: true, isChart: true, label: data.label, type: 'chart' };
+        
+        // Hit box
+        const hitBox = new THREE.Mesh(new THREE.BoxGeometry(parsed.length*spacing, 1.5, 0.5), new THREE.MeshBasicMaterial({visible:false}));
+        hitBox.position.y = 0.75;
+        chartGroup.add(hitBox);
+
+        scene.add(chartGroup);
+        targets.push(chartGroup);
     }
 
     function mapBones(model) {
@@ -1032,6 +1158,7 @@
         if (obj.userData.videoElement) {
             obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
         }
+        if (obj.userData.sound && obj.userData.sound.isPlaying) obj.userData.sound.stop();
         if (obj.material && obj.material.map) obj.material.map.dispose();
         scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
@@ -1044,6 +1171,14 @@
         }
 
         gazeProgress = 0; // Reset progress by default
+        
+        // ANIMATE AUDIO ORBS
+        targets.forEach(t => {
+            if(t.userData.isAudio && t.userData.isPlaying) {
+                const s = 1.0 + Math.sin(Date.now() * 0.01) * 0.2;
+                t.scale.set(s,s,s);
+            }
+        });
 
         // 1. MENU GAZE LOGIC
         if (isMenuOpen && menuMesh) {
@@ -1079,10 +1214,10 @@
             }
         } 
         
-        // 2. WORLD OBJECT GAZE LOGIC (Buttons & Highlighting)
+        // 2. WORLD OBJECT GAZE LOGIC
         else {
             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-            // Recursive raycast to find buttons (children of screens)
+            // Recursive raycast
             const intersects = raycaster.intersectObjects(targets, true);
             
             if (intersects.length > 0) {
@@ -1113,8 +1248,33 @@
                     
                     // NORMAL OBJECT HIGHLIGHT
                     while(hit.parent && !hit.userData.isScreen && hit !== scene) { hit = hit.parent; }
+                    
                     if (hit.userData.isScreen || hit.userData.isModel) { 
-                         if(!grabbedObject) activeObject.obj = hit; 
+                         // --- AUDIO PLAY LOGIC ---
+                         if(hit.userData.isAudio) {
+                             if(grabbedObject !== hit) { // Don't trigger if dragging
+                                 if(activeObject.obj !== hit) {
+                                     activeObject.obj = hit;
+                                     menuSelectionTimer = Date.now();
+                                 } else {
+                                     const elapsed = Date.now() - menuSelectionTimer;
+                                     gazeProgress = Math.min(elapsed / 1500, 1.0);
+                                     if(elapsed > 1500) {
+                                         if(hit.userData.sound.isPlaying) {
+                                             hit.userData.sound.pause();
+                                             hit.userData.isPlaying = false;
+                                             hit.scale.set(1,1,1);
+                                         } else {
+                                             hit.userData.sound.play();
+                                             hit.userData.isPlaying = true;
+                                         }
+                                         menuSelectionTimer = Date.now() + 2000;
+                                     }
+                                 }
+                             }
+                         } else {
+                             if(!grabbedObject) activeObject.obj = hit; 
+                         }
                     } 
                 }
             } else {
@@ -1123,7 +1283,7 @@
             }
         }
 
-        // 3. GAMEPAD LOGIC (Optional)
+        // 3. GAMEPAD LOGIC
         const pads = navigator.getGamepads();
         let pad = null;
         for (let i = 0; i < pads.length; i++) {
@@ -1132,7 +1292,6 @@
         
         if (!pad) return;
 
-        // ... (Gamepad controls for moving/grabbing) ...
         if (isMenuOpen) {
             if (pad.axes.length > 3 && Math.abs(pad.axes[3]) > 0.5) {
                 const now = Date.now();
@@ -1156,7 +1315,7 @@
                 }
             }
             
-            // --- RESTORED: BUTTON 1 (CIRCLE/B) DELETE LOGIC ---
+            // DELETE LOGIC
             if (pad.buttons[1] && pad.buttons[1].pressed && !lastBtn.circle) {
                 const targetToDelete = grabbedObject || activeObject.obj;
                 if (targetToDelete) {
@@ -1166,7 +1325,6 @@
                 }
             }
             lastBtn.circle = pad.buttons[1] ? pad.buttons[1].pressed : false;
-            // --------------------------------------------------
         }
 
         const leftStickX = pad.axes.length > 0 ? pad.axes[0] : 0;
@@ -1199,7 +1357,6 @@
                 }
             }
         } else {
-            // Free movement if not grabbing
             if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                 _strafeDir.crossVectors(camera.up, _moveDir).normalize();
@@ -1238,7 +1395,7 @@
             if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
         }
         lastBtn.triangle = pad.buttons[3] ? pad.buttons[3].pressed : false;
-        // lastBtn.circle handled above
+        lastBtn.circle = pad.buttons[1] ? pad.buttons[1].pressed : false;
     }
 
     function updateHUD() {
@@ -1260,7 +1417,6 @@
 
         const cx = w/2; const cy = h/2;
         
-        // --- GAZE LOADING RING ---
         if (gazeProgress > 0.05) {
             ctx.beginPath();
             ctx.arc(cx, cy, 60, -Math.PI/2, (-Math.PI/2) + (Math.PI * 2 * gazeProgress));
