@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V2.9 (MOTION PILOT)</title>
+    <title>HELEN: TACTICAL OS V2.8 (EXTENDED INTEL)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -85,13 +85,14 @@
 
     <div class="btn-group" id="main-controls" style="display:none;">
         <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
-        <button onclick="initTiltControl()">📱 ENABLE TILT PILOT</button> <div id="file-status" class="file-count">0 FILES LOADED</div>
+        <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [TILT] TILT DEVICE TO FLY<br>
-            [GAZE] LOOK AT RED SQUARE FOR MENU<br>
-            [GAZE] STARE AT > ARROW TO FLIP PDF
+            [GAZE] ARROWS: MOVE / RED SQUARE: MENU<br>
+            [GAZE] STARE AT > ARROW TO FLIP PDF<br>
+            [GAZE] STARE AT AUDIO ORB TO PLAY<br>
+            [BTN 1] DELETE TARGET
         </div>
     </div>
 </div>
@@ -107,7 +108,7 @@
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
-    let audioListener;
+    let audioListener; // NEW: 3D Audio Listener
     
     // --- COCKPIT MK.III VARIABLES ---
     let reticle;
@@ -153,13 +154,6 @@
     const MOUSE_SENSITIVITY = 0.02;
     const VR_WALK_SPEED = 0.05;
 
-    // --- TILT CONTROL VARIABLES (NEW) ---
-    let tiltEnabled = false;
-    let tiltData = { beta: 0, gamma: 0 };
-    let tiltOffset = { beta: 0, gamma: 0 }; // Calibration zero-point
-    const TILT_DEADZONE = 5; // Degrees to ignore
-    const TILT_SENSITIVITY = 0.002;
-
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
     let hoveredFileIndex = -1;
@@ -193,45 +187,6 @@
     const AI_STOP_DIST = 1.5;
     const AI_BACKUP_DIST = 0.8;
     const AI_WALK_SPEED = 0.03;
-
-    // --- TILT INIT FUNCTION ---
-    window.initTiltControl = function() {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            // iOS 13+ Logic
-            DeviceOrientationEvent.requestPermission()
-                .then(response => {
-                    if (response === 'granted') {
-                        startTiltListening();
-                    } else {
-                        alert("Permission Denied.");
-                    }
-                })
-                .catch(console.error);
-        } else {
-            // Non-iOS or older devices
-            startTiltListening();
-        }
-    };
-
-    function startTiltListening() {
-        tiltEnabled = true;
-        // Calibrate once on first data
-        let calibrated = false;
-        
-        window.addEventListener('deviceorientation', (e) => {
-            if(!calibrated && e.beta !== null) {
-                tiltOffset.beta = e.beta;
-                tiltOffset.gamma = e.gamma;
-                calibrated = true;
-                sysMessage = "TILT CALIBRATED";
-                updateMenuDisplay();
-            }
-            tiltData.beta = e.beta || 0;
-            tiltData.gamma = e.gamma || 0;
-        });
-        
-        document.getElementById('system-status').innerText = "TILT PILOT ACTIVE\nTilt to Fly.";
-    }
 
     window.saveKey = function() {
         const key = document.getElementById('gemini-key').value.trim(); 
@@ -375,6 +330,7 @@
                 let name = file.name.toUpperCase();
                 let type = 'image'; 
                 
+                // --- NEW TYPE DETECTION ---
                 if (name.endsWith('.PDF')) type = 'pdf';
                 else if (name.endsWith('.FBX')) type = 'fbx';
                 else if (name.endsWith('.GLB') || name.endsWith('.GLTF') || name.endsWith('.VRM')) type = 'glb';
@@ -392,6 +348,7 @@
                     CUSTOM_DATABASE.push({ type: 'chart', data: text, label: name });
                 }
                 else if (type === 'audio') {
+                     // Store blob URL
                      CUSTOM_DATABASE.push({ type: 'audio', src: URL.createObjectURL(file), label: name });
                 }
                 else if (type === 'fbx' || type === 'glb' || type === 'video' || type === 'image') {
@@ -615,71 +572,36 @@
         targetSpeed = 0;
         targetRot = 0;
         
-        // --- 1. TILT CONTROL OVERRIDE ---
-        if (tiltEnabled) {
-            const isLandscape = window.innerWidth > window.innerHeight;
-            
-            // Landscape Mode: Beta = Roll (Strafe), Gamma = Pitch (Forward)
-            // Portrait Mode: Beta = Pitch (Forward), Gamma = Roll (Strafe)
-            
-            let fwdInput = 0;
-            let strInput = 0;
-            
-            if (isLandscape) {
-                // In landscape, Gamma controls forward/back
-                const g = tiltData.gamma - tiltOffset.gamma;
-                if (Math.abs(g) > TILT_DEADZONE) fwdInput = (g < 0 ? 1 : -1) * (Math.abs(g) - TILT_DEADZONE);
-                
-                // Beta controls rotation
-                const b = tiltData.beta - tiltOffset.beta;
-                if (Math.abs(b) > TILT_DEADZONE) strInput = (b < 0 ? -1 : 1) * (Math.abs(b) - TILT_DEADZONE);
-            } else {
-                // Portrait
-                const b = tiltData.beta - tiltOffset.beta;
-                if (Math.abs(b) > TILT_DEADZONE) fwdInput = (b > 0 ? 1 : -1) * (Math.abs(b) - TILT_DEADZONE);
-                
-                const g = tiltData.gamma - tiltOffset.gamma;
-                if (Math.abs(g) > TILT_DEADZONE) strInput = (g > 0 ? 1 : -1) * (Math.abs(g) - TILT_DEADZONE);
-            }
-            
-            targetSpeed = fwdInput * TILT_SENSITIVITY;
-            targetRot = strInput * -TILT_SENSITIVITY; 
-        }
-        
-        // --- 2. GAZE CONTROL FALLBACK ---
-        // Only check gaze if not moving fast via tilt
-        if (Math.abs(targetSpeed) < 0.01 && Math.abs(targetRot) < 0.01) {
-            cockpitPanels.forEach(p => {
-                p.material.opacity = 0.4;
-                p.scale.setScalar(p.userData.baseScale);
-                if(p.children[0]) p.children[0].rotation.z += 0.01;
-            });
+        cockpitPanels.forEach(p => {
+            p.material.opacity = 0.4;
+            p.scale.setScalar(p.userData.baseScale);
+            if(p.children[0]) p.children[0].rotation.z += 0.01;
+        });
 
-            if (intersects.length > 0) {
-                const p = intersects[0].object;
-                p.material.opacity = 1.0;
-                p.scale.setScalar(p.userData.baseScale * 1.2);
+        if (intersects.length > 0) {
+            const p = intersects[0].object;
+            p.material.opacity = 1.0;
+            p.scale.setScalar(p.userData.baseScale * 1.2);
 
-                if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
-                if (p.userData.action === "LEFT") targetRot = MAX_ROT;
-                if (p.userData.action === "RIGHT") targetRot = -MAX_ROT;
-                
-                if (p.userData.action === "TOGGLE_MENU") {
-                    const now = Date.now();
-                    if (now - lastMenuToggleTime > 1500) { 
-                        isMenuOpen = !isMenuOpen;
-                        menuGroup.visible = isMenuOpen;
-                        if(isMenuOpen) {
-                            updateMenuDisplay();
-                            updateMenuPosition(); 
-                        }
-                        lastMenuToggleTime = now;
+            if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
+            if (p.userData.action === "LEFT") targetRot = MAX_ROT;
+            if (p.userData.action === "RIGHT") targetRot = -MAX_ROT;
+            
+            // --- GAZE MENU TOGGLE ---
+            if (p.userData.action === "TOGGLE_MENU") {
+                const now = Date.now();
+                if (now - lastMenuToggleTime > 1500) { 
+                    isMenuOpen = !isMenuOpen;
+                    menuGroup.visible = isMenuOpen;
+                    if(isMenuOpen) {
+                        updateMenuDisplay();
+                        updateMenuPosition(); 
                     }
+                    lastMenuToggleTime = now;
                 }
             }
         }
 
-        // --- PHYSICS SMOOTHING (LERP) ---
         currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.1);
         currentRot = THREE.MathUtils.lerp(currentRot, targetRot, 0.1);
 
@@ -705,9 +627,175 @@
         menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
     }
 
-    // ... (Init3D and other functions remain same, just ensure they are included in the full copy above) ...
-    // Note: The full code block above includes everything correctly.
+    function init3D() {
+        scene = new THREE.Scene();
+        dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); dolly.add(camera);
+        
+        // --- AUDIO SYSTEM INIT ---
+        audioListener = new THREE.AudioListener();
+        camera.add(audioListener);
+
+        const video = document.getElementById('camera-feed');
+        const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false; 
+        camMaterial = new THREE.ShaderMaterial({
+            uniforms: { tDiffuse: { value: vidTex }, uMode: { value: 0.0 }, uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
+            vertexShader: vertexShader, fragmentShader: fragmentShader, depthTest: false, depthWrite: false
+        });
+        const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
+
+        const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
+        hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas); hudTexture.minFilter = THREE.LinearFilter;
+        const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
+        hudMesh.position.set(0, 0, -1.5); camera.add(hudMesh);
+
+        // --- GRID REMOVED PER REQUEST ---
+        const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
+        
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" }); 
+        renderer.setPixelRatio(1); 
+        renderer.setSize(window.innerWidth, window.innerHeight); 
+        renderer.xr.enabled = true;
+        document.body.appendChild(renderer.domElement);
+        
+        initMouseControl();
+        createCockpit(); 
+
+        const btn = VRButton.createButton(renderer);
+        btn.className = "primary"; btn.innerHTML = "ENTER VR";
+        document.getElementById('vr-btn-container').appendChild(btn);
+        
+        renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
+
+        createMenuSystem();
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        
+        window.addEventListener('keydown', (e) => {
+            if(e.key === 'f') { 
+                if (targets.length > 0 && targets[0].userData.isModel) {
+                    targets[0].userData.isPaused = !targets[0].userData.isPaused;
+                }
+            }
+        });
+
+        animate();
+    }
+
+    function createMenuSystem() {
+        menuGroup = new THREE.Group();
+        const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
+        menuCtx = canvas.getContext('2d'); menuTexture = new THREE.CanvasTexture(canvas);
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        const material = new THREE.MeshBasicMaterial({ map: menuTexture, transparent: true, side: THREE.DoubleSide });
+        menuMesh = new THREE.Mesh(geometry, material); menuGroup.add(menuMesh);
+        menuGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
+        scene.add(menuGroup); menuGroup.visible = false;
+    }
+
+    function updateMenuDisplay() {
+        const ctx = menuCtx; const w = 1024; const h = 1024;
+        const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+        
+        ctx.fillStyle = 'rgba(0, 10, 20, 0.9)'; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 80);
+        ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
+        
+        const sysOpts = [
+            { label: "[SAVE MISSION]", type: "sys" },
+            { label: "[LOAD MISSION]", type: "sys" },
+            { label: "[CLEAR ALL]", type: "sys" },
+            { label: "[VOICE COMMS]", type: "sys" },
+            { label: "[VISUAL SCAN]", type: "sys" },
+            { label: "[WIPE MEMORY]", type: "sys" }
+        ];
+        
+        const fullList = [...sysOpts, ...db];
+        const totalItems = fullList.length;
+        
+        ctx.textAlign = 'left'; ctx.font = '50px Courier New';
+        let listY = 180;
+        
+        if (totalItems > MAX_MENU_VISIBLE) {
+            const trackHeight = MAX_MENU_VISIBLE * 70;
+            const scrollPercent = menuScrollIndex / (totalItems - MAX_MENU_VISIBLE);
+            const thumbHeight = (MAX_MENU_VISIBLE / totalItems) * trackHeight;
+            const thumbY = 130 + (scrollPercent * (trackHeight - thumbHeight));
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.1)'; ctx.fillRect(w - 30, 130, 10, trackHeight);
+            ctx.fillStyle = '#00ffff'; ctx.fillRect(w - 30, thumbY, 10, thumbHeight);
+        }
+
+        for (let i = 0; i < MAX_MENU_VISIBLE; i++) {
+            const realIndex = menuScrollIndex + i;
+            if (realIndex >= totalItems) break;
+            
+            const item = fullList[realIndex];
+            const isHovered = (realIndex === hoveredFileIndex);
+            
+            if (isHovered) {
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 60, 60);
+                ctx.fillStyle = '#fff'; ctx.fillText(`> ${item.label}`, 80, listY);
+            } else {
+                ctx.fillStyle = item.type === 'sys' ? '#ff0055' : '#00aaaa';
+                ctx.fillText(`  ${item.label}`, 80, listY);
+            }
+            
+            if (item.type !== 'sys') {
+                ctx.fillStyle = '#666'; ctx.fillText(item.type.toUpperCase(), w - 200, listY);
+            }
+            
+            listY += 70;
+        }
+
+        if (sysMessage) {
+            ctx.fillStyle = '#00ff00'; ctx.fillRect(100, h/2 - 50, w-200, 100);
+            ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.fillText(sysMessage, w/2, h/2 + 15);
+        }
+
+        menuTexture.needsUpdate = true;
+    }
+
+    function spawnFromMenu(index) {
+        if (index === 0) { saveMission(); return; }
+        if (index === 1) { loadMission(); return; }
+        if (index === 2) { clearMission(); return; }
+        if (index === 3) { 
+            if(recognition) recognition.start(); 
+            else sysMessage = "VOICE NOT READY"; 
+            updateMenuDisplay();
+            setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500);
+            return; 
+        }
+        if (index === 4) { performVisualScan(); updateMenuDisplay(); setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500); return; }
+        if (index === 5) { wipeMemory(); return; }
+
+        const fileIndex = index - 6; 
+        const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
+        
+        if (fileIndex >= 0 && fileIndex < db.length) {
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
+            
+            const item = db[fileIndex];
+            
+            if (item.type === 'fbx' || item.type === 'glb') {
+                pos.y = 0; 
+                spawnModel(pos, item);
+            } else if (item.type === 'audio') {
+                pos.y = 1.6;
+                spawnAudio(pos, item);
+            } else if (item.type === 'chart') {
+                pos.y = 1.0;
+                spawnChart(pos, item);
+            } else {
+                pos.y = 1.6; 
+                spawnScreen(pos, item);
+            }
+            
+            isMenuOpen = false; menuGroup.visible = false;
+        }
+    }
     
+    // --- NEW: AUDIO SPAWN LOGIC ---
     function spawnAudio(position, data) {
         const geo = new THREE.IcosahedronGeometry(0.3, 1);
         const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
@@ -720,10 +808,11 @@
             sound.setBuffer(buffer);
             sound.setLoop(true);
             sound.setVolume(0.5);
+            // sound.play(); // Auto-play is annoying, let user toggle
         });
         
         orb.userData = { 
-            isScreen: true, 
+            isScreen: true, // Treat as screen for dragging
             isAudio: true, 
             sound: sound, 
             isPlaying: false, 
@@ -731,6 +820,7 @@
             type: 'audio' 
         };
         
+        // Add ghost border for hit detection consistency
         const border = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.7,0.7), new THREE.MeshBasicMaterial({visible:false}));
         orb.add(border);
         
@@ -738,6 +828,7 @@
         targets.push(orb);
     }
     
+    // --- NEW: CHART SPAWN LOGIC ---
     function spawnChart(position, data) {
         const lines = data.data.split('\n');
         const chartGroup = new THREE.Group();
@@ -762,12 +853,13 @@
         const spacing = 0.3;
         
         parsed.forEach((item, i) => {
-            const h = (item.val / maxVal) * 1.5; 
+            const h = (item.val / maxVal) * 1.5; // Max height 1.5m
             const geo = new THREE.BoxGeometry(baseSize, h, baseSize);
             const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 });
             const bar = new THREE.Mesh(geo, mat);
             bar.position.set((i * spacing) - ((parsed.length*spacing)/2), h/2, 0);
             
+            // Add Label Text (Canvas Texture)
             const canvas = document.createElement('canvas');
             canvas.width = 256; canvas.height = 128;
             const ctx = canvas.getContext('2d');
@@ -786,6 +878,7 @@
             chartGroup.add(bar);
         });
         
+        // Add base plate
         const baseGeo = new THREE.PlaneGeometry(parsed.length * spacing + 0.2, 0.5);
         const baseMat = new THREE.MeshBasicMaterial({ color: 0x005555, side: THREE.DoubleSide });
         const base = new THREE.Mesh(baseGeo, baseMat);
@@ -794,12 +887,280 @@
         
         chartGroup.userData = { isScreen: true, isChart: true, label: data.label, type: 'chart' };
         
+        // Hit box
         const hitBox = new THREE.Mesh(new THREE.BoxGeometry(parsed.length*spacing, 1.5, 0.5), new THREE.MeshBasicMaterial({visible:false}));
         hitBox.position.y = 0.75;
         chartGroup.add(hitBox);
 
         scene.add(chartGroup);
         targets.push(chartGroup);
+    }
+
+    function mapBones(model) {
+        const skeleton = {
+            hips: null, spine: null, head: null,
+            leftLeg: null, rightLeg: null, 
+            leftArm: null, rightArm: null 
+        };
+        
+        model.traverse((o) => {
+            if (o.isMesh) { 
+                o.castShadow = false; o.receiveShadow = false;
+                if (o.material) o.material.side = THREE.DoubleSide; 
+            }
+            if (!o.isBone) return;
+            const n = o.name;
+
+            if (n === 'J_Bip_L_UpperArm') skeleton.leftArm = o;
+            if (n === 'J_Bip_R_UpperArm') skeleton.rightArm = o;
+            if (n === 'J_Bip_C_Neck') skeleton.neck = o;
+            if (n === 'J_Bip_C_Head') skeleton.head = o;
+            if (n === 'J_Bip_C_Spine') skeleton.spine = o;
+            if (n === 'J_Bip_L_UpperLeg') skeleton.leftLeg = o;
+            if (n === 'J_Bip_R_UpperLeg') skeleton.rightLeg = o;
+        });
+        return skeleton;
+    }
+
+    function updateAI(model, dt) {
+        if (!model.userData.skeleton) return;
+        
+        const skel = model.userData.skeleton;
+        const playerPos = camera.getWorldPosition(new THREE.Vector3());
+        const flatPlayerPos = new THREE.Vector3(playerPos.x, model.position.y, playerPos.z);
+        const dist = model.position.distanceTo(flatPlayerPos);
+        const time = Date.now() * 0.001;
+
+        if (model.userData.enableHeadTracking !== false && !grabbedObject) { 
+            model.lookAt(flatPlayerPos);
+        }
+
+        if (model.userData.isPaused) {
+            if (skel.leftLeg) skel.leftLeg.rotation.x = THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
+            if (skel.rightLeg) skel.rightLeg.rotation.x = THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
+            if(skel.leftArm) { skel.leftArm.rotation.z = -1.2; skel.leftArm.rotation.x = 0; }
+            if(skel.rightArm) { skel.rightArm.rotation.z = 1.2; skel.rightArm.rotation.x = 0; }
+            if (skel.spine) {
+                skel.spine.rotation.x = Math.sin(time * 2) * 0.05; 
+                skel.spine.rotation.y = Math.sin(time * 1) * 0.02; 
+            }
+            return; 
+        }
+
+        if (dist < AI_BACKUP_DIST) {
+            const dir = new THREE.Vector3().subVectors(model.position, flatPlayerPos).normalize();
+            model.position.add(dir.multiplyScalar(AI_WALK_SPEED * 0.5));
+        }
+        else if (dist > AI_FOLLOW_DIST) {
+            const dir = new THREE.Vector3().subVectors(flatPlayerPos, model.position).normalize();
+            model.position.add(dir.multiplyScalar(AI_WALK_SPEED));
+            
+            if (skel.leftLeg && skel.rightLeg) {
+                skel.leftLeg.rotation.x = Math.sin(time * 10) * 0.5;
+                skel.rightLeg.rotation.x = -Math.sin(time * 10) * 0.5;
+                if(skel.leftArm) skel.leftArm.rotation.z = -1.2; 
+                if(skel.rightArm) skel.rightArm.rotation.z = 1.2; 
+                if(skel.leftArm) skel.leftArm.rotation.x = Math.sin(time * 10 + Math.PI) * 0.2;
+                if(skel.rightArm) skel.rightArm.rotation.x = Math.sin(time * 10) * 0.2;
+            }
+        }
+        else {
+            if (skel.leftLeg) skel.leftLeg.rotation.x = THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
+            if (skel.rightLeg) skel.rightLeg.rotation.x = THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
+            if(skel.leftArm) { skel.leftArm.rotation.z = -1.2; skel.leftArm.rotation.x = 0; }
+            if(skel.rightArm) { skel.rightArm.rotation.z = 1.2; skel.rightArm.rotation.x = 0; }
+            if (skel.spine) {
+                skel.spine.rotation.x = Math.sin(time * 2) * 0.05; 
+                skel.spine.rotation.y = Math.sin(time * 1) * 0.02; 
+            }
+        }
+    }
+
+    function spawnModel(position, data, rotation = null, scale = null) {
+        const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
+        const placeholder = new THREE.Mesh(boxGeo, boxMat);
+        placeholder.position.copy(position);
+        placeholder.userData = { isScreen: true, isModel: true, label: "LOADING...", type: data.type };
+        scene.add(placeholder);
+        targets.push(placeholder);
+
+        const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
+        
+        loader.load(data.src, (loaded) => {
+            scene.remove(placeholder);
+            targets = targets.filter(t => t !== placeholder);
+
+            const model = data.type === 'fbx' ? loaded : loaded.scene;
+            
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.raycast = function() {}; // Optimization: Disable CPU heavy raycasts
+                }
+            });
+
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z) || 1; 
+            const scaleFactor = 1.0 / maxDim; 
+            
+            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+            if (scale) model.scale.copy(scale);
+
+            model.position.copy(position);
+            if (rotation) model.rotation.copy(rotation);
+            
+            const helperGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
+            const helperMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent:true, opacity:0.5 });
+            const helperMesh = new THREE.Mesh(helperGeo, helperMat);
+            helperMesh.position.y = size.y / 2; 
+            helperMesh.raycast = THREE.Mesh.prototype.raycast;
+            
+            model.add(helperMesh); 
+            
+            const skel = mapBones(model);
+            model.userData = { 
+                isScreen: true, 
+                isModel: true, 
+                label: data.label, 
+                type: data.type, 
+                skeleton: skel, 
+                aiActive: true,
+                isPaused: false,
+                enableHeadTracking: true 
+            };
+            
+            scene.add(model);
+            targets.push(model);
+            sysMessage = "AI AGENT DEPLOYED"; updateMenuDisplay();
+        }, undefined, (error) => {
+            console.error(error);
+            placeholder.material.color.setHex(0xff0000);
+            placeholder.userData.label = "ERROR: LOAD FAILED";
+            sysMessage = "LOAD ERROR"; updateMenuDisplay();
+        });
+    }
+
+    async function spawnScreen(position, data, rotation = null) {
+        // Init with 1x1 plane
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent:true, opacity:0.9 });
+        const screen = new THREE.Mesh(geometry, material);
+        screen.position.copy(position); 
+        
+        if (rotation) screen.rotation.copy(rotation);
+        else {
+            const pPos = camera.getWorldPosition(new THREE.Vector3());
+            screen.lookAt(pPos.x, screen.position.y, pPos.z);
+        }
+        
+        screen.userData = { isScreen: true, label: data.label, type: data.type };
+
+        const addGhostBorder = (color) => {
+            const border = new THREE.LineSegments(
+                new THREE.EdgesGeometry(geometry), 
+                new THREE.LineBasicMaterial({ color: color })
+            );
+            border.raycast = function() {}; 
+            screen.add(border);
+        };
+        
+        // --- PAGE CONTROL BUTTONS ---
+        const createPageButton = (dir) => {
+            const s = new THREE.Shape();
+            if(dir === 'next') { s.moveTo(0,0.2); s.lineTo(0.2,0); s.lineTo(0,-0.2); }
+            else { s.moveTo(0,0.2); s.lineTo(-0.2,0); s.lineTo(0,-0.2); }
+            const g = new THREE.ShapeGeometry(s);
+            const m = new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(g, m);
+            mesh.userData = { isButton: true, action: dir === 'next' ? 'NEXT_PAGE' : 'PREV_PAGE' };
+            // Position relative to screen
+            mesh.position.set(dir === 'next' ? 0.7 : -0.7, 0, 0.05);
+            screen.add(mesh);
+        }
+
+        if (data.type === 'pdf') {
+            const clonedBuffer = data.buffer.slice(0);
+            const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
+            screen.userData.pdfDoc = pdf; 
+            screen.userData.pageNum = 1; 
+            screen.userData.totalPages = pdf.numPages;
+            
+            addGhostBorder(0xffff00); 
+            
+            // Add Controls
+            createPageButton('next');
+            createPageButton('prev');
+            
+            await renderPdfPageToTexture(screen, 1);
+            
+        } else if (data.type === 'video') {
+            const videoElem = document.createElement('video'); videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; videoElem.loop = true; videoElem.muted = true; 
+            videoElem.play().then(() => { videoElem.muted = false; });
+            const tex = new THREE.VideoTexture(videoElem); tex.colorSpace = THREE.SRGBColorSpace;
+            screen.material.map = tex; screen.userData.videoElement = videoElem;
+            screen.scale.set(3, 1.8, 1); 
+            
+            addGhostBorder(0x00ffff);
+            
+        } else {
+            const tex = new THREE.TextureLoader().load(data.src); 
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            screen.material.map = tex;
+            
+            const img = new Image();
+            img.src = data.src;
+            img.onload = () => {
+                const aspect = img.width / img.height;
+                screen.scale.set(1.8 * aspect, 1.8, 1); 
+            }
+            
+            addGhostBorder(0x00ffff);
+        }
+        scene.add(screen); targets.push(screen);
+    }
+    
+    async function renderPdfPageToTexture(mesh, pageNum) {
+        if (!mesh.userData.pdfDoc) return;
+        if (mesh.userData.isRendering) return; 
+        mesh.userData.isRendering = true;
+        try {
+            const pdf = mesh.userData.pdfDoc;
+            if (pageNum < 1) pageNum = 1; if (pageNum > pdf.numPages) pageNum = pdf.numPages;
+            mesh.userData.pageNum = pageNum;
+            const page = await pdf.getPage(pageNum);
+            
+            const viewport = page.getViewport({ scale: 3.0 });
+            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+            canvas.height = viewport.height; canvas.width = viewport.width;
+            
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            
+            const tex = new THREE.CanvasTexture(canvas); 
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            
+            if (mesh.material.map) mesh.material.map.dispose(); 
+            mesh.material.map = tex; 
+            mesh.material.needsUpdate = true;
+            
+            const aspectRatio = viewport.width / viewport.height;
+            mesh.scale.set(1.8 * aspectRatio, 1.8, 1);
+            
+        } catch(e) { console.error(e); }
+        mesh.userData.isRendering = false;
+    }
+
+    function deleteObject(obj) {
+        if (obj.userData.videoElement) {
+            obj.userData.videoElement.pause(); obj.userData.videoElement.src = ""; obj.userData.videoElement.load();
+        }
+        if (obj.userData.sound && obj.userData.sound.isPlaying) obj.userData.sound.stop();
+        if (obj.material && obj.material.map) obj.material.map.dispose();
+        scene.remove(obj); targets = targets.filter(t => t !== obj);
     }
 
     // --- MAIN INPUT HANDLER ---
@@ -809,8 +1170,9 @@
             dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
         }
 
-        gazeProgress = 0; 
+        gazeProgress = 0; // Reset progress by default
         
+        // ANIMATE AUDIO ORBS
         targets.forEach(t => {
             if(t.userData.isAudio && t.userData.isPlaying) {
                 const s = 1.0 + Math.sin(Date.now() * 0.01) * 0.2;
@@ -818,6 +1180,7 @@
             }
         });
 
+        // 1. MENU GAZE LOGIC
         if (isMenuOpen && menuMesh) {
             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
             const intersects = raycaster.intersectObject(menuMesh);
@@ -851,13 +1214,16 @@
             }
         } 
         
+        // 2. WORLD OBJECT GAZE LOGIC
         else {
             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            // Recursive raycast
             const intersects = raycaster.intersectObjects(targets, true);
             
             if (intersects.length > 0) {
                 let hit = intersects[0].object;
                 
+                // CHECK FOR BUTTON HIT
                 if (hit.userData.isButton) {
                     if (hoveredPageButton !== hit) {
                         hoveredPageButton = hit;
@@ -874,17 +1240,19 @@
                                     renderPdfPageToTexture(screen, newPage);
                                 }
                             }
-                            menuSelectionTimer = Date.now() + 2000; 
+                            menuSelectionTimer = Date.now() + 2000; // Reset
                         }
                     }
                 } else {
                     hoveredPageButton = null;
                     
+                    // NORMAL OBJECT HIGHLIGHT
                     while(hit.parent && !hit.userData.isScreen && hit !== scene) { hit = hit.parent; }
                     
                     if (hit.userData.isScreen || hit.userData.isModel) { 
+                         // --- AUDIO PLAY LOGIC ---
                          if(hit.userData.isAudio) {
-                             if(grabbedObject !== hit) {
+                             if(grabbedObject !== hit) { // Don't trigger if dragging
                                  if(activeObject.obj !== hit) {
                                      activeObject.obj = hit;
                                      menuSelectionTimer = Date.now();
@@ -915,6 +1283,7 @@
             }
         }
 
+        // 3. GAMEPAD LOGIC
         const pads = navigator.getGamepads();
         let pad = null;
         for (let i = 0; i < pads.length; i++) {
@@ -946,6 +1315,7 @@
                 }
             }
             
+            // DELETE LOGIC
             if (pad.buttons[1] && pad.buttons[1].pressed && !lastBtn.circle) {
                 const targetToDelete = grabbedObject || activeObject.obj;
                 if (targetToDelete) {
