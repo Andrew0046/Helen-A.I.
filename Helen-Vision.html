@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V2.6 (NO GRID)</title>
+    <title>HELEN: TACTICAL OS V2.5 (FULL GAZE)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -144,7 +144,7 @@
     let activeObject = { obj: null, progress: 0 }; 
     let grabbedObject = null; 
     
-    let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 2000; 
+    let lastPageTurnTime = 0; const PAGE_DEBOUNCE = 2000; // Slower for gaze safety
     let pendingRestore = false; 
 
     // --- INPUT VARIABLES ---
@@ -164,7 +164,7 @@
     // --- GAZE VARIABLES ---
     let menuSelectionTimer = 0; 
     let gazeProgress = 0;       
-    let hoveredPageButton = null;
+    let hoveredPageButton = null; // Track PDF arrows
 
     // HUD Optimization
     let lastHudState = "";
@@ -630,7 +630,7 @@
         const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
         hudMesh.position.set(0, 0, -1.5); camera.add(hudMesh);
 
-        // --- GRID REMOVED PER REQUEST ---
+       // scene.add(new THREE.GridHelper(40, 40, 0x00ffff, 0x111111));
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" }); 
