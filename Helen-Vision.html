@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V2.8 (EXTENDED INTEL)</title>
+    <title>HELEN: TACTICAL OS V2.9 (TILT CONTROL)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -85,13 +85,14 @@
 
     <div class="btn-group" id="main-controls" style="display:none;">
         <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
+        <button onclick="requestTiltAccess()">📱 ENABLE TILT DRIVE</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [GAZE] ARROWS: MOVE / RED SQUARE: MENU<br>
+            [TILT] PHONE TO FLY (FWD/BACK/SIDE)<br>
+            [GAZE] LOOK AT RED SQUARE FOR MENU<br>
             [GAZE] STARE AT > ARROW TO FLIP PDF<br>
-            [GAZE] STARE AT AUDIO ORB TO PLAY<br>
             [BTN 1] DELETE TARGET
         </div>
     </div>
@@ -108,7 +109,7 @@
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
-    let audioListener; // NEW: 3D Audio Listener
+    let audioListener; 
     
     // --- COCKPIT MK.III VARIABLES ---
     let reticle;
@@ -153,6 +154,13 @@
     let previousMousePosition = { x: 0, y: 0 };
     const MOUSE_SENSITIVITY = 0.02;
     const VR_WALK_SPEED = 0.05;
+
+    // --- NEW: TILT CONTROL VARIABLES ---
+    let isTiltActive = false;
+    let tiltCalibration = { beta: 0, gamma: 0 };
+    let currentTilt = { beta: 0, gamma: 0 };
+    const TILT_DEADZONE = 5; 
+    const TILT_SPEED = 0.002;
 
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
@@ -204,6 +212,46 @@
         localStorage.removeItem('helen_layout_ai');
         localStorage.removeItem('helen_chat_history'); 
         location.reload();
+    }
+    
+    // --- NEW: TILT REQUEST FUNCTION ---
+    window.requestTiltAccess = function() {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            // iOS 13+ requires permission
+            DeviceOrientationEvent.requestPermission()
+                .then(response => {
+                    if (response === 'granted') {
+                        activateTiltListener();
+                    } else {
+                        alert("Permission denied.");
+                    }
+                })
+                .catch(console.error);
+        } else {
+            // Non-iOS devices usually allow it
+            activateTiltListener();
+        }
+    };
+
+    function activateTiltListener() {
+        sysMessage = "TILT DRIVE ACTIVE"; updateMenuDisplay();
+        isTiltActive = true;
+        let calibrated = false;
+        
+        window.addEventListener('deviceorientation', (event) => {
+            if (!event.beta || !event.gamma) return;
+            
+            // First reading sets the "Zero" point (holding position)
+            if (!calibrated) {
+                tiltCalibration.beta = event.beta;
+                tiltCalibration.gamma = event.gamma;
+                calibrated = true;
+            }
+            
+            // Smooth values
+            currentTilt.beta = THREE.MathUtils.lerp(currentTilt.beta, event.beta - tiltCalibration.beta, 0.1);
+            currentTilt.gamma = THREE.MathUtils.lerp(currentTilt.gamma, event.gamma - tiltCalibration.gamma, 0.1);
+        });
     }
 
     function checkAuth() {
@@ -330,7 +378,6 @@
                 let name = file.name.toUpperCase();
                 let type = 'image'; 
                 
-                // --- NEW TYPE DETECTION ---
                 if (name.endsWith('.PDF')) type = 'pdf';
                 else if (name.endsWith('.FBX')) type = 'fbx';
                 else if (name.endsWith('.GLB') || name.endsWith('.GLTF') || name.endsWith('.VRM')) type = 'glb';
@@ -348,7 +395,6 @@
                     CUSTOM_DATABASE.push({ type: 'chart', data: text, label: name });
                 }
                 else if (type === 'audio') {
-                     // Store blob URL
                      CUSTOM_DATABASE.push({ type: 'audio', src: URL.createObjectURL(file), label: name });
                 }
                 else if (type === 'fbx' || type === 'glb' || type === 'video' || type === 'image') {
@@ -649,7 +695,6 @@
         const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
         hudMesh.position.set(0, 0, -1.5); camera.add(hudMesh);
 
-        // --- GRID REMOVED PER REQUEST ---
         const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
         
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" }); 
@@ -808,7 +853,6 @@
             sound.setBuffer(buffer);
             sound.setLoop(true);
             sound.setVolume(0.5);
-            // sound.play(); // Auto-play is annoying, let user toggle
         });
         
         orb.userData = { 
@@ -820,7 +864,6 @@
             type: 'audio' 
         };
         
-        // Add ghost border for hit detection consistency
         const border = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.7,0.7), new THREE.MeshBasicMaterial({visible:false}));
         orb.add(border);
         
@@ -878,7 +921,6 @@
             chartGroup.add(bar);
         });
         
-        // Add base plate
         const baseGeo = new THREE.PlaneGeometry(parsed.length * spacing + 0.2, 0.5);
         const baseMat = new THREE.MeshBasicMaterial({ color: 0x005555, side: THREE.DoubleSide });
         const base = new THREE.Mesh(baseGeo, baseMat);
@@ -887,7 +929,6 @@
         
         chartGroup.userData = { isScreen: true, isChart: true, label: data.label, type: 'chart' };
         
-        // Hit box
         const hitBox = new THREE.Mesh(new THREE.BoxGeometry(parsed.length*spacing, 1.5, 0.5), new THREE.MeshBasicMaterial({visible:false}));
         hitBox.position.y = 0.75;
         chartGroup.add(hitBox);
@@ -1168,6 +1209,30 @@
         if (renderer.xr.isPresenting && isMouseDown) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
             dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
+        }
+        
+        // --- NEW: TILT DRIVE (MOBILE) ---
+        if (isTiltActive && !grabbedObject) {
+            // Apply deadzone
+            let fwd = 0;
+            let strafe = 0;
+            
+            // Beta (Front/Back Tilt)
+            if (Math.abs(currentTilt.beta) > TILT_DEADZONE) {
+                fwd = (currentTilt.beta > 0 ? currentTilt.beta - TILT_DEADZONE : currentTilt.beta + TILT_DEADZONE) * TILT_SPEED;
+            }
+            
+            // Gamma (Left/Right Tilt)
+            if (Math.abs(currentTilt.gamma) > TILT_DEADZONE) {
+                strafe = (currentTilt.gamma > 0 ? currentTilt.gamma - TILT_DEADZONE : currentTilt.gamma + TILT_DEADZONE) * TILT_SPEED;
+            }
+            
+            if (Math.abs(fwd) > 0.0001 || Math.abs(strafe) > 0.0001) {
+                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
+                dolly.position.addScaledVector(_moveDir, fwd);
+                dolly.position.addScaledVector(_strafeDir, strafe);
+            }
         }
 
         gazeProgress = 0; // Reset progress by default
