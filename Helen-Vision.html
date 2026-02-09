@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V3.2 (DUAL VR)</title>
+    <title>HELEN: TACTICAL OS V2.9 (TILT CONTROL)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -86,14 +86,13 @@
     <div class="btn-group" id="main-controls" style="display:none;">
         <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
         <button onclick="requestTiltAccess()">📱 ENABLE TILT DRIVE</button>
-        <button onclick="enterCinemaMode()">🎥 CINEMA FOR VR</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
             [TILT] PHONE TO FLY (FWD/BACK/SIDE)<br>
             [GAZE] LOOK AT RED SQUARE FOR MENU<br>
-            [CINEMA] LOOK LEFT/RIGHT TO SWITCH<br>
+            [GAZE] STARE AT > ARROW TO FLIP PDF<br>
             [BTN 1] DELETE TARGET
         </div>
     </div>
@@ -156,17 +155,12 @@
     const MOUSE_SENSITIVITY = 0.02;
     const VR_WALK_SPEED = 0.05;
 
-    // --- TILT CONTROL VARIABLES ---
+    // --- NEW: TILT CONTROL VARIABLES ---
     let isTiltActive = false;
     let tiltCalibration = { beta: 0, gamma: 0 };
     let currentTilt = { beta: 0, gamma: 0 };
     const TILT_DEADZONE = 5; 
     const TILT_SPEED = 0.002;
-
-    // --- CINEMA VARIABLES ---
-    let cinemaMode = false;
-    let cinemaScreen = null;
-    let currentCinemaVideoIndex = 0;
 
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
@@ -220,28 +214,41 @@
         location.reload();
     }
     
+    // --- NEW: TILT REQUEST FUNCTION ---
     window.requestTiltAccess = function() {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            // iOS 13+ requires permission
             DeviceOrientationEvent.requestPermission()
                 .then(response => {
-                    if (response === 'granted') { activateTiltListener(); } 
-                    else { alert("Permission denied."); }
+                    if (response === 'granted') {
+                        activateTiltListener();
+                    } else {
+                        alert("Permission denied.");
+                    }
                 })
                 .catch(console.error);
-        } else { activateTiltListener(); }
+        } else {
+            // Non-iOS devices usually allow it
+            activateTiltListener();
+        }
     };
 
     function activateTiltListener() {
         sysMessage = "TILT DRIVE ACTIVE"; updateMenuDisplay();
         isTiltActive = true;
         let calibrated = false;
+        
         window.addEventListener('deviceorientation', (event) => {
             if (!event.beta || !event.gamma) return;
+            
+            // First reading sets the "Zero" point (holding position)
             if (!calibrated) {
                 tiltCalibration.beta = event.beta;
                 tiltCalibration.gamma = event.gamma;
                 calibrated = true;
             }
+            
+            // Smooth values
             currentTilt.beta = THREE.MathUtils.lerp(currentTilt.beta, event.beta - tiltCalibration.beta, 0.1);
             currentTilt.gamma = THREE.MathUtils.lerp(currentTilt.gamma, event.gamma - tiltCalibration.gamma, 0.1);
         });
@@ -252,11 +259,17 @@
             document.getElementById('api-container').style.display = 'none';
             document.getElementById('main-controls').style.display = 'flex';
             document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Cockpit Mk.III Active.<br>Look DOWN to Pilot.`;
+            
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
-                model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: "You are HELEN, a tactical AI companion. Responses concise & robotic." });
+                model = genAI.getGenerativeModel({ 
+                    model: "gemini-2.5-flash",
+                    systemInstruction: "You are HELEN, a tactical AI companion. Responses concise & robotic."
+                });
                 initVoice();
-            } catch(e) { console.error("AI INIT FAILED", e); }
+            } catch(e) {
+                console.error("AI INIT FAILED", e);
+            }
         }
     }
 
@@ -266,8 +279,10 @@
             recognition = new SpeechRecognition();
             recognition.continuous = false;
             recognition.lang = 'en-US';
+            
             recognition.onstart = () => { isListening = true; aiStatus = "LISTENING..."; updateHUD(); };
             recognition.onend = () => { isListening = false; if(aiStatus === "LISTENING...") aiStatus = "PROCESSING..."; updateHUD(); };
+            
             recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript;
                 console.log("User said:", transcript);
@@ -282,6 +297,7 @@
         const flash = document.getElementById('flash');
         flash.style.opacity = 0.8;
         setTimeout(() => { flash.style.opacity = 0; }, 100);
+
         const video = document.getElementById('camera-feed');
         const canvas = document.getElementById('vision-canvas');
         canvas.width = video.videoWidth; canvas.height = video.videoHeight;
@@ -289,6 +305,7 @@
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         const base64Image = dataUrl.split(',')[1]; 
+
         aiStatus = "ANALYZING TARGET..."; updateHUD();
         try {
             const prompt = "Analyze this image tactically.";
@@ -306,7 +323,10 @@
     async function askGemini(prompt) {
         aiStatus = "THINKING..."; updateHUD();
         try {
-            const chat = model.startChat({ history: chatHistory, generationConfig: { maxOutputTokens: 100 } });
+            const chat = model.startChat({
+                history: chatHistory,
+                generationConfig: { maxOutputTokens: 100 },
+            });
             const result = await chat.sendMessage(prompt);
             const response = await result.response;
             const text = response.text();
@@ -454,116 +474,6 @@
                 camMaterial.uniforms.tDiffuse.value.generateMipmaps = false;
             }
         } catch (err) {}
-    }
-    
-    // ====================== DUAL VR LAUNCH SYSTEM ======================
-    window.enterCinemaMode = function() {
-        const videos = CUSTOM_DATABASE.filter(item => item.type === 'video');
-        if (videos.length === 0) {
-            alert("No video files loaded.\n\nUse LOAD INTEL to add MP4 videos first.");
-            return;
-        }
-
-        // If already in VR, just switch modes
-        if (renderer.xr.isPresenting) {
-            setupCinemaEnvironment();
-            return;
-        }
-
-        // NATIVE WEBXR LAUNCH FOR CINEMA
-        const sessionInit = { optionalFeatures: [ 'local-floor', 'bounded-floor', 'hand-tracking', 'layers' ] };
-        navigator.xr.requestSession( 'immersive-vr', sessionInit ).then( (session) => {
-            renderer.xr.setSession( session );
-            setupCinemaEnvironment();
-            // Handle Exit
-            session.addEventListener('end', () => {
-                cinemaMode = false;
-                if(cockpitGroup) cockpitGroup.visible = true;
-                scene.background = null; 
-                scene.fog = null;
-                sysMessage = "CINEMA ENDED";
-                updateMenuDisplay();
-            });
-        }).catch((e) => {
-            alert("VR NOT SUPPORTED OR CANCELLED: " + e);
-        });
-    };
-
-    function setupCinemaEnvironment() {
-        const videos = CUSTOM_DATABASE.filter(item => item.type === 'video');
-        if (videos.length === 0) return;
-
-        cinemaMode = true;
-        currentCinemaVideoIndex = 0;
-
-        if (cockpitGroup) cockpitGroup.visible = false;
-
-        scene.background = new THREE.Color(0x000000);
-        scene.fog = new THREE.Fog(0x000011, 10, 50);
-
-        dolly.position.set(0, 0, 0);
-        dolly.rotation.set(0, 0, 0);
-        camera.position.set(0, 1.6, 12);
-
-        spawnCinemaScreen(videos[0]);
-
-        sysMessage = "CINEMA MODE ACTIVE\nLook Left/Right to switch";
-        updateMenuDisplay();
-    }
-
-    function spawnCinemaScreen(videoItem) {
-        if (cinemaScreen) {
-            if (cinemaScreen.userData.videoElement) cinemaScreen.userData.videoElement.pause();
-            scene.remove(cinemaScreen);
-            targets = targets.filter(t => t !== cinemaScreen);
-        }
-
-        const radius = 18;
-        const height = 9;
-        const thetaLength = Math.PI * 0.75;
-        const geometry = new THREE.CylinderGeometry(radius, radius, height, 64, 1, true, -thetaLength/2, thetaLength);
-        geometry.rotateY(Math.PI);
-
-        const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
-
-        cinemaScreen = new THREE.Mesh(geometry, material);
-        cinemaScreen.position.set(0, 5, -radius * 0.6);
-
-        const videoElem = document.createElement('video');
-        videoElem.src = videoItem.src;
-        videoElem.crossOrigin = "anonymous";
-        videoElem.loop = true;
-        videoElem.muted = false;
-        videoElem.play();
-
-        const texture = new THREE.VideoTexture(videoElem);
-        texture.colorSpace = THREE.SRGBColorSpace;
-        material.map = texture;
-
-        cinemaScreen.userData = {
-            isScreen: true,
-            isCinema: true,
-            label: videoItem.label,
-            type: 'video',
-            videoElement: videoElem,
-            videoIndex: currentCinemaVideoIndex
-        };
-
-        const frameGeo = new THREE.CylinderGeometry(radius + 0.6, radius + 0.6, height + 1.2, 64, 1, true, -thetaLength/2, thetaLength);
-        const frameMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0a, side: THREE.DoubleSide });
-        const frame = new THREE.Mesh(frameGeo, frameMat);
-        frame.position.copy(cinemaScreen.position);
-        scene.add(frame);
-
-        scene.add(cinemaScreen);
-        targets.push(cinemaScreen);
-    }
-
-    function switchCinemaVideo(direction) {
-        const videos = CUSTOM_DATABASE.filter(item => item.type === 'video');
-        if (videos.length === 0) return;
-        currentCinemaVideoIndex = (currentCinemaVideoIndex + direction + videos.length) % videos.length;
-        spawnCinemaScreen(videos[currentCinemaVideoIndex]);
     }
 
     scanCameras().then(init3D);
@@ -768,6 +678,7 @@
         dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); dolly.add(camera);
         
+        // --- AUDIO SYSTEM INIT ---
         audioListener = new THREE.AudioListener();
         camera.add(audioListener);
 
@@ -929,6 +840,7 @@
         }
     }
     
+    // --- NEW: AUDIO SPAWN LOGIC ---
     function spawnAudio(position, data) {
         const geo = new THREE.IcosahedronGeometry(0.3, 1);
         const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
@@ -944,7 +856,7 @@
         });
         
         orb.userData = { 
-            isScreen: true,
+            isScreen: true, // Treat as screen for dragging
             isAudio: true, 
             sound: sound, 
             isPlaying: false, 
@@ -959,6 +871,7 @@
         targets.push(orb);
     }
     
+    // --- NEW: CHART SPAWN LOGIC ---
     function spawnChart(position, data) {
         const lines = data.data.split('\n');
         const chartGroup = new THREE.Group();
@@ -989,6 +902,7 @@
             const bar = new THREE.Mesh(geo, mat);
             bar.position.set((i * spacing) - ((parsed.length*spacing)/2), h/2, 0);
             
+            // Add Label Text (Canvas Texture)
             const canvas = document.createElement('canvas');
             canvas.width = 256; canvas.height = 128;
             const ctx = canvas.getContext('2d');
@@ -1292,22 +1206,27 @@
 
     // --- MAIN INPUT HANDLER ---
     function handleInput() {
-        if (renderer.xr.isPresenting && isMouseDown && !cinemaMode) {
+        if (renderer.xr.isPresenting && isMouseDown) {
             camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
             dolly.position.addScaledVector(_moveDir, VR_WALK_SPEED);
         }
         
         // --- NEW: TILT DRIVE (MOBILE) ---
-        if (isTiltActive && !grabbedObject && !cinemaMode) {
+        if (isTiltActive && !grabbedObject) {
+            // Apply deadzone
             let fwd = 0;
             let strafe = 0;
             
+            // Beta (Front/Back Tilt)
             if (Math.abs(currentTilt.beta) > TILT_DEADZONE) {
                 fwd = (currentTilt.beta > 0 ? currentTilt.beta - TILT_DEADZONE : currentTilt.beta + TILT_DEADZONE) * TILT_SPEED;
             }
+            
+            // Gamma (Left/Right Tilt)
             if (Math.abs(currentTilt.gamma) > TILT_DEADZONE) {
                 strafe = (currentTilt.gamma > 0 ? currentTilt.gamma - TILT_DEADZONE : currentTilt.gamma + TILT_DEADZONE) * TILT_SPEED;
             }
+            
             if (Math.abs(fwd) > 0.0001 || Math.abs(strafe) > 0.0001) {
                 camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
                 _strafeDir.crossVectors(camera.up, _moveDir).normalize();
@@ -1362,28 +1281,6 @@
         
         // 2. WORLD OBJECT GAZE LOGIC
         else {
-            // === Cinema mode left/right gaze switching ===
-            if (cinemaMode && cinemaScreen) {
-                const distToScreen = camera.position.distanceTo(cinemaScreen.position);
-                if (distToScreen < 30) {
-                    const toScreen = new THREE.Vector3().subVectors(cinemaScreen.position, camera.getWorldPosition(new THREE.Vector3()));
-                    if (Math.abs(toScreen.x) > 8) {  
-                        if (!hoveredPageButton) {
-                            hoveredPageButton = { action: toScreen.x < 0 ? 'PREV_VIDEO' : 'NEXT_VIDEO' };
-                            menuSelectionTimer = Date.now();
-                        } else {
-                            const elapsed = Date.now() - menuSelectionTimer;
-                            gazeProgress = Math.min(elapsed / 1200, 1.0);
-                            if (elapsed > 1200) {
-                                switchCinemaVideo(hoveredPageButton.action === 'NEXT_VIDEO' ? 1 : -1);
-                                menuSelectionTimer = Date.now() + 800;
-                            }
-                        }
-                        return; // Skip other raycasts
-                    }
-                }
-            }
-
             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
             // Recursive raycast
             const intersects = raycaster.intersectObjects(targets, true);
