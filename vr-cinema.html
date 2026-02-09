@@ -1,304 +1,244 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VR Cinema • Immersive Theater</title>
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <style>
-    body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
-    #ui {
-      position: absolute; top: 10px; left: 10px; z-index: 100;
-      background: rgba(0,0,0,0.85); color: white; padding: 20px; border-radius: 12px;
-      max-width: 380px; box-shadow: 0 0 20px rgba(0,0,0,0.8);
-    }
-    #drop-zone {
-      border: 3px dashed #fff; padding: 30px; text-align: center; margin: 15px 0;
-      border-radius: 8px; cursor: pointer; transition: all 0.3s;
-    }
-    #drop-zone.dragover { background: rgba(255,255,255,0.1); border-color: #0f0; }
-    button, input { margin: 5px; padding: 10px; }
-    #playlist li { cursor: pointer; padding: 8px; background: #222; margin: 4px 0; border-radius: 4px; }
-    #playlist li:hover { background: #444; }
-  </style>
+    <meta charset="utf-8">
+    <title>Cinema for VR: Immersive Theater</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <style>
+        /* 2D UI Overlay 
+           This sits "on top" of the 3D scene so you can load files 
+           before putting the phone in the Cardboard viewer.
+        */
+        #ui-layer {
+            position: absolute;
+            z-index: 9999;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+            transition: opacity 0.5s;
+        }
+        
+        .hidden { opacity: 0; pointer-events: none; }
+
+        #drop-zone {
+            width: 80%;
+            max-width: 500px;
+            padding: 40px;
+            border: 3px dashed #e50914;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.05);
+            transition: background 0.3s;
+        }
+
+        #drop-zone.hover { background: rgba(229, 9, 20, 0.2); }
+
+        .btn {
+            padding: 12px 24px;
+            background: #e50914;
+            border: none;
+            color: white;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .controls-hint {
+            margin-top: 30px;
+            font-size: 0.9rem;
+            color: #aaa;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
 
-<!-- HTML Overlay for loading videos -->
-<div id="ui">
-  <h1>🎥 VR Cinema</h1>
-  <p><strong>Drag & drop videos</strong> or use the button below</p>
-  
-  <input type="file" id="file-input" multiple accept="video/*">
-  
-  <div id="drop-zone">Drop video files here</div>
-  
-  <h3>Playlist</h3>
-  <ul id="playlist"></ul>
-  
-  <button onclick="enterVR()">Enter VR Theater</button>
-  <p style="font-size:0.9em; opacity:0.8;">Use gaze (look + fuse) to control playback in VR</p>
-</div>
+    <div id="ui-layer">
+        <h1>Cinema VR Loader</h1>
+        <div id="drop-zone">
+            <p>Drag & Drop Video File Here</p>
+            <p><i>(mp4, webm)</i></p>
+            <input type="file" id="file-input" accept="video/*" style="display:none">
+            <button class="btn" onclick="document.getElementById('file-input').click()">Browse Files</button>
+        </div>
+        <div class="controls-hint">
+            <p><b>IN VR:</b> Gaze at buttons for 2 seconds to click.</p>
+            <p>Look down to see playback controls.</p>
+        </div>
+    </div>
 
-<a-scene background="color: #050505" fog="type: exponential; color: #111111; density: 0.015" 
-         antialias="true" loading-screen="dotsColor: #fff; backgroundColor: #000">
+    <a-scene background="color: #050505" fog="type: exponential; color: #050505; density: 0.02">
+        
+        <a-assets>
+            <video id="video-src" src="" playsinline webkit-playsinline loop="false"></video>
+            <img id="floor-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
+        </a-assets>
 
-  <a-assets>
-    <!-- Main video player -->
-    <video id="main-video" crossorigin="anonymous" playsinline loop></video>
-    
-    <!-- Optional ambient theater sound (replace with a real free loop URL) -->
-    <!-- <audio id="ambience" src="https://freesound.org/data/previews/..." loop></audio> -->
-  </a-assets>
+        <a-plane position="0 0 -4" rotation="-90 0 0" width="50" height="50" 
+                 src="#floor-texture" repeat="10 10" 
+                 color="#222" roughness="0.4" metalness="0.5">
+        </a-plane>
 
-  <!-- Camera Rig (auto-positioned in seat) -->
-  <a-entity id="rig" position="0 1.6 8">
-    <a-camera id="camera" look-controls wasd-controls="acceleration: 30">
-      <!-- Gaze cursor for Cardboard -->
-      <a-cursor id="cursor" fuse="true" fuse-timeout="1200" 
-                color="#ffffff" opacity="0.8"
-                geometry="primitive: ring; radiusInner: 0.015; radiusOuter: 0.025"
-                material="shader: flat">
-      </a-cursor>
-    </a-camera>
-  </a-entity>
+        <a-entity sound="src: url(https://cdn.aframe.io/basic-guide/audio/backgroundnoise.wav); autoplay: true; loop: true; volume: 0.3"></a-entity>
 
-  <!-- Floor -->
-  <a-plane position="0 0 0" rotation="-90 0 0" width="80" height="80" color="#1a1a1a" roughness="1"></a-plane>
+        <a-light type="ambient" color="#222"></a-light>
+        <a-light type="point" position="0 5 0" intensity="0.3" color="#444"></a-light>
 
-  <!-- Ceiling -->
-  <a-plane position="0 18 0" rotation="90 0 0" width="80" height="80" color="#0a0a0a"></a-plane>
 
-  <!-- Back wall -->
-  <a-plane position="0 9 -40" width="80" height="18" color="#0a0a0a"></a-plane>
+        <a-curvedimage id="screen-cinema" 
+            src="#video-src"
+            height="12" 
+            radius="14" 
+            theta-length="80" 
+            rotation="0 140 0" 
+            position="0 5 0"
+            side="double"
+            visible="true">
+        </a-curvedimage>
 
-  <!-- Side walls -->
-  <a-plane position="-40 9 0" rotation="0 90 0" width="80" height="18" color="#0a0a0a"></a-plane>
-  <a-plane position="40 9 0" rotation="0 -90 0" width="80" height="18" color="#0a0a0a"></a-plane>
+        <a-videosphere id="screen-360" 
+            src="#video-src" 
+            rotation="0 -90 0" 
+            visible="false">
+        </a-videosphere>
 
-  <!-- Simple red curtains on sides -->
-  <a-plane position="-28 9 -15" rotation="0 80 0" width="12" height="14" color="#4a0000" opacity="0.7"></a-plane>
-  <a-plane position="28 9 -15" rotation="0 -80 0" width="12" height="14" color="#4a0000" opacity="0.7"></a-plane>
 
-  <!-- Large Curved Cinematic Screen -->
-  <a-entity id="cinema-screen"
-    geometry="primitive: cylinder; radius: 28; height: 15; theta-length: 115; openEnded: true"
-    position="0 9 -22"
-    material="src: #main-video; shader: flat; side: back; color: #ffffff"
-    visible="true">
-  </a-entity>
+        <a-entity id="control-panel" position="0 1.2 -2.5" rotation="-25 0 0">
+            <a-box depth="0.1" height="0.8" width="3.2" color="#111" opacity="0.9"></a-box>
 
-  <!-- 360° Sphere (hidden by default) -->
-  <a-videosphere id="sphere-360" radius="90" material="src: #main-video; shader: flat" visible="false"></a-videosphere>
+            <a-plane id="btn-play" position="-0.8 0 0.06" width="0.6" height="0.4" color="#333" class="clickable">
+                <a-text value="PLAY" align="center" width="3" position="0 0 0.01"></a-text>
+            </a-plane>
 
-  <!-- Theater Seats (generated by JS) -->
-  <!-- Lights -->
-  <a-light type="ambient" color="#222222"></a-light>
-  <a-light type="point" position="0 12 -10" intensity="0.4" color="#ffeedd"></a-light>
+            <a-plane id="btn-mode" position="0 0 0.06" width="0.6" height="0.4" color="#333" class="clickable">
+                <a-text value="2D / 360" align="center" width="3" position="0 0 0.01"></a-text>
+            </a-plane>
 
-  <!-- Control Panel (gaze buttons) -->
-  <a-entity id="controls" position="0 3.5 -6" rotation="0 0 0">
+            <a-plane id="btn-reset" position="0.8 0 0.06" width="0.6" height="0.4" color="#333" class="clickable">
+                <a-text value="RESET" align="center" width="3" position="0 0 0.01"></a-text>
+            </a-plane>
 
-    <!-- Play / Pause -->
-    <a-entity id="btn-play" position="-4 0 0" 
-      geometry="primitive: plane; width: 2.2; height: 0.9"
-      material="color: #222; opacity: 0.85"
-      text="value: ▶ Play; color: #0f0; align: center; width: 2.5; zOffset: 0.01">
-    </a-entity>
+            <a-box position="0 -0.5 0" width="3" height="0.05" depth="0.05" color="#555"></a-box>
+            <a-box id="progress-fill" position="-1.5 -0.5 0.01" width="3" height="0.06" depth="0.06" color="#e50914" scale="0 1 1" pivot="center left"></a-box>
+        </a-entity>
 
-    <!-- Progress Bar -->
-    <a-entity id="progress-bg" position="0 0 0"
-      geometry="primitive: plane; width: 8; height: 0.12"
-      material="color: #333; opacity: 0.8"></a-entity>
-    <a-entity id="progress-bar" position="-4 0 0.01"
-      geometry="primitive: plane; width: 0; height: 0.12"
-      material="color: #00ff88"></a-entity>
 
-    <!-- Time -->
-    <a-entity id="time-text" position="0 -0.6 0"
-      text="value: 00:00 / 00:00; color: #aaa; align: center; width: 6"></a-entity>
+        <a-entity id="rig" position="0 1.6 0">
+            <a-camera look-controls wasd-controls="enabled: false">
+                
+                <a-cursor 
+                    id="cursor"
+                    fuse="true" 
+                    fuse-timeout="1500"
+                    color="#e50914"
+                    raycaster="objects: .clickable"
+                    scale="1 1 1"
+                    animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
+                    animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500">
+                </a-cursor>
 
-    <!-- Next -->
-    <a-entity id="btn-next" position="4 0 0"
-      geometry="primitive: plane; width: 1.8; height: 0.9"
-      material="color: #222; opacity: 0.85"
-      text="value: Next ▶; color: white; align: center; width: 2"></a-entity>
+                <a-text value="Look down for controls" position="0 -0.6 -1" align="center" width="0.8" color="#888"></a-text>
+            </a-camera>
+        </a-entity>
 
-    <!-- 360° Toggle -->
-    <a-entity id="btn-360" position="0 -1.8 0"
-      geometry="primitive: plane; width: 3.2; height: 0.9"
-      material="color: #222; opacity: 0.85"
-      text="value: 360° Mode: OFF; color: #ff0; align: center; width: 3.5"></a-entity>
-  </a-entity>
+    </a-scene>
 
-</a-scene>
+    <script>
+        /* --- JAVASCRIPT LOGIC --- */
+        const uiLayer = document.getElementById('ui-layer');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const video = document.getElementById('video-src');
+        
+        const screenCinema = document.getElementById('screen-cinema');
+        const screen360 = document.getElementById('screen-360');
+        const progressFill = document.getElementById('progress-fill');
+        const btnPlay = document.querySelector('#btn-play a-text'); // Text element inside button
 
-<script>
-// ====================== Variables ======================
-let playlist = [];
-let currentIndex = -1;
-let is360Mode = false;
-const video = document.getElementById('main-video');
-const scene = document.querySelector('a-scene');
-const rig = document.getElementById('rig');
-const cinemaScreen = document.getElementById('cinema-screen');
-const sphere360 = document.getElementById('sphere-360');
+        let is360Mode = false;
 
-// UI elements
-const btnPlay = document.getElementById('btn-play');
-const progressBg = document.getElementById('progress-bg');
-const progressBar = document.getElementById('progress-bar');
-const timeText = document.getElementById('time-text');
-const btnNext = document.getElementById('btn-next');
-const btn360 = document.getElementById('btn-360');
+        // 1. DRAG & DROP HANDLING
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('hover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('hover');
+            if (e.dataTransfer.files.length) {
+                loadVideo(e.dataTransfer.files[0]);
+            }
+        });
 
-// ====================== Playlist & File Handling ======================
-const playlistEl = document.getElementById('playlist');
-const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) loadVideo(e.target.files[0]);
+        });
 
-function addToPlaylist(file) {
-  const url = URL.createObjectURL(file);
-  playlist.push({ name: file.name, url });
-  
-  const li = document.createElement('li');
-  li.textContent = file.name;
-  li.onclick = () => {
-    currentIndex = playlist.length - 1;
-    loadVideo(currentIndex);
-  };
-  playlistEl.appendChild(li);
-}
+        function loadVideo(file) {
+            const url = URL.createObjectURL(file);
+            video.src = url;
+            uiLayer.classList.add('hidden'); // Hide the 2D UI
+            video.play();
+            btnPlay.setAttribute('value', 'PAUSE');
+        }
 
-fileInput.addEventListener('change', (e) => {
-  Array.from(e.target.files).forEach(addToPlaylist);
-});
+        // 2. VR CONTROLS INTERACTION
+        
+        // Play/Pause
+        document.getElementById('btn-play').addEventListener('click', () => {
+            if (video.paused) {
+                video.play();
+                btnPlay.setAttribute('value', 'PAUSE');
+            } else {
+                video.pause();
+                btnPlay.setAttribute('value', 'PLAY');
+            }
+        });
 
-dropZone.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  dropZone.classList.add('dragover');
-});
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropZone.classList.remove('dragover');
-  Array.from(e.dataTransfer.files).forEach(addToPlaylist);
-});
+        // Toggle Cinema vs 360
+        document.getElementById('btn-mode').addEventListener('click', () => {
+            is360Mode = !is360Mode;
+            if (is360Mode) {
+                screenCinema.setAttribute('visible', false);
+                screen360.setAttribute('visible', true);
+            } else {
+                screenCinema.setAttribute('visible', true);
+                screen360.setAttribute('visible', false);
+            }
+        });
 
-// Load video
-function loadVideo(index) {
-  if (index < 0 || index >= playlist.length) return;
-  currentIndex = index;
-  video.src = playlist[index].url;
-  video.load();
-  video.play().catch(() => {});
-}
+        // Reset Rotation (if user drifts)
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            const cam = document.querySelector('[camera]');
+            cam.setAttribute('rotation', '0 0 0');
+        });
 
-// ====================== VR Controls ======================
-function togglePlay() {
-  if (video.paused) video.play();
-  else video.pause();
-}
+        // 3. PROGRESS BAR LOGIC
+        // We scale the red bar along the X axis from 0 to 1 based on video time
+        setInterval(() => {
+            if (video.duration) {
+                const pct = video.currentTime / video.duration;
+                // Position adjustment handles the "pivot" logic visually
+                // (Scaling a primitive works from center, so we shift position to make it look like left-to-right fill)
+                // Actually, simplest way with A-Frame primitives is just scale, but let's use the simple scale method:
+                progressFill.object3D.scale.x = pct;
+                
+                // Adjust position to make it grow from left (pivot fix)
+                // The bar is width 3. center is 0. Left edge is -1.5.
+                // Current center = -1.5 + (width * scale / 2)
+                progressFill.object3D.position.x = -1.5 + (3 * pct / 2);
+            }
+        }, 100);
 
-function nextVideo() {
-  currentIndex = (currentIndex + 1) % playlist.length;
-  loadVideo(currentIndex);
-}
-
-function prevVideo() {
-  currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-  loadVideo(currentIndex);
-}
-
-function toggle360() {
-  is360Mode = !is360Mode;
-  cinemaScreen.setAttribute('visible', !is360Mode);
-  sphere360.setAttribute('visible', is360Mode);
-  btn360.setAttribute('text', `value: 360° Mode: ${is360Mode ? 'ON' : 'OFF'}; color: ${is360Mode ? '#0f0' : '#ff0'}`);
-}
-
-// Button listeners
-btnPlay.addEventListener('click', togglePlay);
-btnNext.addEventListener('click', nextVideo);
-btn360.addEventListener('click', toggle360);
-
-// Progress bar & time
-function updateProgress() {
-  if (!video.duration) return;
-  const progress = video.currentTime / video.duration;
-  progressBar.setAttribute('geometry', `primitive: plane; width: ${progress * 8}; height: 0.12`);
-  progressBar.setAttribute('position', `${-4 + (progress * 4)} 0 0.01`);
-
-  const current = formatTime(video.currentTime);
-  const total = formatTime(video.duration);
-  timeText.setAttribute('text', `value: ${current} / ${total}`);
-}
-
-function formatTime(seconds) {
-  const min = Math.floor(seconds / 60);
-  const sec = Math.floor(seconds % 60);
-  return `${min}:${sec.toString().padStart(2, '0')}`;
-}
-
-// Animation loop for progress
-function animate() {
-  requestAnimationFrame(animate);
-  updateProgress();
-}
-animate();
-
-// ====================== Enter VR & Seat Positioning ======================
-function enterVR() {
-  if (playlist.length === 0) {
-    alert("Add at least one video first!");
-    return;
-  }
-  if (currentIndex === -1) loadVideo(0);
-  
-  scene.enterVR();
-}
-
-// Position user in seat when entering VR
-scene.addEventListener('enter-vr', () => {
-  rig.setAttribute('position', '0 1.6 8');
-  rig.removeAttribute('wasd-controls'); // Fixed seat experience
-  document.getElementById('ui').style.opacity = '0.3'; // Dim overlay
-});
-
-// Optional: Add some seats (simple boxes)
-function createSeats() {
-  const seatPositions = [
-    // Front row
-    [-6, 0.8, -12], [-4, 0.8, -12], [-2, 0.8, -12], [2, 0.8, -12], [4, 0.8, -12], [6, 0.8, -12],
-    // Middle rows
-    [-8, 0.8, -18], [-5, 0.8, -18], [0, 0.8, -18], [5, 0.8, -18], [8, 0.8, -18],
-  ];
-  
-  seatPositions.forEach(pos => {
-    const seat = document.createElement('a-entity');
-    seat.setAttribute('position', pos.join(' '));
-    
-    // Seat base
-    const base = document.createElement('a-box');
-    base.setAttribute('width', '1.2'); base.setAttribute('height', '0.3'); base.setAttribute('depth', '1.2');
-    base.setAttribute('color', '#2a2a2a');
-    seat.appendChild(base);
-    
-    // Seat back
-    const back = document.createElement('a-box');
-    back.setAttribute('width', '1.2'); back.setAttribute('height', '1.4'); back.setAttribute('depth', '0.2');
-    back.setAttribute('position', '0 0.85 -0.5');
-    back.setAttribute('color', '#1f1f1f');
-    seat.appendChild(back);
-    
-    scene.appendChild(seat);
-  });
-}
-createSeats();
-
-// Initial instruction text (optional - can be removed)
-console.log("%cVR Cinema ready! Load videos and click Enter VR.", "color:#0f0; font-size:16px");
-</script>
-
+    </script>
 </body>
 </html>
