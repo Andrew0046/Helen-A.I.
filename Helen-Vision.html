@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V3.1 (AUTO-CINEMA)</title>
+    <title>HELEN: TACTICAL OS V3.2 (DUAL VR)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -165,7 +165,6 @@
 
     // --- CINEMA VARIABLES ---
     let cinemaMode = false;
-    let pendingCinemaMode = false; // <--- NEW FLAG FOR AUTO-LAUNCH
     let cinemaScreen = null;
     let currentCinemaVideoIndex = 0;
 
@@ -457,7 +456,7 @@
         } catch (err) {}
     }
     
-    // ====================== CINEMA FOR VR (AUTO-LAUNCH) ======================
+    // ====================== DUAL VR LAUNCH SYSTEM ======================
     window.enterCinemaMode = function() {
         const videos = CUSTOM_DATABASE.filter(item => item.type === 'video');
         if (videos.length === 0) {
@@ -465,21 +464,29 @@
             return;
         }
 
-        // 1. Set Flag
-        pendingCinemaMode = true;
-
-        // 2. Check State
+        // If already in VR, just switch modes
         if (renderer.xr.isPresenting) {
             setupCinemaEnvironment();
-        } else {
-            // 3. Hijack VR Button if not in VR
-            const vrBtn = document.getElementById('vr-btn-container').querySelector('button');
-            if (vrBtn) {
-                vrBtn.click(); // Trigger WebXR Session
-            } else {
-                alert("VR System not ready.");
-            }
+            return;
         }
+
+        // NATIVE WEBXR LAUNCH FOR CINEMA
+        const sessionInit = { optionalFeatures: [ 'local-floor', 'bounded-floor', 'hand-tracking', 'layers' ] };
+        navigator.xr.requestSession( 'immersive-vr', sessionInit ).then( (session) => {
+            renderer.xr.setSession( session );
+            setupCinemaEnvironment();
+            // Handle Exit
+            session.addEventListener('end', () => {
+                cinemaMode = false;
+                if(cockpitGroup) cockpitGroup.visible = true;
+                scene.background = null; 
+                scene.fog = null;
+                sysMessage = "CINEMA ENDED";
+                updateMenuDisplay();
+            });
+        }).catch((e) => {
+            alert("VR NOT SUPPORTED OR CANCELLED: " + e);
+        });
     };
 
     function setupCinemaEnvironment() {
@@ -502,7 +509,6 @@
 
         sysMessage = "CINEMA MODE ACTIVE\nLook Left/Right to switch";
         updateMenuDisplay();
-        pendingCinemaMode = false; // Reset flag
     }
 
     function spawnCinemaScreen(videoItem) {
@@ -793,13 +799,7 @@
         btn.className = "primary"; btn.innerHTML = "ENTER VR";
         document.getElementById('vr-btn-container').appendChild(btn);
         
-        renderer.xr.addEventListener('sessionstart', () => { 
-            document.getElementById('overlay').style.display = 'none'; 
-            // --- NEW: AUTO-START CINEMA IF PENDING ---
-            if (pendingCinemaMode) {
-                setupCinemaEnvironment();
-            }
-        });
+        renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
 
         createMenuSystem();
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
