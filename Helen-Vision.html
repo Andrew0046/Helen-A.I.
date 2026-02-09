@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V3.0 (CINEMA)</title>
+    <title>HELEN: TACTICAL OS V3.1 (AUTO-CINEMA)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -165,6 +165,7 @@
 
     // --- CINEMA VARIABLES ---
     let cinemaMode = false;
+    let pendingCinemaMode = false; // <--- NEW FLAG FOR AUTO-LAUNCH
     let cinemaScreen = null;
     let currentCinemaVideoIndex = 0;
 
@@ -456,18 +457,34 @@
         } catch (err) {}
     }
     
-    // ====================== CINEMA FOR VR ======================
+    // ====================== CINEMA FOR VR (AUTO-LAUNCH) ======================
     window.enterCinemaMode = function() {
-        if (!renderer.xr.isPresenting) {
-            alert("Please click 'ENTER VR' first, then activate Cinema mode.");
-            return;
-        }
-
         const videos = CUSTOM_DATABASE.filter(item => item.type === 'video');
         if (videos.length === 0) {
             alert("No video files loaded.\n\nUse LOAD INTEL to add MP4 videos first.");
             return;
         }
+
+        // 1. Set Flag
+        pendingCinemaMode = true;
+
+        // 2. Check State
+        if (renderer.xr.isPresenting) {
+            setupCinemaEnvironment();
+        } else {
+            // 3. Hijack VR Button if not in VR
+            const vrBtn = document.getElementById('vr-btn-container').querySelector('button');
+            if (vrBtn) {
+                vrBtn.click(); // Trigger WebXR Session
+            } else {
+                alert("VR System not ready.");
+            }
+        }
+    };
+
+    function setupCinemaEnvironment() {
+        const videos = CUSTOM_DATABASE.filter(item => item.type === 'video');
+        if (videos.length === 0) return;
 
         cinemaMode = true;
         currentCinemaVideoIndex = 0;
@@ -478,14 +495,15 @@
         scene.fog = new THREE.Fog(0x000011, 10, 50);
 
         dolly.position.set(0, 0, 0);
+        dolly.rotation.set(0, 0, 0);
         camera.position.set(0, 1.6, 12);
-        dolly.rotation.y = 0;
 
         spawnCinemaScreen(videos[0]);
 
-        sysMessage = "CINEMA MODE ACTIVE\nGaze at left/right edges to change video";
+        sysMessage = "CINEMA MODE ACTIVE\nLook Left/Right to switch";
         updateMenuDisplay();
-    };
+        pendingCinemaMode = false; // Reset flag
+    }
 
     function spawnCinemaScreen(videoItem) {
         if (cinemaScreen) {
@@ -775,7 +793,13 @@
         btn.className = "primary"; btn.innerHTML = "ENTER VR";
         document.getElementById('vr-btn-container').appendChild(btn);
         
-        renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
+        renderer.xr.addEventListener('sessionstart', () => { 
+            document.getElementById('overlay').style.display = 'none'; 
+            // --- NEW: AUTO-START CINEMA IF PENDING ---
+            if (pendingCinemaMode) {
+                setupCinemaEnvironment();
+            }
+        });
 
         createMenuSystem();
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
