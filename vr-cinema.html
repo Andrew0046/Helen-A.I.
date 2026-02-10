@@ -18,7 +18,6 @@
         
         .hidden { opacity: 0; pointer-events: none; }
 
-        /* Logo & Card */
         h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 40px; }
         h1 span { font-weight: 700; color: #00d2ff; text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
 
@@ -35,7 +34,6 @@
         }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
 
-        /* URL Input Area */
         .url-box { margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; display: flex; gap: 10px; }
         input[type="text"] { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid #333; padding: 10px; color: white; border-radius: 4px; }
         .btn-small { background: #333; border: 1px solid #444; color: #aaa; padding: 0 15px; border-radius: 4px; cursor: pointer; }
@@ -83,7 +81,11 @@
             side="double" visible="true">
         </a-curvedimage>
 
-        <a-videosphere id="screen-360" src="#video-src" rotation="0 -90 0" visible="false"></a-videosphere>
+        <a-videosphere id="screen-360" src="#video-src" 
+            radius="100" rotation="0 -90 0" 
+            material="shader: flat; side: back;"
+            visible="false">
+        </a-videosphere>
 
 
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0">
@@ -92,18 +94,16 @@
             <a-box position="0 0.44 0" depth="0.03" height="0.01" width="2.8" color="#ff9d00" opacity="0.8"></a-box>
 
             <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
-
+            
             <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333"></a-plane>
             <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
 
             <a-plane id="btn-seek-back" position="-0.6 0.15 0.02" width="0.3" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="-15s" align="center" width="2"></a-text>
             </a-plane>
-            
             <a-plane id="btn-play" position="0 0.15 0.02" width="0.8" height="0.2" color="#ff9d00" class="clickable btn-hover">
                 <a-text id="txt-play" value="PLAY" align="center" width="4" color="black" font-weight="bold"></a-text>
             </a-plane>
-
             <a-plane id="btn-seek-fwd" position="0.6 0.15 0.02" width="0.3" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="+15s" align="center" width="2"></a-text>
             </a-plane>
@@ -112,15 +112,12 @@
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="2D / 360" align="center" width="1.8"></a-text>
             </a-plane>
-
             <a-plane id="btn-void" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="VOID" align="center" width="1.8"></a-text>
             </a-plane>
-
             <a-plane id="btn-reset" position="0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="RESET" align="center" width="1.8"></a-text>
             </a-plane>
-
             <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text id="txt-speed" value="1x" align="center" width="2"></a-text>
             </a-plane>
@@ -160,7 +157,7 @@
     </a-scene>
 
     <script>
-        /* --- CORE VARIABLES --- */
+        /* --- CORE CONFIG --- */
         const video = document.getElementById('video-src');
         const uiLayer = document.getElementById('ui-layer');
         const fileInput = document.getElementById('file-input');
@@ -172,6 +169,7 @@
         const rig = document.getElementById('rig');
         const hubWrapper = document.getElementById('hub-wrapper');
         const floor = document.getElementById('env-floor');
+        const scene = document.querySelector('a-scene');
 
         // UI Refs
         const playBtnText = document.getElementById('txt-play');
@@ -182,11 +180,11 @@
         let is360 = false;
         let isVoid = false;
         
-        // NOTE: Screen starts at 90 (Wide/Tall mode)
+        // Screen Geometry State (Defaults: 90 degrees)
         let currentCurve = 90; 
         
         let audioCtx, panner;
-        let hubTimer; // For auto-hide
+        let hubTimer;
 
         /* --- 1. MEDIA LOADING --- */
         fileInput.addEventListener('change', (e) => loadMedia(e.target.files[0]));
@@ -201,7 +199,6 @@
             initAudio();
             video.play().then(() => playBtnText.setAttribute('value', 'PAUSE'))
                         .catch(() => playBtnText.setAttribute('value', 'PLAY'));
-            
             requestAnimationFrame(updateAmbilight);
         }
 
@@ -229,21 +226,36 @@
             video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this);
         });
 
-        // Modes
+        // Mode Toggle (FIXED FOR 360 VISIBILITY)
         document.getElementById('btn-mode').addEventListener('click', function() {
             is360 = !is360;
+            
+            // Toggle Screens
             screenCinema.setAttribute('visible', !is360);
             screen360.setAttribute('visible', is360);
+            
+            // Toggle Environment (Hide floor in 360 mode)
+            floor.setAttribute('visible', !is360);
+            
+            // Toggle Fog (Disable fog in 360 mode so video isn't dark)
+            if(is360) {
+                scene.removeAttribute('fog');
+            } else {
+                scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            }
+
             flash(this);
         });
 
+        // Void Mode
         document.getElementById('btn-void').addEventListener('click', function() {
             isVoid = !isVoid;
-            floor.setAttribute('visible', !isVoid);
-            document.querySelector('a-scene').setAttribute('background', isVoid ? 'color: #000' : 'color: #050505');
+            if(!is360) floor.setAttribute('visible', !isVoid); // Only toggle floor if not in 360
+            scene.setAttribute('background', isVoid ? 'color: #000' : 'color: #050505');
             flash(this);
         });
 
+        // Reset View
         document.getElementById('btn-reset').addEventListener('click', function() {
             const cam = document.querySelector('[camera]').object3D;
             const yRot = cam.rotation.y * (180 / Math.PI);
@@ -263,11 +275,10 @@
 
         /* --- 3. SEAT & SCREEN LOGIC (FIXED) --- */
 
-        // Seating
         const seats = {
             front: { pos: "0 1.6 -1", rot: "-25 0 0" },
             back: { pos: "0 2.5 2", rot: "-25 0 0" },
-            recline: { pos: "0 0.5 0", rot: "-45 0 0" } // Rotates HUD up for lying down
+            recline: { pos: "0 0.5 0", rot: "-45 0 0" }
         };
         
         document.getElementById('seat-front').addEventListener('click', function() {
@@ -321,7 +332,7 @@
             return `${m}:${sec<10?'0'+sec:sec}`;
         }
 
-        // Auto-Hide (6 Seconds)
+        // Auto-Hide (6s)
         const resetTimer = () => {
             clearTimeout(hubTimer);
             hubWrapper.setAttribute('visible', true);
@@ -363,7 +374,7 @@
                 ctx.drawImage(video, 0, 0, 32, 32);
                 const p = ctx.getImageData(16,16,1,1).data;
                 const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
-                if(!isVoid) ambi.setAttribute('color', hex);
+                if(!isVoid && !is360) ambi.setAttribute('color', hex);
                 glow.setAttribute('color', hex);
             }
             requestAnimationFrame(updateAmbilight);
