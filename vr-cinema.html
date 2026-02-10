@@ -3,47 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VR Cinema: Pro Edition</title>
+    <title>VR Cinema: Playlist Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
-        /* 2D UI (File Loader) */
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; }
+        /* --- 2D UI (Dark Mode Dashboard) --- */
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; background: #080808; color: white; }
+        
         #ui-layer {
             position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.92); display: flex; flex-direction: column;
-            align-items: center; justify-content: center; color: white; transition: opacity 0.5s ease-out;
+            background: rgba(8, 8, 8, 0.95); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; transition: opacity 0.5s ease-out;
         }
         .hidden { opacity: 0; pointer-events: none; }
-        #drop-zone {
-            width: 80%; max-width: 500px; padding: 50px; border: 2px dashed #e50914;
-            border-radius: 12px; text-align: center; margin-bottom: 25px;
-            background: rgba(255,255,255,0.03); transition: all 0.3s;
+
+        /* Card Style */
+        .card {
+            background: #1a1a1a; padding: 30px; border-radius: 12px; width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; margin-bottom: 20px;
+            border: 1px solid #333;
         }
-        #drop-zone.hover { background: rgba(229, 9, 20, 0.15); border-color: #ff3333; transform: scale(1.02); }
+
+        /* Drag & Drop Area */
+        #drop-zone {
+            border: 2px dashed #444; border-radius: 8px; padding: 40px 20px; margin-bottom: 20px;
+            transition: all 0.2s; cursor: pointer;
+        }
+        #drop-zone:hover, #drop-zone.hover { border-color: #e50914; background: rgba(229, 9, 20, 0.05); }
+
+        /* Inputs & Buttons */
+        input[type="text"] {
+            width: 100%; padding: 12px; margin-top: 10px; background: #222; border: 1px solid #444;
+            color: white; border-radius: 4px; box-sizing: border-box;
+        }
         .btn {
-            padding: 14px 30px; background: #e50914; border: none; color: white; font-weight: bold;
-            font-size: 16px; border-radius: 6px; cursor: pointer; margin-top: 20px; transition: background 0.2s;
+            background: #e50914; color: white; border: none; padding: 12px 24px;
+            font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer;
+            width: 100%; margin-top: 10px; transition: background 0.2s;
         }
         .btn:hover { background: #ff1f2d; }
+        .btn-secondary { background: #333; margin-top: 5px; }
+
+        .status-text { color: #888; font-size: 0.9rem; margin-top: 15px; }
         #light-canvas { display: none; }
     </style>
 </head>
 <body>
 
     <div id="ui-layer">
-        <h1 style="margin-bottom: 10px; font-weight: 300; letter-spacing: 2px;">CINEMA <span style="font-weight:700; color:#e50914">OS</span></h1>
-        <div id="drop-zone">
-            <h3>Load Movie</h3>
-            <p style="color:#aaa; font-size:0.9rem;">Drag & Drop Video File (.mp4 / .webm)</p>
-            <input type="file" id="file-input" accept="video/*" style="display:none">
-            <button class="btn" id="btn-load">BROWSE FILES</button>
+        <h1 style="letter-spacing: 3px; margin-bottom: 20px;">CINEMA <span style="color:#e50914">OS</span></h1>
+        
+        <div class="card">
+            <div id="drop-zone">
+                <h3 style="margin:0">📂 Local Files</h3>
+                <p style="color:#aaa; font-size:0.9rem; margin:5px 0 0 0">Drag multiple videos here</p>
+            </div>
+            <input type="file" id="file-input" accept="video/*" multiple style="display:none">
+
+            <p style="color:#444; margin: 10px 0;">— OR —</p>
+
+            <div style="text-align: left;">
+                <label style="font-size:0.85rem; color:#aaa; font-weight:bold;">WEB STREAM URL</label>
+                <input type="text" id="url-input" placeholder="https://example.com/movie.mp4">
+                <button class="btn" id="btn-url">Load URL</button>
+            </div>
         </div>
-        <p style="color:#666">Controls auto-hide. Look down to reveal.</p>
+
+        <div class="status-text" id="status-msg">Waiting for media...</div>
     </div>
 
     <canvas id="light-canvas" width="32" height="32"></canvas>
 
-    <a-scene background="color: #020202" fog="type: exponential; color: #020202; density: 0.03">
+    <a-scene background="color: #020202" fog="type: exponential; color: #020202; density: 0.02">
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
@@ -51,15 +81,12 @@
         </a-assets>
 
         <a-plane position="0 0 -4" rotation="-90 0 0" width="60" height="60" 
-                 src="#floor-texture" repeat="15 15" color="#1a1a1a" roughness="0.4" metalness="0.6">
-        </a-plane>
-
+                 src="#floor-texture" repeat="15 15" color="#1a1a1a" roughness="0.4" metalness="0.6"></a-plane>
         <a-light id="ambi-light" type="ambient" color="#111" intensity="0.3"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -2" distance="15" decay="2" intensity="0.8" color="#222"></a-light>
 
         <a-curvedimage id="screen-cinema" src="#video-src" height="9" radius="11" theta-length="72" 
-            rotation="0 144 0" position="0 4 0" side="double" visible="true">
-        </a-curvedimage>
+            rotation="0 144 0" position="0 4 0" side="double" visible="true"></a-curvedimage>
         <a-videosphere id="screen-360" src="#video-src" rotation="0 -90 0" visible="false"></a-videosphere>
 
         <a-entity id="buffering-ui" position="0 4 -8" visible="false">
@@ -68,47 +95,40 @@
             <a-text value="LOADING..." align="center" width="4" position="0 -0.8 0"></a-text>
         </a-entity>
 
-        <a-entity id="ended-ui" position="0 4 -7" visible="false">
-            <a-plane width="3" height="1.5" color="#111" opacity="0.9">
-                <a-text value="Movie Finished" align="center" width="6" position="0 0.4 0.01"></a-text>
-                
-                <a-plane id="btn-replay" position="0 -0.2 0.02" width="1" height="0.4" color="#e50914" class="clickable">
-                    <a-text value="REPLAY" align="center" width="4" position="0 0 0.01"></a-text>
-                </a-plane>
-            </a-plane>
-        </a-entity>
-
-
         <a-entity id="hud-wrapper" position="0 1.2 -2.2" rotation="-30 0 0">
-            
-            <a-box id="hud-bg" depth="0.05" height="1" width="3.2" color="#111" opacity="0.95" class="clickable"></a-box>
+            <a-box id="hud-bg" depth="0.05" height="1.1" width="3.4" color="#111" opacity="0.95" class="clickable"></a-box>
 
-            <a-plane id="vr-btn-play" position="-0.9 0.2 0.04" width="0.6" height="0.3" color="#333" class="clickable">
-                <a-text value="PLAY" align="center" width="2.5" position="0 0 0.01" color="white"></a-text>
+            <a-plane id="btn-prev" position="-1.2 0.25 0.04" width="0.4" height="0.3" color="#333" class="clickable">
+                <a-text value="<<" align="center" width="4" position="0 0 0.01"></a-text>
             </a-plane>
 
-            <a-plane id="vr-btn-mode" position="0 0.2 0.04" width="0.6" height="0.3" color="#333" class="clickable">
-                <a-text value="2D / 360" align="center" width="2.5" position="0 0 0.01" color="white"></a-text>
+            <a-plane id="btn-play" position="0 0.25 0.04" width="0.8" height="0.3" color="#333" class="clickable">
+                <a-text id="txt-play" value="PLAY" align="center" width="3" position="0 0 0.01"></a-text>
             </a-plane>
 
-            <a-plane id="vr-btn-reset" position="0.9 0.2 0.04" width="0.6" height="0.3" color="#333" class="clickable">
-                <a-text value="RESET VIEW" align="center" width="2.5" position="0 0 0.01" color="white"></a-text>
+            <a-plane id="btn-next" position="1.2 0.25 0.04" width="0.4" height="0.3" color="#333" class="clickable">
+                <a-text value=">>" align="center" width="4" position="0 0 0.01"></a-text>
             </a-plane>
 
-            <a-plane id="vr-btn-speed" position="-1.2 -0.15 0.04" width="0.3" height="0.2" color="#333" class="clickable">
-                <a-text id="txt-speed" value="1x" align="center" width="3" position="0 0 0.01"></a-text>
+
+            <a-plane id="btn-mode" position="-0.8 -0.1 0.04" width="0.7" height="0.25" color="#333" class="clickable">
+                <a-text value="2D / 360" align="center" width="2.5"></a-text>
             </a-plane>
 
-            <a-text value="VOL" position="-0.9 -0.15 0.04" width="2" align="center"></a-text>
-            
-            <a-plane id="vol-rail" position="-0.4 -0.15 0.04" width="0.8" height="0.05" color="#555" class="clickable"></a-plane>
-            <a-plane id="vol-fill" position="-0.8 -0.15 0.05" width="0.8" height="0.05" color="#4CAF50" scale="1 1 1" pivot="center left"></a-plane>
+            <a-plane id="btn-reset" position="0.8 -0.1 0.04" width="0.7" height="0.25" color="#333" class="clickable">
+                <a-text value="RESET VIEW" align="center" width="2.5"></a-text>
+            </a-plane>
+
+            <a-text value="VOL" position="-0.2 -0.1 0.04" width="2" align="center"></a-text>
+            <a-plane id="vol-rail" position="0.3 -0.1 0.04" width="0.6" height="0.04" color="#555" class="clickable"></a-plane>
+            <a-plane id="vol-fill" position="0 -0.1 0.05" width="0.6" height="0.04" color="#4CAF50" scale="1 1 1" pivot="center left"></a-plane>
 
 
             <a-text id="time-display" value="00:00 / 00:00" position="0 -0.32 0.04" width="3" align="center" color="#e50914"></a-text>
-            
             <a-box position="0 -0.4 0" width="3" height="0.03" depth="0.03" color="#444"></a-box>
             <a-box id="progress-fill" position="-1.5 -0.4 0.01" width="3" height="0.04" depth="0.04" color="#e50914" scale="0 1 1"></a-box>
+            
+            <a-text id="playlist-count" value="1 / 1" position="1.4 0.45 0.04" width="3" align="right" color="#888"></a-text>
 
         </a-entity>
 
@@ -120,214 +140,241 @@
                 </a-cursor>
             </a-camera>
         </a-entity>
-
     </a-scene>
 
     <script>
-        /* --- SETUP --- */
-        const uiLayer = document.getElementById('ui-layer');
-        const fileInput = document.getElementById('file-input');
-        const loadBtn = document.getElementById('btn-load');
-        const video = document.getElementById('video-src');
+        /* --- STATE MANAGEMENT --- */
+        const state = {
+            playlist: [], // Array of { type: 'file'|'url', src: object }
+            currentIndex: 0,
+            is360: false,
+            audioCtx: null,
+            panner: null,
+            gainNode: null,
+            hudTimer: null
+        };
+
+        /* --- UI REFERENCES --- */
+        const ui = {
+            layer: document.getElementById('ui-layer'),
+            dropZone: document.getElementById('drop-zone'),
+            fileInput: document.getElementById('file-input'),
+            urlInput: document.getElementById('url-input'),
+            urlBtn: document.getElementById('btn-url'),
+            status: document.getElementById('status-msg'),
+            
+            video: document.getElementById('video-src'),
+            screenCinema: document.getElementById('screen-cinema'),
+            screen360: document.getElementById('screen-360'),
+            playText: document.getElementById('txt-play'),
+            progressBar: document.getElementById('progress-fill'),
+            timeText: document.getElementById('time-display'),
+            playlistText: document.getElementById('playlist-count'),
+            buffering: document.getElementById('buffering-ui'),
+            hud: document.getElementById('hud-wrapper'),
+            volFill: document.getElementById('vol-fill')
+        };
+
+        /* --- 1. INITIALIZATION & RECOVERY --- */
+        // Check local storage for last played URL
+        window.onload = () => {
+            const lastUrl = localStorage.getItem('vr-cinema-last-url');
+            if(lastUrl) {
+                ui.urlInput.value = lastUrl;
+                ui.status.innerText = "Found last session URL. Click Load to resume.";
+            }
+        };
+
+        /* --- 2. INPUT HANDLING --- */
         
-        // UI References
-        const screenCinema = document.getElementById('screen-cinema');
-        const screen360 = document.getElementById('screen-360');
-        const progressFill = document.getElementById('progress-fill');
-        const timeDisplay = document.getElementById('time-display');
-        const playBtnText = document.querySelector('#vr-btn-play a-text');
-        const bufferingUI = document.getElementById('buffering-ui');
-        const endedUI = document.getElementById('ended-ui');
-        const speedText = document.getElementById('txt-speed');
-        const volFill = document.getElementById('vol-fill');
+        // A. File Drag & Drop
+        ui.dropZone.addEventListener('click', () => ui.fileInput.click());
+        ui.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); ui.dropZone.classList.add('hover'); });
+        ui.dropZone.addEventListener('dragleave', () => ui.dropZone.classList.remove('hover'));
+        
+        ui.dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            ui.dropZone.classList.remove('hover');
+            handleFiles(e.dataTransfer.files);
+        });
 
-        // Audio
-        let audioCtx, panner, source, gainNode;
-        let is360Mode = false;
+        ui.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
-        // Auto-Hide State
-        const hudWrapper = document.getElementById('hud-wrapper');
-        let hudTimer = null;
-        let isHudVisible = true;
-
-        /* --- 1. LOAD & PLAY --- */
-        loadBtn.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length) {
-                const url = URL.createObjectURL(e.target.files[0]);
-                video.src = url;
-                uiLayer.classList.add('hidden');
-                initAudio();
-                video.play().catch(e => console.log("Click play in VR"));
-                updateAmbilight();
+        // B. URL Input
+        ui.urlBtn.addEventListener('click', () => {
+            const url = ui.urlInput.value.trim();
+            if(url) {
+                state.playlist = [{ type: 'url', src: url }];
+                state.currentIndex = 0;
+                
+                // Save to storage
+                localStorage.setItem('vr-cinema-last-url', url);
+                
+                loadCurrentVideo();
             }
         });
 
-        /* --- 2. LOGIC SYSTEMS --- */
-        
-        // A. BUFFERING & ENDED
-        video.addEventListener('waiting', () => bufferingUI.setAttribute('visible', true));
-        video.addEventListener('playing', () => bufferingUI.setAttribute('visible', false));
-        
-        video.addEventListener('ended', () => {
-            endedUI.setAttribute('visible', true);
-            // Show HUD so they can reset if needed
-            hudWrapper.setAttribute('visible', true);
-            isHudVisible = true; 
-        });
-
-        document.getElementById('btn-replay').addEventListener('click', () => {
-            endedUI.setAttribute('visible', false);
-            video.currentTime = 0;
-            video.play();
-        });
-
-        // B. TIME DISPLAY FORMATTER
-        function formatTime(seconds) {
-            const m = Math.floor(seconds / 60);
-            const s = Math.floor(seconds % 60);
-            const h = Math.floor(m / 60);
-            const displayM = h > 0 ? m % 60 : m; // Adjust minutes if we have hours
+        function handleFiles(fileList) {
+            if(fileList.length === 0) return;
             
-            const strS = s < 10 ? '0' + s : s;
-            const strM = displayM < 10 ? '0' + displayM : displayM;
+            // Convert FileList to Array and add to playlist
+            state.playlist = Array.from(fileList).map(f => ({ type: 'file', src: f }));
+            state.currentIndex = 0;
+            ui.status.innerText = `Queued ${state.playlist.length} files. Starting VR...`;
             
-            if (h > 0) return `${h}:${strM}:${strS}`;
-            return `${strM}:${strS}`;
+            loadCurrentVideo();
         }
 
-        // C. PROGRESS & TIME LOOP
-        setInterval(() => {
-            if (video.duration) {
-                // Bar Logic
-                const pct = video.currentTime / video.duration;
-                progressFill.object3D.scale.x = pct;
-                // Bar width 3, center 0, left edge -1.5
-                progressFill.object3D.position.x = -1.5 + (3 * pct / 2);
+        /* --- 3. VIDEO ENGINE --- */
+        function loadCurrentVideo() {
+            if(state.playlist.length === 0) return;
 
-                // Time Text Logic
-                const cur = formatTime(video.currentTime);
-                const tot = formatTime(video.duration);
-                timeDisplay.setAttribute('value', `${cur} / ${tot}`);
+            const item = state.playlist[state.currentIndex];
+            let src = '';
+
+            if(item.type === 'file') {
+                src = URL.createObjectURL(item.src);
+                console.log("Loading Local File:", item.src.name);
+            } else {
+                src = item.src; // URL string
+                console.log("Loading URL:", src);
             }
-        }, 200);
 
-        // D. PLAYBACK SPEED
-        const speeds = [1, 1.25, 1.5, 2, 0.75];
-        let speedIndex = 0;
-        document.getElementById('vr-btn-speed').addEventListener('click', function() {
-            speedIndex = (speedIndex + 1) % speeds.length;
-            const newSpeed = speeds[speedIndex];
-            video.playbackRate = newSpeed;
-            speedText.setAttribute('value', newSpeed + "x");
-            flashButton(this);
+            ui.video.src = src;
+            ui.layer.classList.add('hidden'); // Hide 2D UI
+            
+            // Update Playlist Counter in VR
+            ui.playlistText.setAttribute('value', `${state.currentIndex + 1} / ${state.playlist.length}`);
+
+            initAudio(); // Ensure audio context is ready
+            
+            // Attempt to recover timestamp if it's the same URL
+            const savedTime = localStorage.getItem('vr-cinema-time-' + src);
+            if(savedTime && item.type === 'url') {
+                ui.video.currentTime = parseFloat(savedTime);
+            }
+
+            ui.video.play().then(() => {
+                ui.playText.setAttribute('value', 'PAUSE');
+            }).catch(e => {
+                ui.playText.setAttribute('value', 'PLAY');
+            });
+        }
+
+        /* --- 4. PLAYLIST CONTROLS --- */
+        function nextTrack() {
+            if(state.currentIndex < state.playlist.length - 1) {
+                state.currentIndex++;
+                loadCurrentVideo();
+            }
+        }
+
+        function prevTrack() {
+            if(state.currentIndex > 0) {
+                state.currentIndex--;
+                loadCurrentVideo();
+            }
+        }
+
+        /* --- 5. VR INTERACTION HANDLERS --- */
+        
+        // Helper: Flash button white on click
+        const flash = (el) => {
+            el.setAttribute('color', '#fff');
+            setTimeout(() => el.setAttribute('color', '#333'), 200);
+        };
+
+        // Play/Pause
+        document.getElementById('btn-play').addEventListener('click', function() {
+            if(state.audioCtx && state.audioCtx.state === 'suspended') state.audioCtx.resume();
+            
+            if(ui.video.paused) {
+                ui.video.play();
+                ui.playText.setAttribute('value', 'PAUSE');
+            } else {
+                ui.video.pause();
+                ui.playText.setAttribute('value', 'PLAY');
+            }
+            flash(this);
         });
 
-        // E. VOLUME CONTROL
-        // We use a simplified click interaction: 
-        // Clicking the bar cycles Volume: 0 -> 0.5 -> 1.0 -> 0
+        // Next / Prev
+        document.getElementById('btn-next').addEventListener('click', function() { nextTrack(); flash(this); });
+        document.getElementById('btn-prev').addEventListener('click', function() { prevTrack(); flash(this); });
+
+        // Mode Toggle
+        document.getElementById('btn-mode').addEventListener('click', function() {
+            state.is360 = !state.is360;
+            ui.screenCinema.setAttribute('visible', !state.is360);
+            ui.screen360.setAttribute('visible', state.is360);
+            flash(this);
+        });
+
+        // Reset View
+        document.getElementById('btn-reset').addEventListener('click', function() {
+            const cam = document.querySelector('[camera]').object3D;
+            const rig = document.getElementById('rig');
+            const yRot = cam.rotation.y * (180 / Math.PI);
+            rig.setAttribute('rotation', {x:0, y:-yRot, z:0});
+            flash(this);
+        });
+
+        // Volume Clicker (Cycle 0 -> 0.5 -> 1.0)
         let volLevel = 1.0;
         document.getElementById('vol-rail').addEventListener('click', function() {
             if(volLevel >= 1.0) volLevel = 0;
             else if(volLevel === 0) volLevel = 0.5;
             else volLevel = 1.0;
             
-            if(gainNode) gainNode.gain.value = volLevel;
+            if(state.gainNode) state.gainNode.gain.value = volLevel;
             
-            // Visual Update (Bar width 0.8. Pivot left logic manual:)
-            // Left edge is -0.8 (relative to rail center? No, simpler to just scale)
-            // vol-fill is placed at -0.8. 
-            volFill.setAttribute('scale', `${volLevel} 1 1`);
-            // Position correction for scale pivot
-            volFill.object3D.position.x = -0.8 + (0.8 * volLevel / 2);
+            // Update UI (Bar width 0.6, center 0)
+            // Scale x. Position = center - (width/2) + (width*scale/2)
+            // Left edge = -0.3. 
+            // Pos = -0.3 + (0.6 * scale / 2) = -0.3 + 0.3*scale
+            ui.volFill.setAttribute('scale', `${volLevel} 1 1`);
+            ui.volFill.object3D.position.x = 0; // The pivot logic in A-Frame primitives is tricky, manual offset:
+            // Actually, simpler math: The previous pivot hack works best.
+            // Let's assume standard centering:
+             ui.volFill.object3D.position.x = -0.3 + (0.3 * volLevel);
         });
 
-        // F. AUTO-HIDE CONTROLS
-        // If user looks at ANY clickable object in HUD, reset timer
-        document.querySelectorAll('#hud-wrapper .clickable').forEach(el => {
-            el.addEventListener('mouseenter', () => {
-                showHUD();
-                clearTimeout(hudTimer); // Keep it open while looking
-            });
-            el.addEventListener('mouseleave', () => {
-                // Start countdown to hide
-                hudTimer = setTimeout(hideHUD, 5000); // 5 seconds
-            });
-        });
+        /* --- 6. LOOPS & SYSTEMS --- */
+        
+        // Time & Progress Loop
+        setInterval(() => {
+            if (ui.video.duration) {
+                // Save Progress (Debounced by loop speed)
+                if(state.playlist[state.currentIndex]?.type === 'url') {
+                    localStorage.setItem('vr-cinema-time-' + ui.video.src, ui.video.currentTime);
+                }
 
-        function hideHUD() {
-            if(!video.paused) { // Only hide if playing
-                hudWrapper.setAttribute('visible', false);
-                isHudVisible = false;
+                // UI Update
+                const pct = ui.video.currentTime / ui.video.duration;
+                ui.progressBar.object3D.scale.x = pct;
+                ui.progressBar.object3D.position.x = -1.5 + (1.5 * pct); // Pivot math
+
+                // Time Text
+                const cur = formatTime(ui.video.currentTime);
+                const tot = formatTime(ui.video.duration);
+                ui.timeText.setAttribute('value', `${cur} / ${tot}`);
             }
-        }
-        function showHUD() {
-            hudWrapper.setAttribute('visible', true);
-            isHudVisible = true;
-        }
+        }, 500);
 
-
-        /* --- 3. STANDARD CONTROLS (Play, Mode, Reset) --- */
-        function flashButton(el) {
-            el.setAttribute('color', '#fff');
-            setTimeout(() => el.setAttribute('color', '#333'), 200);
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec < 10 ? '0'+sec : sec}`;
         }
 
-        document.getElementById('vr-btn-play').addEventListener('click', function() {
-            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            if (video.paused) {
-                video.play();
-                playBtnText.setAttribute('value', 'PAUSE');
-                hudTimer = setTimeout(hideHUD, 2000); // Hide quick after play
-            } else {
-                video.pause();
-                playBtnText.setAttribute('value', 'PLAY');
-                clearTimeout(hudTimer); // Keep open while paused
-            }
-            flashButton(this);
-        });
-
-        document.getElementById('vr-btn-mode').addEventListener('click', function() {
-            is360Mode = !is360Mode;
-            screenCinema.setAttribute('visible', !is360Mode);
-            screen360.setAttribute('visible', is360Mode);
-            flashButton(this);
-        });
-
-        document.getElementById('vr-btn-reset').addEventListener('click', function() {
-            const cam = document.querySelector('[camera]').object3D;
-            const rig = document.getElementById('rig');
-            const yRot = cam.rotation.y * (180 / Math.PI);
-            rig.setAttribute('rotation', {x:0, y:-yRot, z:0});
-            flashButton(this);
-        });
-
-
-        /* --- 4. AUDIO & AMBILIGHT --- */
-        function initAudio() {
-            if (audioCtx) return;
-            const AC = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AC();
-            source = audioCtx.createMediaElementSource(video);
-            panner = audioCtx.createPanner();
-            gainNode = audioCtx.createGain(); // For Volume Control
-
-            panner.panningModel = 'HRTF';
-            panner.setPosition(0, 4, -5);
-            
-            source.connect(gainNode);
-            gainNode.connect(panner);
-            panner.connect(audioCtx.destination);
-        }
-
-        const canvas = document.getElementById('light-canvas');
-        const ctx = canvas.getContext('2d');
+        // Ambilight Loop
+        const ctx = document.getElementById('light-canvas').getContext('2d');
         const ambi = document.getElementById('ambi-light');
         const glow = document.getElementById('screen-glow');
 
         function updateAmbilight() {
-            if (!video.paused && !video.ended) {
-                ctx.drawImage(video, 0, 0, 32, 32);
+            if (!ui.video.paused && !ui.video.ended) {
+                ctx.drawImage(ui.video, 0, 0, 32, 32);
                 const p = ctx.getImageData(16, 16, 1, 1).data;
                 const hex = "#" + ((1 << 24) + (p[0] << 16) + (p[1] << 8) + p[2]).toString(16).slice(1);
                 ambi.setAttribute('color', hex);
@@ -335,6 +382,41 @@
             }
             requestAnimationFrame(updateAmbilight);
         }
+        requestAnimationFrame(updateAmbilight);
+
+        // Audio System
+        function initAudio() {
+            if (state.audioCtx) return;
+            const AC = window.AudioContext || window.webkitAudioContext;
+            state.audioCtx = new AC();
+            state.panner = state.audioCtx.createPanner();
+            state.gainNode = state.audioCtx.createGain();
+            
+            const source = state.audioCtx.createMediaElementSource(ui.video);
+            
+            state.panner.panningModel = 'HRTF';
+            state.panner.setPosition(0, 4, -5);
+            
+            source.connect(state.gainNode);
+            state.gainNode.connect(state.panner);
+            state.panner.connect(state.audioCtx.destination);
+        }
+
+        // Buffering UI
+        ui.video.addEventListener('waiting', () => ui.buffering.setAttribute('visible', true));
+        ui.video.addEventListener('playing', () => ui.buffering.setAttribute('visible', false));
+        
+        // Auto-Next on End
+        ui.video.addEventListener('ended', () => {
+             // Optional: Auto-play next?
+             // nextTrack(); 
+        });
+
+        // Hover Effects
+        document.querySelectorAll('.clickable').forEach((btn) => {
+            btn.addEventListener('mouseenter', () => btn.setAttribute('color', '#e50914'));
+            btn.addEventListener('mouseleave', () => btn.setAttribute('color', '#333'));
+        });
 
     </script>
 </body>
