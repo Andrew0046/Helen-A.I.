@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub: Ultimate Playlist Edition</title>
+    <title>The Hub: High Volume Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -426,16 +426,31 @@
         });
 
 
-        /* --- 5. AUDIO & LIGHTS --- */
+        /* --- 5. AUDIO SYSTEM (BOOSTED) --- */
         function initAudio() {
             if(audioCtx) return;
             const AC = window.AudioContext || window.webkitAudioContext;
             audioCtx = new AC();
+            
+            // Create Source
             const src = audioCtx.createMediaElementSource(video);
+            
+            // Create Gain (Volume Boost 300%)
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 3.0;
+            
+            // Create Panner
             panner = audioCtx.createPanner();
             panner.panningModel = 'HRTF';
+            panner.distanceModel = 'inverse';
+            panner.refDistance = 10; 
+            panner.maxDistance = 10000;
             panner.setPosition(0, 4.5, -5);
-            src.connect(panner).connect(audioCtx.destination);
+            
+            // Connect: Source -> Gain -> Panner -> Speakers
+            src.connect(gainNode);
+            gainNode.connect(panner);
+            panner.connect(audioCtx.destination);
         }
 
         const ctx = document.getElementById('light-canvas').getContext('2d');
