@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub: Playlist Edition</title>
+    <title>The Hub: Ultimate Playlist Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -18,7 +18,7 @@
         
         .hidden { opacity: 0; pointer-events: none; }
 
-        h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 40px; }
+        h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 30px; }
         h1 span { font-weight: 700; color: #00d2ff; text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
 
         .hub-card {
@@ -34,7 +34,12 @@
         }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
 
-        /* Playlist List (2D View) */
+        /* URL Input Area */
+        .url-box { margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid #333; padding: 10px; color: white; border-radius: 4px; }
+        .btn-small { background: #333; border: 1px solid #444; color: #aaa; padding: 0 15px; border-radius: 4px; cursor: pointer; }
+
+        /* Playlist UI */
         #playlist-ui {
             margin-top: 20px; max-height: 150px; overflow-y: auto; text-align: left;
             background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; font-size: 0.9rem; color: #aaa;
@@ -50,17 +55,22 @@
         <h1>The <span style="color: #ff9d00">Hub</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
-            <p style="color: #888; font-size: 0.9rem;">Select multiple files to create a playlist</p>
+            <p style="color: #888; font-size: 0.9rem;">Select media to begin</p>
             
             <input type="file" id="file-input" accept="video/*" multiple style="display:none">
-            <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD MOVIES</button>
+            <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD LOCAL FILES</button>
             
+            <div class="url-box">
+                <input type="text" id="url-input" placeholder="Paste stream URL (mp4/webm)...">
+                <button class="btn-small" id="btn-url">GO</button>
+            </div>
+
             <div id="playlist-ui" style="display:none">
                 <div style="color:white; font-weight:bold; margin-bottom:5px;">Queue:</div>
                 <div id="playlist-list"></div>
             </div>
             
-            <button id="btn-start" class="btn-main" style="display:none; background: #ff9d00; margin-top: 10px;">ENTER VR</button>
+            <button id="btn-start" class="btn-main" style="display:none; background: #ff9d00; margin-top: 20px;">ENTER VR</button>
         </div>
     </div>
 
@@ -104,7 +114,6 @@
             <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="|<<" align="center" width="3"></a-text>
             </a-plane>
-            
             <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="-15s" align="center" width="2"></a-text>
             </a-plane>
@@ -116,11 +125,9 @@
             <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="+15s" align="center" width="2"></a-text>
             </a-plane>
-
             <a-plane id="btn-next" position="0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value=">>|" align="center" width="3"></a-text>
             </a-plane>
-
 
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="2D / 360" align="center" width="1.8"></a-text>
@@ -169,15 +176,16 @@
     </a-scene>
 
     <script>
-        /* --- CORE VARIABLES --- */
+        /* --- CONFIG --- */
         const video = document.getElementById('video-src');
         const uiLayer = document.getElementById('ui-layer');
         const fileInput = document.getElementById('file-input');
+        const urlInput = document.getElementById('url-input');
         const playlistUI = document.getElementById('playlist-ui');
         const playlistList = document.getElementById('playlist-list');
         const btnStart = document.getElementById('btn-start');
         
-        // Scene Refs
+        // Scene
         const screenCinema = document.getElementById('screen-cinema');
         const screen360 = document.getElementById('screen-360');
         const rig = document.getElementById('rig');
@@ -185,14 +193,14 @@
         const floor = document.getElementById('env-floor');
         const scene = document.querySelector('a-scene');
 
-        // UI Refs
+        // UI
         const playBtnText = document.getElementById('txt-play');
         const timeText = document.getElementById('time-display');
         const progressFill = document.getElementById('progress-fill');
         const titleText = document.getElementById('txt-title');
         
         // State
-        let playlist = []; // Array of File objects
+        let playlist = []; // Objects: { type: 'file'|'url', src: ... , name: ... }
         let currentTrack = 0;
         let is360 = false;
         let isVoid = false;
@@ -200,13 +208,25 @@
         let audioCtx, panner;
         let hubTimer;
 
-        /* --- 1. PLAYLIST MANAGEMENT --- */
+        /* --- 1. PLAYLIST LOGIC (FILE + URL) --- */
         
+        // A. Handle Local Files
         fileInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             if (files.length > 0) {
-                // Add new files to playlist
-                playlist = playlist.concat(files);
+                const newItems = files.map(f => ({ type: 'file', src: f, name: f.name }));
+                playlist = playlist.concat(newItems);
+                updatePlaylistUI();
+            }
+        });
+
+        // B. Handle URL
+        document.getElementById('btn-url').addEventListener('click', () => {
+            const url = urlInput.value.trim();
+            if(url) {
+                // Add URL to playlist
+                playlist.push({ type: 'url', src: url, name: "Web Stream" });
+                urlInput.value = ""; // clear input
                 updatePlaylistUI();
             }
         });
@@ -216,10 +236,10 @@
             btnStart.style.display = 'block';
             playlistList.innerHTML = '';
             
-            playlist.forEach((file, index) => {
+            playlist.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'playlist-item';
-                div.innerText = `${index + 1}. ${file.name}`;
+                div.innerText = `${index + 1}. ${item.name}`;
                 playlistList.appendChild(div);
             });
         }
@@ -234,15 +254,17 @@
         function loadTrack(index) {
             if (index >= 0 && index < playlist.length) {
                 currentTrack = index;
-                const file = playlist[currentTrack];
-                const url = URL.createObjectURL(file);
+                const item = playlist[currentTrack];
                 
-                // Update Video Source
-                video.src = url;
+                let src = "";
+                if(item.type === 'file') src = URL.createObjectURL(item.src);
+                else src = item.src;
+
+                // Load Video
+                video.src = src;
                 
-                // Update Title in VR
-                // Truncate long names
-                let displayName = file.name;
+                // Update Title
+                let displayName = item.name;
                 if(displayName.length > 30) displayName = displayName.substring(0, 27) + "...";
                 titleText.setAttribute('value', `${currentTrack + 1}/${playlist.length}: ${displayName}`);
                 
@@ -266,7 +288,7 @@
         });
 
 
-        /* --- 2. INTERACTION HANDLERS --- */
+        /* --- 2. VR INTERACTIONS --- */
         
         function flash(el) {
             const oldColor = el.getAttribute('color');
@@ -282,17 +304,15 @@
             flash(this);
         });
 
-        // PREV / NEXT TRACK
+        // Track Nav
         document.getElementById('btn-prev').addEventListener('click', function() {
-            if(currentTrack > 0) loadTrack(currentTrack - 1);
-            flash(this);
+            if(currentTrack > 0) loadTrack(currentTrack - 1); flash(this);
         });
         document.getElementById('btn-next').addEventListener('click', function() {
-            if(currentTrack < playlist.length - 1) loadTrack(currentTrack + 1);
-            flash(this);
+            if(currentTrack < playlist.length - 1) loadTrack(currentTrack + 1); flash(this);
         });
 
-        // SEEK
+        // Seek
         document.getElementById('btn-seek-back').addEventListener('click', function() {
             video.currentTime = Math.max(0, video.currentTime - 15); flash(this);
         });
@@ -300,7 +320,7 @@
             video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this);
         });
 
-        // Mode Toggle
+        // Modes
         document.getElementById('btn-mode').addEventListener('click', function() {
             is360 = !is360;
             screenCinema.setAttribute('visible', !is360);
@@ -311,7 +331,6 @@
             flash(this);
         });
 
-        // Void Mode
         document.getElementById('btn-void').addEventListener('click', function() {
             isVoid = !isVoid;
             if(!is360) floor.setAttribute('visible', !isVoid);
@@ -319,7 +338,6 @@
             flash(this);
         });
 
-        // Reset View
         document.getElementById('btn-reset').addEventListener('click', function() {
             const cam = document.querySelector('[camera]').object3D;
             const yRot = cam.rotation.y * (180 / Math.PI);
@@ -327,19 +345,15 @@
             flash(this);
         });
 
-        // Speed
-        let speeds = [1, 1.25, 1.5, 2, 0.5, 0.75];
-        let speedIdx = 0;
         document.getElementById('btn-speed').addEventListener('click', function() {
-            speedIdx = (speedIdx + 1) % speeds.length;
-            video.playbackRate = speeds[speedIdx];
-            document.getElementById('txt-speed').setAttribute('value', speeds[speedIdx] + 'x');
+            const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75];
+            video.playbackRate = speeds[(speeds.indexOf(video.playbackRate) + 1) % speeds.length];
+            document.getElementById('txt-speed').setAttribute('value', video.playbackRate + 'x');
             flash(this);
         });
 
 
-        /* --- 3. SEATING & SCREEN GEOMETRY --- */
-
+        /* --- 3. SEATING & SCREEN --- */
         const seats = {
             front: { pos: "0 1.6 -1", rot: "-25 0 0" },
             back: { pos: "0 2.5 2", rot: "-25 0 0" },
@@ -372,7 +386,7 @@
         });
 
 
-        /* --- 4. LOOPS (Time & Auto-Hide) --- */
+        /* --- 4. LOOPS --- */
         setInterval(() => {
             if(video.duration) {
                 const pct = video.currentTime / video.duration;
