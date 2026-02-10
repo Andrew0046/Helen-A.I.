@@ -3,28 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VR Cinema: Spatial Audio & Ambilight</title>
+    <title>VR Cinema: Ultimate Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
-        /* 2D UI Overlay */
+        /* --- 2D UI OVERLAY (FILE LOADER) --- */
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; }
+        
         #ui-layer {
             position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: flex; flex-direction: column;
-            align-items: center; justify-content: center; color: white; transition: opacity 0.5s;
+            background: rgba(0,0,0,0.92); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; color: white; transition: opacity 0.5s ease-out;
         }
+        
         .hidden { opacity: 0; pointer-events: none; }
+        
         #drop-zone {
-            width: 80%; max-width: 500px; padding: 40px; border: 3px dashed #e50914;
-            border-radius: 10px; text-align: center; margin-bottom: 20px;
-            background: rgba(255,255,255,0.05); transition: background 0.3s;
+            width: 80%; max-width: 500px; padding: 50px; border: 2px dashed #e50914;
+            border-radius: 12px; text-align: center; margin-bottom: 25px;
+            background: rgba(255,255,255,0.03); transition: all 0.3s;
         }
-        #drop-zone.hover { background: rgba(229, 9, 20, 0.2); }
+        
+        #drop-zone.hover { background: rgba(229, 9, 20, 0.15); border-color: #ff3333; transform: scale(1.02); }
+        
         .btn {
-            padding: 12px 24px; background: #e50914; border: none; color: white;
-            font-size: 16px; border-radius: 4px; cursor: pointer; margin-top: 15px;
+            padding: 14px 30px; background: #e50914; border: none; color: white; font-weight: bold;
+            font-size: 16px; border-radius: 6px; cursor: pointer; margin-top: 20px;
+            transition: background 0.2s;
         }
-        .controls-hint { margin-top: 30px; font-size: 0.9rem; color: #aaa; text-align: center; }
+        .btn:hover { background: #ff1f2d; }
+        
+        .controls-hint { margin-top: 40px; font-size: 0.95rem; color: #888; text-align: center; line-height: 1.6; }
         
         /* Hidden canvas for Ambilight analysis */
         #light-canvas { display: none; }
@@ -33,73 +41,99 @@
 <body>
 
     <div id="ui-layer">
-        <h1>VR Cinema Experience</h1>
+        <h1 style="margin-bottom: 10px; font-weight: 300; letter-spacing: 2px;">CINEMA <span style="font-weight:700; color:#e50914">VR</span></h1>
         <div id="drop-zone">
-            <p>Drag & Drop Video File Here</p>
-            <p><i>(.mp4, .webm)</i></p>
+            <h3 style="margin:0 0 10px 0;">Load Your Movie</h3>
+            <p style="color:#aaa; font-size:0.9rem;">Drag & Drop Video File (.mp4 / .webm)</p>
             <input type="file" id="file-input" accept="video/*" style="display:none">
-            <button class="btn" id="btn-load">Select Video</button>
+            <button class="btn" id="btn-load">BROWSE FILES</button>
         </div>
         <div class="controls-hint">
-            <p><b>IN VR:</b> Look at buttons for 1.5s to click.</p>
-            <p>Look <b>DOWN</b> to see the control panel.</p>
+            <p>👁️ <b>GAZE CONTROL:</b> Stare at buttons for 1.5s to click.</p>
+            <p>⬇️ <b>MENU:</b> Look down at your lap to see controls.</p>
+            <p>🎧 <b>AUDIO:</b> Wear headphones for spatial sound.</p>
         </div>
     </div>
 
     <canvas id="light-canvas" width="32" height="32"></canvas>
 
-    <a-scene background="color: #050505" fog="type: exponential; color: #050505; density: 0.02">
+    <a-scene background="color: #020202" fog="type: exponential; color: #020202; density: 0.03" renderer="antialias: true">
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
             <img id="floor-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
         </a-assets>
 
-        <a-plane position="0 0 -4" rotation="-90 0 0" width="50" height="50" 
-                 src="#floor-texture" repeat="10 10" color="#222" roughness="0.5" metalness="0.2">
+        <a-plane position="0 0 -4" rotation="-90 0 0" width="60" height="60" 
+                 src="#floor-texture" repeat="15 15" color="#1a1a1a" roughness="0.4" metalness="0.6">
         </a-plane>
 
-        <a-light id="ambi-light" type="ambient" color="#222" intensity="0.5"></a-light>
-        <a-light id="screen-glow" type="point" position="0 5 -5" distance="20" intensity="0.5" color="#fff"></a-light>
+        <a-light id="ambi-light" type="ambient" color="#111" intensity="0.3"></a-light>
+        <a-light id="screen-glow" type="point" position="0 4 -2" distance="15" decay="2" intensity="0.8" color="#222"></a-light>
 
-        <a-curvedimage id="screen-cinema" src="#video-src" height="9" radius="11" theta-length="72" 
-            rotation="0 144 0" position="0 4 0" side="double" visible="true">
+
+        <a-curvedimage id="screen-cinema" 
+            src="#video-src" 
+            height="9" radius="11" theta-length="72" 
+            rotation="0 144 0" position="0 4 0" 
+            side="double" visible="true">
         </a-curvedimage>
 
-        <a-videosphere id="screen-360" src="#video-src" rotation="0 -90 0" visible="false"></a-videosphere>
+        <a-videosphere id="screen-360" 
+            src="#video-src" 
+            rotation="0 -90 0" 
+            visible="false">
+        </a-videosphere>
 
-        <a-entity id="control-panel" position="0 1.2 -2.5" rotation="-25 0 0">
-            <a-box depth="0.1" height="0.8" width="3.2" color="#111" opacity="0.9"></a-box>
 
-            <a-plane id="vr-btn-play" position="-0.8 0 0.06" width="0.6" height="0.4" color="#333" class="clickable">
-                <a-text value="PLAY" align="center" width="3" position="0 0 0.01"></a-text>
-            </a-plane>
+        <a-entity id="control-panel" position="0 1.2 -2.2" rotation="-30 0 0">
+            
+            <a-box depth="0.05" height="0.7" width="3" color="#111" opacity="0.95"></a-box>
 
-            <a-plane id="vr-btn-mode" position="0 0 0.06" width="0.6" height="0.4" color="#333" class="clickable">
-                <a-text value="2D / 360" align="center" width="3" position="0 0 0.01"></a-text>
-            </a-plane>
+            <a-entity id="vr-btn-play" position="-0.8 0 0.04" class="clickable">
+                <a-plane width="0.7" height="0.35" color="#333" class="btn-bg"></a-plane>
+                <a-text value="PLAY" align="center" width="2.5" position="0 0 0.01" color="white"></a-text>
+            </a-entity>
 
-            <a-plane id="vr-btn-reset" position="0.8 0 0.06" width="0.6" height="0.4" color="#333" class="clickable">
-                <a-text value="RESET" align="center" width="3" position="0 0 0.01"></a-text>
-            </a-plane>
+            <a-entity id="vr-btn-mode" position="0 0 0.04" class="clickable">
+                <a-plane width="0.7" height="0.35" color="#333" class="btn-bg"></a-plane>
+                <a-text value="2D / 360" align="center" width="2.5" position="0 0 0.01" color="white"></a-text>
+            </a-entity>
 
-            <a-box position="0 -0.5 0" width="3" height="0.05" depth="0.05" color="#555"></a-box>
-            <a-box id="progress-fill" position="-1.5 -0.5 0.01" width="3" height="0.06" depth="0.06" color="#e50914" scale="0 1 1"></a-box>
+            <a-entity id="vr-btn-reset" position="0.8 0 0.04" class="clickable">
+                <a-plane width="0.7" height="0.35" color="#333" class="btn-bg"></a-plane>
+                <a-text value="RESET VIEW" align="center" width="2.5" position="0 0 0.01" color="white"></a-text>
+            </a-entity>
+
+            <a-box position="0 -0.45 0" width="2.8" height="0.03" depth="0.03" color="#444"></a-box>
+            <a-box id="progress-fill" position="-1.4 -0.45 0.01" width="2.8" height="0.04" depth="0.04" color="#e50914" scale="0 1 1"></a-box>
+
         </a-entity>
 
+
         <a-entity id="rig" position="0 1.6 0">
-            <a-camera look-controls wasd-controls="enabled: false">
-                <a-cursor id="cursor" fuse="true" fuse-timeout="1500" color="#e50914" raycaster="objects: .clickable"
+            <a-camera look-controls="reverseMouseDrag: true" wasd-controls="enabled: false">
+                
+                <a-cursor 
+                    id="cursor"
+                    fuse="true" 
+                    fuse-timeout="1500"
+                    color="#e50914"
+                    raycaster="objects: .clickable"
+                    scale="1 1 1"
                     animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
                     animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500">
                 </a-cursor>
-                <a-text value="Look down for controls" position="0 -0.6 -1" align="center" width="0.8" color="#888" opacity="0.5"></a-text>
+
+                <a-text value="Look down for controls" position="0 -0.6 -1" align="center" width="0.8" color="#888" opacity="0.6"></a-text>
             </a-camera>
         </a-entity>
+
     </a-scene>
 
+
     <script>
-        /* --- CONFIGURATION --- */
+        /* --- CONFIGURATION & ELEMENTS --- */
         const uiLayer = document.getElementById('ui-layer');
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
@@ -111,16 +145,18 @@
         const progressFill = document.getElementById('progress-fill');
         const playBtnText = document.querySelector('#vr-btn-play a-text');
         
-        // Ambilight Elements
+        // Ambilight
         const canvas = document.getElementById('light-canvas');
         const ctx = canvas.getContext('2d');
         const ambiLight = document.getElementById('ambi-light');
         const screenGlow = document.getElementById('screen-glow');
 
+        // State
         let is360Mode = false;
         let audioCtx, panner, source;
 
-        /* --- 1. FILE LOADING --- */
+
+        /* --- 1. FILE LOADING & DRAG-DROP --- */
         loadBtn.addEventListener('click', () => fileInput.click());
         
         fileInput.addEventListener('change', (e) => {
@@ -138,16 +174,20 @@
         function initExperience(file) {
             const url = URL.createObjectURL(file);
             video.src = url;
-            uiLayer.classList.add('hidden');
+            uiLayer.classList.add('hidden'); // Fade out UI
             
-            // Initialize Audio System on user gesture
+            // Start Systems
             initSpatialAudio();
             
             video.play().then(() => {
                 playBtnText.setAttribute('value', 'PAUSE');
                 requestAnimationFrame(updateAmbilight); // Start lighting loop
-            }).catch(e => console.log("Autoplay blocked, use VR play button"));
+            }).catch(e => {
+                console.log("Autoplay blocked. User must click Play in VR.");
+                playBtnText.setAttribute('value', 'PLAY');
+            });
         }
+
 
         /* --- 2. SPATIAL AUDIO SYSTEM --- */
         function initSpatialAudio() {
@@ -158,7 +198,7 @@
             source = audioCtx.createMediaElementSource(video);
             panner = audioCtx.createPanner();
             
-            // HRTF = High quality 3D audio
+            // HRTF = High quality 3D audio panning
             panner.panningModel = 'HRTF';
             panner.distanceModel = 'inverse';
             panner.refDistance = 5;
@@ -169,27 +209,30 @@
             panner.connect(audioCtx.destination);
         }
 
+
         /* --- 3. AMBILIGHT SYSTEM --- */
         function updateAmbilight() {
             if (!video.paused && !video.ended) {
-                // Draw tiny version of video frame to canvas
+                // 1. Draw tiny version of video frame to canvas
                 ctx.drawImage(video, 0, 0, 32, 32);
-                // Sample the center pixel color
+                
+                // 2. Sample center pixel color
                 const p = ctx.getImageData(16, 16, 1, 1).data;
                 const hex = "#" + ((1 << 24) + (p[0] << 16) + (p[1] << 8) + p[2]).toString(16).slice(1);
                 
-                // Apply to ambient light (soft room fill)
+                // 3. Apply to lights
                 ambiLight.setAttribute('color', hex);
-                // Apply to screen glow (stronger near screen)
                 screenGlow.setAttribute('color', hex);
             }
             requestAnimationFrame(updateAmbilight);
         }
 
+
         /* --- 4. VR INTERACTIONS --- */
         
-        // Play / Pause
+        // A. PLAY / PAUSE
         document.getElementById('vr-btn-play').addEventListener('click', () => {
+            // Wake up audio context if suspended
             if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
             if (video.paused) {
@@ -201,27 +244,51 @@
             }
         });
 
-        // Toggle 2D / 360
+        // B. TOGGLE 2D / 360
         document.getElementById('vr-btn-mode').addEventListener('click', () => {
             is360Mode = !is360Mode;
             screenCinema.setAttribute('visible', !is360Mode);
             screen360.setAttribute('visible', is360Mode);
         });
 
-        // Reset View
+        // C. RECENTER VIEW (Fix Drift)
         document.getElementById('vr-btn-reset').addEventListener('click', () => {
-            document.querySelector('[camera]').setAttribute('rotation', '0 0 0');
+            const camera = document.querySelector('[camera]');
+            const rig = document.getElementById('rig');
+            
+            // Get current Y rotation (heading)
+            const currentRotationY = camera.object3D.rotation.y;
+            // Convert to degrees
+            const degrees = currentRotationY * (180 / Math.PI);
+            
+            // Rotate RIG in opposite direction to snap view to center
+            rig.setAttribute('rotation', { x: 0, y: -degrees, z: 0 });
         });
 
-        // Progress Bar
+        // D. BUTTON HOVER EFFECTS
+        document.querySelectorAll('.clickable').forEach((btn) => {
+            const bg = btn.querySelector('.btn-bg');
+            // Hover: Turn Red
+            btn.addEventListener('mouseenter', () => {
+                if(bg) bg.setAttribute('color', '#e50914');
+            });
+            // Leave: Turn Dark Grey
+            btn.addEventListener('mouseleave', () => {
+                if(bg) bg.setAttribute('color', '#333');
+            });
+        });
+
+        // E. PROGRESS BAR
         setInterval(() => {
             if (video.duration) {
                 const pct = video.currentTime / video.duration;
                 progressFill.object3D.scale.x = pct;
                 // Shift position to account for center-pivot scaling
-                progressFill.object3D.position.x = -1.5 + (3 * pct / 2);
+                // Bar width is 2.8. Center is 0. Left edge is -1.4.
+                progressFill.object3D.position.x = -1.4 + (2.8 * pct / 2);
             }
         }, 100);
+
     </script>
 </body>
 </html>
