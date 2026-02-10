@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>The Hub: Immersive Control Center</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Hub: Ultimate VR Cinema</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD (Pre-VR) --- */
@@ -17,11 +18,10 @@
         
         .hidden { opacity: 0; pointer-events: none; }
 
-        /* The Hub Logo Style */
+        /* Logo & Card */
         h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 40px; }
         h1 span { font-weight: 700; color: #00d2ff; text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
 
-        /* Upload Card */
         .hub-card {
             background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px); padding: 40px; border-radius: 16px; width: 450px; text-align: center;
@@ -35,6 +35,11 @@
         }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
 
+        /* URL Input Area */
+        .url-box { margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid #333; padding: 10px; color: white; border-radius: 4px; }
+        .btn-small { background: #333; border: 1px solid #444; color: #aaa; padding: 0 15px; border-radius: 4px; cursor: pointer; }
+        
         #light-canvas { display: none; }
     </style>
 </head>
@@ -44,15 +49,14 @@
         <h1>The <span style="color: #ff9d00">Hub</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize Control Center</h3>
-            <p style="color: #888; font-size: 0.9rem;">Select media to begin session</p>
+            <p style="color: #888; font-size: 0.9rem;">Select media source to begin</p>
             
             <input type="file" id="file-input" accept="video/*" style="display:none">
-            <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD CONTENT</button>
+            <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD LOCAL FILE</button>
             
-            <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-                <input type="text" id="url-input" placeholder="Or paste secure stream URL..." 
-                    style="width: 100%; background: rgba(0,0,0,0.3); border: none; padding: 10px; color: white; border-radius: 4px;">
-                <button id="btn-url" style="background: none; border: 1px solid #444; color: #aaa; padding: 8px 15px; margin-top: 10px; border-radius: 4px; cursor: pointer;">Stream URL</button>
+            <div class="url-box">
+                <input type="text" id="url-input" placeholder="Paste stream URL (mp4/webm)...">
+                <button class="btn-small" id="btn-url">GO</button>
             </div>
         </div>
     </div>
@@ -80,7 +84,7 @@
         <a-videosphere id="screen-360" src="#video-src" rotation="0 -90 0" visible="false"></a-videosphere>
 
 
-        <a-entity id="the-hub" position="0 0.8 -1.8" rotation="-25 0 0">
+        <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0">
             
             <a-box depth="0.02" height="0.9" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
             <a-box position="0 0.44 0" depth="0.03" height="0.01" width="2.8" color="#ff9d00" opacity="0.8"></a-box>
@@ -121,6 +125,7 @@
 
 
             <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
+            <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
             
             <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover">
                 <a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1"></a-text>
@@ -132,7 +137,6 @@
                 <a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1"></a-text>
             </a-plane>
 
-            <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
             <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover">
                 <a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1"></a-text>
             </a-plane>
@@ -154,20 +158,20 @@
     </a-scene>
 
     <script>
-        /* --- CORE CONFIG --- */
+        /* --- CORE VARIABLES --- */
         const video = document.getElementById('video-src');
         const uiLayer = document.getElementById('ui-layer');
         const fileInput = document.getElementById('file-input');
         const urlInput = document.getElementById('url-input');
         
-        // Scene Elements
+        // Scene Refs
         const screenCinema = document.getElementById('screen-cinema');
         const screen360 = document.getElementById('screen-360');
         const rig = document.getElementById('rig');
+        const hubWrapper = document.getElementById('hub-wrapper');
         const floor = document.getElementById('env-floor');
-        const hub = document.getElementById('the-hub');
 
-        // UI Elements
+        // UI Refs
         const playBtnText = document.getElementById('txt-play');
         const timeText = document.getElementById('time-display');
         const progressFill = document.getElementById('progress-fill');
@@ -175,8 +179,9 @@
         // State
         let is360 = false;
         let isVoid = false;
+        let currentCurve = 72; // Initial degrees
         let audioCtx, panner;
-        let hubTimer;
+        let hubTimer; // For auto-hide
 
         /* --- 1. MEDIA LOADING --- */
         fileInput.addEventListener('change', (e) => loadMedia(e.target.files[0]));
@@ -192,20 +197,18 @@
             video.play().then(() => playBtnText.setAttribute('value', 'PAUSE'))
                         .catch(() => playBtnText.setAttribute('value', 'PLAY'));
             
-            // Start Ambilight
             requestAnimationFrame(updateAmbilight);
         }
 
-        /* --- 2. THE HUB: INTERACTION HANDLERS --- */
+        /* --- 2. INTERACTION HANDLERS --- */
         
-        // A. Helper: Flash button visual
         function flash(el) {
             const oldColor = el.getAttribute('color');
             el.setAttribute('color', '#fff');
             setTimeout(() => el.setAttribute('color', oldColor), 150);
         }
 
-        // B. Playback Controls
+        // Playback
         document.getElementById('btn-play').addEventListener('click', function() {
             if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             if(video.paused) { video.play(); playBtnText.setAttribute('value', 'PAUSE'); }
@@ -213,16 +216,15 @@
             flash(this);
         });
 
+        // Seek
         document.getElementById('btn-seek-back').addEventListener('click', function() {
-            video.currentTime = Math.max(0, video.currentTime - 15);
-            flash(this);
+            video.currentTime = Math.max(0, video.currentTime - 15); flash(this);
         });
         document.getElementById('btn-seek-fwd').addEventListener('click', function() {
-            video.currentTime = Math.min(video.duration, video.currentTime + 15);
-            flash(this);
+            video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this);
         });
 
-        // C. Modes (Void / 360 / Reset)
+        // Modes
         document.getElementById('btn-mode').addEventListener('click', function() {
             is360 = !is360;
             screenCinema.setAttribute('visible', !is360);
@@ -232,10 +234,8 @@
 
         document.getElementById('btn-void').addEventListener('click', function() {
             isVoid = !isVoid;
-            floor.setAttribute('visible', !isVoid); // Toggle floor
-            // Toggle background color slightly?
-            const scene = document.querySelector('a-scene');
-            scene.setAttribute('background', isVoid ? 'color: #000' : 'color: #050505');
+            floor.setAttribute('visible', !isVoid);
+            document.querySelector('a-scene').setAttribute('background', isVoid ? 'color: #000' : 'color: #050505');
             flash(this);
         });
 
@@ -246,7 +246,7 @@
             flash(this);
         });
 
-        // D. Speed Control
+        // Speed
         let speeds = [1, 1.25, 1.5, 2, 0.5, 0.75];
         let speedIdx = 0;
         document.getElementById('btn-speed').addEventListener('click', function() {
@@ -256,50 +256,53 @@
             flash(this);
         });
 
-        /* --- 3. SEATING & SCREEN ADJUSTMENTS --- */
-        
-        // Seating Presets
+        /* --- 3. SEAT & SCREEN LOGIC (FIXED) --- */
+
+        // Seating
         const seats = {
-            front: "0 1.6 -1",  // Closer
-            back: "0 2.5 2",    // Higher and further back (Balcony)
-            recline: "0 0.5 0"  // Low (Lying down position)
+            front: { pos: "0 1.6 -1", rot: "-25 0 0" },
+            back: { pos: "0 2.5 2", rot: "-25 0 0" },
+            recline: { pos: "0 0.5 0", rot: "-45 0 0" } // Rotates HUD up for lying down
         };
         
         document.getElementById('seat-front').addEventListener('click', function() {
-            rig.setAttribute('position', seats.front); flash(this);
+            rig.setAttribute('position', seats.front.pos);
+            hubWrapper.setAttribute('rotation', seats.front.rot);
+            flash(this);
         });
         document.getElementById('seat-back').addEventListener('click', function() {
-            rig.setAttribute('position', seats.back); flash(this);
+            rig.setAttribute('position', seats.back.pos);
+            hubWrapper.setAttribute('rotation', seats.back.rot);
+            flash(this);
         });
         document.getElementById('seat-lay').addEventListener('click', function() {
-            rig.setAttribute('position', seats.recline); 
-            // Also rotate Hub up slightly for reclining user
-            hub.setAttribute('rotation', '-45 0 0');
+            rig.setAttribute('position', seats.recline.pos);
+            hubWrapper.setAttribute('rotation', seats.recline.rot);
             flash(this);
         });
 
-        // Screen Curvature
-        let curve = 72; // Initial theta-length
+        // Screen Geometry (The Fix)
+        function updateScreen() {
+            screenCinema.setAttribute('theta-length', currentCurve);
+            // Center calculation: 180 - (Length / 2)
+            const rot = 180 - (currentCurve / 2);
+            screenCinema.setAttribute('rotation', `0 ${rot} 0`);
+        }
+
         document.getElementById('curve-more').addEventListener('click', function() {
-            curve = Math.min(120, curve + 10);
-            screenCinema.setAttribute('theta-length', curve);
-            flash(this);
+            if(currentCurve < 140) { currentCurve += 10; updateScreen(); flash(this); }
         });
         document.getElementById('curve-less').addEventListener('click', function() {
-            curve = Math.max(20, curve - 10);
-            screenCinema.setAttribute('theta-length', curve);
-            flash(this);
+            if(currentCurve > 30) { currentCurve -= 10; updateScreen(); flash(this); }
         });
 
 
-        /* --- 4. LOOPS (Time & Auto-Hide) --- */
-        
-        // Progress Loop
+        /* --- 4. LOOPS --- */
         setInterval(() => {
             if(video.duration) {
                 const pct = video.currentTime / video.duration;
                 progressFill.object3D.scale.x = pct;
-                progressFill.object3D.position.x = -1.2 + (2.4 * pct / 2); // pivot math for width 2.4
+                progressFill.object3D.position.x = -1.2 + (2.4 * pct / 2);
                 
                 const cur = fmt(video.currentTime);
                 const tot = fmt(video.duration);
@@ -313,31 +316,29 @@
             return `${m}:${sec<10?'0'+sec:sec}`;
         }
 
-        // Auto-Hide Logic
+        // Auto-Hide
         const resetTimer = () => {
             clearTimeout(hubTimer);
-            hub.setAttribute('visible', true);
-            // Hide after 6 seconds of no gaze
+            hubWrapper.setAttribute('visible', true);
             hubTimer = setTimeout(() => {
-                if(!video.paused) hub.setAttribute('visible', false);
+                if(!video.paused) hubWrapper.setAttribute('visible', false);
             }, 6000);
         };
 
-        // Gaze Listeners
         document.querySelectorAll('.clickable').forEach(el => {
             el.addEventListener('mouseenter', () => {
-                resetTimer(); // Keep visible while looking
-                if(el.classList.contains('btn-hover')) el.setAttribute('color', '#ff9d00'); // Highlight
+                resetTimer();
+                if(el.classList.contains('btn-hover')) el.setAttribute('color', '#ff9d00');
             });
             el.addEventListener('mouseleave', () => {
-                resetTimer(); // Start countdown on leave
-                if(el.classList.contains('btn-hover')) el.setAttribute('color', '#222'); // Un-Highlight
-                if(el.id === 'btn-play') el.setAttribute('color', '#ff9d00'); // Keep Play button orange
+                resetTimer();
+                if(el.classList.contains('btn-hover')) el.setAttribute('color', '#222');
+                if(el.id === 'btn-play') el.setAttribute('color', '#ff9d00');
             });
         });
 
 
-        /* --- 5. AUDIO & LIGHTING --- */
+        /* --- 5. AUDIO & LIGHTS --- */
         function initAudio() {
             if(audioCtx) return;
             const AC = window.AudioContext || window.webkitAudioContext;
@@ -349,7 +350,6 @@
             src.connect(panner).connect(audioCtx.destination);
         }
 
-        // Ambilight
         const ctx = document.getElementById('light-canvas').getContext('2d');
         const ambi = document.getElementById('ambi-light');
         const glow = document.getElementById('screen-glow');
@@ -358,7 +358,7 @@
                 ctx.drawImage(video, 0, 0, 32, 32);
                 const p = ctx.getImageData(16,16,1,1).data;
                 const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
-                if(!isVoid) ambi.setAttribute('color', hex); // Only color room if not in Void mode
+                if(!isVoid) ambi.setAttribute('color', hex);
                 glow.setAttribute('color', hex);
             }
             requestAnimationFrame(updateAmbilight);
