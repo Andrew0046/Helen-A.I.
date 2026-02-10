@@ -77,8 +77,10 @@
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
-        <a-curvedimage id="screen-cinema" src="#video-src" height="9" radius="12" theta-length="72" 
-            rotation="0 144 0" position="0 4.5 0" side="double" visible="true">
+        <a-curvedimage id="screen-cinema" src="#video-src" 
+            height="12" radius="14" theta-length="90" 
+            rotation="0 135 0" position="0 5 0" 
+            side="double" visible="true">
         </a-curvedimage>
 
         <a-videosphere id="screen-360" src="#video-src" rotation="0 -90 0" visible="false"></a-videosphere>
@@ -179,7 +181,10 @@
         // State
         let is360 = false;
         let isVoid = false;
-        let currentCurve = 72; // Initial degrees
+        
+        // NOTE: Screen starts at 90 (Wide/Tall mode)
+        let currentCurve = 90; 
+        
         let audioCtx, panner;
         let hubTimer; // For auto-hide
 
@@ -281,7 +286,7 @@
             flash(this);
         });
 
-        // Screen Geometry (The Fix)
+        // Screen Geometry (Fixed Recenter Logic)
         function updateScreen() {
             screenCinema.setAttribute('theta-length', currentCurve);
             // Center calculation: 180 - (Length / 2)
@@ -290,7 +295,7 @@
         }
 
         document.getElementById('curve-more').addEventListener('click', function() {
-            if(currentCurve < 140) { currentCurve += 10; updateScreen(); flash(this); }
+            if(currentCurve < 160) { currentCurve += 10; updateScreen(); flash(this); }
         });
         document.getElementById('curve-less').addEventListener('click', function() {
             if(currentCurve > 30) { currentCurve -= 10; updateScreen(); flash(this); }
@@ -316,7 +321,7 @@
             return `${m}:${sec<10?'0'+sec:sec}`;
         }
 
-        // Auto-Hide
+        // Auto-Hide (6 Seconds)
         const resetTimer = () => {
             clearTimeout(hubTimer);
             hubWrapper.setAttribute('visible', true);
