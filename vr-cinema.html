@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub: Ultimate VR Cinema</title>
+    <title>The Hub: Mixed Reality Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
-        /* --- 2D DASHBOARD (Pre-VR) --- */
+        /* --- 2D DASHBOARD --- */
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
         
         #ui-layer {
@@ -61,19 +61,29 @@
 
     <canvas id="light-canvas" width="32" height="32"></canvas>
 
-    <a-scene background="color: #000" fog="type: exponential; color: #000; density: 0.015">
+    <a-scene 
+        renderer="alpha: true" 
+        webxr="optionalFeatures: hit-test, dom-overlay, local-floor; overlayElement: #ui-layer"
+        fog="type: exponential; color: #000; density: 0.015">
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
             <img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
         </a-assets>
 
-        <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
-                 src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
-        </a-plane>
+        <a-entity id="env-world">
+            
+            <a-sky id="bg-sky" color="#050505"></a-sky>
+
+            <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
+                     src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
+            </a-plane>
+
+        </a-entity>
 
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
+
 
         <a-curvedimage id="screen-cinema" src="#video-src" 
             height="12" radius="14" theta-length="90" 
@@ -83,7 +93,7 @@
 
         <a-videosphere id="screen-360" src="#video-src" 
             radius="100" rotation="0 -90 0" 
-            material="shader: flat; side: back;"
+            material="shader: flat; side: back; fog: false"
             visible="false">
         </a-videosphere>
 
@@ -112,9 +122,11 @@
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="2D / 360" align="center" width="1.8"></a-text>
             </a-plane>
-            <a-plane id="btn-void" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value="VOID" align="center" width="1.8"></a-text>
+
+            <a-plane id="btn-ar" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text id="txt-ar" value="PASSTHRU" align="center" width="1.8" color="#00d2ff"></a-text>
             </a-plane>
+
             <a-plane id="btn-reset" position="0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="RESET" align="center" width="1.8"></a-text>
             </a-plane>
@@ -157,7 +169,7 @@
     </a-scene>
 
     <script>
-        /* --- CORE CONFIG --- */
+        /* --- CONFIG --- */
         const video = document.getElementById('video-src');
         const uiLayer = document.getElementById('ui-layer');
         const fileInput = document.getElementById('file-input');
@@ -168,7 +180,7 @@
         const screen360 = document.getElementById('screen-360');
         const rig = document.getElementById('rig');
         const hubWrapper = document.getElementById('hub-wrapper');
-        const floor = document.getElementById('env-floor');
+        const envWorld = document.getElementById('env-world');
         const scene = document.querySelector('a-scene');
 
         // UI Refs
@@ -178,15 +190,13 @@
         
         // State
         let is360 = false;
-        let isVoid = false;
-        
-        // Screen Geometry State (Defaults: 90 degrees)
+        let isAr = false; // Passthrough state
         let currentCurve = 90; 
         
         let audioCtx, panner;
         let hubTimer;
 
-        /* --- 1. MEDIA LOADING --- */
+        /* --- 1. LOADING --- */
         fileInput.addEventListener('change', (e) => loadMedia(e.target.files[0]));
         document.getElementById('btn-url').addEventListener('click', () => {
             if(urlInput.value) loadMedia(urlInput.value, true);
@@ -202,15 +212,14 @@
             requestAnimationFrame(updateAmbilight);
         }
 
-        /* --- 2. INTERACTION HANDLERS --- */
-        
+        /* --- 2. HANDLERS --- */
         function flash(el) {
             const oldColor = el.getAttribute('color');
             el.setAttribute('color', '#fff');
             setTimeout(() => el.setAttribute('color', oldColor), 150);
         }
 
-        // Playback
+        // Play/Pause
         document.getElementById('btn-play').addEventListener('click', function() {
             if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             if(video.paused) { video.play(); playBtnText.setAttribute('value', 'PAUSE'); }
@@ -226,36 +235,39 @@
             video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this);
         });
 
-        // Mode Toggle (FIXED FOR 360 VISIBILITY)
+        // 2D/360 Toggle
         document.getElementById('btn-mode').addEventListener('click', function() {
             is360 = !is360;
-            
-            // Toggle Screens
             screenCinema.setAttribute('visible', !is360);
             screen360.setAttribute('visible', is360);
+            envWorld.setAttribute('visible', !is360 && !isAr); // Hide world in 360 OR AR
             
-            // Toggle Environment (Hide floor in 360 mode)
-            floor.setAttribute('visible', !is360);
+            // Fog Management
+            if(is360) scene.removeAttribute('fog');
+            else if(!isAr) scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             
-            // Toggle Fog (Disable fog in 360 mode so video isn't dark)
-            if(is360) {
-                scene.removeAttribute('fog');
-            } else {
-                scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
-            }
-
             flash(this);
         });
 
-        // Void Mode
-        document.getElementById('btn-void').addEventListener('click', function() {
-            isVoid = !isVoid;
-            if(!is360) floor.setAttribute('visible', !isVoid); // Only toggle floor if not in 360
-            scene.setAttribute('background', isVoid ? 'color: #000' : 'color: #050505');
+        // --- NEW: PASSTHROUGH / AR TOGGLE ---
+        document.getElementById('btn-ar').addEventListener('click', function() {
+            isAr = !isAr;
+            
+            // 1. Toggle the Environment (Sky & Floor)
+            // If AR is ON, we hide the world. If AR is OFF, we show it (unless in 360 mode)
+            envWorld.setAttribute('visible', !isAr && !is360);
+            
+            // 2. Toggle Fog (Fog ruins Passthrough)
+            if(isAr) scene.removeAttribute('fog');
+            else if(!is360) scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+
+            // 3. Update Button Text Color for feedback
+            document.getElementById('txt-ar').setAttribute('color', isAr ? '#fff' : '#00d2ff');
+            
             flash(this);
         });
 
-        // Reset View
+        // Reset
         document.getElementById('btn-reset').addEventListener('click', function() {
             const cam = document.querySelector('[camera]').object3D;
             const yRot = cam.rotation.y * (180 / Math.PI);
@@ -273,38 +285,26 @@
             flash(this);
         });
 
-        /* --- 3. SEAT & SCREEN LOGIC (FIXED) --- */
-
+        /* --- 3. SEAT & SCREEN --- */
         const seats = {
             front: { pos: "0 1.6 -1", rot: "-25 0 0" },
             back: { pos: "0 2.5 2", rot: "-25 0 0" },
             recline: { pos: "0 0.5 0", rot: "-45 0 0" }
         };
-        
         document.getElementById('seat-front').addEventListener('click', function() {
-            rig.setAttribute('position', seats.front.pos);
-            hubWrapper.setAttribute('rotation', seats.front.rot);
-            flash(this);
+            rig.setAttribute('position', seats.front.pos); hubWrapper.setAttribute('rotation', seats.front.rot); flash(this);
         });
         document.getElementById('seat-back').addEventListener('click', function() {
-            rig.setAttribute('position', seats.back.pos);
-            hubWrapper.setAttribute('rotation', seats.back.rot);
-            flash(this);
+            rig.setAttribute('position', seats.back.pos); hubWrapper.setAttribute('rotation', seats.back.rot); flash(this);
         });
         document.getElementById('seat-lay').addEventListener('click', function() {
-            rig.setAttribute('position', seats.recline.pos);
-            hubWrapper.setAttribute('rotation', seats.recline.rot);
-            flash(this);
+            rig.setAttribute('position', seats.recline.pos); hubWrapper.setAttribute('rotation', seats.recline.rot); flash(this);
         });
 
-        // Screen Geometry (Fixed Recenter Logic)
         function updateScreen() {
             screenCinema.setAttribute('theta-length', currentCurve);
-            // Center calculation: 180 - (Length / 2)
-            const rot = 180 - (currentCurve / 2);
-            screenCinema.setAttribute('rotation', `0 ${rot} 0`);
+            screenCinema.setAttribute('rotation', `0 ${180 - (currentCurve / 2)} 0`);
         }
-
         document.getElementById('curve-more').addEventListener('click', function() {
             if(currentCurve < 160) { currentCurve += 10; updateScreen(); flash(this); }
         });
@@ -319,20 +319,15 @@
                 const pct = video.currentTime / video.duration;
                 progressFill.object3D.scale.x = pct;
                 progressFill.object3D.position.x = -1.2 + (2.4 * pct / 2);
-                
-                const cur = fmt(video.currentTime);
-                const tot = fmt(video.duration);
-                timeText.setAttribute('value', `${cur} / ${tot}`);
+                timeText.setAttribute('value', `${fmt(video.currentTime)} / ${fmt(video.duration)}`);
             }
         }, 500);
 
         function fmt(s) {
-            const m = Math.floor(s/60);
-            const sec = Math.floor(s%60);
+            const m = Math.floor(s/60), sec = Math.floor(s%60);
             return `${m}:${sec<10?'0'+sec:sec}`;
         }
 
-        // Auto-Hide (6s)
         const resetTimer = () => {
             clearTimeout(hubTimer);
             hubWrapper.setAttribute('visible', true);
@@ -374,7 +369,8 @@
                 ctx.drawImage(video, 0, 0, 32, 32);
                 const p = ctx.getImageData(16,16,1,1).data;
                 const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
-                if(!isVoid && !is360) ambi.setAttribute('color', hex);
+                // Only color the ambient light if we are NOT in Passthrough mode (AR)
+                if(!isAr && !is360) ambi.setAttribute('color', hex);
                 glow.setAttribute('color', hex);
             }
             requestAnimationFrame(updateAmbilight);
