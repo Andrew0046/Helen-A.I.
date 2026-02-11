@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v2.0: Gaze Edition</title>
+    <title>The Hub: Cockpit Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -62,7 +62,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v2.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">Cockpit</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media or drag & drop files</p>
@@ -115,60 +115,80 @@
             visible="false">
         </a-videosphere>
 
-        <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0">
-            
-            <a-box depth="0.02" height="1.0" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
-            <a-box position="0 0.49 0" depth="0.03" height="0.01" width="2.8" color="#ff9d00" opacity="0.8"></a-box>
+        <a-entity id="hub-wrapper" position="0 -0.4 -1.5" rotation="-20 0 0">
 
-            <a-text id="txt-title" value="Waiting..." position="0 0.42 0.02" align="center" width="2.5" color="white"></a-text>
-
-            <a-entity id="video-controls">
-                <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
+            <a-entity position="0 0 0" id="video-controls">
+                <a-box width="1.6" height="0.5" depth="0.05" color="#0a0a0a" opacity="0.9" 
+                       material="roughness: 0.2; metalness: 0.8"
+                       class="clickable"
+                       animation__hover="property: position; to: 0 0.05 0; dur: 200; startEvents: mouseenter"
+                       animation__leave="property: position; to: 0 0 0; dur: 200; startEvents: mouseleave">
+                </a-box>
                 
-                <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333" class="clickable btn-hover" id="bar-bg"></a-plane>
-                <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
+                <a-text id="txt-title" value="Waiting..." position="0 0.2 0.03" align="center" width="2" color="#888"></a-text>
 
-                <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
-                    <a-text value="-15s" align="center" width="2"></a-text>
+                <a-box id="bar-bg" position="0 0.12 0.03" width="1.4" height="0.02" depth="0.01" color="#333"></a-box>
+                <a-box id="progress-fill" position="-0.7 0.12 0.04" width="1.4" height="0.02" depth="0.01" color="#00d2ff" scale="0 1 1" pivot="center left"></a-box>
+                <a-text id="time-display" value="00:00" position="0.65 0.15 0.04" align="right" width="2" color="#00d2ff"></a-text>
+
+                <a-circle id="btn-play" position="0 -0.05 0.04" radius="0.12" color="#00d2ff" class="clickable btn-hover"
+                          animation__scale="property: scale; to: 1.1 1.1 1; startEvents: mouseenter; dur: 150"
+                          animation__reset="property: scale; to: 1 1 1; startEvents: mouseleave; dur: 150">
+                     <a-text id="txt-play" value="▶" align="center" position="0.01 -0.01 0" width="8" color="#000"></a-text>
+                </a-circle>
+
+                <a-plane id="btn-seek-back" position="-0.4 -0.05 0.04" width="0.3" height="0.15" color="#222" class="clickable btn-hover" opacity="0.8">
+                    <a-text value="<<" align="center" width="6"></a-text>
+                    <a-text value="-15s" position="0 -0.06 0" align="center" width="2" color="#aaa"></a-text>
                 </a-plane>
-                <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ff9d00" class="clickable btn-hover">
-                    <a-text id="txt-play" value="PLAY" align="center" width="4" color="black" font-weight="bold"></a-text>
+
+                <a-plane id="btn-seek-fwd" position="0.4 -0.05 0.04" width="0.3" height="0.15" color="#222" class="clickable btn-hover" opacity="0.8">
+                    <a-text value=">>" align="center" width="6"></a-text>
+                    <a-text value="+15s" position="0 -0.06 0" align="center" width="2" color="#aaa"></a-text>
                 </a-plane>
-                <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
-                    <a-text value="+15s" align="center" width="2"></a-text>
-                </a-plane>
-                
-                <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
-                    <a-text id="txt-speed" value="1x" align="center" width="2"></a-text>
+
+                <a-plane id="btn-speed" position="0.7 -0.15 0.04" width="0.2" height="0.1" color="#222" class="clickable btn-hover">
+                    <a-text id="txt-speed" value="1x" align="center" width="3"></a-text>
                 </a-plane>
             </a-entity>
 
-            <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value="|<<" align="center" width="3"></a-text>
-            </a-plane>
-            <a-plane id="btn-next" position="0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value=">>|" align="center" width="3"></a-text>
-            </a-plane>
 
-            <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value="2D / 360" align="center" width="1.8"></a-text>
-            </a-plane>
-            <a-plane id="btn-void" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value="VOID" align="center" width="1.8"></a-text>
-            </a-plane>
-            <a-plane id="btn-reset" position="0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value="RESET VIEW" align="center" width="1.8"></a-text>
-            </a-plane>
+            <a-entity position="-1.1 0 0.2" rotation="0 25 0">
+                <a-box width="0.8" height="0.5" depth="0.05" color="#111" opacity="0.8"></a-box>
+                <a-text value="ENVIRONMENT" position="0 0.18 0.04" align="center" width="2" color="#666"></a-text>
 
-            <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
-            <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
-            
-            <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
-            <a-plane id="seat-back" position="-0.8 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="BACK" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
-            <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
-            
-            <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
-            <a-plane id="curve-more" position="1.0 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+                <a-plane id="btn-mode" position="-0.2 0.05 0.04" width="0.3" height="0.12" color="#222" class="clickable btn-hover">
+                     <a-text value="360" align="center" width="3"></a-text>
+                </a-plane>
+                
+                <a-plane id="btn-void" position="0.2 0.05 0.04" width="0.3" height="0.12" color="#222" class="clickable btn-hover">
+                     <a-text value="VOID" align="center" width="3"></a-text>
+                </a-plane>
+
+                <a-text value="PLAYLIST" position="0 -0.05 0.04" align="center" width="1.5" color="#666"></a-text>
+                <a-plane id="btn-prev" position="-0.2 -0.15 0.04" width="0.3" height="0.12" color="#333" class="clickable btn-hover">
+                     <a-text value="|<<" align="center" width="4"></a-text>
+                </a-plane>
+                <a-plane id="btn-next" position="0.2 -0.15 0.04" width="0.3" height="0.12" color="#333" class="clickable btn-hover">
+                     <a-text value=">>|" align="center" width="4"></a-text>
+                </a-plane>
+            </a-entity>
+
+
+            <a-entity position="1.1 0 0.2" rotation="0 -25 0">
+                <a-box width="0.8" height="0.5" depth="0.05" color="#111" opacity="0.8"></a-box>
+                
+                <a-text value="SEATING" position="0 0.18 0.04" align="center" width="2" color="#666"></a-text>
+                <a-plane id="seat-front" position="-0.25 0.08 0.04" width="0.2" height="0.12" color="#333" class="clickable btn-hover"><a-text value="CLOSE" align="center" width="1.8"></a-text></a-plane>
+                <a-plane id="seat-back" position="0 0.08 0.04" width="0.2" height="0.12" color="#333" class="clickable btn-hover"><a-text value="FAR" align="center" width="1.8"></a-text></a-plane>
+                <a-plane id="seat-lay" position="0.25 0.08 0.04" width="0.2" height="0.12" color="#333" class="clickable btn-hover"><a-text value="BED" align="center" width="1.8"></a-text></a-plane>
+
+                <a-text value="SCREEN CURVE" position="0 -0.05 0.04" align="center" width="1.5" color="#666"></a-text>
+                <a-plane id="curve-less" position="-0.2 -0.15 0.04" width="0.3" height="0.12" color="#333" class="clickable btn-hover"><a-text value="FLAT" align="center" width="2"></a-text></a-plane>
+                <a-plane id="curve-more" position="0.2 -0.15 0.04" width="0.3" height="0.12" color="#333" class="clickable btn-hover"><a-text value="CURVE" align="center" width="2"></a-text></a-plane>
+                
+                <a-plane id="btn-reset" position="0.6 -0.15 0.04" width="0.3" height="0.1" color="#444" class="clickable btn-hover"><a-text value="RESET" align="center" width="2"></a-text></a-plane>
+            </a-entity>
 
         </a-entity>
 
@@ -213,14 +233,12 @@
         let isVoid = false;
         let currentCurve = 90; 
         
-        // Audio & Memory State
         let audioCtx, panner, audioSourceNode;
-        let currentObjectURL = null; // To manage memory
+        let currentObjectURL = null; 
         let hubTimer;
 
         /* --- 1. PLAYLIST & FILE HANDLING --- */
         
-        // Handle Files
         function handleFiles(files) {
             if (files.length > 0) {
                 const newItems = Array.from(files).map(f => {
@@ -234,7 +252,6 @@
 
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
-        // Drag & Drop Logic
         const dropOverlay = document.getElementById('drop-overlay');
         document.body.addEventListener('dragover', (e) => { e.preventDefault(); dropOverlay.style.display = 'flex'; });
         document.body.addEventListener('dragleave', (e) => { e.preventDefault(); dropOverlay.style.display = 'none'; });
@@ -242,10 +259,6 @@
             e.preventDefault();
             dropOverlay.style.display = 'none';
             handleFiles(e.dataTransfer.files);
-            // Auto start if dashboard is open and playlist was empty
-            if(playlist.length === e.dataTransfer.files.length) {
-                // optional: could auto-click enter
-            }
         });
 
         document.getElementById('btn-url').addEventListener('click', () => {
@@ -288,7 +301,6 @@
         function loadTrack(index) {
             if (index >= 0 && index < playlist.length) {
                 
-                // --- MEMORY CLEANUP (CRITICAL FIX) ---
                 if (currentObjectURL) {
                     URL.revokeObjectURL(currentObjectURL);
                     currentObjectURL = null;
@@ -300,12 +312,11 @@
                 let src = "";
                 if(item.src instanceof File) {
                     src = URL.createObjectURL(item.src);
-                    currentObjectURL = src; // Save ref to revoke later
+                    currentObjectURL = src; 
                 } else {
                     src = item.src;
                 }
 
-                // Update UI Title
                 let displayName = item.name;
                 if(displayName.length > 25) displayName = displayName.substring(0, 22) + "...";
                 titleText.setAttribute('value', `${currentTrack + 1}/${playlist.length}: ${displayName}`);
@@ -313,43 +324,32 @@
                 if (item.type === 'image') {
                     video.pause();
                     videoControls.setAttribute('visible', false);
-                    
                     screenCinema.setAttribute('src', '');
                     screen360.setAttribute('src', '');
-
                     img.onload = function() {
                         screenCinema.setAttribute('src', '#img-src');
                         screen360.setAttribute('src', '#img-src');
-                        // Force texture update for A-Frame
                         const mesh = screenCinema.getObject3D('mesh');
                         if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
                         drawAmbilight(img);
                     };
                     img.src = src;
-
                 } else {
-                    // VIDEO LOGIC
                     video.src = src;
                     screenCinema.setAttribute('src', '#video-src');
                     screen360.setAttribute('src', '#video-src');
                     videoControls.setAttribute('visible', true);
-
-                    // Safe Audio Init
                     initAudio();
-                    
                     video.play().then(() => {
-                        playBtnText.setAttribute('value', 'PAUSE');
+                         playBtnText.setAttribute('value', '||');
                     }).catch(e => {
-                        console.log("Autoplay blocked, waiting for interaction");
-                        playBtnText.setAttribute('value', 'PLAY');
+                        playBtnText.setAttribute('value', '▶');
                     });
-                    
                     requestAnimationFrame(updateAmbilight);
                 }
             }
         }
 
-        // Auto-Play Next
         video.addEventListener('ended', () => {
             if (currentTrack < playlist.length - 1) loadTrack(currentTrack + 1);
         });
@@ -369,8 +369,13 @@
 
         function togglePlay() {
             if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            if(video.paused) { video.play(); playBtnText.setAttribute('value', 'PAUSE'); }
-            else { video.pause(); playBtnText.setAttribute('value', 'PLAY'); }
+            if(video.paused) { 
+                video.play(); 
+                playBtnText.setAttribute('value', '||'); 
+            } else { 
+                video.pause(); 
+                playBtnText.setAttribute('value', '▶'); 
+            }
         }
 
         document.getElementById('btn-prev').addEventListener('click', function() {
@@ -392,7 +397,6 @@
             screenCinema.setAttribute('visible', !is360);
             screen360.setAttribute('visible', is360);
             floor.setAttribute('visible', !is360);
-            // Toggle Fog based on mode
             if(is360) scene.removeAttribute('fog');
             else if(!isVoid) scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             flash(this);
@@ -401,13 +405,8 @@
         document.getElementById('btn-void').addEventListener('click', function() {
             isVoid = !isVoid;
             if(!is360) floor.setAttribute('visible', !isVoid);
-            
-            // Adjust background and fog for void mode
-            if(isVoid) {
-                scene.removeAttribute('fog');
-            } else {
-                scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
-            }
+            if(isVoid) scene.removeAttribute('fog');
+            else scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             flash(this);
         });
 
@@ -428,7 +427,6 @@
 
         /* --- 3. KEYBOARD SHORTCUTS --- */
         window.addEventListener('keydown', (e) => {
-            // Only active when dashboard is hidden
             if(uiLayer.classList.contains('hidden')) {
                 switch(e.code) {
                     case 'Space': 
@@ -444,10 +442,6 @@
                         video.currentTime = Math.max(0, video.currentTime - 15); 
                         flash(document.getElementById('btn-seek-back'));
                         break;
-                    case 'ArrowUp':
-                        // Simple volume boost not implemented via GainNode adjustment here for simplicity,
-                        // but logic would go here.
-                        break;
                     case 'KeyR':
                         document.getElementById('btn-reset').click();
                         break;
@@ -458,9 +452,9 @@
 
         /* --- 4. SEATING & SCREEN --- */
         const seats = {
-            front: { pos: "0 1.6 -1", rot: "-25 0 0" },
-            back: { pos: "0 2.5 2", rot: "-25 0 0" },
-            recline: { pos: "0 0.5 0", rot: "-45 0 0" }
+            front: { pos: "0 1.6 -1", rot: "-20 0 0" }, // Adjusted for dashboard height
+            back: { pos: "0 2.5 2", rot: "-20 0 0" },
+            recline: { pos: "0 0.5 0", rot: "-40 0 0" }
         };
         
         document.getElementById('seat-front').addEventListener('click', function() {
@@ -494,7 +488,7 @@
             if(video.duration) {
                 const pct = video.currentTime / video.duration;
                 progressFill.object3D.scale.x = pct;
-                progressFill.object3D.position.x = -1.2 + (2.4 * pct / 2);
+                progressFill.object3D.position.x = -0.7 + (1.4 * pct / 2); // Adjusted for new bar width
                 
                 const cur = fmt(video.currentTime);
                 const tot = fmt(video.duration);
@@ -516,7 +510,6 @@
             }, 5000);
         };
 
-        // Gaze Hover Logic
         document.querySelectorAll('.clickable').forEach(el => {
             el.addEventListener('mouseenter', () => {
                 resetTimer();
@@ -525,26 +518,17 @@
             el.addEventListener('mouseleave', () => {
                 resetTimer();
                 if(el.classList.contains('btn-hover')) el.setAttribute('color', '#222');
-                if(el.id === 'btn-play') el.setAttribute('color', '#ff9d00');
+                if(el.id === 'btn-play') el.setAttribute('color', '#00d2ff'); // Reset to blue
             });
-            // Allow clicking on progress bar to seek (Rough approximation)
-            if(el.id === 'bar-bg') {
-                el.addEventListener('click', (evt) => {
-                   // This is complex in VR with Gaze, simplifying to center = 50% for now
-                   // or just leaving as visual only.
-                });
-            }
         });
 
 
-        /* --- 6. AUDIO & VISUALS (Fixed) --- */
+        /* --- 6. AUDIO & VISUALS --- */
         function initAudio() {
             if(!audioCtx) {
                 const AC = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AC();
             }
-
-            // Singleton Pattern: Only create the source node once!
             if (!audioSourceNode) {
                 audioSourceNode = audioCtx.createMediaElementSource(video);
                 const gainNode = audioCtx.createGain();
@@ -561,7 +545,6 @@
                 gainNode.connect(panner);
                 panner.connect(audioCtx.destination);
             }
-
             if(audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
