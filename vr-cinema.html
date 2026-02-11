@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub: Media Center Fixed</title>
+    <title>The Hub: Fixed Image Viewer</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -52,8 +52,8 @@
     <div id="ui-layer">
         <h1>The <span style="color: #ff9d00">Hub</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Media Center</h3>
-            <p style="color: #888; font-size: 0.9rem;">Select videos or images</p>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
+            <p style="color: #888; font-size: 0.9rem;">Select media (Video or Image)</p>
             
             <input type="file" id="file-input" accept="video/*, image/*" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -88,15 +88,13 @@
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
-        <a-curvedimage id="screen-cinema" 
-            src="#video-src"
+        <a-curvedimage id="screen-cinema" src="#video-src" 
             height="12" radius="14" theta-length="90" 
             rotation="0 135 0" position="0 5 0" 
             side="double" visible="true">
         </a-curvedimage>
 
-        <a-videosphere id="screen-360" 
-            src="#video-src"
+        <a-videosphere id="screen-360" src="#video-src" 
             radius="60" rotation="0 -90 0" 
             material="shader: flat; side: back; fog: false" 
             visible="false">
@@ -114,7 +112,6 @@
                 <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
                 <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333"></a-plane>
                 <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
-
                 <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
                     <a-text value="-15s" align="center" width="2"></a-text>
                 </a-plane>
@@ -148,22 +145,11 @@
 
             <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
             <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
-            
-            <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover">
-                <a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1"></a-text>
-            </a-plane>
-            <a-plane id="seat-back" position="-0.8 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover">
-                <a-text value="BACK" align="center" width="1.5" scale="0.8 0.8 1"></a-text>
-            </a-plane>
-             <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover">
-                <a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1"></a-text>
-            </a-plane>
-            <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover">
-                <a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1"></a-text>
-            </a-plane>
-            <a-plane id="curve-more" position="1.0 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover">
-                <a-text value="CURVE" align="center" width="1.5" scale="0.8 0.8 1"></a-text>
-            </a-plane>
+            <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+            <a-plane id="seat-back" position="-0.8 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="BACK" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+            <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+            <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+            <a-plane id="curve-more" position="1.0 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
 
         </a-entity>
 
@@ -189,7 +175,6 @@
         const playlistList = document.getElementById('playlist-list');
         const btnStart = document.getElementById('btn-start');
         
-        // Scene
         const screenCinema = document.getElementById('screen-cinema');
         const screen360 = document.getElementById('screen-360');
         const rig = document.getElementById('rig');
@@ -198,14 +183,12 @@
         const floor = document.getElementById('env-floor');
         const scene = document.querySelector('a-scene');
 
-        // UI
         const playBtnText = document.getElementById('txt-play');
         const timeText = document.getElementById('time-display');
         const progressFill = document.getElementById('progress-fill');
         const titleText = document.getElementById('txt-title');
         
-        // State
-        let playlist = []; // { type: 'video'|'image', src: ..., name: ... }
+        let playlist = []; 
         let currentTrack = 0;
         let is360 = false;
         let isVoid = false;
@@ -220,11 +203,7 @@
             if (files.length > 0) {
                 const newItems = files.map(f => {
                     const isImage = f.type.startsWith('image/');
-                    return { 
-                        type: isImage ? 'image' : 'video', 
-                        src: f, 
-                        name: f.name 
-                    };
+                    return { type: isImage ? 'image' : 'video', src: f, name: f.name };
                 });
                 playlist = playlist.concat(newItems);
                 updatePlaylistUI();
@@ -245,7 +224,6 @@
             playlistUI.style.display = 'block';
             btnStart.style.display = 'block';
             playlistList.innerHTML = '';
-            
             playlist.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'playlist-item';
@@ -261,7 +239,6 @@
             }
         });
 
-        /* --- FIXED TRACK LOADER (CORRECT TEXTURE SWAPPING) --- */
         function loadTrack(index) {
             if (index >= 0 && index < playlist.length) {
                 currentTrack = index;
@@ -275,49 +252,52 @@
                 if(displayName.length > 25) displayName = displayName.substring(0, 22) + "...";
                 titleText.setAttribute('value', `${currentTrack + 1}/${playlist.length}: ${displayName}`);
 
+                // --- FIX: IMAGE LOADING LOGIC ---
                 if (item.type === 'image') {
-                    // IMAGE MODE
+                    // 1. Reset current source to trigger update
+                    screenCinema.setAttribute('src', '');
+                    screen360.setAttribute('src', '');
+                    
+                    // 2. Set the Image Element source
+                    img.onload = function() {
+                        // 3. When loaded, update the screens
+                        screenCinema.setAttribute('src', '#img-src');
+                        screen360.setAttribute('src', '#img-src');
+                        
+                        // 4. Force A-Frame Material Update (Crucial Fix)
+                        const mesh = screenCinema.getObject3D('mesh');
+                        if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
+                        
+                        drawAmbilight(img);
+                    };
+                    img.src = src;
+
                     videoControls.setAttribute('visible', false);
                     video.pause();
 
-                    img.src = src;
-                    img.onload = () => {
-                        // FORCE TEXTURE SWAP
-                        screenCinema.setAttribute('material', 'src: #img-src; shader: flat; side: double');
-                        screen360.setAttribute('material', 'src: #img-src; shader: flat; side: back; fog: false');
-                        drawAmbilight(img);
-                    };
-
                 } else {
-                    // VIDEO MODE
-                    videoControls.setAttribute('visible', true);
+                    // VIDEO LOGIC
                     video.src = src;
-
-                    // FORCE TEXTURE SWAP
-                    screenCinema.setAttribute('material', 'src: #video-src; shader: flat; side: double');
-                    screen360.setAttribute('material', 'src: #video-src; shader: flat; side: back; fog: false');
+                    screenCinema.setAttribute('src', '#video-src');
+                    screen360.setAttribute('src', '#video-src');
+                    videoControls.setAttribute('visible', true);
 
                     initAudio();
-                    video.play().then(() => {
-                        playBtnText.setAttribute('value', 'PAUSE');
-                    }).catch(() => {
-                        playBtnText.setAttribute('value', 'PLAY');
-                    });
+                    video.play().then(() => playBtnText.setAttribute('value', 'PAUSE'))
+                                .catch(() => playBtnText.setAttribute('value', 'PLAY'));
                     
                     requestAnimationFrame(updateAmbilight);
                 }
             }
         }
 
+        // Auto-Play
         video.addEventListener('ended', () => {
-            if (currentTrack < playlist.length - 1) {
-                loadTrack(currentTrack + 1);
-            }
+            if (currentTrack < playlist.length - 1) loadTrack(currentTrack + 1);
         });
 
 
         /* --- 2. VR INTERACTIONS --- */
-        
         function flash(el) {
             const oldColor = el.getAttribute('color');
             el.setAttribute('color', '#fff');
@@ -350,12 +330,8 @@
             screenCinema.setAttribute('visible', !is360);
             screen360.setAttribute('visible', is360);
             floor.setAttribute('visible', !is360);
-            
-            if(is360) {
-                scene.removeAttribute('fog');
-            } else {
-                scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
-            }
+            if(is360) scene.removeAttribute('fog');
+            else scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             flash(this);
         });
 
@@ -437,7 +413,7 @@
             clearTimeout(hubTimer);
             hubWrapper.setAttribute('visible', true);
             hubTimer = setTimeout(() => {
-                hubWrapper.setAttribute('visible', false);
+                if(!video.paused) hubWrapper.setAttribute('visible', false);
             }, 6000);
         };
 
@@ -461,7 +437,7 @@
             audioCtx = new AC();
             const src = audioCtx.createMediaElementSource(video);
             const gainNode = audioCtx.createGain();
-            gainNode.gain.value = 3.0; 
+            gainNode.gain.value = 3.0;
             panner = audioCtx.createPanner();
             panner.panningModel = 'HRTF';
             panner.distanceModel = 'inverse';
@@ -478,7 +454,6 @@
         const glow = document.getElementById('screen-glow');
 
         function updateAmbilight() {
-            // Only update loops if playing video
             if(!video.paused && !video.ended) {
                 drawAmbilight(video);
                 requestAnimationFrame(updateAmbilight);
