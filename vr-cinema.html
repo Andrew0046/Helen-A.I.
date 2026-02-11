@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub 2.0: Sleep Node Edition</title>
+    <title>The Hub: Stasis Orb Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -30,19 +30,15 @@
             background: linear-gradient(90deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 18px 40px;
             color: #000; font-weight: 800; font-size: 14px; letter-spacing: 2px; border-radius: 50px;
             cursor: pointer; margin-top: 30px; width: 100%; transition: 0.3s;
-            box-shadow: 0 10px 30px rgba(0, 120, 255, 0.3);
         }
-        .btn-neon:hover { transform: scale(1.02); box-shadow: 0 10px 50px rgba(0, 120, 255, 0.6); }
+        .btn-neon:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(0, 120, 255, 0.6); }
 
         .url-input { 
             width: 100%; background: #000; border: 1px solid #333; color: #00d2ff; padding: 15px; 
             border-radius: 8px; margin-top: 20px; box-sizing: border-box; font-family: monospace;
         }
 
-        #playlist-preview {
-            margin-top: 20px; text-align: left; font-size: 0.85rem; color: #666; max-height: 100px; overflow-y: auto;
-        }
-
+        #playlist-preview { margin-top: 20px; text-align: left; font-size: 0.85rem; color: #666; max-height: 100px; overflow-y: auto; }
         #light-canvas { display: none; }
     </style>
 </head>
@@ -51,7 +47,7 @@
     <div id="ui-layer">
         <div class="hub-card">
             <h1>HUB <span>2.0</span></h1>
-            <p style="color: #888;">IMMERSIVE COCKPIT SYSTEM</p>
+            <p style="color: #888;">STASIS ORB SYSTEM ONLINE</p>
             
             <input type="file" id="file-input" accept="video/*, image/*" multiple style="display:none">
             <button class="btn-neon" onclick="document.getElementById('file-input').click()">INITIALIZE MEDIA</button>
@@ -94,78 +90,71 @@
         </a-videosphere>
 
 
-        <a-entity id="sleep-node" position="0 0.8 -1.5" visible="true">
-            
-            <a-sphere radius="0.08" color="#111" opacity="0.9" class="clickable btn-hover" id="btn-wake">
-                <a-sphere radius="0.04" color="#00d2ff" opacity="0.5"></a-sphere>
-            </a-sphere>
-            
-            <a-ring id="wake-ring" radius-inner="0.1" radius-outer="0.12" color="#00d2ff" 
-                    theta-length="0" rotation="0 0 0" opacity="0.8"></a-ring>
-            
-            <a-text value="LOOK TO WAKE" position="0 -0.15 0" align="center" width="1.5" color="#444"></a-text>
-        </a-entity>
+        <a-entity id="hub-wrapper" position="0 0.9 -1.6" rotation="-20 0 0">
 
-
-        <a-entity id="hub-wrapper" position="0 0.9 -1.6" rotation="-20 0 0" visible="false">
-            
-            <a-entity id="panel-center" position="0 0 0">
-                <a-box width="1.4" height="0.6" depth="0.02" color="#050505" opacity="0.95" class="clickable"></a-box>
-                <a-box width="1.4" height="0.01" depth="0.03" position="0 0.3 0" color="#00d2ff" opacity="0.8"></a-box>
-
-                <a-text id="txt-title" value="Ready" position="0 0.22 0.02" align="center" width="2" color="#00d2ff"></a-text>
-                <a-text id="time-display" value="00:00 / 00:00" position="0 0.16 0.02" align="center" width="1.8" color="#666"></a-text>
-
-                <a-plane position="0 0.12 0.02" width="1.2" height="0.01" color="#222"></a-plane>
-                <a-plane id="progress-fill" position="-0.6 0.12 0.025" width="1.2" height="0.01" color="#00d2ff" scale="0 1 1" pivot="center left"></a-plane>
-
-                <a-plane id="btn-seek-back" position="-0.4 0 0.02" width="0.2" height="0.12" color="#111" class="clickable btn-hover"><a-text value="-15s" align="center" width="1.5"></a-text></a-plane>
-                <a-plane id="btn-play" position="0 0 0.02" width="0.5" height="0.15" color="#00d2ff" class="clickable btn-hover">
-                    <a-text id="txt-play" value="PLAY" align="center" width="3" color="black" font-weight="bold"></a-text>
-                </a-plane>
-                <a-plane id="btn-seek-fwd" position="0.4 0 0.02" width="0.2" height="0.12" color="#111" class="clickable btn-hover"><a-text value="+15s" align="center" width="1.5"></a-text></a-plane>
-
-                <a-text value="VOL" position="-0.55 -0.18 0.02" width="1.5" align="center" color="#444"></a-text>
-                <a-plane id="btn-vol" position="0 -0.18 0.02" width="0.8" height="0.03" color="#222" class="clickable btn-hover">
-                     <a-plane id="vol-fill" position="-0.4 0 0.01" width="0.8" height="0.03" color="#00ff00" scale="0.5 1 1" pivot="center left"></a-plane>
-                </a-plane>
-            </a-entity>
-
-
-            <a-entity id="panel-left" position="-1.05 0 0.2" rotation="0 25 0">
-                <a-box width="0.6" height="0.5" depth="0.02" color="#080808" opacity="0.9" class="clickable"></a-box>
-                <a-text value="LIBRARY" position="0 0.2 0.02" align="center" width="2" color="#666" letter-spacing="2"></a-text>
+            <a-entity id="sleep-orb" position="0 -0.2 0" visible="true">
                 
-                <a-plane id="btn-prev" position="-0.15 0 0.02" width="0.2" height="0.12" color="#1a1a1a" class="clickable btn-hover">
-                    <a-text value="|<<" align="center" width="2"></a-text>
-                </a-plane>
-                <a-plane id="btn-next" position="0.15 0 0.02" width="0.2" height="0.12" color="#1a1a1a" class="clickable btn-hover">
-                    <a-text value=">>|" align="center" width="2"></a-text>
-                </a-plane>
-
-                <a-text id="txt-track-info" value="Track 1/1" position="0 -0.15 0.02" align="center" width="1.5" color="#444"></a-text>
+                <a-sphere radius="0.12" color="#050505" opacity="0.9" class="clickable"
+                    animation="property: scale; from: 1 1 1; to: 1.05 1.05 1.05; dir: alternate; dur: 2000; loop: true">
+                </a-sphere>
+                
+                <a-ring id="orb-ring" radius-inner="0.14" radius-outer="0.15" 
+                    color="#00d2ff" theta-length="0" rotation="0 0 0" opacity="0.8">
+                </a-ring>
+                
+                <a-text value="WAKE" align="center" width="1.5" position="0 0 0.15" color="#444"></a-text>
             </a-entity>
 
 
-            <a-entity id="panel-right" position="1.05 0 0.2" rotation="0 -25 0">
-                <a-box width="0.6" height="0.5" depth="0.02" color="#080808" opacity="0.9" class="clickable"></a-box>
-                <a-text value="VISION" position="0 0.2 0.02" align="center" width="2" color="#666" letter-spacing="2"></a-text>
+            <a-entity id="cockpit-console" visible="false">
+                
+                <a-entity id="panel-center" position="0 0 0">
+                    <a-box width="1.4" height="0.6" depth="0.02" color="#050505" opacity="0.95" class="clickable"></a-box>
+                    <a-box width="1.4" height="0.01" depth="0.03" position="0 0.3 0" color="#00d2ff" opacity="0.8"></a-box>
 
-                <a-plane id="btn-mode" position="0 0.08 0.02" width="0.5" height="0.1" color="#1a1a1a" class="clickable btn-hover">
-                    <a-text value="2D / 360 MODE" align="center" width="1.6"></a-text>
-                </a-plane>
+                    <a-text id="txt-title" value="Ready" position="0 0.22 0.02" align="center" width="2" color="#00d2ff"></a-text>
+                    <a-text id="time-display" value="00:00 / 00:00" position="0 0.16 0.02" align="center" width="1.8" color="#666"></a-text>
 
-                <a-plane id="btn-curve-toggle" position="-0.14 -0.05 0.02" width="0.22" height="0.1" color="#1a1a1a" class="clickable btn-hover">
-                    <a-text value="CURVE" align="center" width="1.4"></a-text>
-                </a-plane>
+                    <a-plane position="0 0.12 0.02" width="1.2" height="0.01" color="#222"></a-plane>
+                    <a-plane id="progress-fill" position="-0.6 0.12 0.025" width="1.2" height="0.01" color="#00d2ff" scale="0 1 1" pivot="center left"></a-plane>
 
-                <a-plane id="btn-void" position="0.14 -0.05 0.02" width="0.22" height="0.1" color="#1a1a1a" class="clickable btn-hover">
-                    <a-text value="VOID" align="center" width="1.4"></a-text>
-                </a-plane>
+                    <a-plane id="btn-seek-back" position="-0.4 0 0.02" width="0.2" height="0.12" color="#111" class="clickable btn-hover"><a-text value="-15s" align="center" width="1.5"></a-text></a-plane>
+                    
+                    <a-plane id="btn-play" position="0 0 0.02" width="0.5" height="0.15" color="#00d2ff" class="clickable btn-hover">
+                        <a-text id="txt-play" value="PLAY" align="center" width="3" color="black" font-weight="bold"></a-text>
+                    </a-plane>
+                    
+                    <a-plane id="btn-seek-fwd" position="0.4 0 0.02" width="0.2" height="0.12" color="#111" class="clickable btn-hover"><a-text value="+15s" align="center" width="1.5"></a-text></a-plane>
 
-                <a-plane id="btn-seat" position="0 -0.18 0.02" width="0.5" height="0.1" color="#1a1a1a" class="clickable btn-hover">
-                    <a-text value="SEAT: FRONT" id="txt-seat" align="center" width="1.6"></a-text>
-                </a-plane>
+                    <a-text value="VOL" position="-0.55 -0.18 0.02" width="1.5" align="center" color="#444"></a-text>
+                    <a-plane id="btn-vol" position="0 -0.18 0.02" width="0.8" height="0.03" color="#222" class="clickable btn-hover">
+                        <a-plane id="vol-fill" position="-0.4 0 0.01" width="0.8" height="0.03" color="#00ff00" scale="0.5 1 1" pivot="center left"></a-plane>
+                    </a-plane>
+                </a-entity>
+
+                <a-entity id="panel-left" position="-1.05 0 0.2" rotation="0 25 0">
+                    <a-box width="0.6" height="0.5" depth="0.02" color="#080808" opacity="0.9" class="clickable"></a-box>
+                    <a-text value="LIBRARY" position="0 0.2 0.02" align="center" width="2" color="#666" letter-spacing="2"></a-text>
+                    
+                    <a-plane id="btn-prev" position="-0.15 0 0.02" width="0.2" height="0.12" color="#1a1a1a" class="clickable btn-hover">
+                        <a-text value="|<<" align="center" width="2"></a-text>
+                    </a-plane>
+                    <a-plane id="btn-next" position="0.15 0 0.02" width="0.2" height="0.12" color="#1a1a1a" class="clickable btn-hover">
+                        <a-text value=">>|" align="center" width="2"></a-text>
+                    </a-plane>
+                    <a-text id="txt-track-info" value="Track 1/1" position="0 -0.15 0.02" align="center" width="1.5" color="#444"></a-text>
+                </a-entity>
+
+                <a-entity id="panel-right" position="1.05 0 0.2" rotation="0 -25 0">
+                    <a-box width="0.6" height="0.5" depth="0.02" color="#080808" opacity="0.9" class="clickable"></a-box>
+                    <a-text value="VISION" position="0 0.2 0.02" align="center" width="2" color="#666" letter-spacing="2"></a-text>
+
+                    <a-plane id="btn-mode" position="0 0.08 0.02" width="0.5" height="0.1" color="#1a1a1a" class="clickable btn-hover"><a-text value="2D / 360 MODE" align="center" width="1.6"></a-text></a-plane>
+                    <a-plane id="btn-curve-toggle" position="-0.14 -0.05 0.02" width="0.22" height="0.1" color="#1a1a1a" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.4"></a-text></a-plane>
+                    <a-plane id="btn-void" position="0.14 -0.05 0.02" width="0.22" height="0.1" color="#1a1a1a" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.4"></a-text></a-plane>
+                    <a-plane id="btn-seat" position="0 -0.18 0.02" width="0.5" height="0.1" color="#1a1a1a" class="clickable btn-hover"><a-text value="SEAT: FRONT" id="txt-seat" align="center" width="1.6"></a-text></a-plane>
+                </a-entity>
+            
             </a-entity>
 
         </a-entity>
@@ -173,9 +162,9 @@
 
         <a-entity id="rig" position="0 1.6 0">
             <a-camera look-controls="reverseMouseDrag: true" wasd-controls="enabled: false">
-                <a-cursor id="cursor" fuse="true" fuse-timeout="1500" color="#00d2ff" raycaster="objects: .clickable"
+                <a-cursor id="cursor" fuse="true" fuse-timeout="1200" color="#00d2ff" raycaster="objects: .clickable"
                     animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-                    animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500">
+                    animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1200">
                 </a-cursor>
             </a-camera>
         </a-entity>
@@ -197,8 +186,10 @@
         const screen360 = document.getElementById('screen-360');
         const rig = document.getElementById('rig');
         const hubWrapper = document.getElementById('hub-wrapper');
-        const sleepNode = document.getElementById('sleep-node'); // The "Small Button"
-        const wakeRing = document.getElementById('wake-ring');
+        const cockpit = document.getElementById('cockpit-console'); // THE FULL CONSOLE
+        const sleepOrb = document.getElementById('sleep-orb'); // THE ORB
+        const orbRing = document.getElementById('orb-ring');
+        
         const floor = document.getElementById('env-floor');
         const scene = document.querySelector('a-scene');
 
@@ -210,94 +201,17 @@
         const trackText = document.getElementById('txt-track-info');
         const volFill = document.getElementById('vol-fill');
 
-        // State
         let playlist = [];
         let currentTrack = 0;
         let is360 = false;
         let isVoid = false;
         let currentCurve = 90;
         let audioCtx, gainNode;
-        let volumeLevel = 1.0;
+        let hubTimer; // Auto-sleep timer
+        let orbTimer; // Activation timer
+        let volumeLevel = 1.0; 
 
-        /* --- 1. SLEEP/WAKE SYSTEM (NEW) --- */
-        
-        let wakeTimer;
-        let sleepTimer;
-        let wakeAnimationInterval;
-        let wakeProgress = 0;
-
-        // A. WAKE UP LOGIC (Long Gaze)
-        const btnWake = document.getElementById('btn-wake');
-        
-        btnWake.addEventListener('mouseenter', () => {
-            // Start Long Timer (2000ms)
-            wakeProgress = 0;
-            wakeRing.setAttribute('theta-length', 0);
-            
-            // Animation Loop
-            wakeAnimationInterval = setInterval(() => {
-                wakeProgress += 360 / 40; // 40 frames approx 2 sec
-                if(wakeProgress > 360) wakeProgress = 360;
-                wakeRing.setAttribute('theta-length', wakeProgress);
-            }, 50);
-
-            wakeTimer = setTimeout(() => {
-                // ACTIVATE COCKPIT
-                activateCockpit();
-            }, 2000); // 2 Seconds
-        });
-
-        btnWake.addEventListener('mouseleave', () => {
-            // Cancel everything
-            clearTimeout(wakeTimer);
-            clearInterval(wakeAnimationInterval);
-            wakeRing.setAttribute('theta-length', 0); // Reset ring
-        });
-
-        function activateCockpit() {
-            sleepNode.setAttribute('visible', false); // Hide Orb
-            hubWrapper.setAttribute('visible', true); // Show Cockpit
-            resetSleepTimer(); // Start inactivity timer
-        }
-
-        // B. SLEEP LOGIC (Inactivity)
-        function resetSleepTimer() {
-            clearTimeout(sleepTimer);
-            
-            // Only sleep if the cockpit is currently open
-            if(hubWrapper.getAttribute('visible')) {
-                sleepTimer = setTimeout(() => {
-                    // Only go to sleep if video is playing (or user wants it)
-                    if(video.type !== 'image' && !video.paused) {
-                        goToSleep();
-                    }
-                }, 6000); // 6 Seconds inactivity
-            }
-        }
-
-        function goToSleep() {
-            hubWrapper.setAttribute('visible', false); // Hide Cockpit
-            sleepNode.setAttribute('visible', true);   // Show Orb
-        }
-
-        // C. INTERACTION TRACKING
-        document.querySelectorAll('.clickable').forEach(el => {
-            el.addEventListener('mouseenter', () => {
-                if(el.id !== 'btn-wake') resetSleepTimer(); // Keep awake if looking at cockpit buttons
-                if(el.classList.contains('btn-hover')) el.setAttribute('color', '#00d2ff');
-            });
-            el.addEventListener('mouseleave', () => {
-                if(el.id !== 'btn-wake') resetSleepTimer(); // Countdown starts on leave
-                if(el.classList.contains('btn-hover')) {
-                     if(el.id === 'btn-play') el.setAttribute('color', '#00d2ff');
-                     else el.setAttribute('color', '#1a1a1a'); 
-                }
-            });
-        });
-
-
-        /* --- 2. PLAYLIST LOGIC --- */
-        
+        /* --- 1. PLAYLIST LOGIC --- */
         fileInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             addItems(files.map(f => ({ type: f.type.startsWith('image') ? 'image' : 'video', src: f, name: f.name })));
@@ -322,7 +236,6 @@
             if(playlist.length > 0) {
                 uiLayer.classList.add('hidden');
                 loadTrack(0);
-                activateCockpit(); // Show cockpit on start
             }
         });
 
@@ -337,31 +250,65 @@
 
                 if (item.type === 'image') {
                     img.onload = function() {
-                        screenCinema.setAttribute('src', '#img-src');
-                        screen360.setAttribute('src', '#img-src');
-                        const mesh = screenCinema.getObject3D('mesh');
-                        if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
+                        screenCinema.setAttribute('src', '#img-src'); screen360.setAttribute('src', '#img-src');
+                        const mesh = screenCinema.getObject3D('mesh'); if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
                         updateAmbilight(img);
                     };
-                    img.src = src;
-                    video.pause();
-                    playBtnText.setAttribute('value', 'IMG');
-                    goToSleep(); // Auto-hide controls for images
-                    
+                    img.src = src; video.pause(); playBtnText.setAttribute('value', 'IMG');
                 } else {
-                    video.src = src;
-                    screenCinema.setAttribute('src', '#video-src');
-                    screen360.setAttribute('src', '#video-src');
-                    initAudio();
-                    video.play().then(() => playBtnText.setAttribute('value', 'PAUSE'))
-                                .catch(() => playBtnText.setAttribute('value', 'PLAY'));
+                    video.src = src; screenCinema.setAttribute('src', '#video-src'); screen360.setAttribute('src', '#video-src');
+                    initAudio(); video.play().then(() => playBtnText.setAttribute('value', 'PAUSE')).catch(() => playBtnText.setAttribute('value', 'PLAY'));
                     requestAnimationFrame(() => updateAmbilight(video));
                 }
             }
         }
 
 
-        /* --- 3. COCKPIT CONTROLS --- */
+        /* --- 2. ORB ACTIVATION LOGIC (NEW) --- */
+        
+        // 1. Enter Orb (Start Charging)
+        sleepOrb.querySelector('.clickable').addEventListener('mouseenter', () => {
+            let progress = 0;
+            const duration = 2000; // 2.0 Seconds
+            
+            // Start filling the ring
+            orbTimer = setInterval(() => {
+                progress += 20;
+                const pct = progress / duration;
+                
+                // Visual Ring Update (0 to 360 degrees)
+                orbRing.setAttribute('theta-length', 360 * pct);
+                
+                // Activation Complete
+                if(progress >= duration) {
+                    clearInterval(orbTimer);
+                    wakeUp(); // Trigger wake up
+                }
+            }, 20);
+        });
+
+        // 2. Leave Orb (Cancel)
+        sleepOrb.querySelector('.clickable').addEventListener('mouseleave', () => {
+            clearInterval(orbTimer);
+            orbRing.setAttribute('theta-length', 0); // Reset ring
+        });
+
+        // 3. Wake Up System
+        function wakeUp() {
+            sleepOrb.setAttribute('visible', false); // Hide Orb
+            cockpit.setAttribute('visible', true);   // Show Cockpit
+            resetSleepTimer(); // Start the keep-alive timer
+        }
+
+        // 4. Go To Sleep
+        function goToSleep() {
+            cockpit.setAttribute('visible', false); // Hide Cockpit
+            sleepOrb.setAttribute('visible', true); // Show Orb
+            orbRing.setAttribute('theta-length', 0); // Reset Ring
+        }
+
+
+        /* --- 3. COCKPIT INTERACTIONS --- */
         
         function flash(el) {
             const oldColor = el.getAttribute('color');
@@ -374,18 +321,12 @@
             else { video.pause(); playBtnText.setAttribute('value', 'PLAY'); }
             flash(this);
         });
-
-        document.getElementById('btn-seek-back').addEventListener('click', function() {
-            video.currentTime = Math.max(0, video.currentTime - 15); flash(this);
-        });
-        document.getElementById('btn-seek-fwd').addEventListener('click', function() {
-            video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this);
-        });
+        document.getElementById('btn-seek-back').addEventListener('click', function() { video.currentTime = Math.max(0, video.currentTime - 15); flash(this); });
+        document.getElementById('btn-seek-fwd').addEventListener('click', function() { video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this); });
         
         document.getElementById('btn-vol').addEventListener('click', function() {
             if(!gainNode) return;
-            volumeLevel += 1.0;
-            if(volumeLevel > 3.0) volumeLevel = 0.5;
+            volumeLevel += 1.0; if(volumeLevel > 3.0) volumeLevel = 0.5;
             gainNode.gain.value = volumeLevel;
             const scale = Math.min(1, volumeLevel / 3.0);
             volFill.setAttribute('scale', `${scale} 1 1`);
@@ -393,99 +334,95 @@
             flash(this);
         });
 
-        document.getElementById('btn-prev').addEventListener('click', function() {
-            if(currentTrack > 0) loadTrack(currentTrack - 1); flash(this);
-        });
-        document.getElementById('btn-next').addEventListener('click', function() {
-            if(currentTrack < playlist.length - 1) loadTrack(currentTrack + 1); flash(this);
-        });
+        document.getElementById('btn-prev').addEventListener('click', function() { if(currentTrack > 0) loadTrack(currentTrack - 1); flash(this); });
+        document.getElementById('btn-next').addEventListener('click', function() { if(currentTrack < playlist.length - 1) loadTrack(currentTrack + 1); flash(this); });
 
         document.getElementById('btn-mode').addEventListener('click', function() {
-            is360 = !is360;
-            screenCinema.setAttribute('visible', !is360);
-            screen360.setAttribute('visible', is360);
-            floor.setAttribute('visible', !is360);
-            if(is360) scene.removeAttribute('fog'); 
-            else scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            is360 = !is360; screenCinema.setAttribute('visible', !is360); screen360.setAttribute('visible', is360); floor.setAttribute('visible', !is360);
+            if(is360) scene.removeAttribute('fog'); else scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             flash(this);
         });
-
         document.getElementById('btn-void').addEventListener('click', function() {
-            isVoid = !isVoid;
-            if(!is360) floor.setAttribute('visible', !isVoid);
+            isVoid = !isVoid; if(!is360) floor.setAttribute('visible', !isVoid);
             scene.setAttribute('background', isVoid ? 'color: #000' : 'color: #050505');
             flash(this);
         });
-
         document.getElementById('btn-curve-toggle').addEventListener('click', function() {
-            currentCurve += 30;
-            if(currentCurve > 120) currentCurve = 60;
-            screenCinema.setAttribute('theta-length', currentCurve);
-            screenCinema.setAttribute('rotation', `0 ${180 - (currentCurve / 2)} 0`);
+            currentCurve += 30; if(currentCurve > 120) currentCurve = 60;
+            screenCinema.setAttribute('theta-length', currentCurve); screenCinema.setAttribute('rotation', `0 ${180 - (currentCurve / 2)} 0`);
             flash(this);
         });
         
         const seatNames = ["FRONT", "BACK", "RECLINE"];
         let seatIdx = 0;
-        const seatPos = [{ pos: "0 1.6 0", rot: "-20 0 0" }, { pos: "0 2.5 3", rot: "-20 0 0" }, { pos: "0 0.5 0", rot: "-45 0 0" }];
-        
+        const seatPos = [ { pos: "0 1.6 0", rot: "-20 0 0" }, { pos: "0 2.5 3", rot: "-20 0 0" }, { pos: "0 0.5 0", rot: "-45 0 0" } ];
         document.getElementById('btn-seat').addEventListener('click', function() {
-            seatIdx = (seatIdx + 1) % 3;
-            const s = seatPos[seatIdx];
-            rig.setAttribute('position', s.pos);
-            hubWrapper.setAttribute('rotation', s.rot);
-            sleepNode.setAttribute('position', `0 ${s.pos.split(' ')[1] - 0.8} -1.5`); // Adjust orb height based on seat
+            seatIdx = (seatIdx + 1) % 3; const s = seatPos[seatIdx];
+            rig.setAttribute('position', s.pos); hubWrapper.setAttribute('rotation', s.rot);
             document.getElementById('txt-seat').setAttribute('value', `SEAT: ${seatNames[seatIdx]}`);
             flash(this);
         });
 
 
-        /* --- 4. LOOPS & SYSTEMS --- */
+        /* --- 4. SYSTEM LOOPS --- */
         setInterval(() => {
             if(video.duration) {
                 const pct = video.currentTime / video.duration;
-                progressFill.object3D.scale.x = pct;
-                progressFill.object3D.position.x = -0.6 + (1.2 * pct / 2);
-                
-                const cur = fmt(video.currentTime);
-                const tot = fmt(video.duration);
+                progressFill.object3D.scale.x = pct; progressFill.object3D.position.x = -0.6 + (1.2 * pct / 2);
+                const cur = fmt(video.currentTime); const tot = fmt(video.duration);
                 timeText.setAttribute('value', `${cur} / ${tot}`);
             }
         }, 500);
 
-        function fmt(s) {
-            const m = Math.floor(s/60);
-            const sec = Math.floor(s%60);
-            return `${m}:${sec<10?'0'+sec:sec}`;
-        }
+        function fmt(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec<10?'0'+sec:sec}`; }
 
         function initAudio() {
-            if(audioCtx) return;
-            const AC = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AC();
-            const src = audioCtx.createMediaElementSource(video);
-            gainNode = audioCtx.createGain();
-            gainNode.gain.value = volumeLevel;
-            const panner = audioCtx.createPanner();
-            panner.setPosition(0, 4.5, -5);
+            if(audioCtx) return; const AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC();
+            const src = audioCtx.createMediaElementSource(video); gainNode = audioCtx.createGain(); gainNode.gain.value = volumeLevel;
+            const panner = audioCtx.createPanner(); panner.setPosition(0, 4.5, -5);
             src.connect(gainNode).connect(panner).connect(audioCtx.destination);
         }
 
         const ctx = document.getElementById('light-canvas').getContext('2d');
         const ambi = document.getElementById('ambi-light');
         const glow = document.getElementById('screen-glow');
-
         function updateAmbilight(source) {
             if(source === video && (video.paused || video.ended)) return;
             try {
                 ctx.drawImage(source, 0, 0, 32, 32);
                 const p = ctx.getImageData(16,16,1,1).data;
                 const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
-                if(!isVoid && !is360) ambi.setAttribute('color', hex);
-                glow.setAttribute('color', hex);
+                if(!isVoid && !is360) ambi.setAttribute('color', hex); glow.setAttribute('color', hex);
             } catch(e) {}
             if(source === video) requestAnimationFrame(() => updateAmbilight(video));
         }
+
+        /* --- AUTO-SLEEP LOGIC --- */
+        const resetSleepTimer = () => {
+            clearTimeout(hubTimer);
+            // Only sleep if the cockpit is currently visible
+            if(cockpit.getAttribute('visible')) {
+                hubTimer = setTimeout(() => {
+                    // Go to sleep if no interaction for 6 seconds
+                    goToSleep();
+                }, 6000);
+            }
+        };
+        
+        // Listen for gaze on cockpit items
+        document.querySelectorAll('#cockpit-console .clickable').forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                resetSleepTimer(); // Keep alive
+                if(el.classList.contains('btn-hover')) el.setAttribute('color', '#00d2ff');
+            });
+            el.addEventListener('mouseleave', () => {
+                resetSleepTimer(); // Start countdown on leave
+                if(el.classList.contains('btn-hover')) {
+                     if(el.id === 'btn-play') el.setAttribute('color', '#00d2ff');
+                     else el.setAttribute('color', '#1a1a1a'); 
+                }
+            });
+        });
 
     </script>
 </body>
