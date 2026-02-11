@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub: Fixed Image Viewer</title>
+    <title>The Hub v2.0: Gaze Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -42,18 +42,30 @@
             margin-top: 20px; max-height: 150px; overflow-y: auto; text-align: left;
             background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; font-size: 0.9rem; color: #aaa;
         }
-        .playlist-item { padding: 5px; border-bottom: 1px solid #333; }
+        .playlist-item { padding: 5px; border-bottom: 1px solid #333; cursor: pointer; }
+        .playlist-item:hover { color: white; background: rgba(255,255,255,0.1); }
+        .playlist-active { color: #ff9d00; font-weight: bold; }
+
+        /* Drag Overlay */
+        #drop-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff;
+            z-index: 10000; display: none; align-items: center; justify-content: center;
+            font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none;
+        }
         
         #light-canvas { display: none; }
     </style>
 </head>
 <body>
 
+    <div id="drop-overlay">Drop File to Play</div>
+
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v2.0</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
-            <p style="color: #888; font-size: 0.9rem;">Select media (Video or Image)</p>
+            <p style="color: #888; font-size: 0.9rem;">Select media or drag & drop files</p>
             
             <input type="file" id="file-input" accept="video/*, image/*" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -85,6 +97,9 @@
         <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
                  src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
         </a-plane>
+        
+        <a-sky color="#050505"></a-sky>
+
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
@@ -100,7 +115,6 @@
             visible="false">
         </a-videosphere>
 
-
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0">
             
             <a-box depth="0.02" height="1.0" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
@@ -110,8 +124,10 @@
 
             <a-entity id="video-controls">
                 <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
-                <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333"></a-plane>
+                
+                <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333" class="clickable btn-hover" id="bar-bg"></a-plane>
                 <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
+
                 <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
                     <a-text value="-15s" align="center" width="2"></a-text>
                 </a-plane>
@@ -121,6 +137,7 @@
                 <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
                     <a-text value="+15s" align="center" width="2"></a-text>
                 </a-plane>
+                
                 <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                     <a-text id="txt-speed" value="1x" align="center" width="2"></a-text>
                 </a-plane>
@@ -140,14 +157,16 @@
                 <a-text value="VOID" align="center" width="1.8"></a-text>
             </a-plane>
             <a-plane id="btn-reset" position="0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value="RESET" align="center" width="1.8"></a-text>
+                <a-text value="RESET VIEW" align="center" width="1.8"></a-text>
             </a-plane>
 
             <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
             <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
+            
             <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
             <a-plane id="seat-back" position="-0.8 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="BACK" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
             <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+            
             <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
             <a-plane id="curve-more" position="1.0 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
 
@@ -165,7 +184,7 @@
     </a-scene>
 
     <script>
-        /* --- CONFIG --- */
+        /* --- CONFIG & STATE --- */
         const video = document.getElementById('video-src');
         const img = document.getElementById('img-src');
         const uiLayer = document.getElementById('ui-layer');
@@ -193,20 +212,39 @@
         let is360 = false;
         let isVoid = false;
         let currentCurve = 90; 
-        let audioCtx, panner;
+        
+        // Audio & Memory State
+        let audioCtx, panner, audioSourceNode;
+        let currentObjectURL = null; // To manage memory
         let hubTimer;
 
-        /* --- 1. PLAYLIST LOGIC --- */
+        /* --- 1. PLAYLIST & FILE HANDLING --- */
         
-        fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
+        // Handle Files
+        function handleFiles(files) {
             if (files.length > 0) {
-                const newItems = files.map(f => {
+                const newItems = Array.from(files).map(f => {
                     const isImage = f.type.startsWith('image/');
                     return { type: isImage ? 'image' : 'video', src: f, name: f.name };
                 });
                 playlist = playlist.concat(newItems);
                 updatePlaylistUI();
+            }
+        }
+
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        // Drag & Drop Logic
+        const dropOverlay = document.getElementById('drop-overlay');
+        document.body.addEventListener('dragover', (e) => { e.preventDefault(); dropOverlay.style.display = 'flex'; });
+        document.body.addEventListener('dragleave', (e) => { e.preventDefault(); dropOverlay.style.display = 'none'; });
+        document.body.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropOverlay.style.display = 'none';
+            handleFiles(e.dataTransfer.files);
+            // Auto start if dashboard is open and playlist was empty
+            if(playlist.length === e.dataTransfer.files.length) {
+                // optional: could auto-click enter
             }
         });
 
@@ -227,53 +265,67 @@
             playlist.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'playlist-item';
+                if(index === currentTrack && uiLayer.classList.contains('hidden')) div.classList.add('playlist-active');
                 div.innerText = `${index + 1}. [${item.type.toUpperCase()}] ${item.name}`;
+                div.onclick = () => { currentTrack = index; highlightActive(); }
                 playlistList.appendChild(div);
             });
+        }
+        
+        function highlightActive() {
+             Array.from(playlistList.children).forEach((child, i) => {
+                 child.classList.toggle('playlist-active', i === currentTrack);
+             });
         }
 
         btnStart.addEventListener('click', () => {
             if(playlist.length > 0) {
                 uiLayer.classList.add('hidden');
-                loadTrack(0);
+                loadTrack(currentTrack);
             }
         });
 
         function loadTrack(index) {
             if (index >= 0 && index < playlist.length) {
+                
+                // --- MEMORY CLEANUP (CRITICAL FIX) ---
+                if (currentObjectURL) {
+                    URL.revokeObjectURL(currentObjectURL);
+                    currentObjectURL = null;
+                }
+
                 currentTrack = index;
                 const item = playlist[currentTrack];
                 
                 let src = "";
-                if(item.src instanceof File) src = URL.createObjectURL(item.src);
-                else src = item.src;
+                if(item.src instanceof File) {
+                    src = URL.createObjectURL(item.src);
+                    currentObjectURL = src; // Save ref to revoke later
+                } else {
+                    src = item.src;
+                }
 
+                // Update UI Title
                 let displayName = item.name;
                 if(displayName.length > 25) displayName = displayName.substring(0, 22) + "...";
                 titleText.setAttribute('value', `${currentTrack + 1}/${playlist.length}: ${displayName}`);
 
-                // --- FIX: IMAGE LOADING LOGIC ---
                 if (item.type === 'image') {
-                    // 1. Reset current source to trigger update
+                    video.pause();
+                    videoControls.setAttribute('visible', false);
+                    
                     screenCinema.setAttribute('src', '');
                     screen360.setAttribute('src', '');
-                    
-                    // 2. Set the Image Element source
+
                     img.onload = function() {
-                        // 3. When loaded, update the screens
                         screenCinema.setAttribute('src', '#img-src');
                         screen360.setAttribute('src', '#img-src');
-                        
-                        // 4. Force A-Frame Material Update (Crucial Fix)
+                        // Force texture update for A-Frame
                         const mesh = screenCinema.getObject3D('mesh');
                         if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
-                        
                         drawAmbilight(img);
                     };
                     img.src = src;
-
-                    videoControls.setAttribute('visible', false);
-                    video.pause();
 
                 } else {
                     // VIDEO LOGIC
@@ -282,16 +334,22 @@
                     screen360.setAttribute('src', '#video-src');
                     videoControls.setAttribute('visible', true);
 
+                    // Safe Audio Init
                     initAudio();
-                    video.play().then(() => playBtnText.setAttribute('value', 'PAUSE'))
-                                .catch(() => playBtnText.setAttribute('value', 'PLAY'));
+                    
+                    video.play().then(() => {
+                        playBtnText.setAttribute('value', 'PAUSE');
+                    }).catch(e => {
+                        console.log("Autoplay blocked, waiting for interaction");
+                        playBtnText.setAttribute('value', 'PLAY');
+                    });
                     
                     requestAnimationFrame(updateAmbilight);
                 }
             }
         }
 
-        // Auto-Play
+        // Auto-Play Next
         video.addEventListener('ended', () => {
             if (currentTrack < playlist.length - 1) loadTrack(currentTrack + 1);
         });
@@ -305,11 +363,15 @@
         }
 
         document.getElementById('btn-play').addEventListener('click', function() {
+            togglePlay();
+            flash(this);
+        });
+
+        function togglePlay() {
             if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             if(video.paused) { video.play(); playBtnText.setAttribute('value', 'PAUSE'); }
             else { video.pause(); playBtnText.setAttribute('value', 'PLAY'); }
-            flash(this);
-        });
+        }
 
         document.getElementById('btn-prev').addEventListener('click', function() {
             if(currentTrack > 0) loadTrack(currentTrack - 1); flash(this);
@@ -330,15 +392,22 @@
             screenCinema.setAttribute('visible', !is360);
             screen360.setAttribute('visible', is360);
             floor.setAttribute('visible', !is360);
+            // Toggle Fog based on mode
             if(is360) scene.removeAttribute('fog');
-            else scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            else if(!isVoid) scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             flash(this);
         });
 
         document.getElementById('btn-void').addEventListener('click', function() {
             isVoid = !isVoid;
             if(!is360) floor.setAttribute('visible', !isVoid);
-            scene.setAttribute('background', isVoid ? 'color: #000' : 'color: #050505');
+            
+            // Adjust background and fog for void mode
+            if(isVoid) {
+                scene.removeAttribute('fog');
+            } else {
+                scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            }
             flash(this);
         });
 
@@ -357,7 +426,37 @@
         });
 
 
-        /* --- 3. SEATING & SCREEN --- */
+        /* --- 3. KEYBOARD SHORTCUTS --- */
+        window.addEventListener('keydown', (e) => {
+            // Only active when dashboard is hidden
+            if(uiLayer.classList.contains('hidden')) {
+                switch(e.code) {
+                    case 'Space': 
+                        e.preventDefault(); 
+                        togglePlay(); 
+                        flash(document.getElementById('btn-play'));
+                        break;
+                    case 'ArrowRight': 
+                        video.currentTime = Math.min(video.duration, video.currentTime + 15); 
+                        flash(document.getElementById('btn-seek-fwd'));
+                        break;
+                    case 'ArrowLeft': 
+                        video.currentTime = Math.max(0, video.currentTime - 15); 
+                        flash(document.getElementById('btn-seek-back'));
+                        break;
+                    case 'ArrowUp':
+                        // Simple volume boost not implemented via GainNode adjustment here for simplicity,
+                        // but logic would go here.
+                        break;
+                    case 'KeyR':
+                        document.getElementById('btn-reset').click();
+                        break;
+                }
+            }
+        });
+
+
+        /* --- 4. SEATING & SCREEN --- */
         const seats = {
             front: { pos: "0 1.6 -1", rot: "-25 0 0" },
             back: { pos: "0 2.5 2", rot: "-25 0 0" },
@@ -390,7 +489,7 @@
         });
 
 
-        /* --- 4. LOOPS --- */
+        /* --- 5. LOOPS & UI UPDATES --- */
         setInterval(() => {
             if(video.duration) {
                 const pct = video.currentTime / video.duration;
@@ -414,9 +513,10 @@
             hubWrapper.setAttribute('visible', true);
             hubTimer = setTimeout(() => {
                 if(!video.paused) hubWrapper.setAttribute('visible', false);
-            }, 6000);
+            }, 5000);
         };
 
+        // Gaze Hover Logic
         document.querySelectorAll('.clickable').forEach(el => {
             el.addEventListener('mouseenter', () => {
                 resetTimer();
@@ -427,26 +527,44 @@
                 if(el.classList.contains('btn-hover')) el.setAttribute('color', '#222');
                 if(el.id === 'btn-play') el.setAttribute('color', '#ff9d00');
             });
+            // Allow clicking on progress bar to seek (Rough approximation)
+            if(el.id === 'bar-bg') {
+                el.addEventListener('click', (evt) => {
+                   // This is complex in VR with Gaze, simplifying to center = 50% for now
+                   // or just leaving as visual only.
+                });
+            }
         });
 
 
-        /* --- 5. AUDIO & VISUALS --- */
+        /* --- 6. AUDIO & VISUALS (Fixed) --- */
         function initAudio() {
-            if(audioCtx) return;
-            const AC = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AC();
-            const src = audioCtx.createMediaElementSource(video);
-            const gainNode = audioCtx.createGain();
-            gainNode.gain.value = 3.0;
-            panner = audioCtx.createPanner();
-            panner.panningModel = 'HRTF';
-            panner.distanceModel = 'inverse';
-            panner.refDistance = 10; 
-            panner.maxDistance = 10000;
-            panner.setPosition(0, 4.5, -5);
-            src.connect(gainNode);
-            gainNode.connect(panner);
-            panner.connect(audioCtx.destination);
+            if(!audioCtx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AC();
+            }
+
+            // Singleton Pattern: Only create the source node once!
+            if (!audioSourceNode) {
+                audioSourceNode = audioCtx.createMediaElementSource(video);
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.value = 3.0;
+                
+                panner = audioCtx.createPanner();
+                panner.panningModel = 'HRTF';
+                panner.distanceModel = 'inverse';
+                panner.refDistance = 10; 
+                panner.maxDistance = 10000;
+                panner.setPosition(0, 4.5, -5);
+                
+                audioSourceNode.connect(gainNode);
+                gainNode.connect(panner);
+                panner.connect(audioCtx.destination);
+            }
+
+            if(audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
         }
 
         const ctx = document.getElementById('light-canvas').getContext('2d');
