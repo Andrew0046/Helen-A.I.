@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub: High Volume Edition</title>
+    <title>The Hub: Ultimate Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -96,9 +96,11 @@
         </a-curvedimage>
 
         <a-videosphere id="screen-360" src="#video-src" 
-            radius="100" rotation="0 -90 0" 
-            material="shader: flat; side: back;" visible="false">
+            radius="60" rotation="0 -90 0" 
+            material="shader: flat; side: back; fog: false" 
+            visible="false">
         </a-videosphere>
+
 
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0">
             
@@ -224,9 +226,8 @@
         document.getElementById('btn-url').addEventListener('click', () => {
             const url = urlInput.value.trim();
             if(url) {
-                // Add URL to playlist
                 playlist.push({ type: 'url', src: url, name: "Web Stream" });
-                urlInput.value = ""; // clear input
+                urlInput.value = ""; 
                 updatePlaylistUI();
             }
         });
@@ -260,12 +261,11 @@
                 if(item.type === 'file') src = URL.createObjectURL(item.src);
                 else src = item.src;
 
-                // Load Video
                 video.src = src;
                 
-                // Update Title
+                // Update Title (Truncate if long)
                 let displayName = item.name;
-                if(displayName.length > 30) displayName = displayName.substring(0, 27) + "...";
+                if(displayName.length > 25) displayName = displayName.substring(0, 22) + "...";
                 titleText.setAttribute('value', `${currentTrack + 1}/${playlist.length}: ${displayName}`);
                 
                 initAudio();
@@ -320,14 +320,19 @@
             video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this);
         });
 
-        // Modes
+        // Mode Toggle (FIXED FOR BLACK CIRCLE)
         document.getElementById('btn-mode').addEventListener('click', function() {
             is360 = !is360;
             screenCinema.setAttribute('visible', !is360);
             screen360.setAttribute('visible', is360);
             floor.setAttribute('visible', !is360);
-            if(is360) scene.removeAttribute('fog');
-            else scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            
+            // Toggle Fog Globally
+            if(is360) {
+                scene.removeAttribute('fog');
+            } else {
+                scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            }
             flash(this);
         });
 
@@ -373,6 +378,7 @@
             hubWrapper.setAttribute('rotation', seats.recline.rot); flash(this);
         });
 
+        // Screen Geometry (Recenter)
         function updateScreen() {
             screenCinema.setAttribute('theta-length', currentCurve);
             const rot = 180 - (currentCurve / 2);
@@ -432,14 +438,12 @@
             const AC = window.AudioContext || window.webkitAudioContext;
             audioCtx = new AC();
             
-            // Create Source
             const src = audioCtx.createMediaElementSource(video);
             
-            // Create Gain (Volume Boost 300%)
+            // Boost Gain 300%
             const gainNode = audioCtx.createGain();
             gainNode.gain.value = 3.0;
             
-            // Create Panner
             panner = audioCtx.createPanner();
             panner.panningModel = 'HRTF';
             panner.distanceModel = 'inverse';
@@ -447,7 +451,6 @@
             panner.maxDistance = 10000;
             panner.setPosition(0, 4.5, -5);
             
-            // Connect: Source -> Gain -> Panner -> Speakers
             src.connect(gainNode);
             gainNode.connect(panner);
             panner.connect(audioCtx.destination);
