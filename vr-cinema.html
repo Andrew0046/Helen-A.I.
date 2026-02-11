@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub: Media Center (Video + Image)</title>
+    <title>The Hub: Media Center Fixed</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -52,7 +52,7 @@
     <div id="ui-layer">
         <h1>The <span style="color: #ff9d00">Hub</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Media Center</h3>
             <p style="color: #888; font-size: 0.9rem;">Select videos or images</p>
             
             <input type="file" id="file-input" accept="video/*, image/*" multiple style="display:none">
@@ -88,13 +88,15 @@
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
-        <a-curvedimage id="screen-cinema" src="#video-src" 
+        <a-curvedimage id="screen-cinema" 
+            src="#video-src"
             height="12" radius="14" theta-length="90" 
             rotation="0 135 0" position="0 5 0" 
             side="double" visible="true">
         </a-curvedimage>
 
-        <a-videosphere id="screen-360" src="#video-src" 
+        <a-videosphere id="screen-360" 
+            src="#video-src"
             radius="60" rotation="0 -90 0" 
             material="shader: flat; side: back; fog: false" 
             visible="false">
@@ -143,7 +145,6 @@
             <a-plane id="btn-reset" position="0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="RESET" align="center" width="1.8"></a-text>
             </a-plane>
-            
 
             <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
             <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
@@ -157,7 +158,6 @@
              <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover">
                 <a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1"></a-text>
             </a-plane>
-
             <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover">
                 <a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1"></a-text>
             </a-plane>
@@ -219,7 +219,6 @@
             const files = Array.from(e.target.files);
             if (files.length > 0) {
                 const newItems = files.map(f => {
-                    // Check MIME type to determine video vs image
                     const isImage = f.type.startsWith('image/');
                     return { 
                         type: isImage ? 'image' : 'video', 
@@ -235,7 +234,6 @@
         document.getElementById('btn-url').addEventListener('click', () => {
             const url = urlInput.value.trim();
             if(url) {
-                // Assume video for URL unless extension says otherwise
                 const isImage = url.match(/\.(jpeg|jpg|gif|png)$/) != null;
                 playlist.push({ type: isImage ? 'image' : 'video', src: url, name: "Web Stream" });
                 urlInput.value = ""; 
@@ -263,6 +261,7 @@
             }
         });
 
+        /* --- FIXED TRACK LOADER (CORRECT TEXTURE SWAPPING) --- */
         function loadTrack(index) {
             if (index >= 0 && index < playlist.length) {
                 currentTrack = index;
@@ -272,39 +271,32 @@
                 if(item.src instanceof File) src = URL.createObjectURL(item.src);
                 else src = item.src;
 
-                // Update Title
                 let displayName = item.name;
                 if(displayName.length > 25) displayName = displayName.substring(0, 22) + "...";
                 titleText.setAttribute('value', `${currentTrack + 1}/${playlist.length}: ${displayName}`);
 
-                // --- SWITCH LOGIC: VIDEO vs IMAGE ---
                 if (item.type === 'image') {
-                    // 1. Set Image Source
-                    img.setAttribute('src', src);
-                    
-                    // 2. Point Screens to Image
-                    screenCinema.setAttribute('src', '#img-src');
-                    screen360.setAttribute('src', '#img-src');
-
-                    // 3. Hide Video Controls
+                    // IMAGE MODE
                     videoControls.setAttribute('visible', false);
-                    video.pause(); // Stop any background audio
+                    video.pause();
 
-                    // 4. Force Ambilight Update (Since video loop is paused)
-                    setTimeout(() => updateAmbilightImage(), 200);
+                    img.src = src;
+                    img.onload = () => {
+                        // FORCE TEXTURE SWAP
+                        screenCinema.setAttribute('material', 'src: #img-src; shader: flat; side: double');
+                        screen360.setAttribute('material', 'src: #img-src; shader: flat; side: back; fog: false');
+                        drawAmbilight(img);
+                    };
 
                 } else {
-                    // 1. Set Video Source
-                    video.src = src;
-                    
-                    // 2. Point Screens to Video
-                    screenCinema.setAttribute('src', '#video-src');
-                    screen360.setAttribute('src', '#video-src');
-
-                    // 3. Show Video Controls
+                    // VIDEO MODE
                     videoControls.setAttribute('visible', true);
+                    video.src = src;
 
-                    // 4. Start Audio & Play
+                    // FORCE TEXTURE SWAP
+                    screenCinema.setAttribute('material', 'src: #video-src; shader: flat; side: double');
+                    screen360.setAttribute('material', 'src: #video-src; shader: flat; side: back; fog: false');
+
                     initAudio();
                     video.play().then(() => {
                         playBtnText.setAttribute('value', 'PAUSE');
@@ -312,13 +304,11 @@
                         playBtnText.setAttribute('value', 'PLAY');
                     });
                     
-                    // Start Loop
                     requestAnimationFrame(updateAmbilight);
                 }
             }
         }
 
-        // Auto-Play Next (Only for Video)
         video.addEventListener('ended', () => {
             if (currentTrack < playlist.length - 1) {
                 loadTrack(currentTrack + 1);
@@ -447,8 +437,6 @@
             clearTimeout(hubTimer);
             hubWrapper.setAttribute('visible', true);
             hubTimer = setTimeout(() => {
-                // Hide only if playing video. If image, keep hidden or manage logic?
-                // Let's hide it anyway for immersion
                 hubWrapper.setAttribute('visible', false);
             }, 6000);
         };
@@ -473,7 +461,7 @@
             audioCtx = new AC();
             const src = audioCtx.createMediaElementSource(video);
             const gainNode = audioCtx.createGain();
-            gainNode.gain.value = 3.0; // Boost
+            gainNode.gain.value = 3.0; 
             panner = audioCtx.createPanner();
             panner.panningModel = 'HRTF';
             panner.distanceModel = 'inverse';
@@ -489,20 +477,14 @@
         const ambi = document.getElementById('ambi-light');
         const glow = document.getElementById('screen-glow');
 
-        // Loop for Video
         function updateAmbilight() {
+            // Only update loops if playing video
             if(!video.paused && !video.ended) {
                 drawAmbilight(video);
                 requestAnimationFrame(updateAmbilight);
             }
         }
         
-        // Single shot for Image
-        function updateAmbilightImage() {
-            // Need to wait for image to load? usually fast from objectURL
-            drawAmbilight(img);
-        }
-
         function drawAmbilight(source) {
             try {
                 ctx.drawImage(source, 0, 0, 32, 32);
@@ -510,7 +492,7 @@
                 const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
                 if(!isVoid && !is360) ambi.setAttribute('color', hex);
                 glow.setAttribute('color', hex);
-            } catch(e) { /* ignore empty source errors */ }
+            } catch(e) { }
         }
 
     </script>
