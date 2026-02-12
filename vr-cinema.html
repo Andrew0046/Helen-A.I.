@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v4.0: 180 Dome Edition</title>
+    <title>The Hub v4.0: Tri-Mode</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -128,7 +128,6 @@
             <a-text value="OPEN MENU" align="center" position="0 0.25 0" width="3" color="#ff9d00"></a-text>
         </a-sphere>
 
-
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
             
             <a-box depth="0.02" height="1.0" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
@@ -140,10 +139,8 @@
                 <a-text value="X" align="center" width="6" font-weight="bold"></a-text>
             </a-plane>
 
-
             <a-entity id="video-controls">
                 <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
-                
                 <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333" class="clickable btn-hover" id="bar-bg"></a-plane>
                 <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
 
@@ -169,8 +166,9 @@
             </a-plane>
 
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text id="txt-mode" value="2D VIEW" align="center" width="1.8"></a-text>
+                <a-text id="txt-mode" value="2D CINEMA" align="center" width="1.8"></a-text>
             </a-plane>
+            
             <a-plane id="btn-void" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="VOID" align="center" width="1.8"></a-text>
             </a-plane>
@@ -215,7 +213,6 @@
         const screenCinema = document.getElementById('screen-cinema');
         const screen180 = document.getElementById('screen-180');
         const screen360 = document.getElementById('screen-360');
-        
         const rig = document.getElementById('rig');
         const hubWrapper = document.getElementById('hub-wrapper');
         const menuOrb = document.getElementById('menu-orb');
@@ -234,9 +231,9 @@
         let isVoid = false;
         let currentCurve = 90; 
         
+        // Audio & Memory State
         let audioCtx, panner, audioSourceNode;
         let currentObjectURL = null;
-        let hubTimer;
 
         /* --- 1. PLAYLIST & FILE HANDLING --- */
         function handleFiles(files) {
@@ -328,10 +325,10 @@
                     screen360.setAttribute('src', '');
 
                     img.onload = function() {
-                        screenCinema.setAttribute('src', '#img-src');
-                        screen180.setAttribute('src', '#img-src');
-                        screen360.setAttribute('src', '#img-src');
-                        const mesh = screenCinema.getObject3D('mesh');
+                        const targetScreen = viewMode === 0 ? screenCinema : (viewMode === 1 ? screen180 : screen360);
+                        targetScreen.setAttribute('src', '#img-src');
+                        // Force material update
+                        const mesh = targetScreen.getObject3D('mesh');
                         if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
                         drawAmbilight(img);
                     };
@@ -339,9 +336,11 @@
 
                 } else {
                     video.src = src;
+                    // Pre-assign src to all screens to be safe
                     screenCinema.setAttribute('src', '#video-src');
                     screen180.setAttribute('src', '#video-src');
                     screen360.setAttribute('src', '#video-src');
+                    
                     videoControls.setAttribute('visible', true);
                     initAudio();
                     video.play().then(() => {
@@ -366,7 +365,7 @@
                 hubWrapper.setAttribute('scale', '1 1 1');
                 menuOrb.setAttribute('visible', false);
             } else {
-                hubWrapper.setAttribute('scale', '0 0 0'); // Make unclickable
+                hubWrapper.setAttribute('scale', '0 0 0'); 
                 menuOrb.setAttribute('visible', true);
             }
         }
@@ -410,42 +409,50 @@
             video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this);
         });
 
-        /* --- MODE SELECTOR (2D -> 180 -> 360) --- */
+
+        /* --- 4. VIEW MODES (2D / 180 / 360) --- */
         document.getElementById('btn-mode').addEventListener('click', function() {
             viewMode = (viewMode + 1) % 3;
-            const txt = document.getElementById('txt-mode');
+            updateViewMode();
+            flash(this);
+        });
 
+        function updateViewMode() {
             // Hide all first
             screenCinema.setAttribute('visible', false);
             screen180.setAttribute('visible', false);
             screen360.setAttribute('visible', false);
+            floor.setAttribute('visible', false);
             
-            // Logic
+            const btnText = document.getElementById('txt-mode');
+
             if(viewMode === 0) {
+                // 2D Cinema
                 screenCinema.setAttribute('visible', true);
-                txt.setAttribute('value', '2D VIEW');
                 if(!isVoid) floor.setAttribute('visible', true);
+                btnText.setAttribute('value', '2D CINEMA');
                 if(!isVoid) scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
-            }
+            } 
             else if (viewMode === 1) {
+                // 180 Dome
                 screen180.setAttribute('visible', true);
-                txt.setAttribute('value', '180 DOME');
-                floor.setAttribute('visible', false);
-                scene.removeAttribute('fog');
-            }
+                btnText.setAttribute('value', '180 DOME');
+                scene.removeAttribute('fog'); 
+            } 
             else {
+                // 360 Sphere
                 screen360.setAttribute('visible', true);
-                txt.setAttribute('value', '360 SPHERE');
-                floor.setAttribute('visible', false);
+                btnText.setAttribute('value', '360 FULL');
                 scene.removeAttribute('fog');
             }
-            flash(this);
-        });
+        }
 
         document.getElementById('btn-void').addEventListener('click', function() {
             isVoid = !isVoid;
+            // Only affect floor in 2D mode
             if(viewMode === 0) floor.setAttribute('visible', !isVoid);
             
+            // Fog logic
             if(isVoid || viewMode > 0) scene.removeAttribute('fog'); 
             else scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             
@@ -467,7 +474,7 @@
         });
 
 
-        /* --- 4. SEATING & SCREEN --- */
+        /* --- 5. SEATING & SCREEN --- */
         const seats = {
             front: { pos: "0 1.6 -1", rot: "-25 0 0" },
             back: { pos: "0 2.5 2", rot: "-25 0 0" },
@@ -500,7 +507,7 @@
         });
 
 
-        /* --- 5. LOOP & UTILS --- */
+        /* --- 6. LOOP & UTILS --- */
         setInterval(() => {
             if(video.duration) {
                 const pct = video.currentTime / video.duration;
@@ -541,7 +548,7 @@
         });
 
 
-        /* --- 6. AUDIO & VISUALS --- */
+        /* --- 7. AUDIO & VISUALS --- */
         function initAudio() {
             if(!audioCtx) {
                 const AC = window.AudioContext || window.webkitAudioContext;
@@ -578,8 +585,9 @@
                 ctx.drawImage(source, 0, 0, 32, 32);
                 const p = ctx.getImageData(16,16,1,1).data;
                 const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
-                // Only light the environment in 2D mode, keep 360/180 clean
-                if(!isVoid && viewMode === 0) ambi.setAttribute('color', hex);
+                
+                // Ambilight applies to floor/ambient only in 2D mode
+                if(viewMode === 0 && !isVoid) ambi.setAttribute('color', hex);
                 glow.setAttribute('color', hex);
             } catch(e) { }
         }
