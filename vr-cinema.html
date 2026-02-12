@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v4.1: True 180 Fix</title>
+    <title>The Hub v4.1: True 180 Dome</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
-        /* --- UI DASHBOARD STYLES (Unchanged) --- */
+        /* --- 2D DASHBOARD --- */
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
         
         #ui-layer {
@@ -46,6 +46,7 @@
         .playlist-item:hover { color: white; background: rgba(255,255,255,0.1); }
         .playlist-active { color: #ff9d00; font-weight: bold; }
 
+        /* Drag Overlay */
         #drop-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff;
@@ -109,18 +110,18 @@
         </a-curvedimage>
 
         <a-entity id="screen-180" 
-            geometry="primitive: sphere; radius: 60; segmentsWidth: 64; segmentsHeight: 64; phiLength: 180" 
+            geometry="primitive: sphere; radius: 60; phiLength: 180; segmentsWidth: 64; segmentsHeight: 64" 
             material="shader: flat; src: #video-src; side: back; fog: false" 
             rotation="0 270 0" 
             scale="-1 1 1"
             visible="false">
         </a-entity>
+
         <a-videosphere id="screen-360" src="#video-src" 
             radius="60" rotation="0 -90 0" 
             material="shader: flat; side: back; fog: false" 
             visible="false">
         </a-videosphere>
-
 
         <a-sphere id="menu-orb" position="0 -1.0 -1.5" radius="0.15" color="#ff9d00" 
                   visible="false" class="clickable"
@@ -131,8 +132,10 @@
 
 
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
+            
             <a-box depth="0.02" height="1.0" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
             <a-box position="0 0.49 0" depth="0.03" height="0.01" width="2.8" color="#ff9d00" opacity="0.8"></a-box>
+
             <a-text id="txt-title" value="Waiting..." position="0 0.42 0.02" align="center" width="2.5" color="white"></a-text>
 
             <a-plane id="btn-close" position="1.2 0.4 0.03" width="0.25" height="0.15" color="#cc0000" class="clickable btn-hover">
@@ -141,8 +144,10 @@
 
             <a-entity id="video-controls">
                 <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
+                
                 <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333" class="clickable btn-hover" id="bar-bg"></a-plane>
                 <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
+
                 <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
                     <a-text value="-15s" align="center" width="2"></a-text>
                 </a-plane>
@@ -157,9 +162,17 @@
                 </a-plane>
             </a-entity>
 
+            <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value="|<<" align="center" width="3"></a-text>
+            </a-plane>
+            <a-plane id="btn-next" position="0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value=">>|" align="center" width="3"></a-text>
+            </a-plane>
+
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="2D VIEW" align="center" width="1.8"></a-text>
             </a-plane>
+            
             <a-plane id="btn-void" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="VOID" align="center" width="1.8"></a-text>
             </a-plane>
@@ -167,16 +180,16 @@
                 <a-text value="RESET VIEW" align="center" width="1.8"></a-text>
             </a-plane>
 
-            <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="|<<" align="center" width="3"></a-text></a-plane>
-            <a-plane id="btn-next" position="0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value=">>|" align="center" width="3"></a-text></a-plane>
-
             <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
             <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
+            
             <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
             <a-plane id="seat-back" position="-0.8 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="BACK" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
             <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+            
             <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
             <a-plane id="curve-more" position="1.0 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+
         </a-entity>
 
         <a-entity id="rig" position="0 1.6 0">
@@ -191,7 +204,7 @@
     </a-scene>
 
     <script>
-        /* --- JS LOGIC (Maintains State & Interactions) --- */
+        /* --- CONFIG & STATE --- */
         const video = document.getElementById('video-src');
         const img = document.getElementById('img-src');
         const uiLayer = document.getElementById('ui-layer');
@@ -223,9 +236,11 @@
         let isVoid = false;
         let currentCurve = 90; 
         
-        let audioCtx, panner, audioSourceNode, currentObjectURL = null;
+        // Audio & Memory
+        let audioCtx, panner, audioSourceNode;
+        let currentObjectURL = null;
 
-        /* --- Playlist Logic --- */
+        /* --- 1. PLAYLIST & FILE HANDLING --- */
         function handleFiles(files) {
             if (files.length > 0) {
                 const newItems = Array.from(files).map(f => {
@@ -236,13 +251,16 @@
                 updatePlaylistUI();
             }
         }
+
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
         const dropOverlay = document.getElementById('drop-overlay');
         document.body.addEventListener('dragover', (e) => { e.preventDefault(); dropOverlay.style.display = 'flex'; });
         document.body.addEventListener('dragleave', (e) => { e.preventDefault(); dropOverlay.style.display = 'none'; });
         document.body.addEventListener('drop', (e) => {
-            e.preventDefault(); dropOverlay.style.display = 'none'; handleFiles(e.dataTransfer.files);
+            e.preventDefault();
+            dropOverlay.style.display = 'none';
+            handleFiles(e.dataTransfer.files);
         });
 
         document.getElementById('btn-url').addEventListener('click', () => {
@@ -250,12 +268,14 @@
             if(url) {
                 const isImage = url.match(/\.(jpeg|jpg|gif|png)$/) != null;
                 playlist.push({ type: isImage ? 'image' : 'video', src: url, name: "Web Stream" });
-                urlInput.value = ""; updatePlaylistUI();
+                urlInput.value = ""; 
+                updatePlaylistUI();
             }
         });
 
         function updatePlaylistUI() {
-            playlistUI.style.display = 'block'; btnStart.style.display = 'block';
+            playlistUI.style.display = 'block';
+            btnStart.style.display = 'block';
             playlistList.innerHTML = '';
             playlist.forEach((item, index) => {
                 const div = document.createElement('div');
@@ -266,76 +286,134 @@
                 playlistList.appendChild(div);
             });
         }
+        
         function highlightActive() {
-             Array.from(playlistList.children).forEach((child, i) => child.classList.toggle('playlist-active', i === currentTrack));
+             Array.from(playlistList.children).forEach((child, i) => {
+                 child.classList.toggle('playlist-active', i === currentTrack);
+             });
         }
 
         btnStart.addEventListener('click', () => {
-            if(playlist.length > 0) { uiLayer.classList.add('hidden'); loadTrack(currentTrack); }
+            if(playlist.length > 0) {
+                uiLayer.classList.add('hidden');
+                loadTrack(currentTrack);
+            }
         });
 
         function loadTrack(index) {
             if (index >= 0 && index < playlist.length) {
-                if (currentObjectURL) { URL.revokeObjectURL(currentObjectURL); currentObjectURL = null; }
+                if (currentObjectURL) {
+                    URL.revokeObjectURL(currentObjectURL);
+                    currentObjectURL = null;
+                }
+
                 currentTrack = index;
                 const item = playlist[currentTrack];
                 
-                let src = item.src instanceof File ? URL.createObjectURL(item.src) : item.src;
-                if(item.src instanceof File) currentObjectURL = src;
+                let src = "";
+                if(item.src instanceof File) {
+                    src = URL.createObjectURL(item.src);
+                    currentObjectURL = src; 
+                } else {
+                    src = item.src;
+                }
 
-                let displayName = item.name.length > 25 ? item.name.substring(0, 22) + "..." : item.name;
+                let displayName = item.name;
+                if(displayName.length > 25) displayName = displayName.substring(0, 22) + "...";
                 titleText.setAttribute('value', `${currentTrack + 1}/${playlist.length}: ${displayName}`);
 
                 if (item.type === 'image') {
-                    video.pause(); videoControls.setAttribute('visible', false);
-                    screenCinema.setAttribute('src', ''); screen180.setAttribute('src', ''); screen360.setAttribute('src', '');
+                    video.pause();
+                    videoControls.setAttribute('visible', false);
+                    screenCinema.setAttribute('src', '');
+                    screen180.setAttribute('src', '');
+                    screen360.setAttribute('src', '');
+
                     img.onload = function() {
-                        screenCinema.setAttribute('src', '#img-src'); screen180.setAttribute('src', '#img-src'); screen360.setAttribute('src', '#img-src');
+                        screenCinema.setAttribute('src', '#img-src');
+                        screen180.setAttribute('src', '#img-src');
+                        screen360.setAttribute('src', '#img-src');
+                        
                         const mesh = screenCinema.getObject3D('mesh');
                         if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
                         drawAmbilight(img);
                     };
                     img.src = src;
+
                 } else {
                     video.src = src;
-                    screenCinema.setAttribute('src', '#video-src'); screen180.setAttribute('src', '#video-src'); screen360.setAttribute('src', '#video-src');
+                    screenCinema.setAttribute('src', '#video-src');
+                    screen180.setAttribute('src', '#video-src');
+                    screen360.setAttribute('src', '#video-src');
                     videoControls.setAttribute('visible', true);
                     initAudio();
-                    video.play().then(() => playBtnText.setAttribute('value', 'PAUSE')).catch(() => playBtnText.setAttribute('value', 'PLAY'));
+                    video.play().then(() => {
+                        playBtnText.setAttribute('value', 'PAUSE');
+                    }).catch(e => {
+                        playBtnText.setAttribute('value', 'PLAY');
+                    });
                     requestAnimationFrame(updateAmbilight);
                 }
             }
         }
 
-        video.addEventListener('ended', () => { if (currentTrack < playlist.length - 1) loadTrack(currentTrack + 1); });
+        video.addEventListener('ended', () => {
+            if (currentTrack < playlist.length - 1) loadTrack(currentTrack + 1);
+        });
 
-        /* --- Menu Logic --- */
+
+        /* --- 2. MENU VISIBILITY --- */
         function toggleMenu(show) {
             hubWrapper.setAttribute('visible', show);
-            if(show) { hubWrapper.setAttribute('scale', '1 1 1'); menuOrb.setAttribute('visible', false); }
-            else { hubWrapper.setAttribute('scale', '0 0 0'); menuOrb.setAttribute('visible', true); }
+            if(show) {
+                hubWrapper.setAttribute('scale', '1 1 1');
+                menuOrb.setAttribute('visible', false);
+            } else {
+                hubWrapper.setAttribute('scale', '0 0 0'); 
+                menuOrb.setAttribute('visible', true);
+            }
         }
-        document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
-        document.getElementById('menu-orb').addEventListener('click', function() { toggleMenu(true); flash(this); });
+        document.getElementById('btn-close').addEventListener('click', function() {
+            toggleMenu(false); flash(this);
+        });
+        document.getElementById('menu-orb').addEventListener('click', function() {
+            toggleMenu(true); flash(this);
+        });
 
-        /* --- VR Interactions --- */
+
+        /* --- 3. VR INTERACTIONS --- */
         function flash(el) {
             const oldColor = el.getAttribute('color');
             el.setAttribute('color', '#fff');
             setTimeout(() => el.setAttribute('color', oldColor), 150);
         }
+
+        document.getElementById('btn-play').addEventListener('click', function() {
+            togglePlay(); flash(this);
+        });
+
         function togglePlay() {
             if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             if(video.paused) { video.play(); playBtnText.setAttribute('value', 'PAUSE'); }
             else { video.pause(); playBtnText.setAttribute('value', 'PLAY'); }
         }
-        document.getElementById('btn-play').addEventListener('click', function() { togglePlay(); flash(this); });
-        document.getElementById('btn-prev').addEventListener('click', function() { if(currentTrack > 0) loadTrack(currentTrack - 1); flash(this); });
-        document.getElementById('btn-next').addEventListener('click', function() { if(currentTrack < playlist.length - 1) loadTrack(currentTrack + 1); flash(this); });
-        document.getElementById('btn-seek-back').addEventListener('click', function() { video.currentTime = Math.max(0, video.currentTime - 15); flash(this); });
-        document.getElementById('btn-seek-fwd').addEventListener('click', function() { video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this); });
 
-        /* --- View Mode Logic --- */
+        document.getElementById('btn-prev').addEventListener('click', function() {
+            if(currentTrack > 0) loadTrack(currentTrack - 1); flash(this);
+        });
+        document.getElementById('btn-next').addEventListener('click', function() {
+            if(currentTrack < playlist.length - 1) loadTrack(currentTrack + 1); flash(this);
+        });
+
+        document.getElementById('btn-seek-back').addEventListener('click', function() {
+            video.currentTime = Math.max(0, video.currentTime - 15); flash(this);
+        });
+        document.getElementById('btn-seek-fwd').addEventListener('click', function() {
+            video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this);
+        });
+
+
+        /* --- NEW MODE LOGIC (2D -> 180 -> 360) --- */
         document.getElementById('btn-mode').addEventListener('click', function() {
             viewMode = (viewMode + 1) % 3; 
 
@@ -345,37 +423,46 @@
             floor.setAttribute('visible', false); 
 
             if(viewMode === 0) {
+                // 2D MODE
                 screenCinema.setAttribute('visible', true);
                 floor.setAttribute('visible', !isVoid);
                 this.querySelector('a-text').setAttribute('value', '2D VIEW');
                 if(!isVoid) scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             } 
             else if (viewMode === 1) {
+                // 180 DOME
                 screen180.setAttribute('visible', true);
                 this.querySelector('a-text').setAttribute('value', '180 DOME');
                 scene.removeAttribute('fog');
             } 
             else {
+                // 360 SPHERE
                 screen360.setAttribute('visible', true);
                 this.querySelector('a-text').setAttribute('value', '360 FULL');
                 scene.removeAttribute('fog');
             }
+
             flash(this);
         });
+
 
         document.getElementById('btn-void').addEventListener('click', function() {
             isVoid = !isVoid;
             if(viewMode === 0) floor.setAttribute('visible', !isVoid);
+            
             if(isVoid || viewMode > 0) scene.removeAttribute('fog'); 
             else scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            
             flash(this);
         });
+
         document.getElementById('btn-reset').addEventListener('click', function() {
             const cam = document.querySelector('[camera]').object3D;
             const yRot = cam.rotation.y * (180 / Math.PI);
             rig.setAttribute('rotation', {x:0, y: -yRot, z:0});
             flash(this);
         });
+
         document.getElementById('btn-speed').addEventListener('click', function() {
             const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75];
             video.playbackRate = speeds[(speeds.indexOf(video.playbackRate) + 1) % speeds.length];
@@ -383,21 +470,41 @@
             flash(this);
         });
 
-        /* --- Seating --- */
-        const seats = { front: { pos: "0 1.6 -1", rot: "-25 0 0" }, back: { pos: "0 2.5 2", rot: "-25 0 0" }, recline: { pos: "0 0.5 0", rot: "-45 0 0" } };
-        document.getElementById('seat-front').addEventListener('click', function() { rig.setAttribute('position', seats.front.pos); hubWrapper.setAttribute('rotation', seats.front.rot); flash(this); });
-        document.getElementById('seat-back').addEventListener('click', function() { rig.setAttribute('position', seats.back.pos); hubWrapper.setAttribute('rotation', seats.back.rot); flash(this); });
-        document.getElementById('seat-lay').addEventListener('click', function() { rig.setAttribute('position', seats.recline.pos); hubWrapper.setAttribute('rotation', seats.recline.rot); flash(this); });
+
+        /* --- 4. SEATING & SCREEN --- */
+        const seats = {
+            front: { pos: "0 1.6 -1", rot: "-25 0 0" },
+            back: { pos: "0 2.5 2", rot: "-25 0 0" },
+            recline: { pos: "0 0.5 0", rot: "-45 0 0" }
+        };
+        
+        document.getElementById('seat-front').addEventListener('click', function() {
+            rig.setAttribute('position', seats.front.pos);
+            hubWrapper.setAttribute('rotation', seats.front.rot); flash(this);
+        });
+        document.getElementById('seat-back').addEventListener('click', function() {
+            rig.setAttribute('position', seats.back.pos);
+            hubWrapper.setAttribute('rotation', seats.back.rot); flash(this);
+        });
+        document.getElementById('seat-lay').addEventListener('click', function() {
+            rig.setAttribute('position', seats.recline.pos);
+            hubWrapper.setAttribute('rotation', seats.recline.rot); flash(this);
+        });
 
         function updateScreen() {
             screenCinema.setAttribute('theta-length', currentCurve);
             const rot = 180 - (currentCurve / 2);
             screenCinema.setAttribute('rotation', `0 ${rot} 0`);
         }
-        document.getElementById('curve-more').addEventListener('click', function() { if(currentCurve < 160) { currentCurve += 10; updateScreen(); flash(this); } });
-        document.getElementById('curve-less').addEventListener('click', function() { if(currentCurve > 30) { currentCurve -= 10; updateScreen(); flash(this); } });
+        document.getElementById('curve-more').addEventListener('click', function() {
+            if(currentCurve < 160) { currentCurve += 10; updateScreen(); flash(this); }
+        });
+        document.getElementById('curve-less').addEventListener('click', function() {
+            if(currentCurve > 30) { currentCurve -= 10; updateScreen(); flash(this); }
+        });
 
-        /* --- Loops --- */
+
+        /* --- 5. LOOP & HOVER --- */
         setInterval(() => {
             if(video.duration) {
                 const pct = video.currentTime / video.duration;
@@ -406,15 +513,26 @@
                 timeText.setAttribute('value', `${fmt(video.currentTime)} / ${fmt(video.duration)}`);
             }
         }, 500);
-        function fmt(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec<10?'0'+sec:sec}`; }
+
+        function fmt(s) {
+            const m = Math.floor(s/60);
+            const sec = Math.floor(s%60);
+            return `${m}:${sec<10?'0'+sec:sec}`;
+        }
 
         document.querySelectorAll('.clickable').forEach(el => {
-            el.addEventListener('mouseenter', () => { if(el.classList.contains('btn-hover')) el.setAttribute('color', '#ff9d00'); });
-            el.addEventListener('mouseleave', () => { 
-                if(el.classList.contains('btn-hover')) { if(el.id === 'btn-close') el.setAttribute('color', '#cc0000'); else el.setAttribute('color', '#222'); }
+            el.addEventListener('mouseenter', () => {
+                if(el.classList.contains('btn-hover')) el.setAttribute('color', '#ff9d00');
+            });
+            el.addEventListener('mouseleave', () => {
+                if(el.classList.contains('btn-hover')) {
+                    if(el.id === 'btn-close') el.setAttribute('color', '#cc0000');
+                    else el.setAttribute('color', '#222');
+                }
                 if(el.id === 'btn-play') el.setAttribute('color', '#ff9d00');
             });
         });
+
         window.addEventListener('keydown', (e) => {
             if(uiLayer.classList.contains('hidden')) {
                 switch(e.code) {
@@ -426,14 +544,24 @@
             }
         });
 
-        /* --- Audio & Visuals --- */
+
+        /* --- 6. AUDIO & VISUALS --- */
         function initAudio() {
-            if(!audioCtx) { const AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); }
+            if(!audioCtx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AC();
+            }
             if (!audioSourceNode) {
                 audioSourceNode = audioCtx.createMediaElementSource(video);
-                const gainNode = audioCtx.createGain(); gainNode.gain.value = 3.0;
-                panner = audioCtx.createPanner(); panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse'; panner.setPosition(0, 4.5, -5);
-                audioSourceNode.connect(gainNode); gainNode.connect(panner); panner.connect(audioCtx.destination);
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.value = 3.0;
+                panner = audioCtx.createPanner();
+                panner.panningModel = 'HRTF';
+                panner.distanceModel = 'inverse';
+                panner.setPosition(0, 4.5, -5);
+                audioSourceNode.connect(gainNode);
+                gainNode.connect(panner);
+                panner.connect(audioCtx.destination);
             }
             if(audioCtx.state === 'suspended') audioCtx.resume();
         }
@@ -441,7 +569,14 @@
         const ctx = document.getElementById('light-canvas').getContext('2d');
         const ambi = document.getElementById('ambi-light');
         const glow = document.getElementById('screen-glow');
-        function updateAmbilight() { if(!video.paused && !video.ended) { drawAmbilight(video); requestAnimationFrame(updateAmbilight); } }
+
+        function updateAmbilight() {
+            if(!video.paused && !video.ended) {
+                drawAmbilight(video);
+                requestAnimationFrame(updateAmbilight);
+            }
+        }
+        
         function drawAmbilight(source) {
             try {
                 ctx.drawImage(source, 0, 0, 32, 32);
@@ -451,6 +586,7 @@
                 glow.setAttribute('color', hex);
             } catch(e) { }
         }
+
     </script>
 </body>
 </html>
