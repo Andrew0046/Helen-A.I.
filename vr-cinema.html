@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v4.0: 180 Dome Edition</title>
+    <title>The Hub v4.1: Fixed 180 Dome</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -62,7 +62,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v4.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v4.1</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media or drag & drop files</p>
@@ -109,11 +109,13 @@
             side="double" visible="true">
         </a-curvedimage>
 
-        <a-videosphere id="screen-180" src="#video-src" 
-            radius="60" phi-length="180" rotation="0 270 0" 
-            material="shader: flat; side: back; fog: false" 
+        <a-entity id="screen-180" 
+            geometry="primitive: sphere; radius: 60; phiLength: 180; segmentsWidth: 64; segmentsHeight: 32" 
+            material="shader: flat; src: #video-src; side: back" 
+            rotation="0 270 0" 
+            scale="-1 1 1"
             visible="false">
-        </a-videosphere>
+        </a-entity>
 
         <a-videosphere id="screen-360" src="#video-src" 
             radius="60" rotation="0 -90 0" 
@@ -213,7 +215,7 @@
         const btnStart = document.getElementById('btn-start');
         
         const screenCinema = document.getElementById('screen-cinema');
-        const screen180 = document.getElementById('screen-180'); // New
+        const screen180 = document.getElementById('screen-180'); 
         const screen360 = document.getElementById('screen-360');
         
         const rig = document.getElementById('rig');
@@ -325,12 +327,13 @@
                     video.pause();
                     videoControls.setAttribute('visible', false);
                     screenCinema.setAttribute('src', '');
-                    screen180.setAttribute('src', '');
-                    screen360.setAttribute('src', '');
+                    screen180.setAttribute('visible', false); // Ensure hidden
+                    screen360.setAttribute('visible', false);
 
                     img.onload = function() {
+                        // We set src for all, but only show one later based on mode
                         screenCinema.setAttribute('src', '#img-src');
-                        screen180.setAttribute('src', '#img-src');
+                        screen180.setAttribute('material', 'src: #img-src'); // Update material component
                         screen360.setAttribute('src', '#img-src');
                         
                         const mesh = screenCinema.getObject3D('mesh');
@@ -342,7 +345,7 @@
                 } else {
                     video.src = src;
                     screenCinema.setAttribute('src', '#video-src');
-                    screen180.setAttribute('src', '#video-src');
+                    screen180.setAttribute('material', 'src: #video-src');
                     screen360.setAttribute('src', '#video-src');
                     videoControls.setAttribute('visible', true);
                     initAudio();
@@ -416,6 +419,7 @@
         document.getElementById('btn-mode').addEventListener('click', function() {
             viewMode = (viewMode + 1) % 3; 
 
+            // Strict Reset
             screenCinema.setAttribute('visible', false);
             screen180.setAttribute('visible', false);
             screen360.setAttribute('visible', false);
