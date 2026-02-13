@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v5.0: True 180 Dome</title>
+    <title>The Hub v6.0: Cylinder Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -61,7 +61,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v5.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v6.0</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media or drag & drop files</p>
@@ -103,18 +103,18 @@
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
         <a-curvedimage id="screen-cinema" src="#video-src" 
-            height="14" radius="16" theta-length="90" 
+            height="12" radius="14" theta-length="90" 
             rotation="0 135 0" position="0 5 0" 
             side="double" visible="true">
         </a-curvedimage>
 
-       <a-entity id="screen-180" 
-    geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
-    material="shader: flat; side: back; src: #video-src" 
-    rotation="0 270 0" 
-    scale="-1 1 1" 
-    visible="false">
-</a-entity>
+        <a-entity id="screen-180" 
+            geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
+            material="shader: flat; side: back; src: #video-src" 
+            rotation="0 270 0" 
+            scale="-1 1 1" 
+            visible="false">
+        </a-entity>
 
         <a-videosphere id="screen-360" src="#video-src" 
             radius="60" rotation="0 -90 0" 
@@ -122,7 +122,7 @@
             visible="false">
         </a-videosphere>
 
-        <a-sphere id="menu-orb" position="0 -1.0 -1.5" radius="0.15" color="#804f00" 
+        <a-sphere id="menu-orb" position="0 -1.0 -1.5" radius="0.15" color="#ff9d00" 
                   visible="false" class="clickable"
                   animation="property: scale; dir: alternate; dur: 1500; to: 1.1 1.1 1.1; loop: true">
             <a-light type="point" distance="2" color="#ff9d00" intensity="2"></a-light>
@@ -321,11 +321,9 @@
                 titleText.setAttribute('value', `${currentTrack + 1}/${playlist.length}: ${displayName}`);
 
                 // --- TEXTURE ASSIGNMENT ---
-                // Helper function to update the 180 screen separately since it is a raw entity
                 const updateTexture = (sourceIdOrUrl) => {
                     screenCinema.setAttribute('src', sourceIdOrUrl);
                     screen360.setAttribute('src', sourceIdOrUrl);
-                    // CRITICAL FIX: Update the MATERIAL component for the raw entity
                     screen180.setAttribute('material', 'src', sourceIdOrUrl);
                 };
 
@@ -333,12 +331,10 @@
                     video.pause();
                     videoControls.setAttribute('visible', false);
                     
-                    // Reset to avoid ghosting
                     updateTexture('');
 
                     img.onload = function() {
                         updateTexture('#img-src');
-                        
                         const mesh = screenCinema.getObject3D('mesh');
                         if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
                         drawAmbilight(img);
@@ -434,9 +430,9 @@
                 if(!isVoid) scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             } 
             else if (viewMode === 1) {
-                // 180 DOME
+                // 180 CYLINDER
                 screen180.setAttribute('visible', true);
-                this.querySelector('a-text').setAttribute('value', '180 DOME');
+                this.querySelector('a-text').setAttribute('value', '180 IMAX');
                 scene.removeAttribute('fog');
             } 
             else {
@@ -592,28 +588,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
