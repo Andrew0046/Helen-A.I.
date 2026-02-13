@@ -108,12 +108,13 @@
             side="double" visible="true">
         </a-curvedimage>
 
-        <a-entity id="screen-180" 
-            geometry="primitive: cylinder; radius: 60; phiLength: 180; segmentsWidth: 64; segmentsHeight: 32" 
-            material="shader: flat; side: back; src: #video-src" 
-            rotation="0 180 0" scale="-1 1 1" 
-            visible="false">
-        </a-entity>
+       <a-entity id="screen-180" 
+    geometry="primitive: cylinder; radius: 60; height: 80; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
+    material="shader: flat; side: back; src: #video-src" 
+    rotation="0 180 0" 
+    scale="-1 1 1" 
+    visible="false">
+</a-entity>
 
         <a-videosphere id="screen-360" src="#video-src" 
             radius="60" rotation="0 -90 0" 
@@ -591,6 +592,7 @@
     </script>
 </body>
 </html>
+
 
 
 
