@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v6.0: Cylinder Edition</title>
+    <title>The Hub v6.1: Enhanced Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
@@ -61,7 +61,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v6.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v6.1</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media or drag & drop files</p>
@@ -83,7 +83,7 @@
         </div>
     </div>
 
-    <canvas id="light-canvas" width="32" height="32"></canvas>
+    <canvas id="light-canvas" width="64" height="64"></canvas>
 
     <a-scene background="color: #000" fog="type: exponential; color: #000; density: 0.015">
         
@@ -129,7 +129,6 @@
             <a-text value="OPEN MENU" align="center" position="0 0.25 0" width="3" color="#ff9d00"></a-text>
         </a-sphere>
 
-
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
             
             <a-box depth="0.02" height="1.0" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
@@ -145,6 +144,10 @@
                 <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
                 <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333" class="clickable btn-hover" id="bar-bg"></a-plane>
                 <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
+
+                <!-- Volume bar -->
+                <a-plane id="vol-bg" position="0 -0.05 0.02" width="2.4" height="0.02" color="#333" class="clickable btn-hover"></a-plane>
+                <a-plane id="vol-fill" position="-1.2 -0.05 0.03" width="2.4" height="0.02" color="#00d2ff" scale="0 1 1" pivot="center left"></a-plane>
 
                 <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
                     <a-text value="-15s" align="center" width="2"></a-text>
@@ -176,6 +179,11 @@
             </a-plane>
             <a-plane id="btn-reset" position="0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="RESET VIEW" align="center" width="1.8"></a-text>
+            </a-plane>
+
+            <!-- Repeat toggle -->
+            <a-plane id="btn-loop" position="0 -0.35 0.02" width="0.6" height="0.1" color="#333" class="clickable btn-hover">
+                <a-text id="txt-loop" value="REPEAT OFF" align="center" width="2.5" scale="0.8 0.8 1"></a-text>
             </a-plane>
 
             <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
@@ -226,6 +234,7 @@
         const playBtnText = document.getElementById('txt-play');
         const timeText = document.getElementById('time-display');
         const progressFill = document.getElementById('progress-fill');
+        const volFill = document.getElementById('vol-fill');
         const titleText = document.getElementById('txt-title');
         
         let playlist = []; 
@@ -233,10 +242,10 @@
         let viewMode = 0; // 0=2D, 1=180, 2=360
         let isVoid = false;
         let currentCurve = 90; 
+        let playlistLoop =82 false;
         
-        let audioCtx, panner, audioSourceNode;
+        let audioCtx, panner, audioSourceNode, gainNode;
         let currentObjectURL = null;
-        let hubTimer; 
 
         /* --- 1. PLAYLIST HANDLING --- */
         function handleFiles(files) {
@@ -246,7 +255,7 @@
                     return { type: isImage ? 'image' : 'video', src: f, name: f.name };
                 });
                 playlist = playlist.concat(newItems);
-                updatePlaylistUI();
+                updatePlaylistUI(); 
             }
         }
 
@@ -264,7 +273,7 @@
         document.getElementById('btn-url').addEventListener('click', () => {
             const url = urlInput.value.trim();
             if(url) {
-                const isImage = url.match(/\.(jpeg|jpg|gif|png)$/) != null;
+                const isImage = url.match(/\.(jpeg|jpg|gif|png)$/i) != null;
                 playlist.push({ type: isImage ? 'image' : 'video', src: url, name: "Web Stream" });
                 urlInput.value = ""; 
                 updatePlaylistUI();
@@ -286,9 +295,9 @@
         }
         
         function highlightActive() {
-             Array.from(playlistList.children).forEach((child, i) => {
-                 child.classList.toggle('playlist-active', i === currentTrack);
-             });
+            Array.from(playlistList.children).forEach((child, i) => {
+                child.classList.toggle('playlist-active', i === currentTrack);
+            });
         }
 
         btnStart.addEventListener('click', () => {
@@ -320,10 +329,9 @@
                 if(displayName.length > 25) displayName = displayName.substring(0, 22) + "...";
                 titleText.setAttribute('value', `${currentTrack + 1}/${playlist.length}: ${displayName}`);
 
-                // --- TEXTURE ASSIGNMENT ---
                 const updateTexture = (sourceIdOrUrl) => {
                     screenCinema.setAttribute('src', sourceIdOrUrl);
-                    screen360.setAttribute('src', sourceIdOrUrl);
+                    screen360.setAttribute('[src]', sourceIdOrUrl);
                     screen180.setAttribute('material', 'src', sourceIdOrUrl);
                 };
 
@@ -335,8 +343,6 @@
 
                     img.onload = function() {
                         updateTexture('#img-src');
-                        const mesh = screenCinema.getObject3D('mesh');
-                        if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
                         drawAmbilight(img);
                     };
                     img.src = src;
@@ -358,9 +364,13 @@
         }
 
         video.addEventListener('ended', () => {
-            if (currentTrack < playlist.length - 1) loadTrack(currentTrack + 1);
+            let next = currentTrack + 1;
+            if (next >= playlist.length) {
+                if (playlistLoop) next = 0;
+                else return;
+            }
+            loadTrack(next);
         });
-
 
         /* --- 2. MENU VISIBILITY --- */
         function toggleMenu(show) {
@@ -379,7 +389,6 @@
         document.getElementById('menu-orb').addEventListener('click', function() {
             toggleMenu(true); flash(this);
         });
-
 
         /* --- 3. VR INTERACTIONS --- */
         function flash(el) {
@@ -402,7 +411,9 @@
             if(currentTrack > 0) loadTrack(currentTrack - 1); flash(this);
         });
         document.getElementById('btn-next').addEventListener('click', function() {
-            if(currentTrack < playlist.length - 1) loadTrack(currentTrack + 1); flash(this);
+            let next = currentTrack + 1;
+            if (next >= playlist.length) next = playlistLoop ? 0 : currentTrack;
+            loadTrack(next); flash(this);
         });
 
         document.getElementById('btn-seek-back').addEventListener('click', function() {
@@ -412,6 +423,36 @@
             video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this);
         });
 
+        /* --- SEEK & VOLUME BARS --- */
+        const barBg = document.getElementById('bar-bg');
+        barBg.addEventListener('click', (evt) => {
+            if (evt.detail.intersection && video.duration) {
+                const point = evt.detail.intersection.point.clone();
+                const local = barBg.object3D.worldToLocal(point);
+                const frac = (local.x + 1.2) / 2.4;
+                if (frac >= 0 && frac <= 1) video.currentTime = frac * video.duration;
+            }
+        });
+
+        const volBg = document.getElementById('vol-bg');
+        volBg.addEventListener('click', (evt) => {
+            if (evt.detail.intersection) {
+                const point = evt.detail.intersection.point.clone();
+                const local = volBg.object3D.worldToLocal(point);
+                const frac = (local.x + 1.2) / 2.4;
+                if (frac >= 0 && frac <= 1) {
+                    gainNode.gain.value = frac * 5.0;
+                    updateVol();
+                }
+            }
+        });
+
+        /* --- REPEAT TOGGLE --- */
+        document.getElementById('btn-loop').addEventListener('click', function() {
+            playlistLoop = !playlistLoop;
+            document.getElementById('txt-loop').setAttribute('value', playlistLoop ? 'REPEAT ON' : 'REPEAT OFF');
+            flash(this);
+        });
 
         /* --- MODE LOGIC --- */
         document.getElementById('btn-mode').addEventListener('click', function() {
@@ -423,20 +464,17 @@
             floor.setAttribute('visible', false); 
 
             if(viewMode === 0) {
-                // 2D MODE
                 screenCinema.setAttribute('visible', true);
                 floor.setAttribute('visible', !isVoid);
                 this.querySelector('a-text').setAttribute('value', '2D VIEW');
                 if(!isVoid) scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             } 
             else if (viewMode === 1) {
-                // 180 CYLINDER
                 screen180.setAttribute('visible', true);
                 this.querySelector('a-text').setAttribute('value', '180 IMAX');
                 scene.removeAttribute('fog');
             } 
             else {
-                // 360 SPHERE
                 screen360.setAttribute('visible', true);
                 this.querySelector('a-text').setAttribute('value', '360 FULL');
                 scene.removeAttribute('fog');
@@ -444,7 +482,6 @@
 
             flash(this);
         });
-
 
         document.getElementById('btn-void').addEventListener('click', function() {
             isVoid = !isVoid;
@@ -467,7 +504,6 @@
             document.getElementById('txt-speed').setAttribute('value', video.playbackRate + 'x');
             flash(this);
         });
-
 
         /* --- 4. SEATING & SCREEN --- */
         const seats = {
@@ -500,7 +536,6 @@
         document.getElementById('curve-less').addEventListener('click', function() {
             if(currentCurve > 30) { currentCurve -= 10; updateScreen(); flash(this); }
         });
-
 
         /* --- 5. LOOP & HOVER --- */
         setInterval(() => {
@@ -542,7 +577,6 @@
             }
         });
 
-
         /* --- 6. AUDIO & VISUALS --- */
         function initAudio() {
             if(!audioCtx) {
@@ -551,7 +585,7 @@
             }
             if (!audioSourceNode) {
                 audioSourceNode = audioCtx.createMediaElementSource(video);
-                const gainNode = audioCtx.createGain();
+                gainNode = audioCtx.createGain();
                 gainNode.gain.value = 3.0;
                 panner = audioCtx.createPanner();
                 panner.panningModel = 'HRTF';
@@ -562,6 +596,13 @@
                 panner.connect(audioCtx.destination);
             }
             if(audioCtx.state === 'suspended') audioCtx.resume();
+            updateVol();
+        }
+
+        function updateVol() {
+            const pct = gainNode.gain.value / 5.0;
+            volFill.object3D.scale.x = pct;
+            volFill.object3D.position.x = -1.2 + (2.4 * pct / 2);
         }
 
         const ctx = document.getElementById('light-canvas').getContext('2d');
@@ -577,16 +618,27 @@
         
         function drawAmbilight(source) {
             try {
-                ctx.drawImage(source, 0, 0, 32, 32);
-                const p = ctx.getImageData(16,16,1,1).data;
-                const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
+                ctx.drawImage(source, 0, 0, 64, 64);
+                const size = 64;
+                const edge = 8;
+                const positions = [
+                    [edge, edge], [size-edge, edge], [edge, size-edge], [size-edge, size-edge],
+                    [size/2, edge], [size/2, size-edge], [edge, size/2], [size-edge, size/2]
+                ];
+                let r=0, g=0, b=0;
+                positions.forEach(p => {
+                    const data = ctx.getImageData(p[0], p[1], 1, 1).data;
+                    r += data[0]; g += data[1]; b += data[2];
+                });
+                r = Math.round(r / positions.length);
+                g = Math.round(g / positions.length);
+                b = Math.round(b / positions.length);
+                const hex = "#" + ((1<<24) + (r<<16) + (g<<8) + b).toString(16).slice(1);
                 if(viewMode === 0 && !isVoid) ambi.setAttribute('color', hex);
                 glow.setAttribute('color', hex);
-            } catch(e) { }
+            } catch(e) {}
         }
 
     </script>
 </body>
 </html>
-
-
