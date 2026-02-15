@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v7.0: PDF Edition</title>
+    <title>The Hub v6.0: Cylinder Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         /* --- 2D DASHBOARD --- */
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
@@ -62,12 +61,12 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v7.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v6.0</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
-            <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
+            <p style="color: #888; font-size: 0.9rem;">Select media or drag & drop files</p>
             
-            <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
+            <input type="file" id="file-input" accept="video/*, image/*" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
             
             <div class="url-box">
@@ -148,13 +147,13 @@
                 <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
 
                 <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
-                    <a-text id="txt-seek-back" value="-15s" align="center" width="2"></a-text>
+                    <a-text value="-15s" align="center" width="2"></a-text>
                 </a-plane>
                 <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ff9d00" class="clickable btn-hover">
                     <a-text id="txt-play" value="PLAY" align="center" width="4" color="black" font-weight="bold"></a-text>
                 </a-plane>
                 <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
-                    <a-text id="txt-seek-fwd" value="+15s" align="center" width="2"></a-text>
+                    <a-text value="+15s" align="center" width="2"></a-text>
                 </a-plane>
                 <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                     <a-text id="txt-speed" value="1x" align="center" width="2"></a-text>
@@ -204,9 +203,6 @@
 
     <script>
         /* --- CONFIG & STATE --- */
-        // Configure PDF.js worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-
         const video = document.getElementById('video-src');
         const img = document.getElementById('img-src');
         const uiLayer = document.getElementById('ui-layer');
@@ -232,10 +228,6 @@
         const progressFill = document.getElementById('progress-fill');
         const titleText = document.getElementById('txt-title');
         
-        // Control Button Texts
-        const txtSeekBack = document.getElementById('txt-seek-back');
-        const txtSeekFwd = document.getElementById('txt-seek-fwd');
-
         let playlist = []; 
         let currentTrack = 0;
         let viewMode = 0; // 0=2D, 1=180, 2=360
@@ -246,21 +238,12 @@
         let currentObjectURL = null;
         let hubTimer; 
 
-        // PDF State
-        let pdfDoc = null;
-        let pageNum = 1;
-        let pageRendering = false;
-        let pageNumPending = null;
-
         /* --- 1. PLAYLIST HANDLING --- */
         function handleFiles(files) {
             if (files.length > 0) {
                 const newItems = Array.from(files).map(f => {
-                    let type = 'video';
-                    if (f.type.startsWith('image/')) type = 'image';
-                    if (f.type === 'application/pdf') type = 'pdf';
-                    
-                    return { type: type, src: f, name: f.name };
+                    const isImage = f.type.startsWith('image/');
+                    return { type: isImage ? 'image' : 'video', src: f, name: f.name };
                 });
                 playlist = playlist.concat(newItems);
                 updatePlaylistUI();
@@ -282,12 +265,7 @@
             const url = urlInput.value.trim();
             if(url) {
                 const isImage = url.match(/\.(jpeg|jpg|gif|png)$/) != null;
-                const isPdf = url.match(/\.pdf$/) != null;
-                let type = 'video';
-                if(isImage) type = 'image';
-                if(isPdf) type = 'pdf';
-
-                playlist.push({ type: type, src: url, name: "Web Stream" });
+                playlist.push({ type: isImage ? 'image' : 'video', src: url, name: "Web Stream" });
                 urlInput.value = ""; 
                 updatePlaylistUI();
             }
@@ -302,7 +280,7 @@
                 div.className = 'playlist-item';
                 if(index === currentTrack && uiLayer.classList.contains('hidden')) div.classList.add('playlist-active');
                 div.innerText = `${index + 1}. [${item.type.toUpperCase()}] ${item.name}`;
-                div.onclick = () => { currentTrack = index; highlightActive(); }
+                div.onclick = () => { currentTrack = index; highlightActive(); loadTrack(index); };
                 playlistList.appendChild(div);
             });
         }
@@ -349,30 +327,10 @@
                     screen180.setAttribute('material', 'src', sourceIdOrUrl);
                 };
 
-                // Reset Controls Defaults
-                txtSeekBack.setAttribute('value', '-15s');
-                txtSeekFwd.setAttribute('value', '+15s');
-                playBtnText.setAttribute('value', 'PLAY');
-                videoControls.setAttribute('visible', true);
-
-                if (item.type === 'pdf') {
-                    video.pause();
-                    // PDF Mode Controls
-                    txtSeekBack.setAttribute('value', 'PREV PG');
-                    txtSeekFwd.setAttribute('value', 'NEXT PG');
-                    playBtnText.setAttribute('value', 'PDF VIEW');
-                    
-                    // Initialize PDF
-                    const loadingTask = pdfjsLib.getDocument(src);
-                    loadingTask.promise.then(pdf => {
-                        pdfDoc = pdf;
-                        pageNum = 1;
-                        renderPDFPage(pageNum);
-                    });
-
-                } else if (item.type === 'image') {
+                if (item.type === 'image') {
                     video.pause();
                     videoControls.setAttribute('visible', false);
+                    
                     updateTexture('');
 
                     img.onload = function() {
@@ -384,10 +342,10 @@
                     img.src = src;
 
                 } else {
-                    // Video Mode
                     video.src = src;
                     updateTexture('#video-src');
                     
+                    videoControls.setAttribute('visible', true);
                     initAudio();
                     video.play().then(() => {
                         playBtnText.setAttribute('value', 'PAUSE');
@@ -398,79 +356,6 @@
                 }
             }
         }
-        
-        // --- PDF RENDERING LOGIC ---
-        function renderPDFPage(num) {
-            pageRendering = true;
-            pdfDoc.getPage(num).then(page => {
-                // Higher scale = better resolution on VR screen
-                const viewport = page.getViewport({scale: 2.0}); 
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-
-                const renderContext = {
-                    canvasContext: ctx,
-                    viewport: viewport
-                };
-                
-                const renderTask = page.render(renderContext);
-
-                renderTask.promise.then(() => {
-                    pageRendering = false;
-                    
-                    // Convert canvas to image for A-Frame
-                    const dataUrl = canvas.toDataURL('image/png');
-                    img.src = dataUrl;
-                    
-                    // Update A-Frame Textures
-                    img.onload = function() {
-                        screenCinema.setAttribute('src', '#img-src');
-                        screen360.setAttribute('src', '#img-src');
-                        screen180.setAttribute('material', 'src', '#img-src');
-                        
-                        // Force texture refresh
-                        const mesh = screenCinema.getObject3D('mesh');
-                        if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
-                        
-                        drawAmbilight(img);
-                    };
-
-                    // Update UI Progress Bar for PDF
-                    const pct = num / pdfDoc.numPages;
-                    progressFill.object3D.scale.x = pct;
-                    progressFill.object3D.position.x = -1.2 + (2.4 * pct / 2);
-                    timeText.setAttribute('value', `Page ${num} / ${pdfDoc.numPages}`);
-
-                    if (pageNumPending !== null) {
-                        renderPDFPage(pageNumPending);
-                        pageNumPending = null;
-                    }
-                });
-            });
-        }
-
-        function queueRenderPage(num) {
-            if (pageRendering) {
-                pageNumPending = num;
-            } else {
-                renderPDFPage(num);
-            }
-        }
-
-        function onPrevPage() {
-            if (pageNum <= 1) return;
-            pageNum--;
-            queueRenderPage(pageNum);
-        }
-
-        function onNextPage() {
-            if (pageNum >= pdfDoc.numPages) return;
-            pageNum++;
-            queueRenderPage(pageNum);
-        }
-
 
         video.addEventListener('ended', () => {
             if (currentTrack < playlist.length - 1) loadTrack(currentTrack + 1);
@@ -504,10 +389,7 @@
         }
 
         document.getElementById('btn-play').addEventListener('click', function() {
-            if(playlist[currentTrack].type === 'video') {
-                togglePlay(); 
-            }
-            flash(this);
+            togglePlay(); flash(this);
         });
 
         function togglePlay() {
@@ -523,24 +405,11 @@
             if(currentTrack < playlist.length - 1) loadTrack(currentTrack + 1); flash(this);
         });
 
-        // Seek Back / Prev Page
         document.getElementById('btn-seek-back').addEventListener('click', function() {
-            if(playlist[currentTrack].type === 'pdf') {
-                onPrevPage();
-            } else {
-                video.currentTime = Math.max(0, video.currentTime - 15); 
-            }
-            flash(this);
+            video.currentTime = Math.max(0, video.currentTime - 15); flash(this);
         });
-
-        // Seek Forward / Next Page
         document.getElementById('btn-seek-fwd').addEventListener('click', function() {
-            if(playlist[currentTrack].type === 'pdf') {
-                onNextPage();
-            } else {
-                video.currentTime = Math.min(video.duration, video.currentTime + 15); 
-            }
-            flash(this);
+            video.currentTime = Math.min(video.duration, video.currentTime + 15); flash(this);
         });
 
 
@@ -635,8 +504,7 @@
 
         /* --- 5. LOOP & HOVER --- */
         setInterval(() => {
-            // Only update time if playing a VIDEO
-            if(playlist[currentTrack] && playlist[currentTrack].type === 'video' && video.duration) {
+            if(video.duration) {
                 const pct = video.currentTime / video.duration;
                 progressFill.object3D.scale.x = pct;
                 progressFill.object3D.position.x = -1.2 + (2.4 * pct / 2);
@@ -665,22 +533,10 @@
 
         window.addEventListener('keydown', (e) => {
             if(uiLayer.classList.contains('hidden')) {
-                // Check if current track is PDF
-                const isPdf = playlist[currentTrack] && playlist[currentTrack].type === 'pdf';
-                
                 switch(e.code) {
-                    case 'Space': 
-                        e.preventDefault(); 
-                        if(!isPdf) togglePlay(); 
-                        break;
-                    case 'ArrowRight': 
-                        if(isPdf) onNextPage(); 
-                        else video.currentTime = Math.min(video.duration, video.currentTime + 15); 
-                        break;
-                    case 'ArrowLeft': 
-                        if(isPdf) onPrevPage(); 
-                        else video.currentTime = Math.max(0, video.currentTime - 15); 
-                        break;
+                    case 'Space': e.preventDefault(); togglePlay(); break;
+                    case 'ArrowRight': video.currentTime = Math.min(video.duration, video.currentTime + 15); break;
+                    case 'ArrowLeft': video.currentTime = Math.max(0, video.currentTime - 15); break;
                     case 'KeyR': document.getElementById('btn-reset').click(); break;
                 }
             }
@@ -713,8 +569,7 @@
         const glow = document.getElementById('screen-glow');
 
         function updateAmbilight() {
-            // Only update if playing VIDEO
-            if(playlist[currentTrack] && playlist[currentTrack].type === 'video' && !video.paused && !video.ended) {
+            if(!video.paused && !video.ended) {
                 drawAmbilight(video);
                 requestAnimationFrame(updateAmbilight);
             }
@@ -729,6 +584,9 @@
                 glow.setAttribute('color', hex);
             } catch(e) { }
         }
+
+        // Final touch: click playlist items in UI also loads immediately
+        // (already handled in updatePlaylistUI)
 
     </script>
 </body>
