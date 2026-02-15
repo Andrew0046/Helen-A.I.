@@ -65,7 +65,8 @@
 
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
 <canvas id="vision-canvas" style="display:none;"></canvas>
-<canvas id="ambilight-canvas" width="32" height="32"></canvas> <div id="flash"></div>
+<canvas id="ambilight-canvas" width="32" height="32"></canvas>
+<div id="flash"></div>
 
 <input type="file" id="intel-input" multiple accept="*/*" style="display:none">
 
@@ -795,6 +796,38 @@
     }
 
     // --- HELPER FUNCTIONS ---
+    function mapBones(model) {
+        const skeleton = { head: null, spine: null, leftLeg: null, rightLeg: null };
+        model.traverse((o) => {
+            if (o.isBone) {
+                if (o.name.includes('Head')) skeleton.head = o;
+                if (o.name.includes('Spine')) skeleton.spine = o;
+                if (o.name.includes('L_UpperLeg')) skeleton.leftLeg = o;
+                if (o.name.includes('R_UpperLeg')) skeleton.rightLeg = o;
+            }
+        });
+        return skeleton;
+    }
+
+    function updateAI(model) {
+        if (!model.userData.skeleton || model.userData.isPaused) return;
+        const skel = model.userData.skeleton;
+        const playerPos = camera.getWorldPosition(new THREE.Vector3());
+        const flatPos = new THREE.Vector3(playerPos.x, model.position.y, playerPos.z);
+        const dist = model.position.distanceTo(flatPos);
+        
+        if (skel.head) model.lookAt(flatPos); // Head tracking
+
+        if (dist > AI_FOLLOW_DIST) {
+            const dir = new THREE.Vector3().subVectors(flatPos, model.position).normalize();
+            model.position.add(dir.multiplyScalar(AI_WALK_SPEED));
+            // Simple walking animation
+            const t = Date.now() * 0.01;
+            if(skel.leftLeg) skel.leftLeg.rotation.x = Math.sin(t) * 0.5;
+            if(skel.rightLeg) skel.rightLeg.rotation.x = -Math.sin(t) * 0.5;
+        }
+    }
+
     function spawnModel(position, data, rotation = null, scale = null) {
         const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
         loader.load(data.src, (loaded) => {
@@ -807,33 +840,151 @@
             if (scale) model.scale.copy(scale);
             model.position.copy(position);
             if (rotation) model.rotation.copy(rotation);
-            model.userData = { isScreen: true, isModel: true, label: data.label, type: data.type };
+            
+            // Map Skeleton
+            const skel = mapBones(model);
+
+            model.userData = { 
+                isScreen: true, isModel: true, label: data.label, type: data.type,
+                skeleton: skel, aiActive: true, isPaused: false
+            };
             scene.add(model); targets.push(model);
         });
     }
 
-    function spawnScreen(position, data, rotation = null) {
+    async function spawnScreen(position, data, rotation = null) {
         const geometry = new THREE.PlaneGeometry(1, 1);
         const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent:true, opacity:0.9 });
         const screen = new THREE.Mesh(geometry, material);
         screen.position.copy(position); 
-        if(rotation) screen.rotation.copy(rotation); else screen.lookAt(camera.getWorldPosition(new THREE.Vector3()));
         
-        if (data.type === 'image') {
+        if (rotation) screen.rotation.copy(rotation);
+        else {
+            const pPos = camera.getWorldPosition(new THREE.Vector3());
+            screen.lookAt(pPos.x, screen.position.y, pPos.z);
+        }
+        
+        screen.userData = { isScreen: true, label: data.label, type: data.type };
+
+        // --- PDF LOGIC ---
+        if (data.type === 'pdf') {
+            const clonedBuffer = data.buffer.slice(0);
+            const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
+            screen.userData.pdfDoc = pdf; 
+            screen.userData.pageNum = 1; 
+            screen.userData.totalPages = pdf.numPages;
+            
+            // Page Buttons
+            const createBtn = (dir) => {
+                const s = new THREE.Shape();
+                if(dir==='next'){ s.moveTo(0,0.2); s.lineTo(0.2,0); s.lineTo(0,-0.2); }
+                else { s.moveTo(0,0.2); s.lineTo(-0.2,0); s.lineTo(0,-0.2); }
+                const m = new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshBasicMaterial({color:0x00ffff}));
+                m.userData = { isButton: true, action: dir==='next'?'NEXT_PAGE':'PREV_PAGE' };
+                m.position.set(dir==='next'?0.7:-0.7, 0, 0.05);
+                screen.add(m);
+            }
+            createBtn('next'); createBtn('prev');
+            await renderPdfPageToTexture(screen, 1);
+        } 
+        // --- VIDEO LOGIC ---
+        else if (data.type === 'video') {
+            const videoElem = document.createElement('video'); 
+            videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; 
+            videoElem.loop = true; videoElem.muted = true; 
+            videoElem.play().then(()=>{videoElem.muted=false;});
+            
+            const tex = new THREE.VideoTexture(videoElem); 
+            tex.colorSpace = THREE.SRGBColorSpace;
+            screen.material.map = tex; 
+            screen.userData.videoElement = videoElem;
+            screen.scale.set(3, 1.8, 1);
+        } 
+        // --- IMAGE LOGIC ---
+        else {
             new THREE.TextureLoader().load(data.src, (tex) => {
-                tex.colorSpace = THREE.SRGBColorSpace; screen.material.map = tex;
-                screen.scale.set(1.8 * (tex.image.width/tex.image.height), 1.8, 1);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                screen.material.map = tex;
+                const aspect = tex.image.width / tex.image.height;
+                screen.scale.set(1.8 * aspect, 1.8, 1); 
             });
         }
-        screen.userData = { isScreen: true, label: data.label, type: data.type };
         scene.add(screen); targets.push(screen);
     }
     
-    function spawnAudio(pos, data) {
-         // Placeholder for audio logic
+    async function renderPdfPageToTexture(mesh, pageNum) {
+        if (!mesh.userData.pdfDoc || mesh.userData.isRendering) return;
+        mesh.userData.isRendering = true;
+        try {
+            const pdf = mesh.userData.pdfDoc;
+            if (pageNum < 1) pageNum = 1; if (pageNum > pdf.numPages) pageNum = pdf.numPages;
+            mesh.userData.pageNum = pageNum;
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 3.0 });
+            const canvas = document.createElement('canvas'); 
+            canvas.height = viewport.height; canvas.width = viewport.width;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+            
+            const tex = new THREE.CanvasTexture(canvas); 
+            tex.colorSpace = THREE.SRGBColorSpace;
+            if (mesh.material.map) mesh.material.map.dispose(); 
+            mesh.material.map = tex; mesh.material.needsUpdate = true;
+            mesh.scale.set(1.8 * (viewport.width / viewport.height), 1.8, 1);
+        } catch(e) { console.error(e); }
+        mesh.userData.isRendering = false;
     }
-    function spawnChart(pos, data) {
-         // Placeholder for chart logic
+    
+    function spawnAudio(position, data) {
+        const geo = new THREE.IcosahedronGeometry(0.3, 1);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+        const orb = new THREE.Mesh(geo, mat);
+        orb.position.copy(position);
+        
+        const sound = new THREE.Audio(audioListener);
+        new THREE.AudioLoader().load(data.src, function(buffer) {
+            sound.setBuffer(buffer); sound.setLoop(true); sound.setVolume(0.5);
+        });
+        
+        orb.userData = { 
+            isScreen: true, isAudio: true, sound: sound, 
+            isPlaying: false, label: data.label, type: 'audio' 
+        };
+        scene.add(orb); targets.push(orb);
+    }
+
+    function spawnChart(position, data) {
+        const lines = data.data.split('\n');
+        const chartGroup = new THREE.Group();
+        chartGroup.position.copy(position);
+        
+        let maxVal = 0; const parsed = [];
+        lines.forEach(l => {
+            const parts = l.split(',');
+            if(parts.length >= 2) {
+                const val = parseFloat(parts[1]);
+                if(!isNaN(val)) { parsed.push({label: parts[0], val}); if(val>maxVal) maxVal=val; }
+            }
+        });
+        
+        parsed.forEach((item, i) => {
+            const h = (item.val / maxVal) * 1.5; 
+            const bar = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, h, 0.2), 
+                new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 })
+            );
+            bar.position.set((i * 0.3) - ((parsed.length*0.3)/2), h/2, 0);
+            
+            // Label
+            const canvas = document.createElement('canvas'); canvas.width=256; canvas.height=128;
+            const ctx = canvas.getContext('2d'); ctx.fillStyle='#fff'; ctx.font='bold 40px Courier'; 
+            ctx.fillText(item.label, 10, 50); ctx.fillStyle='#00ffff'; ctx.fillText(item.val, 10, 100);
+            const lbl = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.2), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(canvas), transparent:true, side:THREE.DoubleSide}));
+            lbl.position.y = h + 0.2; bar.add(lbl);
+            chartGroup.add(bar);
+        });
+        
+        chartGroup.userData = { isScreen: true, isChart: true, label: data.label, type: 'chart' };
+        scene.add(chartGroup); targets.push(chartGroup);
     }
 
     function deleteObject(obj) {
@@ -985,7 +1136,18 @@
             handleCockpit(); 
             updateMenuPosition(); 
             updateHUD(); 
-            updateAmbilight(); // RUN AMBILIGHT
+            updateAmbilight(); 
+            
+            // --- AI & AUDIO LOOP ---
+            targets.forEach(t => { 
+                if(t.userData.isModel && t.userData.aiActive) updateAI(t);
+                // Animate Audio Orbs
+                if(t.userData.isAudio && t.userData.isPlaying) {
+                    const s = 1.0 + Math.sin(Date.now() * 0.01) * 0.2;
+                    t.scale.set(s,s,s);
+                }
+            }); 
+
             renderer.render(scene, camera); 
         });
     }
