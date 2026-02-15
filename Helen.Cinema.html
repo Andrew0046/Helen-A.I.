@@ -107,10 +107,12 @@
         <a-curvedimage id="screen-cinema" src="#video-src" 
             height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="true">
         </a-curvedimage>
+        
         <a-curvedimage id="screen-cinema-left" src="#video-src" 
             height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"
             material="repeat: 0.5 1; offset: 0 0">
         </a-curvedimage>
+        
         <a-curvedimage id="screen-cinema-right" src="#video-src" 
             height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"
             material="repeat: 0.5 1; offset: 0.5 0">
@@ -120,18 +122,22 @@
         <a-entity id="screen-180" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
             material="shader: flat; side: back; src: #video-src" rotation="0 -270 0" visible="false">
         </a-entity>
+
         <a-entity id="screen-180-left" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
             material="shader: flat; side: back; src: #video-src; repeat: 0.5 1; offset: 0 0" rotation="0 -270 0" visible="false">
         </a-entity>
+
         <a-entity id="screen-180-right" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
             material="shader: flat; side: back; src: #video-src; repeat: 0.5 1; offset: 0.5 0" rotation="0 -270 0" visible="false">
         </a-entity>
 
 
         <a-videosphere id="screen-360" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
+        
         <a-videosphere id="screen-360-left" src="#video-src" radius="60" rotation="0 -90 0" 
             material="shader: flat; side: back; fog: false; repeat: 0.5 1; offset: 0 0" visible="false">
         </a-videosphere>
+
         <a-videosphere id="screen-360-right" src="#video-src" radius="60" rotation="0 -90 0" 
             material="shader: flat; side: back; fog: false; repeat: 0.5 1; offset: 0.5 0" visible="false">
         </a-videosphere>
@@ -292,15 +298,10 @@
                 if(mesh) {
                     mesh.layers.set(layerIndex);
                 } else {
-                    el.addEventListener('model-loaded', () => { 
-                        if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); 
-                    });
-                    el.addEventListener('loaded', () => { 
-                        if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); 
-                    });
+                    el.addEventListener('model-loaded', () => { el.getObject3D('mesh').layers.set(layerIndex); });
+                    el.addEventListener('loaded', () => { if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); });
                 }
             };
-            // 1 = Left, 2 = Right, 0 = Default/Both
             setLayer(DOM.vr.screens.cinemaL, 1); setLayer(DOM.vr.screens.cylL, 1); setLayer(DOM.vr.screens.sphereL, 1);
             setLayer(DOM.vr.screens.cinemaR, 2); setLayer(DOM.vr.screens.cylR, 2); setLayer(DOM.vr.screens.sphereR, 2);
             setLayer(DOM.vr.screens.cinema, 0); setLayer(DOM.vr.screens.cyl, 0); setLayer(DOM.vr.screens.sphere, 0);
@@ -532,19 +533,18 @@
 
         document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
         
-        /* ROBUST RESET FUNCTION */
+        // --- NEW ROBUST RESET LOGIC ---
         document.getElementById('btn-reset').addEventListener('click', function() {
             const rig = DOM.vr.env.rig.object3D;
             const cam = document.querySelector('[camera]').object3D;
-            const camY = cam.rotation.y * (180 / Math.PI);
-            const currentRigY = rig.rotation.y * (180 / Math.PI);
-            const newRigY = currentRigY - camY;
-            rig.rotation.y = newRigY * (Math.PI / 180);
-            rig.rotation.x = 0; rig.rotation.z = 0;
+            rig.rotation.y -= cam.rotation.y;
+            rig.rotation.x = 0;
+            rig.rotation.z = 0;
             rig.position.set(0, 1.6, 0);
             DOM.vr.controls.wrapper.setAttribute('rotation', '-25 0 0');
             flash(this);
         });
+        // ------------------------------
 
         document.getElementById('btn-speed').addEventListener('click', function() {
             const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; const v = DOM.media.video;
