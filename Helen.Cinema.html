@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v8.0: 3D IMAX Edition</title>
+    <title>The Hub v8.1: 3D Fix</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/aframe-stereo-component@0.6.0/dist/aframe-stereo-component.min.js"></script>
@@ -64,7 +64,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v8.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v8.1</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -111,12 +111,12 @@
         
         <a-curvedimage id="screen-cinema-left" src="#video-src" 
             height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"
-            stereo="eye: left" material="repeat: 0.5 1; offset: 0 0">
+            stereo="eye: left">
         </a-curvedimage>
         
         <a-curvedimage id="screen-cinema-right" src="#video-src" 
             height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"
-            stereo="eye: right" material="repeat: 0.5 1; offset: 0.5 0">
+            stereo="eye: right">
         </a-curvedimage>
 
 
@@ -125,22 +125,22 @@
         </a-entity>
 
         <a-entity id="screen-180-left" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
-            material="shader: flat; side: back; src: #video-src; repeat: 0.5 1; offset: 0 0" rotation="0 -270 0" visible="false" stereo="eye:left">
+            material="shader: flat; side: back; src: #video-src" rotation="0 -270 0" visible="false" stereo="eye:left">
         </a-entity>
 
         <a-entity id="screen-180-right" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
-            material="shader: flat; side: back; src: #video-src; repeat: 0.5 1; offset: 0.5 0" rotation="0 -270 0" visible="false" stereo="eye:right">
+            material="shader: flat; side: back; src: #video-src" rotation="0 -270 0" visible="false" stereo="eye:right">
         </a-entity>
 
 
         <a-videosphere id="screen-360" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
         
         <a-videosphere id="screen-360-left" src="#video-src" radius="60" rotation="0 -90 0" 
-            material="shader: flat; side: back; fog: false; repeat: 0.5 1; offset: 0 0" visible="false" stereo="eye:left">
+            material="shader: flat; side: back; fog: false" visible="false" stereo="eye:left">
         </a-videosphere>
 
         <a-videosphere id="screen-360-right" src="#video-src" radius="60" rotation="0 -90 0" 
-            material="shader: flat; side: back; fog: false; repeat: 0.5 1; offset: 0.5 0" visible="false" stereo="eye:right">
+            material="shader: flat; side: back; fog: false" visible="false" stereo="eye:right">
         </a-videosphere>
 
 
@@ -229,8 +229,8 @@
         const state = {
             playlist: [],
             currentTrack: 0,
-            viewMode: 0, // 0=Cinema, 1=180, 2=360
-            is3D: false, // 3D Toggle state
+            viewMode: 0, 
+            is3D: false, 
             isVoid: false,
             curve: 90,
             currentObjectURL: null,
@@ -387,8 +387,6 @@
                 if (item.type === 'pdf') {
                     DOM.media.video.pause();
                     force2DMode(); 
-                    
-                    // Lock mode & 3D buttons for PDF
                     DOM.vr.controls.modeBtn.setAttribute('color', '#555');
                     DOM.vr.controls.btn3d.setAttribute('color', '#555');
                     DOM.vr.controls.btn3d.classList.remove('clickable');
@@ -409,7 +407,11 @@
                     DOM.media.video.pause();
                     DOM.vr.controls.videoGroup.setAttribute('visible', false);
                     updateTexture('#img-src'); 
-                    DOM.media.img.onload = function() { refreshTextureMesh(); drawAmbilight(DOM.media.img); };
+                    DOM.media.img.onload = function() { 
+                        refreshTextureMesh(); 
+                        drawAmbilight(DOM.media.img); 
+                        if(state.is3D) fix3DTextures(); // Apply 3D split if active
+                    };
                     DOM.media.img.src = src;
 
                 } else {
@@ -418,6 +420,8 @@
                     initAudio();
                     DOM.media.video.play().then(() => {
                         DOM.vr.controls.playText.setAttribute('value', 'PAUSE');
+                        // CRITICAL: Ensure textures are split for 3D once playing
+                        setTimeout(fix3DTextures, 500);
                     }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY'));
                     requestAnimationFrame(updateAmbilight);
                 }
@@ -426,7 +430,6 @@
 
         /* TEXTURE & SCREEN HELPERS */
         function updateTexture(sourceId) {
-            // Update ALL screens (Standard, Left, Right)
             const screens = [
                 DOM.vr.screens.cinema, DOM.vr.screens.cyl, DOM.vr.screens.sphere,
                 DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL,
@@ -450,12 +453,41 @@
             });
         }
 
+        /* --- THE MAGIC FIX: FORCE TEXTURE CLONING FOR 3D --- */
+        function fix3DTextures() {
+            // We must manually clone the texture for the Right Eye screens so they can have independent Offsets.
+            const rightScreens = [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR];
+            rightScreens.forEach(el => {
+                const mesh = el.getObject3D('mesh');
+                if(mesh && mesh.material && mesh.material.map) {
+                    const tex = mesh.material.map.clone(); // Clone texture
+                    tex.needsUpdate = true;
+                    mesh.material.map = tex; // Assign new unique texture
+                    
+                    // Force Right Eye Offset (Right half of video)
+                    mesh.material.map.repeat.set(0.5, 1);
+                    mesh.material.map.offset.set(0.5, 0);
+                }
+            });
+
+            // Ensure Left Eye is standard
+            const leftScreens = [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL];
+            leftScreens.forEach(el => {
+                const mesh = el.getObject3D('mesh');
+                if(mesh && mesh.material && mesh.material.map) {
+                    mesh.material.map.repeat.set(0.5, 1);
+                    mesh.material.map.offset.set(0, 0);
+                }
+            });
+        }
+
         function updateVisibility() {
-            // Hide Everything First
             Object.values(DOM.vr.screens).forEach(s => s.setAttribute('visible', false));
             DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
 
-            // Determine which set to show based on Mode & 3D
+            // Trigger Texture Fix if entering 3D
+            if(state.is3D) fix3DTextures();
+
             if (state.viewMode === 0) { // Cinema
                 if (state.is3D) {
                     DOM.vr.screens.cinemaL.setAttribute('visible', true);
@@ -488,7 +520,6 @@
                 DOM.vr.scene.removeAttribute('fog');
             }
             
-            // Update 3D Button Text
             DOM.vr.controls.txt3d.setAttribute('value', state.is3D ? "3D SBS" : "2D MODE");
             DOM.vr.controls.btn3d.setAttribute('color', state.is3D ? "#ff9d00" : "#222");
         }
@@ -506,16 +537,13 @@
             flash(this);
         });
 
-        // NEW 3D TOGGLE LOGIC
         DOM.vr.controls.btn3d.addEventListener('click', function() {
-            // Disable if PDF
             if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return;
             state.is3D = !state.is3D;
             updateVisibility();
             flash(this);
         });
 
-        // Other Buttons...
         document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
         document.getElementById('menu-orb').addEventListener('click', function() { toggleMenu(true); flash(this); });
         document.getElementById('btn-play').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'video') togglePlay(); flash(this); });
@@ -595,7 +623,6 @@
             if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume();
         }
         
-        /* SEATING & CURVE */
         const seats = { front: { pos: "0 1.6 -1", rot: "-25 0 0" }, back: { pos: "0 2.5 2", rot: "-25 0 0" }, recline: { pos: "0 0.5 0", rot: "-45 0 0" } };
         document.getElementById('seat-front').addEventListener('click', function() { DOM.vr.env.rig.setAttribute('position', seats.front.pos); DOM.vr.controls.wrapper.setAttribute('rotation', seats.front.rot); flash(this); });
         document.getElementById('seat-back').addEventListener('click', function() { DOM.vr.env.rig.setAttribute('position', seats.back.pos); DOM.vr.controls.wrapper.setAttribute('rotation', seats.back.rot); flash(this); });
