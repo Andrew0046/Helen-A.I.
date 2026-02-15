@@ -3,237 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v6.1: Neon Edition</title>
+    <title>The Hub v7.1: Robust Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://unpkg.com/aframe-particle-system-component@1.1.3/dist/aframe-particle-system-component.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        /* --- 2D DASHBOARD - UPGRADED TO MAXIMUM CYBER NEON --- */
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            background: #050505; 
-            font-family: 'Segoe UI', Roboto, sans-serif; 
-            color: white; 
-        }
+        /* --- CORE UI STYLES --- */
+        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
         
         #ui-layer {
-            position: absolute; 
-            z-index: 9999; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%;
-            background: 
-                radial-gradient(circle at center, #1a0033 0%, #000 70%),
-                linear-gradient(transparent 50%, rgba(0, 210, 255, 0.03) 50%);
-            background-size: 100% 100%, 100% 4px;
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center;
+            position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow: hidden;
-        }
-        
-        /* Neon scanlines */
-        #ui-layer::after {
-            content: '';
-            position: absolute;
-            top: -100%;
-            left: 0;
-            width: 100%;
-            height: 200%;
-            background: linear-gradient(
-                to bottom,
-                transparent 50%,
-                rgba(0, 210, 255, 0.08) 50%
-            );
-            background-size: 100% 4px;
-            animation: scanline 6s linear infinite;
-            pointer-events: none;
-            opacity: 0.6;
-        }
-        
-        @keyframes scanline {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100%); }
         }
         
         .hidden { opacity: 0; pointer-events: none; }
 
-        h1 { 
-            font-weight: 200; 
-            letter-spacing: 12px; 
-            text-transform: uppercase; 
-            margin-bottom: 30px;
-            text-shadow: 
-                0 0 10px #00d2ff,
-                0 0 30px #00d2ff,
-                0 0 60px #ff00aa;
-            animation: neon-flicker 3s infinite alternate;
-        }
-        h1 span { 
-            font-weight: 700; 
-            color: #ff00aa; 
-            text-shadow: 0 0 40px #ff00aa;
-        }
+        h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 30px; }
+        h1 span { font-weight: 700; color: #00d2ff; text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
 
-        @keyframes neon-flicker {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.85; }
-        }
-
+        /* Card & Inputs */
         .hub-card {
-            background: rgba(10, 10, 30, 0.7); 
-            border: 2px solid rgba(0, 210, 255, 0.4);
-            backdrop-filter: blur(20px); 
-            padding: 50px; 
-            border-radius: 20px; 
-            width: 480px; 
-            text-align: center;
-            box-shadow: 
-                0 0 40px rgba(0, 210, 255, 0.6),
-                inset 0 0 60px rgba(255, 0, 170, 0.2);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .hub-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            animation: card-glow 8s ease-in-out infinite;
-            pointer-events: none;
-        }
-
-        @keyframes card-glow {
-            0%, 100% { transform: scale(0.8); opacity: 0.4; }
-            50% { transform: scale(1.2); opacity: 0.7; }
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px); padding: 40px; border-radius: 16px; width: 450px; text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
         .btn-main {
-            background: linear-gradient(135deg, #00ffff 0%, #ff00aa 100%); 
-            border: none; 
-            padding: 18px 40px;
-            color: white; 
-            font-weight: bold; 
-            font-size: 17px; 
-            letter-spacing: 2px; 
-            border-radius: 50px;
-            cursor: pointer; 
-            margin-top: 25px; 
-            width: 100%; 
-            transition: all 0.3s;
-            box-shadow: 0 0 30px #00ffff;
-            position: relative;
-            overflow: hidden;
+            background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px;
+            color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px;
+            cursor: pointer; margin-top: 20px; width: 100%; transition: transform 0.2s;
         }
-        .btn-main:hover { 
-            transform: translateY(-4px) scale(1.05); 
-            box-shadow: 0 0 60px #ff00aa;
-        }
-        .btn-main::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 40%;
-            height: 200%;
-            background: linear-gradient(
-                120deg,
-                transparent,
-                rgba(255,255,255,0.4),
-                transparent
-            );
-            transform: skewX(-25deg);
-            animation: shine 3s infinite;
-        }
-        @keyframes shine {
-            0% { transform: translateX(-200%) skewX(-25deg); }
-            20% { transform: translateX(300%) skewX(-25deg); }
-            100% { transform: translateX(300%) skewX(-25deg); }
-        }
+        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
 
-        .url-box { 
-            margin-top: 35px; 
-            border-top: 1px solid rgba(0, 210, 255, 0.3); 
-            padding-top: 25px; 
-            display: flex; 
-            gap: 12px; 
-        }
-        input[type="text"] { 
-            flex: 1; 
-            background: rgba(0,0,0,0.6); 
-            border: 1px solid #00d2ff; 
-            padding: 14px; 
-            color: white; 
-            border-radius: 8px;
-            font-size: 15px;
-        }
-        .btn-small { 
-            background: #111; 
-            border: 1px solid #00d2ff; 
-            color: #00ffff; 
-            padding: 0 20px; 
-            border-radius: 8px; 
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .btn-small:hover {
-            background: #00d2ff;
-            color: #000;
-            transform: scale(1.1);
-        }
+        .url-box { margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid #333; padding: 10px; color: white; border-radius: 4px; }
+        .btn-small { background: #333; border: 1px solid #444; color: #aaa; padding: 0 15px; border-radius: 4px; cursor: pointer; }
 
+        /* Playlist */
         #playlist-ui {
-            margin-top: 25px; 
-            max-height: 160px; 
-            overflow-y: auto; 
-            text-align: left;
-            background: rgba(0,0,0,0.6); 
-            padding: 15px; 
-            border-radius: 12px; 
-            font-size: 0.92rem; 
-            color: #aaa;
-            border: 1px solid rgba(255,255,255,0.08);
+            margin-top: 20px; max-height: 150px; overflow-y: auto; text-align: left;
+            background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; font-size: 0.9rem; color: #aaa;
         }
-        .playlist-item { 
-            padding: 8px 10px; 
-            border-bottom: 1px solid #222; 
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .playlist-item:hover { 
-            color: #00ffff; 
-            background: rgba(0, 210, 255, 0.15); 
-            padding-left: 15px;
-        }
-        .playlist-active { 
-            color: #ff00aa; 
-            font-weight: bold; 
-            background: rgba(255, 0, 170, 0.2);
-        }
+        .playlist-item { padding: 5px; border-bottom: 1px solid #333; cursor: pointer; transition: background 0.2s; }
+        .playlist-item:hover { color: white; background: rgba(255,255,255,0.1); }
+        .playlist-active { color: #ff9d00; font-weight: bold; }
 
+        /* Drag & Drop */
         #drop-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 210, 255, 0.15); 
-            border: 6px dashed #00ffff;
-            z-index: 10000; 
-            display: none; 
-            align-items: center; 
-            justify-content: center;
-            font-size: 2.4rem; 
-            font-weight: bold; 
-            text-transform: uppercase; 
-            pointer-events: none;
-            text-shadow: 0 0 40px #00ffff;
-            animation: drop-pulse 1.2s infinite alternate;
-        }
-        @keyframes drop-pulse {
-            from { opacity: 0.6; }
-            to { opacity: 1; }
+            background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff;
+            z-index: 10000; display: none; align-items: center; justify-content: center;
+            font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none;
         }
         
         #light-canvas { display: none; }
@@ -241,34 +62,34 @@
 </head>
 <body>
 
-    <div id="drop-overlay">DROP MEDIA TO PLAY</div>
+    <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff00aa">HUB</span> <span style="font-size: 0.48em; vertical-align: super; color: #666">v6.1</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v7.1</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 12px; font-weight: 400; letter-spacing: 3px; color: #00ffff;">INITIALIZE NEON CORE</h3>
-            <p style="color: #888; font-size: 0.92rem;">Load local files • Drag & drop • Paste URL</p>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
+            <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
             
-            <input type="file" id="file-input" accept="video/*, image/*" multiple style="display:none">
-            <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD MEDIA</button>
+            <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
+            <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
             
             <div class="url-box">
-                <input type="text" id="url-input" placeholder="https://stream...">
-                <button class="btn-small" id="btn-url">CONNECT</button>
+                <input type="text" id="url-input" placeholder="Paste stream URL...">
+                <button class="btn-small" id="btn-url">GO</button>
             </div>
 
             <div id="playlist-ui" style="display:none">
-                <div style="color:#00ffff; font-weight:bold; margin-bottom:8px; letter-spacing:1px;">QUEUE PROTOCOL ACTIVE</div>
+                <div style="color:white; font-weight:bold; margin-bottom:5px;">Queue:</div>
                 <div id="playlist-list"></div>
             </div>
             
-            <button id="btn-start" class="btn-main" style="display:none; background: linear-gradient(135deg, #ff00aa 0%, #00ffff 100%); margin-top: 30px;">ENTER THE VOID</button>
+            <button id="btn-start" class="btn-main" style="display:none; background: #ff9d00; margin-top: 20px;">ENTER VR</button>
         </div>
     </div>
 
     <canvas id="light-canvas" width="32" height="32"></canvas>
 
-    <a-scene background="color: #0a001f" fog="type: exponential; color: #0a001f; density: 0.012">
+    <a-scene background="color: #000" fog="type: exponential; color: #000; density: 0.015">
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
@@ -276,137 +97,103 @@
             <img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
         </a-assets>
 
-        <!-- FLOOR - now with neon emissive -->
-        <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="100" height="100" 
-                 material="src: #grid-texture; repeat: 60 60; color: #0f0f1f; roughness: 0.15; metalness: 0.95; emissive: #00d2ff; emissiveIntensity: 0.25">
+        <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
+                 src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
         </a-plane>
-        
-        <a-sky color="#0a001f"></a-sky>
+        <a-sky color="#050505"></a-sky>
 
-        <!-- LIGHTING UPGRADE -->
-        <a-light id="ambi-light" type="ambient" color="#332244" intensity="0.35"></a-light>
-        <a-light id="screen-glow" type="point" position="0 5 -4" distance="30" decay="1.5" intensity="1.2" color="#ffffff"></a-light>
-        <a-light type="hemisphere" color="#220033" ground-color="#001122" intensity="0.6"></a-light>
+        <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
+        <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
-        <!-- SCREEN FRAME - neon ring -->
-        <a-ring id="screen-frame" position="0 5.1 0.1" rotation="0 135 0" 
-                radius-inner="13.8" radius-outer="14.8" 
-                color="#00ffff" emissive="#00ffff" emissive-intensity="3"
-                side="double" visible="true" opacity="0.7"></a-ring>
-
-        <!-- MAIN CINEMA SCREEN -->
         <a-curvedimage id="screen-cinema" src="#video-src" 
-            height="12.5" radius="14.5" theta-length="90" 
+            height="12" radius="14" theta-length="90" 
             rotation="0 135 0" position="0 5 0" 
             side="double" visible="true">
         </a-curvedimage>
 
-        <!-- 180 & 360 -->
         <a-entity id="screen-180" 
-            geometry="primitive: cylinder; radius: 62; height: 105; thetaLength: 180; openEnded: true; segmentsRadial: 96" 
+            geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
             material="shader: flat; side: back; src: #video-src" 
-            rotation="0 -270 0" 
-            scale="1 1 1" 
-            visible="false">
+            rotation="0 -270 0" scale="1 1 1" visible="false">
         </a-entity>
 
         <a-videosphere id="screen-360" src="#video-src" 
-            radius="62" rotation="0 -90 0" 
-            material="shader: flat; side: back; fog: false" 
-            visible="false">
-        </a-entity>
+            radius="60" rotation="0 -90 0" 
+            material="shader: flat; side: back; fog: false" visible="false">
+        </a-videosphere>
 
-        <!-- MENU ORB - now with extra glow -->
-        <a-sphere id="menu-orb" position="0 -0.9 -1.4" radius="0.18" color="#ff00aa" 
+        <a-sphere id="menu-orb" position="0 -1.0 -1.5" radius="0.15" color="#ff9d00" 
                   visible="false" class="clickable"
-                  animation="property: scale; dir: alternate; dur: 1200; to: 1.25 1.25 1.25; loop: true">
-            <a-light type="point" distance="3" color="#ff00aa" intensity="4"></a-light>
-            <a-text value="OPEN MENU" align="center" position="0 0.28 0" width="3.5" color="#ffffff" opacity="0.9"></a-text>
+                  animation="property: scale; dir: alternate; dur: 1500; to: 1.1 1.1 1.1; loop: true">
+            <a-light type="point" distance="2" color="#ff9d00" intensity="2"></a-light>
+            <a-text value="OPEN MENU" align="center" position="0 0.25 0" width="3" color="#ff9d00"></a-text>
         </a-sphere>
 
-        <!-- THE HUB PANEL -->
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
             
-            <a-box depth="0.025" height="1.05" width="2.9" color="#05050f" opacity="0.92" class="clickable"></a-box>
-            <a-box position="0 0.5 0" depth="0.04" height="0.015" width="2.9" color="#00ffff" opacity="0.9" emissive="#00ffff" emissive-intensity="2"></a-box>
+            <a-box depth="0.02" height="1.0" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
+            <a-box position="0 0.49 0" depth="0.03" height="0.01" width="2.8" color="#ff9d00" opacity="0.8"></a-box>
 
-            <a-text id="txt-title" value="Waiting..." position="0 0.43 0.03" align="center" width="2.6" color="#ffffff"></a-text>
+            <a-text id="txt-title" value="Waiting..." position="0 0.42 0.02" align="center" width="2.5" color="white"></a-text>
 
-            <a-plane id="btn-close" position="1.25 0.42 0.04" width="0.28" height="0.16" color="#ff0044" class="clickable btn-hover">
-                <a-text value="X" align="center" width="7" font-weight="bold" color="#ffffff"></a-text>
+            <a-plane id="btn-close" position="1.2 0.4 0.03" width="0.25" height="0.15" color="#cc0000" class="clickable btn-hover">
+                <a-text value="X" align="center" width="6" font-weight="bold"></a-text>
             </a-plane>
 
             <a-entity id="video-controls">
-                <a-text id="time-display" value="00:00 / 00:00" position="0 0.36 0.03" align="center" width="2.6" color="#bbbbff"></a-text>
-                <a-plane position="0 0.29 0.03" width="2.5" height="0.025" color="#222233" class="clickable btn-hover" id="bar-bg"></a-plane>
-                <a-plane id="progress-fill" position="-1.25 0.29 0.04" width="2.5" height="0.025" color="#00ffff" scale="0 1 1" pivot="center left" emissive="#00ffff" emissive-intensity="3"></a-plane>
+                <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
+                <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333" class="clickable btn-hover" id="bar-bg"></a-plane>
+                <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
 
-                <a-plane id="btn-seek-back" position="-0.58 0.16 0.04" width="0.28" height="0.16" color="#111122" class="clickable btn-hover">
-                    <a-text value="-15s" align="center" width="2.2" color="#00ffff"></a-text>
+                <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
+                    <a-text id="txt-seek-back" value="-15s" align="center" width="2"></a-text>
                 </a-plane>
-                <a-plane id="btn-play" position="0 0.16 0.04" width="0.75" height="0.22" color="#ff00aa" class="clickable btn-hover">
-                    <a-text id="txt-play" value="PLAY" align="center" width="4.5" color="#000000" font-weight="bold"></a-text>
+                <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ff9d00" class="clickable btn-hover">
+                    <a-text id="txt-play" value="PLAY" align="center" width="4" color="black" font-weight="bold"></a-text>
                 </a-plane>
-                <a-plane id="btn-seek-fwd" position="0.58 0.16 0.04" width="0.28" height="0.16" color="#111122" class="clickable btn-hover">
-                    <a-text value="+15s" align="center" width="2.2" color="#00ffff"></a-text>
+                <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
+                    <a-text id="txt-seek-fwd" value="+15s" align="center" width="2"></a-text>
                 </a-plane>
-                <a-plane id="btn-speed" position="1.05 -0.09 0.04" width="0.55" height="0.16" color="#111122" class="clickable btn-hover">
-                    <a-text id="txt-speed" value="1x" align="center" width="2.2" color="#00ffff"></a-text>
+                <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
+                    <a-text id="txt-speed" value="1x" align="center" width="2"></a-text>
                 </a-plane>
             </a-entity>
 
-            <!-- Rest of controls same but with neon upgrades -->
-            <a-plane id="btn-prev" position="-0.95 0.16 0.04" width="0.28" height="0.16" color="#111122" class="clickable btn-hover">
-                <a-text value="|<<" align="center" width="3.2" color="#00ffff"></a-text>
+            <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value="|<<" align="center" width="3"></a-text>
             </a-plane>
-            <a-plane id="btn-next" position="0.95 0.16 0.04" width="0.28" height="0.16" color="#111122" class="clickable btn-hover">
-                <a-text value=">>|" align="center" width="3.2" color="#00ffff"></a-text>
-            </a-plane>
-
-            <a-plane id="btn-mode" position="-1.05 -0.09 0.04" width="0.55" height="0.16" color="#111122" class="clickable btn-hover">
-                <a-text value="2D VIEW" align="center" width="2"></a-text>
-            </a-plane>
-            
-            <a-plane id="btn-void" position="-0.4 -0.09 0.04" width="0.55" height="0.16" color="#111122" class="clickable btn-hover">
-                <a-text value="VOID" align="center" width="2"></a-text>
-            </a-plane>
-            <a-plane id="btn-reset" position="0.4 -0.09 0.04" width="0.55" height="0.16" color="#111122" class="clickable btn-hover">
-                <a-text value="RESET" align="center" width="2"></a-text>
+            <a-plane id="btn-next" position="0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value=">>|" align="center" width="3"></a-text>
             </a-plane>
 
-            <a-text value="SEAT" position="-0.85 -0.27 0.04" width="1.4" align="center" color="#8888bb"></a-text>
-            <a-text value="CURVE" position="0.85 -0.27 0.04" width="1.4" align="center" color="#8888bb"></a-text>
+            <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value="2D VIEW" align="center" width="1.8"></a-text>
+            </a-plane>
             
-            <a-plane id="seat-front" position="-1.15 -0.35 0.04" width="0.28" height="0.12" color="#222233" class="clickable btn-hover"><a-text value="FRONT" align="center" width="1.6" scale="0.85 0.85 1"></a-text></a-plane>
-            <a-plane id="seat-back" position="-0.8 -0.35 0.04" width="0.28" height="0.12" color="#222233" class="clickable btn-hover"><a-text value="BACK" align="center" width="1.6" scale="0.85 0.85 1"></a-text></a-plane>
-            <a-plane id="seat-lay" position="-0.45 -0.35 0.04" width="0.28" height="0.12" color="#222233" class="clickable btn-hover"><a-text value="RECLINE" align="center" width="1.6" scale="0.85 0.85 1"></a-text></a-plane>
+            <a-plane id="btn-void" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value="VOID" align="center" width="1.8"></a-text>
+            </a-plane>
+            <a-plane id="btn-reset" position="0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value="RESET VIEW" align="center" width="1.8"></a-text>
+            </a-plane>
+
+            <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
+            <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
             
-            <a-plane id="curve-less" position="0.6 -0.35 0.04" width="0.28" height="0.12" color="#222233" class="clickable btn-hover"><a-text value="FLAT" align="center" width="1.6" scale="0.85 0.85 1"></a-text></a-plane>
-            <a-plane id="curve-more" position="1.05 -0.35 0.04" width="0.28" height="0.12" color="#222233" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.6" scale="0.85 0.85 1"></a-text></a-plane>
+            <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+            <a-plane id="seat-back" position="-0.8 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="BACK" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+            <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+            
+            <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
+            <a-plane id="curve-more" position="1.0 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
 
         </a-entity>
 
-        <!-- ENERGY RINGS IN THE DISTANCE -->
-        <a-torus position="18 12 -45" radius="22" radius-tubular="0.4" color="#00ffff" emissive="#00ffff" emissive-intensity="4" rotation="65 20 0" 
-                 animation="property: rotation; to: 65 380 0; dur: 45000; loop: true; easing: linear"></a-torus>
-        <a-torus position="-22 9 -38" radius="18" radius-tubular="0.35" color="#ff00aa" emissive="#ff00aa" emissive-intensity="4" rotation="40 -30 10" 
-                 animation="property: rotation; to: 40 -390 10; dur: 38000; loop: true; easing: linear"></a-torus>
-
-        <!-- PARTICLES - THE REAL WOW -->
-        <!-- Background stars -->
-        <a-entity particle-system="preset: stars; color: #aaccff,#ffddff; particleCount: 4200; size: 0.12; velocity: 0 0 0; opacity: 0.9"></a-entity>
-        
-        <!-- Data streams near the hub -->
-        <a-entity particle-system="preset: dust; color: #00ffff,#ff00aa; particleCount: 1800; size: 0.06; velocity: 0 0.4 0; opacity: 0.7" position="0 3 -3"></a-entity>
-        
-        <!-- Distant nebula glow -->
-        <a-entity particle-system="preset: dust; color: #5500ff; particleCount: 600; size: 4; velocity: 0 0 0; opacity: 0.25" position="0 25 -80"></a-entity>
-
         <a-entity id="rig" position="0 1.6 0">
             <a-camera look-controls="reverseMouseDrag: true" wasd-controls="enabled: false">
-                <a-cursor id="cursor" fuse="true" fuse-timeout="900" color="#00ffff" raycaster="objects: .clickable"
-                    animation__click="property: scale; startEvents: click; from: 0.08 0.08 0.08; to: 1 1 1; dur: 120"
-                    animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.08 0.08 0.08; dur: 900">
+                <a-cursor id="cursor" fuse="true" fuse-timeout="1200" color="#ff9d00" raycaster="objects: .clickable"
+                    animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
+                    animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1200">
                 </a-cursor>
             </a-camera>
         </a-entity>
@@ -414,217 +201,603 @@
     </a-scene>
 
     <script>
-        /* --- CONFIG & STATE --- */
-        const video = document.getElementById('video-src');
-        const img = document.getElementById('img-src');
-        const uiLayer = document.getElementById('ui-layer');
-        const fileInput = document.getElementById('file-input');
-        const urlInput = document.getElementById('url-input');
-        const playlistUI = document.getElementById('playlist-ui');
-        const playlistList = document.getElementById('playlist-list');
-        const btnStart = document.getElementById('btn-start');
+        /* =========================================
+           1. CONFIGURATION & STATE MANAGEMENT
+           ========================================= */
         
-        const screenCinema = document.getElementById('screen-cinema');
-        const screen180 = document.getElementById('screen-180'); 
-        const screen360 = document.getElementById('screen-360');
-        const screenFrame = document.getElementById('screen-frame');
-        
-        const rig = document.getElementById('rig');
-        const hubWrapper = document.getElementById('hub-wrapper');
-        const menuOrb = document.getElementById('menu-orb');
-        const videoControls = document.getElementById('video-controls');
-        const floor = document.getElementById('env-floor');
-        const scene = document.querySelector('a-scene');
+        // PDF.js Worker Configuration
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        const playBtnText = document.getElementById('txt-play');
-        const timeText = document.getElementById('time-display');
-        const progressFill = document.getElementById('progress-fill');
-        const titleText = document.getElementById('txt-title');
-        
-        let playlist = []; 
-        let currentTrack = 0;
-        let viewMode = 0; // 0=2D, 1=180, 2=360
-        let isVoid = false;
-        let currentCurve = 90; 
-        
-        let audioCtx, panner, audioSourceNode;
-        let currentObjectURL = null;
+        // Global State Object
+        const state = {
+            playlist: [],
+            currentTrack: 0,
+            viewMode: 0,        // 0=2D, 1=180, 2=360
+            isVoid: false,      // Void mode toggle
+            curve: 90,          // Screen curvature
+            currentObjectURL: null,
+            pdf: {
+                doc: null,
+                pageNum: 1,
+                rendering: false,
+                pending: null
+            },
+            audio: {
+                ctx: null,
+                source: null,
+                panner: null
+            }
+        };
 
-        /* --- 1. PLAYLIST HANDLING --- */
+        // DOM Element Cache (Grouped for cleanliness)
+        const DOM = {
+            ui: {
+                layer: document.getElementById('ui-layer'),
+                fileInput: document.getElementById('file-input'),
+                urlInput: document.getElementById('url-input'),
+                playlist: document.getElementById('playlist-ui'),
+                list: document.getElementById('playlist-list'),
+                btnStart: document.getElementById('btn-start'),
+                dropOverlay: document.getElementById('drop-overlay')
+            },
+            media: {
+                video: document.getElementById('video-src'),
+                img: document.getElementById('img-src'),
+                canvas: document.getElementById('light-canvas')
+            },
+            vr: {
+                scene: document.querySelector('a-scene'),
+                screens: {
+                    cinema: document.getElementById('screen-cinema'),
+                    cyl: document.getElementById('screen-180'),
+                    sphere: document.getElementById('screen-360')
+                },
+                controls: {
+                    wrapper: document.getElementById('hub-wrapper'),
+                    videoGroup: document.getElementById('video-controls'),
+                    orb: document.getElementById('menu-orb'),
+                    playText: document.getElementById('txt-play'),
+                    timeText: document.getElementById('time-display'),
+                    progress: document.getElementById('progress-fill'),
+                    title: document.getElementById('txt-title'),
+                    seekBack: document.getElementById('txt-seek-back'),
+                    seekFwd: document.getElementById('txt-seek-fwd'),
+                    modeBtn: document.getElementById('btn-mode'),
+                    speedText: document.getElementById('txt-speed')
+                },
+                env: {
+                    floor: document.getElementById('env-floor'),
+                    ambi: document.getElementById('ambi-light'),
+                    glow: document.getElementById('screen-glow'),
+                    rig: document.getElementById('rig')
+                }
+            }
+        };
+
+
+        /* =========================================
+           2. PLAYLIST & FILE HANDLING
+           ========================================= */
+
         function handleFiles(files) {
             if (files.length > 0) {
                 const newItems = Array.from(files).map(f => {
-                    const isImage = f.type.startsWith('image/');
-                    return { type: isImage ? 'image' : 'video', src: f, name: f.name };
+                    let type = 'video';
+                    if (f.type.startsWith('image/')) type = 'image';
+                    if (f.type === 'application/pdf') type = 'pdf';
+                    return { type: type, src: f, name: f.name };
                 });
-                playlist = playlist.concat(newItems);
+                state.playlist = state.playlist.concat(newItems);
                 updatePlaylistUI();
             }
         }
 
-        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-
-        const dropOverlay = document.getElementById('drop-overlay');
-        document.body.addEventListener('dragover', (e) => { e.preventDefault(); dropOverlay.style.display = 'flex'; });
-        document.body.addEventListener('dragleave', (e) => { e.preventDefault(); dropOverlay.style.display = 'none'; });
+        // Event Listeners for Input
+        DOM.ui.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+        
+        // Drag & Drop
+        document.body.addEventListener('dragover', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'flex'; });
+        document.body.addEventListener('dragleave', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'none'; });
         document.body.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropOverlay.style.display = 'none';
+            DOM.ui.dropOverlay.style.display = 'none';
             handleFiles(e.dataTransfer.files);
         });
 
+        // URL Input
         document.getElementById('btn-url').addEventListener('click', () => {
-            const url = urlInput.value.trim();
+            const url = DOM.ui.urlInput.value.trim();
             if(url) {
-                const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)$/) != null;
-                playlist.push({ type: isImage ? 'image' : 'video', src: url, name: url.split('/').pop() || "Stream" });
-                urlInput.value = ""; 
+                const isImage = url.match(/\.(jpeg|jpg|gif|png)$/) != null;
+                const isPdf = url.match(/\.pdf$/) != null;
+                let type = 'video';
+                if(isImage) type = 'image';
+                if(isPdf) type = 'pdf';
+
+                state.playlist.push({ type: type, src: url, name: "Web Stream" });
+                DOM.ui.urlInput.value = ""; 
                 updatePlaylistUI();
             }
         });
 
         function updatePlaylistUI() {
-            playlistUI.style.display = 'block';
-            btnStart.style.display = 'block';
-            playlistList.innerHTML = '';
-            playlist.forEach((item, index) => {
+            DOM.ui.playlist.style.display = 'block';
+            DOM.ui.btnStart.style.display = 'block';
+            DOM.ui.list.innerHTML = '';
+            
+            state.playlist.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'playlist-item';
-                if(index === currentTrack && uiLayer.classList.contains('hidden')) div.classList.add('playlist-active');
+                // Add active class if this is the playing track
+                if(index === state.currentTrack && DOM.ui.layer.classList.contains('hidden')) {
+                    div.classList.add('playlist-active');
+                }
+                
                 div.innerText = `${index + 1}. [${item.type.toUpperCase()}] ${item.name}`;
-                div.onclick = () => { currentTrack = index; highlightActive(); loadTrack(index); };
-                playlistList.appendChild(div);
+                
+                // --- FIX: CLICKING NOW LOADS TRACK IMMEDIATELY ---
+                div.onclick = () => { 
+                    loadTrack(index); 
+                    highlightActive();
+                };
+                
+                DOM.ui.list.appendChild(div);
             });
         }
         
         function highlightActive() {
-             Array.from(playlistList.children).forEach((child, i) => {
-                 child.classList.toggle('playlist-active', i === currentTrack);
+             Array.from(DOM.ui.list.children).forEach((child, i) => {
+                 child.classList.toggle('playlist-active', i === state.currentTrack);
              });
         }
 
-        btnStart.addEventListener('click', () => {
-            if(playlist.length > 0) {
-                uiLayer.classList.add('hidden');
-                loadTrack(currentTrack);
+        DOM.ui.btnStart.addEventListener('click', () => {
+            if(state.playlist.length > 0) {
+                DOM.ui.layer.classList.add('hidden');
+                loadTrack(state.currentTrack);
             }
         });
 
+
+        /* =========================================
+           3. MEDIA LOADING LOGIC
+           ========================================= */
+
         function loadTrack(index) {
-            if (index >= 0 && index < playlist.length) {
-                if (currentObjectURL) {
-                    URL.revokeObjectURL(currentObjectURL);
-                    currentObjectURL = null;
+            if (index >= 0 && index < state.playlist.length) {
+                // Cleanup previous object URL to prevent memory leaks
+                if (state.currentObjectURL) {
+                    URL.revokeObjectURL(state.currentObjectURL);
+                    state.currentObjectURL = null;
                 }
 
-                currentTrack = index;
-                const item = playlist[currentTrack];
+                state.currentTrack = index;
+                const item = state.playlist[state.currentTrack];
                 
+                // Determine source (File object vs URL string)
                 let src = "";
                 if(item.src instanceof File) {
                     src = URL.createObjectURL(item.src);
-                    currentObjectURL = src; 
+                    state.currentObjectURL = src; 
                 } else {
                     src = item.src;
                 }
 
+                // Update Title
                 let displayName = item.name;
-                if(displayName.length > 28) displayName = displayName.substring(0, 25) + "...";
-                titleText.setAttribute('value', `${currentTrack + 1}/${playlist.length} • ${displayName}`);
+                if(displayName.length > 25) displayName = displayName.substring(0, 22) + "...";
+                DOM.vr.controls.title.setAttribute('value', `${state.currentTrack + 1}/${state.playlist.length}: ${displayName}`);
 
-                const updateTexture = (sourceIdOrUrl) => {
-                    screenCinema.setAttribute('src', sourceIdOrUrl);
-                    screen360.setAttribute('src', sourceIdOrUrl);
-                    screen180.setAttribute('material', 'src', sourceIdOrUrl);
-                };
+                // Reset UI Defaults
+                DOM.vr.controls.seekBack.setAttribute('value', '-15s');
+                DOM.vr.controls.seekFwd.setAttribute('value', '+15s');
+                DOM.vr.controls.playText.setAttribute('value', 'PLAY');
+                DOM.vr.controls.videoGroup.setAttribute('visible', true);
+                
+                // Enable Mode Button by default
+                DOM.vr.controls.modeBtn.setAttribute('color', '#222');
+                DOM.vr.controls.modeBtn.classList.add('clickable');
 
-                if (item.type === 'image') {
-                    video.pause();
-                    videoControls.setAttribute('visible', false);
+                // --- MEDIA TYPE SWITCH ---
+                if (item.type === 'pdf') {
+                    DOM.media.video.pause();
+                    
+                    // Force 2D for PDF readability
+                    force2DMode(); 
+                    DOM.vr.controls.modeBtn.setAttribute('color', '#555');
+                    DOM.vr.controls.modeBtn.classList.remove('clickable');
+                    
+                    // Update Controls for PDF
+                    DOM.vr.controls.seekBack.setAttribute('value', 'PREV PG');
+                    DOM.vr.controls.seekFwd.setAttribute('value', 'NEXT PG');
+                    DOM.vr.controls.playText.setAttribute('value', 'PDF VIEW');
+                    
+                    // Initialize PDF
+                    const loadingTask = pdfjsLib.getDocument(src);
+                    loadingTask.promise.then(pdf => {
+                        state.pdf.doc = pdf;
+                        state.pdf.pageNum = 1;
+                        renderPDFPage(state.pdf.pageNum);
+                    });
+
+                } else if (item.type === 'image') {
+                    DOM.media.video.pause();
+                    DOM.vr.controls.videoGroup.setAttribute('visible', false);
                     updateTexture('');
-                    img.onload = function() {
+
+                    DOM.media.img.onload = function() {
                         updateTexture('#img-src');
-                        const mesh = screenCinema.getObject3D('mesh');
-                        if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
-                        drawAmbilight(img);
+                        refreshTextureMesh();
+                        drawAmbilight(DOM.media.img);
                     };
-                    img.src = src;
+                    DOM.media.img.src = src;
+
                 } else {
-                    video.src = src;
+                    // Video Mode
+                    DOM.media.video.src = src;
                     updateTexture('#video-src');
-                    videoControls.setAttribute('visible', true);
+                    
                     initAudio();
-                    video.play().then(() => playBtnText.setAttribute('value', 'PAUSE'))
-                               .catch(() => playBtnText.setAttribute('value', 'PLAY'));
+                    DOM.media.video.play().then(() => {
+                        DOM.vr.controls.playText.setAttribute('value', 'PAUSE');
+                    }).catch(e => {
+                        DOM.vr.controls.playText.setAttribute('value', 'PLAY');
+                    });
                     requestAnimationFrame(updateAmbilight);
                 }
             }
         }
 
-        video.addEventListener('ended', () => {
-            if (currentTrack < playlist.length - 1) loadTrack(currentTrack + 1);
+
+        /* =========================================
+           4. VISUAL & AUDIO HELPERS
+           ========================================= */
+
+        function updateTexture(sourceIdOrUrl) {
+            DOM.vr.screens.cinema.setAttribute('src', sourceIdOrUrl);
+            DOM.vr.screens.sphere.setAttribute('src', sourceIdOrUrl);
+            DOM.vr.screens.cyl.setAttribute('material', 'src', sourceIdOrUrl);
+        }
+
+        function refreshTextureMesh() {
+            // A-Frame sometimes caches textures; this forces an update
+            [DOM.vr.screens.cinema, DOM.vr.screens.cyl, DOM.vr.screens.sphere].forEach(el => {
+                const mesh = el.getObject3D('mesh');
+                if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
+            });
+        }
+
+        function force2DMode() {
+            state.viewMode = 0;
+            DOM.vr.screens.cinema.setAttribute('visible', true);
+            DOM.vr.screens.cyl.setAttribute('visible', false);
+            DOM.vr.screens.sphere.setAttribute('visible', false);
+            DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
+            
+            // Manually update text since we bypassed the click event
+            const modeText = DOM.vr.controls.modeBtn.querySelector('a-text');
+            if(modeText) modeText.setAttribute('value', '2D VIEW');
+            
+            if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+        }
+
+        // --- PDF RENDERER ---
+        function renderPDFPage(num) {
+            state.pdf.rendering = true;
+            state.pdf.doc.getPage(num).then(page => {
+                const viewport = page.getViewport({scale: 2.0}); // Scale 2.0 for clear text
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = { canvasContext: ctx, viewport: viewport };
+                
+                page.render(renderContext).promise.then(() => {
+                    state.pdf.rendering = false;
+                    
+                    // Apply rendered canvas to texture
+                    const dataUrl = canvas.toDataURL('image/png');
+                    DOM.media.img.src = dataUrl;
+                    
+                    DOM.media.img.onload = function() {
+                        updateTexture('#img-src');
+                        refreshTextureMesh();
+                        drawAmbilight(DOM.media.img);
+                    };
+
+                    // Update Progress Bar
+                    const pct = num / state.pdf.doc.numPages;
+                    DOM.vr.controls.progress.object3D.scale.x = pct;
+                    DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
+                    DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`);
+
+                    // Handle fast page turns
+                    if (state.pdf.pending !== null) {
+                        renderPDFPage(state.pdf.pending);
+                        state.pdf.pending = null;
+                    }
+                });
+            });
+        }
+
+        function queueRenderPage(num) {
+            if (state.pdf.rendering) state.pdf.pending = num;
+            else renderPDFPage(num);
+        }
+
+        function onPrevPage() {
+            if (state.pdf.pageNum <= 1) return;
+            state.pdf.pageNum--;
+            queueRenderPage(state.pdf.pageNum);
+        }
+
+        function onNextPage() {
+            if (state.pdf.pageNum >= state.pdf.doc.numPages) return;
+            state.pdf.pageNum++;
+            queueRenderPage(state.pdf.pageNum);
+        }
+
+        // Auto-play next track
+        DOM.media.video.addEventListener('ended', () => {
+            if (state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1);
         });
 
-        /* --- 2. MENU & INTERACTIONS --- */
+
+        /* =========================================
+           5. INTERACTION HANDLERS
+           ========================================= */
+
         function toggleMenu(show) {
-            hubWrapper.setAttribute('visible', show);
+            DOM.vr.controls.wrapper.setAttribute('visible', show);
             if(show) {
-                hubWrapper.setAttribute('scale', '1 1 1');
-                menuOrb.setAttribute('visible', false);
+                DOM.vr.controls.wrapper.setAttribute('scale', '1 1 1');
+                DOM.vr.controls.orb.setAttribute('visible', false);
             } else {
-                hubWrapper.setAttribute('scale', '0 0 0'); 
-                menuOrb.setAttribute('visible', true);
+                DOM.vr.controls.wrapper.setAttribute('scale', '0 0 0'); 
+                DOM.vr.controls.orb.setAttribute('visible', true);
             }
         }
+        
+        document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
+        document.getElementById('menu-orb').addEventListener('click', function() { toggleMenu(true); flash(this); });
 
         function flash(el) {
             const oldColor = el.getAttribute('color');
-            el.setAttribute('color', '#ffffff');
-            setTimeout(() => el.setAttribute('color', oldColor), 120);
+            el.setAttribute('color', '#fff');
+            setTimeout(() => el.setAttribute('color', oldColor), 150);
         }
 
-        document.getElementById('btn-close').addEventListener('click', () => { toggleMenu(false); flash(this); });
-        document.getElementById('menu-orb').addEventListener('click', () => { toggleMenu(true); flash(this); });
-
-        document.getElementById('btn-play').addEventListener('click', () => { togglePlay(); flash(this); });
+        // PLAY/PAUSE
+        document.getElementById('btn-play').addEventListener('click', function() {
+            if(state.playlist[state.currentTrack].type === 'video') togglePlay(); 
+            flash(this);
+        });
 
         function togglePlay() {
-            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            if(video.paused) { video.play(); playBtnText.setAttribute('value', 'PAUSE'); }
-            else { video.pause(); playBtnText.setAttribute('value', 'PLAY'); }
+            if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume();
+            if(DOM.media.video.paused) { 
+                DOM.media.video.play(); 
+                DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); 
+            } else { 
+                DOM.media.video.pause(); 
+                DOM.vr.controls.playText.setAttribute('value', 'PLAY'); 
+            }
         }
 
-        // All other button listeners remain the same (prev/next/seek/mode/void etc.)
-        // ... (copy-paste the rest from previous version for brevity - they are unchanged)
+        // PREV/NEXT TRACK
+        document.getElementById('btn-prev').addEventListener('click', function() {
+            if(state.currentTrack > 0) loadTrack(state.currentTrack - 1); 
+            flash(this);
+        });
+        document.getElementById('btn-next').addEventListener('click', function() {
+            if(state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); 
+            flash(this);
+        });
 
-        /* --- 6. AUDIO & AMBILIGHT --- */
+        // SEEK / PAGE TURN
+        document.getElementById('btn-seek-back').addEventListener('click', function() {
+            if(state.playlist[state.currentTrack].type === 'pdf') onPrevPage();
+            else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); 
+            flash(this);
+        });
+        document.getElementById('btn-seek-fwd').addEventListener('click', function() {
+            if(state.playlist[state.currentTrack].type === 'pdf') onNextPage();
+            else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); 
+            flash(this);
+        });
+
+        // MODE TOGGLE
+        DOM.vr.controls.modeBtn.addEventListener('click', function() {
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return;
+
+            state.viewMode = (state.viewMode + 1) % 3; 
+
+            // Reset visibility
+            DOM.vr.screens.cinema.setAttribute('visible', false);
+            DOM.vr.screens.cyl.setAttribute('visible', false);
+            DOM.vr.screens.sphere.setAttribute('visible', false);
+            DOM.vr.env.floor.setAttribute('visible', false); 
+
+            if(state.viewMode === 0) {
+                DOM.vr.screens.cinema.setAttribute('visible', true);
+                DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
+                this.querySelector('a-text').setAttribute('value', '2D VIEW');
+                if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            } 
+            else if (state.viewMode === 1) {
+                DOM.vr.screens.cyl.setAttribute('visible', true);
+                this.querySelector('a-text').setAttribute('value', '180 IMAX');
+                DOM.vr.scene.removeAttribute('fog');
+            } 
+            else {
+                DOM.vr.screens.sphere.setAttribute('visible', true);
+                this.querySelector('a-text').setAttribute('value', '360 FULL');
+                DOM.vr.scene.removeAttribute('fog');
+            }
+            flash(this);
+        });
+
+        // VOID TOGGLE
+        document.getElementById('btn-void').addEventListener('click', function() {
+            state.isVoid = !state.isVoid;
+            if(state.viewMode === 0) DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
+            
+            if(state.isVoid || state.viewMode > 0) DOM.vr.scene.removeAttribute('fog'); 
+            else DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            flash(this);
+        });
+
+        // RESET VIEW
+        document.getElementById('btn-reset').addEventListener('click', function() {
+            const cam = document.querySelector('[camera]').object3D;
+            const yRot = cam.rotation.y * (180 / Math.PI);
+            DOM.vr.env.rig.setAttribute('rotation', {x:0, y: -yRot, z:0});
+            flash(this);
+        });
+
+        // SPEED TOGGLE
+        document.getElementById('btn-speed').addEventListener('click', function() {
+            const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75];
+            const v = DOM.media.video;
+            v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length];
+            DOM.vr.controls.speedText.setAttribute('value', v.playbackRate + 'x');
+            flash(this);
+        });
+
+
+        /* =========================================
+           6. SEATING & CURVE
+           ========================================= */
+        
+        const seats = {
+            front: { pos: "0 1.6 -1", rot: "-25 0 0" },
+            back: { pos: "0 2.5 2", rot: "-25 0 0" },
+            recline: { pos: "0 0.5 0", rot: "-45 0 0" }
+        };
+        
+        document.getElementById('seat-front').addEventListener('click', function() {
+            DOM.vr.env.rig.setAttribute('position', seats.front.pos);
+            DOM.vr.controls.wrapper.setAttribute('rotation', seats.front.rot); flash(this);
+        });
+        document.getElementById('seat-back').addEventListener('click', function() {
+            DOM.vr.env.rig.setAttribute('position', seats.back.pos);
+            DOM.vr.controls.wrapper.setAttribute('rotation', seats.back.rot); flash(this);
+        });
+        document.getElementById('seat-lay').addEventListener('click', function() {
+            DOM.vr.env.rig.setAttribute('position', seats.recline.pos);
+            DOM.vr.controls.wrapper.setAttribute('rotation', seats.recline.rot); flash(this);
+        });
+
+        function updateScreenCurve() {
+            DOM.vr.screens.cinema.setAttribute('theta-length', state.curve);
+            const rot = 180 - (state.curve / 2);
+            DOM.vr.screens.cinema.setAttribute('rotation', `0 ${rot} 0`);
+        }
+        document.getElementById('curve-more').addEventListener('click', function() {
+            if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }
+        });
+        document.getElementById('curve-less').addEventListener('click', function() {
+            if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }
+        });
+
+
+        /* =========================================
+           7. LOOPS & UTILS
+           ========================================= */
+
+        // Time Update Loop
+        setInterval(() => {
+            const currentItem = state.playlist[state.currentTrack];
+            const v = DOM.media.video;
+            
+            if(currentItem && currentItem.type === 'video' && v.duration) {
+                const pct = v.currentTime / v.duration;
+                DOM.vr.controls.progress.object3D.scale.x = pct;
+                DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
+                DOM.vr.controls.timeText.setAttribute('value', `${fmt(v.currentTime)} / ${fmt(v.duration)}`);
+            }
+        }, 500);
+
+        function fmt(s) {
+            const m = Math.floor(s/60);
+            const sec = Math.floor(s%60);
+            return `${m}:${sec<10?'0'+sec:sec}`;
+        }
+
+        // Hover Effects
+        document.querySelectorAll('.clickable').forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                if(el.classList.contains('clickable') && el.classList.contains('btn-hover')) { 
+                    el.setAttribute('color', '#ff9d00');
+                }
+            });
+            el.addEventListener('mouseleave', () => {
+                if(el.classList.contains('clickable') && el.classList.contains('btn-hover')) {
+                    if(el.id === 'btn-close') el.setAttribute('color', '#cc0000');
+                    else if(el.id === 'btn-mode' && state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') {
+                         el.setAttribute('color', '#555'); 
+                    }
+                    else el.setAttribute('color', '#222');
+                }
+                if(el.id === 'btn-play') el.setAttribute('color', '#ff9d00');
+            });
+        });
+
+        // Keyboard Shortcuts
+        window.addEventListener('keydown', (e) => {
+            if(DOM.ui.layer.classList.contains('hidden')) {
+                const isPdf = state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf';
+                switch(e.code) {
+                    case 'Space': 
+                        e.preventDefault(); 
+                        if(!isPdf) togglePlay(); 
+                        break;
+                    case 'ArrowRight': 
+                        if(isPdf) onNextPage(); 
+                        else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); 
+                        break;
+                    case 'ArrowLeft': 
+                        if(isPdf) onPrevPage(); 
+                        else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); 
+                        break;
+                    case 'KeyR': document.getElementById('btn-reset').click(); break;
+                }
+            }
+        });
+
+
+        /* =========================================
+           8. AUDIO ENGINE & AMBILIGHT
+           ========================================= */
+
         function initAudio() {
-            if(!audioCtx) {
+            if(!state.audio.ctx) {
                 const AC = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AC();
+                state.audio.ctx = new AC();
             }
-            if (!audioSourceNode) {
-                audioSourceNode = audioCtx.createMediaElementSource(video);
-                const gainNode = audioCtx.createGain();
-                gainNode.gain.value = 3.2;
-                panner = audioCtx.createPanner();
-                panner.panningModel = 'HRTF';
-                panner.distanceModel = 'inverse';
-                panner.setPosition(0, 4.8, -5.5);
-                audioSourceNode.connect(gainNode);
-                gainNode.connect(panner);
-                panner.connect(audioCtx.destination);
+            if (!state.audio.source) {
+                state.audio.source = state.audio.ctx.createMediaElementSource(DOM.media.video);
+                const gainNode = state.audio.ctx.createGain();
+                gainNode.gain.value = 3.0;
+                
+                state.audio.panner = state.audio.ctx.createPanner();
+                state.audio.panner.panningModel = 'HRTF';
+                state.audio.panner.distanceModel = 'inverse';
+                state.audio.panner.setPosition(0, 4.5, -5);
+                
+                state.audio.source.connect(gainNode);
+                gainNode.connect(state.audio.panner);
+                state.audio.panner.connect(state.audio.ctx.destination);
             }
-            if(audioCtx.state === 'suspended') audioCtx.resume();
+            if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume();
         }
 
-        const ctx = document.getElementById('light-canvas').getContext('2d');
-        const ambi = document.getElementById('ambi-light');
-        const glow = document.getElementById('screen-glow');
+        const ctx = DOM.media.canvas.getContext('2d');
 
         function updateAmbilight() {
-            if(!video.paused && !video.ended) {
-                drawAmbilight(video);
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video' && !DOM.media.video.paused && !DOM.media.video.ended) {
+                drawAmbilight(DOM.media.video);
                 requestAnimationFrame(updateAmbilight);
             }
         }
@@ -634,30 +807,11 @@
                 ctx.drawImage(source, 0, 0, 32, 32);
                 const p = ctx.getImageData(16,16,1,1).data;
                 const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
-                if(viewMode === 0 && !isVoid) ambi.setAttribute('color', hex);
-                glow.setAttribute('color', hex);
-            } catch(e) {}
+                
+                if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex);
+                DOM.vr.env.glow.setAttribute('color', hex);
+            } catch(e) { }
         }
-
-        // ... (all other functions from previous version are kept 100% intact)
-
-        // Quick extra: make progress bar glow more
-        setInterval(() => {
-            if(video.duration) {
-                const pct = video.currentTime / video.duration;
-                progressFill.object3D.scale.x = pct * 1.02;
-                progressFill.object3D.position.x = -1.25 + (2.5 * pct / 2);
-                timeText.setAttribute('value', `${fmt(video.currentTime)} / ${fmt(video.duration)}`);
-            }
-        }, 80); // faster update for smoother feel
-
-        function fmt(s) {
-            const m = Math.floor(s/60);
-            const sec = Math.floor(s%60);
-            return `${m}:${sec<10?'0'+sec:sec}`;
-        }
-
-        // Hover effects already there, just more vibrant now
 
     </script>
 </body>
