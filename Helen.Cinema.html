@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v8.2: Final Reset Fix</title>
+    <title>The Hub v8.2: Robust Reset</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -107,12 +107,10 @@
         <a-curvedimage id="screen-cinema" src="#video-src" 
             height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="true">
         </a-curvedimage>
-        
         <a-curvedimage id="screen-cinema-left" src="#video-src" 
             height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"
             material="repeat: 0.5 1; offset: 0 0">
         </a-curvedimage>
-        
         <a-curvedimage id="screen-cinema-right" src="#video-src" 
             height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"
             material="repeat: 0.5 1; offset: 0.5 0">
@@ -122,22 +120,18 @@
         <a-entity id="screen-180" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
             material="shader: flat; side: back; src: #video-src" rotation="0 -270 0" visible="false">
         </a-entity>
-
         <a-entity id="screen-180-left" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
             material="shader: flat; side: back; src: #video-src; repeat: 0.5 1; offset: 0 0" rotation="0 -270 0" visible="false">
         </a-entity>
-
         <a-entity id="screen-180-right" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
             material="shader: flat; side: back; src: #video-src; repeat: 0.5 1; offset: 0.5 0" rotation="0 -270 0" visible="false">
         </a-entity>
 
 
         <a-videosphere id="screen-360" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
-        
         <a-videosphere id="screen-360-left" src="#video-src" radius="60" rotation="0 -90 0" 
             material="shader: flat; side: back; fog: false; repeat: 0.5 1; offset: 0 0" visible="false">
         </a-videosphere>
-
         <a-videosphere id="screen-360-right" src="#video-src" radius="60" rotation="0 -90 0" 
             material="shader: flat; side: back; fog: false; repeat: 0.5 1; offset: 0.5 0" visible="false">
         </a-videosphere>
@@ -295,18 +289,23 @@
             const setLayer = (el, layerIndex) => {
                 if(!el) return;
                 const mesh = el.getObject3D('mesh');
-                if(mesh) { mesh.layers.set(layerIndex); } 
-                else {
-                    el.addEventListener('model-loaded', () => { el.getObject3D('mesh').layers.set(layerIndex); });
-                    el.addEventListener('loaded', () => { if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); });
+                if(mesh) {
+                    mesh.layers.set(layerIndex);
+                } else {
+                    el.addEventListener('model-loaded', () => { 
+                        if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); 
+                    });
+                    el.addEventListener('loaded', () => { 
+                        if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); 
+                    });
                 }
             };
+            // 1 = Left, 2 = Right, 0 = Default/Both
             setLayer(DOM.vr.screens.cinemaL, 1); setLayer(DOM.vr.screens.cylL, 1); setLayer(DOM.vr.screens.sphereL, 1);
             setLayer(DOM.vr.screens.cinemaR, 2); setLayer(DOM.vr.screens.cylR, 2); setLayer(DOM.vr.screens.sphereR, 2);
             setLayer(DOM.vr.screens.cinema, 0); setLayer(DOM.vr.screens.cyl, 0); setLayer(DOM.vr.screens.sphere, 0);
         }
-        if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } 
-        else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
+        if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
 
         /* FILE HANDLING */
         function handleFiles(files) {
@@ -436,6 +435,7 @@
             }
         }
 
+        /* TEXTURE & SCREEN HELPERS */
         function updateTexture(sourceId) {
             const screens = Object.values(DOM.vr.screens);
             screens.forEach(s => {
@@ -531,32 +531,18 @@
         });
 
         document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
-
+        
         /* ROBUST RESET FUNCTION */
         document.getElementById('btn-reset').addEventListener('click', function() {
             const rig = DOM.vr.env.rig.object3D;
             const cam = document.querySelector('[camera]').object3D;
-            
-            // 1. Get Camera rotation relative to world (in degrees)
             const camY = cam.rotation.y * (180 / Math.PI);
-            
-            // 2. Adjust Rig Rotation to counter Camera Heading
             const currentRigY = rig.rotation.y * (180 / Math.PI);
             const newRigY = currentRigY - camY;
-            
-            // Apply new rotation
             rig.rotation.y = newRigY * (Math.PI / 180);
-            
-            // 3. Reset Seat Tilt/Roll
-            rig.rotation.x = 0;
-            rig.rotation.z = 0;
-
-            // 4. Reset Position (Seat Center)
+            rig.rotation.x = 0; rig.rotation.z = 0;
             rig.position.set(0, 1.6, 0);
-            
-            // 5. Reset Menu Tilt
             DOM.vr.controls.wrapper.setAttribute('rotation', '-25 0 0');
-
             flash(this);
         });
 
@@ -618,6 +604,7 @@
             if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume();
         }
         
+        /* SEATING & CURVE */
         const seats = { front: { pos: "0 1.6 -1", rot: "-25 0 0" }, back: { pos: "0 2.5 2", rot: "-25 0 0" }, recline: { pos: "0 0.5 0", rot: "-45 0 0" } };
         document.getElementById('seat-front').addEventListener('click', function() { DOM.vr.env.rig.setAttribute('position', seats.front.pos); DOM.vr.controls.wrapper.setAttribute('rotation', seats.front.rot); flash(this); });
         document.getElementById('seat-back').addEventListener('click', function() { DOM.vr.env.rig.setAttribute('position', seats.back.pos); DOM.vr.controls.wrapper.setAttribute('rotation', seats.back.rot); flash(this); });
@@ -630,6 +617,7 @@
         document.getElementById('curve-more').addEventListener('click', function() { if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }});
         document.getElementById('curve-less').addEventListener('click', function() { if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }});
 
+        /* LOOP */
         setInterval(() => {
             const currentItem = state.playlist[state.currentTrack]; const v = DOM.media.video;
             if(currentItem && currentItem.type === 'video' && v.duration) {
