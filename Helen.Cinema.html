@@ -105,18 +105,24 @@
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
-        <a-curvedimage id="screen-cinema" src="#video-src" 
-            height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="true">
+                <a-curvedimage id="screen-cinema" src="#video-src" stereo-layer="both"
+            height="12" radius="14" theta-length="90" 
+            rotation="0 135 0" position="0 5 0" 
+            side="double" visible="true">
         </a-curvedimage>
-        
-        <a-curvedimage id="screen-cinema-left" src="#video-src" 
-            height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"
-            stereo="eye: left" material="repeat: 0.5 1; offset: 0.5 0">
+
+        <a-curvedimage id="screen-cinema-left" src="#video-src" stereo-layer="left"
+            height="12" radius="14" theta-length="90" 
+            rotation="0 135 0" position="0 5 0" 
+            side="double" visible="false"
+            material="repeat: 0.5 1; offset: 0 0">
         </a-curvedimage>
-        
-        <a-curvedimage id="screen-cinema-right" src="#video-src" 
-            height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"
-            stereo="eye: right" material="repeat: 0.5 1; offset: 0 0">
+
+        <a-curvedimage id="screen-cinema-right" src="#video-src" stereo-layer="right"
+            height="12" radius="14" theta-length="90" 
+            rotation="0 135 0" position="0 5 0" 
+            side="double" visible="false"
+            material="repeat: 0.5 1; offset: 0.5 0">
         </a-curvedimage>
 
 
@@ -633,3 +639,4 @@
     </script>
 </body>
 </html>
+
