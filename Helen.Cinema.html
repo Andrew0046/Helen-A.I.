@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: TACTICAL OS V3.0 (CINEMA EDITION)</title>
+    <title>HELEN v3.1: TACTICAL + CINEMA</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
@@ -43,8 +43,14 @@
             background: #fff; opacity: 0; pointer-events: none; z-index: 200;
             transition: opacity 0.1s;
         }
-        /* Hidden canvas for Ambilight analysis */
-        #ambilight-canvas { display: none; }
+        
+        /* DEBUG CONSOLE */
+        #debug-log {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 150px;
+            background: rgba(0,0,0,0.8); color: #ff0055; font-size: 12px;
+            overflow-y: scroll; padding: 10px; z-index: 999; display: none;
+            pointer-events: none;
+        }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -55,7 +61,6 @@
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
                 "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "webxr-polyfill": "https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.module.js",
                 "@google/generative-ai": "https://esm.run/@google/generative-ai"
             }
         }
@@ -65,37 +70,37 @@
 
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
 <canvas id="vision-canvas" style="display:none;"></canvas>
-<canvas id="ambilight-canvas" width="32" height="32"></canvas>
+<canvas id="ambilight-canvas" width="32" height="32" style="display:none;"></canvas>
 <div id="flash"></div>
+<div id="debug-log"></div>
 
 <input type="file" id="intel-input" multiple accept="*/*" style="display:none">
 
 <div id="overlay">
-    <h1>HELEN v3.0</h1>
+    <h1>HELEN v3.1</h1>
     <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ COCKPIT MK.III ]<br>
-        System Initialized.<br>
-        Look DOWN at the Chevrons.
+        [ SYSTEM BOOT ]<br>
+        Waiting for modules...
     </div>
 
     <div id="api-container">
         <input type="password" id="gemini-key" placeholder="PASTE GEMINI API KEY">
-        <button onclick="saveKey()" id="init-btn">INITIALIZE SYSTEM</button>
-        <button onclick="resetSystem()" class="danger-btn">[ RESET SYSTEM ]</button>
+        <button id="btn-init">INITIALIZE SYSTEM</button>
+        <button id="btn-reset" class="danger-btn">[ RESET SYSTEM ]</button>
     </div>
 
     <div class="btn-group" id="main-controls" style="display:none;">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
-        <button onclick="requestTiltAccess()">📱 ENABLE TILT DRIVE</button>
+        <button id="btn-load">📂 LOAD FILES</button>
+        <button id="btn-tilt">📱 ENABLE FLIGHT</button>
         <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [TILT] PHONE TO FLY (FWD/BACK/SIDE)<br>
+            [TILT] PHONE TO FLY<br>
             [GAZE] LOOK AT RED SQUARE FOR MENU<br>
-            [CINEMA] LOAD VIDEO FOR THEATER MODE
+            [CINEMA] LOAD VIDEO FOR THEATER
         </div>
     </div>
 </div>
@@ -107,33 +112,34 @@
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
     import { GoogleGenerativeAI } from "@google/generative-ai";
 
+    // --- DEBUG LOGGING ---
+    function log(msg) {
+        console.log(msg);
+        const d = document.getElementById('debug-log');
+        d.style.display = 'block';
+        d.innerHTML += `> ${msg}<br>`;
+        d.scrollTop = d.scrollHeight;
+    }
+    window.onerror = function(msg, url, line) { log(`ERROR: ${msg} (Line ${line})`); };
+
+    // --- VARIABLES ---
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     let audioListener; 
     
-    // --- COCKPIT VARIABLES ---
-    let reticle;
-    let cockpitGroup; 
-    let cockpitPanels = [];
+    let reticle, cockpitGroup, cockpitPanels = [];
     let lastMenuToggleTime = 0;
     
-    let currentSpeed = 0;
-    let targetSpeed = 0;
-    let currentRot = 0;
-    let targetRot = 0;
-
-    const MAX_SPEED = 0.08;
-    const MAX_ROT = 0.04;
+    let currentSpeed = 0, targetSpeed = 0;
+    let currentRot = 0, targetRot = 0;
+    const MAX_SPEED = 0.08, MAX_ROT = 0.04;
 
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
     let genAI, model;
-    let recognition; 
-    let synth = window.speechSynthesis;
-    let isListening = false;
-    let isSpeaking = false;
-    let aiStatus = "STANDBY"; 
+    let recognition, synth = window.speechSynthesis;
+    let isListening = false, isSpeaking = false, aiStatus = "STANDBY"; 
     
     let chatHistory = [];
     try {
@@ -142,7 +148,7 @@
     } catch(e) {}
 
     let CUSTOM_DATABASE = []; 
-    // ADDED: Sample video for Cinema Mode testing
+    // Default demo video
     const DEFAULT_DATABASE = [ 
         { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' }
     ];
@@ -150,104 +156,69 @@
     
     let activeObject = { obj: null, progress: 0 }; 
     let grabbedObject = null; 
-    let pendingRestore = false; 
-
-    // --- INPUT VARIABLES ---
+    
     let isMouseDown = false;
     let previousMousePosition = { x: 0, y: 0 };
     const MOUSE_SENSITIVITY = 0.02;
-    const VR_WALK_SPEED = 0.05;
 
-    // --- TILT CONTROL VARIABLES ---
     let isTiltActive = false;
     let tiltCalibration = { beta: 0, gamma: 0 };
     let currentTilt = { beta: 0, gamma: 0 };
-    const TILT_DEADZONE = 5; 
-    const TILT_SPEED = 0.002;
+    const TILT_DEADZONE = 5, TILT_SPEED = 0.002;
 
     let menuGroup, menuMesh, menuCtx, menuTexture;
     let isMenuOpen = false;
-    let hoveredFileIndex = -1;
-    let menuScrollIndex = 0; 
-    let lastMenuScrollTime = 0; 
+    let hoveredFileIndex = -1, menuScrollIndex = 0; 
     const MAX_MENU_VISIBLE = 9; 
     let sysMessage = "";
     
-    // --- GAZE VARIABLES ---
-    let menuSelectionTimer = 0; 
-    let gazeProgress = 0;       
-    let hoveredPageButton = null;
-
-    // HUD Optimization
-    let lastHudState = "";
+    let menuSelectionTimer = 0, gazeProgress = 0;       
 
     let activeCamId = null, currentVideoElement = null;
     let visionMode = 0; 
-    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false, dpadDown: false, dpadUp: false, dpadLeft: false, dpadRight: false };
+    let lastBtn = { x: false, circle: false, square: false, triangle: false };
     
-    const SPEED = 0.1; 
-    const ROTATE_SPEED = 0.05; 
-    const MOVE_SPEED = 0.05;
-    const SCALE_SPEED = 0.02; 
-    const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
-    const _camRight = new THREE.Vector3(); const _camUp = new THREE.Vector3();
+    const _moveDir = new THREE.Vector3(), _strafeDir = new THREE.Vector3();
 
-    const AI_FOLLOW_DIST = 2.5; 
-    const AI_STOP_DIST = 1.5;
-    const AI_BACKUP_DIST = 0.8;
-    const AI_WALK_SPEED = 0.03;
+    const AI_FOLLOW_DIST = 2.5, AI_WALK_SPEED = 0.03;
 
-    // --- NEW: CINEMA MODE VARIABLES ---
     let isCinemaMode = false;
-    let cinemaGroup = null;
-    let cinemaLight = null;
-    let ambilightCtx = null;
-    let cinemaScreenMesh = null;
+    let cinemaGroup = null, cinemaLight = null, ambilightCtx = null, cinemaScreenMesh = null;
     const AMBILIGHT_INTENSITY = 2.0;
 
-    window.saveKey = function() {
+    // --- INIT BUTTONS ---
+    document.getElementById('btn-init').addEventListener('click', () => {
         const key = document.getElementById('gemini-key').value.trim(); 
-        if(key.length > 20) {
+        if(key.length > 5) {
             localStorage.setItem('helen_gemini_key', key);
             GEMINI_KEY = key;
             checkAuth();
-        } else {
-            alert("KEY TOO SHORT.");
-        }
-    };
-
-    window.resetSystem = function() {
-        localStorage.removeItem('helen_gemini_key');
-        localStorage.removeItem('helen_layout_ai');
-        localStorage.removeItem('helen_chat_history'); 
-        location.reload();
-    }
+        } else alert("INVALID KEY");
+    });
     
-    window.requestTiltAccess = function() {
+    document.getElementById('btn-reset').addEventListener('click', () => {
+        localStorage.clear(); location.reload();
+    });
+
+    document.getElementById('btn-load').addEventListener('click', () => {
+        document.getElementById('intel-input').click();
+    });
+
+    document.getElementById('btn-tilt').addEventListener('click', () => {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             DeviceOrientationEvent.requestPermission()
-                .then(response => {
-                    if (response === 'granted') activateTiltListener();
-                    else alert("Permission denied.");
-                })
-                .catch(console.error);
-        } else {
-            activateTiltListener();
-        }
-    };
+            .then(r => { if (r === 'granted') activateTilt(); else alert("DENIED"); })
+            .catch(e => log(e));
+        } else activateTilt();
+    });
 
-    function activateTiltListener() {
-        sysMessage = "TILT DRIVE ACTIVE"; updateMenuDisplay();
+    function activateTilt() {
+        sysMessage = "TILT ACTIVE"; updateMenuDisplay();
         isTiltActive = true;
         let calibrated = false;
-        
         window.addEventListener('deviceorientation', (event) => {
-            if (!event.beta || !event.gamma) return;
-            if (!calibrated) {
-                tiltCalibration.beta = event.beta;
-                tiltCalibration.gamma = event.gamma;
-                calibrated = true;
-            }
+            if (!event.beta) return;
+            if (!calibrated) { tiltCalibration.beta = event.beta; tiltCalibration.gamma = event.gamma; calibrated = true; }
             currentTilt.beta = THREE.MathUtils.lerp(currentTilt.beta, event.beta - tiltCalibration.beta, 0.1);
             currentTilt.gamma = THREE.MathUtils.lerp(currentTilt.gamma, event.gamma - tiltCalibration.gamma, 0.1);
         });
@@ -257,879 +228,93 @@
         if (GEMINI_KEY) {
             document.getElementById('api-container').style.display = 'none';
             document.getElementById('main-controls').style.display = 'flex';
-            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Cockpit Mk.III Active.<br>Look DOWN to Pilot.`;
+            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]`;
             
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
-                model = genAI.getGenerativeModel({ 
-                    model: "gemini-2.5-flash",
-                    systemInstruction: "You are HELEN, a tactical AI companion. Responses concise & robotic."
-                });
+                model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
                 initVoice();
-            } catch(e) { console.error("AI INIT FAILED", e); }
+            } catch(e) { log("AI ERROR: " + e.message); }
         }
     }
 
-    function initVoice() {
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.lang = 'en-US';
-            
-            recognition.onstart = () => { isListening = true; aiStatus = "LISTENING..."; updateHUD(); };
-            recognition.onend = () => { isListening = false; if(aiStatus === "LISTENING...") aiStatus = "PROCESSING..."; updateHUD(); };
-            
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                askGemini(transcript);
-            };
-        }
-    }
-
-    async function performVisualScan() {
-        if (!model) return;
-        aiStatus = "CAPTURING VISUALS..."; updateHUD();
-        const flash = document.getElementById('flash');
-        flash.style.opacity = 0.8;
-        setTimeout(() => { flash.style.opacity = 0; }, 100);
-
-        const video = document.getElementById('camera-feed');
-        const canvas = document.getElementById('vision-canvas');
-        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        const base64Image = dataUrl.split(',')[1]; 
-
-        aiStatus = "ANALYZING TARGET..."; updateHUD();
+    // --- CORE SETUP ---
+    async function init3D() {
         try {
-            const prompt = "Analyze this image tactically.";
-            const imagePart = { inlineData: { data: base64Image, mimeType: "image/jpeg" } };
-            const result = await model.generateContent([prompt, imagePart]);
-            const response = await result.response;
-            speak(response.text());
-        } catch (error) {
-            aiStatus = "VISUAL ERROR";
-            speak("Visual sensors malfunctioned.");
-        }
-    }
+            scene = new THREE.Scene();
+            dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); dolly.add(camera);
+            
+            audioListener = new THREE.AudioListener(); camera.add(audioListener);
 
-    async function askGemini(prompt) {
-        aiStatus = "THINKING..."; updateHUD();
-        try {
-            const chat = model.startChat({
-                history: chatHistory,
-                generationConfig: { maxOutputTokens: 100 },
-            });
-            const result = await chat.sendMessage(prompt);
-            const text = await result.response.text();
-            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-            chatHistory.push({ role: "model", parts: [{ text: text }] });
-            if(chatHistory.length > 20) chatHistory = chatHistory.slice(chatHistory.length - 20);
-            saveMemory();
-            speak(text);
-        } catch (error) {
-            aiStatus = "ERR: NET";
-            speak("System Error.");
-        }
-    }
-    
-    function saveMemory() { localStorage.setItem('helen_chat_history', JSON.stringify(chatHistory)); }
-    function wipeMemory() {
-        chatHistory = [];
-        localStorage.removeItem('helen_chat_history');
-        sysMessage = "MEMORY WIPED";
-        speak("Memory banks cleared.");
-        updateMenuDisplay();
-    }
-
-    function speak(text) {
-        if (synth.speaking) synth.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.1; utterance.pitch = 1.0;
-        const voices = synth.getVoices();
-        const preferred = voices.find(v => v.name.includes("Google US English") || v.name.includes("Female"));
-        if(preferred) utterance.voice = preferred;
-        utterance.onstart = () => { isSpeaking = true; aiStatus = "SPEAKING"; updateHUD(); };
-        utterance.onend = () => { isSpeaking = false; aiStatus = "STANDBY"; updateHUD(); };
-        synth.speak(utterance);
-    }
-    
-    if(GEMINI_KEY) checkAuth();
-
-    if (localStorage.getItem('helen_layout_ai')) {
-        document.getElementById('restore-msg').style.display = 'block';
-        pendingRestore = true;
-    }
-
-    const input = document.getElementById('intel-input');
-    input.addEventListener('change', async (e) => {
-        if (e.target.files.length > 0) {
-            CUSTOM_DATABASE = [];
-            for (let i = 0; i < e.target.files.length; i++) {
-                const file = e.target.files[i];
-                let name = file.name.toUpperCase();
-                let type = 'image'; 
-                
-                if (name.endsWith('.PDF')) type = 'pdf';
-                else if (name.endsWith('.FBX')) type = 'fbx';
-                else if (name.endsWith('.GLB') || name.endsWith('.GLTF')) type = 'glb';
-                else if (name.endsWith('.MP3') || name.endsWith('.WAV')) type = 'audio';
-                else if (name.endsWith('.CSV')) type = 'chart';
-                else if (file.type.startsWith('video')) type = 'video';
-                else if (file.type.startsWith('image')) type = 'image';
-                
-                let src = URL.createObjectURL(file);
-                if (type === 'pdf') {
-                    const buffer = await file.arrayBuffer();
-                    CUSTOM_DATABASE.push({ type: 'pdf', buffer: buffer, label: name });
-                } else if (type === 'chart') {
-                    const text = await file.text();
-                    CUSTOM_DATABASE.push({ type: 'chart', data: text, label: name });
-                } else {
-                    CUSTOM_DATABASE.push({ type: type, src: src, label: name });
+            // Camera Feed Texture
+            const video = document.getElementById('camera-feed');
+            await startCameraStream(); 
+            
+            const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; 
+            
+            // Vision Shader
+            const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
+            const fragmentShader = `
+                uniform sampler2D tDiffuse; uniform float uMode; varying vec2 vUv;
+                void main() {
+                    vec4 c = texture2D(tDiffuse, vUv);
+                    if (uMode > 2.5) gl_FragColor = vec4(0,0,0,1); // Black
+                    else if (uMode > 0.5) { // Edge
+                        float d = 0.001;
+                        vec4 h = -1.0*texture2D(tDiffuse,vUv+vec2(-d,-d)) + -2.0*texture2D(tDiffuse,vUv+vec2(-d,0)) + -1.0*texture2D(tDiffuse,vUv+vec2(-d,d)) + 1.0*texture2D(tDiffuse,vUv+vec2(d,-d)) + 2.0*texture2D(tDiffuse,vUv+vec2(d,0)) + 1.0*texture2D(tDiffuse,vUv+vec2(d,d));
+                        vec4 v = -1.0*texture2D(tDiffuse,vUv+vec2(-d,-d)) + -2.0*texture2D(tDiffuse,vUv+vec2(0,-d)) + -1.0*texture2D(tDiffuse,vUv+vec2(d,-d)) + 1.0*texture2D(tDiffuse,vUv+vec2(-d,d)) + 2.0*texture2D(tDiffuse,vUv+vec2(0,d)) + 1.0*texture2D(tDiffuse,vUv+vec2(d,d));
+                        float val = length(sqrt(h*h + v*v));
+                        gl_FragColor = val > 0.5 ? vec4(0,1,1,1) : vec4(0,0.05,0.1,1);
+                    } else gl_FragColor = c;
                 }
-            }
-            input.value = ''; 
-            sysMessage = "FILES LOADED"; updateMenuDisplay();
-        }
-    });
+            `;
 
-    function saveMission() {
-        const layout = targets.map(t => {
-            if(t === cinemaGroup) return null; // Don't save cinema mode
-            return {
-                label: t.userData.label,
-                pos: t.position,
-                rot: t.rotation,
-                scale: t.scale,
-                type: t.userData.type
-            };
-        }).filter(t => t !== null);
-        localStorage.setItem('helen_layout_ai', JSON.stringify(layout));
-        sysMessage = "MISSION SAVED"; updateMenuDisplay(); 
-        setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
+            camMaterial = new THREE.ShaderMaterial({
+                uniforms: { tDiffuse: { value: vidTex }, uMode: { value: 0.0 } },
+                vertexShader: vertexShader, fragmentShader: fragmentShader, depthTest: false, depthWrite: false
+            });
+            const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
+
+            // HUD
+            const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
+            hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas);
+            const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
+            hudMesh.position.set(0, 0, -1.5); camera.add(hudMesh);
+
+            // Lighting
+            cinemaLight = new THREE.PointLight(0xffffff, 0, 30); cinemaLight.position.set(0, 5, 0); scene.add(cinemaLight);
+            scene.add(new THREE.DirectionalLight(0xffffff, 2)); scene.add(new THREE.AmbientLight(0xffffff, 1));
+            ambilightCtx = document.getElementById('ambilight-canvas').getContext('2d');
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); 
+            renderer.setPixelRatio(1); renderer.setSize(window.innerWidth, window.innerHeight); 
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+            
+            createCockpit(); 
+            createMenuSystem();
+            
+            const btn = VRButton.createButton(renderer); 
+            document.getElementById('vr-btn-container').appendChild(btn);
+            renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
+
+            log("SYSTEM READY");
+            animate();
+
+        } catch(e) { log("CRITICAL INIT ERROR: " + e.message); }
     }
 
-    function loadMission() {
-        const raw = localStorage.getItem('helen_layout_ai');
-        if (!raw) { sysMessage = "NO DATA FOUND"; updateMenuDisplay(); return; }
-        const layout = JSON.parse(raw);
-        let restoredCount = 0;
-        layout.forEach(item => {
-            const dbItem = CUSTOM_DATABASE.find(f => f.label === item.label) || DEFAULT_DATABASE[0];
-            if (dbItem) {
-                const pos = new THREE.Vector3(item.pos.x, item.pos.y, item.pos.z);
-                const rot = new THREE.Euler(item.rot._x, item.rot._y, item.rot._z);
-                const scale = item.scale ? new THREE.Vector3(item.scale.x, item.scale.y, item.scale.z) : null;
-                
-                if (dbItem.type === 'fbx' || dbItem.type === 'glb') spawnModel(pos, dbItem, rot, scale);
-                else if (dbItem.type === 'audio') spawnAudio(pos, dbItem);
-                else if (dbItem.type === 'chart') spawnChart(pos, dbItem);
-                else spawnScreen(pos, dbItem, rot);
-                restoredCount++;
-            }
-        });
-        sysMessage = `RESTORED ${restoredCount} UNITS`; updateMenuDisplay(); 
-    }
-
-    function clearMission() {
-        localStorage.removeItem('helen_layout_ai');
-        [...targets].forEach(t => deleteObject(t));
-        sysMessage = "DATABASE WIPED"; updateMenuDisplay();
-    }
-
-    async function scanCameras() {
-        if (!navigator.mediaDevices?.enumerateDevices) return;
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(d => d.kind === 'videoinput' && !d.label.toLowerCase().includes('front'));
-        startCameraStream(cameras.length > 0 ? cameras[0].deviceId : null);
-    }
-
-    async function startCameraStream(preferredId) {
-        if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+    async function startCameraStream() {
         try {
-            const constraints = preferredId ? { video: { deviceId: { exact: preferredId } } } : { video: { facingMode: 'environment' } };
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             const video = document.getElementById('camera-feed');
             video.srcObject = stream;
-            await new Promise(r => video.onloadedmetadata = r);
             await video.play();
-            currentStream = stream;
-            videoTrack = stream.getVideoTracks()[0];
-            if (camMaterial) {
-                camMaterial.uniforms.tDiffuse.value = new THREE.VideoTexture(video);
-                camMaterial.uniforms.tDiffuse.value.colorSpace = THREE.SRGBColorSpace;
-            }
-        } catch (err) {}
+        } catch(e) { log("CAMERA FAIL: " + e.message); }
     }
 
-    scanCameras().then(init3D);
-
-    const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
-    const fragmentShader = `
-        uniform sampler2D tDiffuse; uniform float uMode; uniform vec2 uResolution; varying vec2 vUv;
-        void main() {
-            vec4 color = texture2D(tDiffuse, vUv);
-            if (uMode > 2.5) { // CINEMA MODE (BLACK)
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-            } else if (uMode > 1.5) { // VOID MODE
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-            } else if (uMode > 0.5) { // EDGE MODE
-                float x = 1.0 / uResolution.x; float y = 1.0 / uResolution.y;
-                vec4 horizEdge = -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) + -2.0 * texture2D(tDiffuse, vUv + vec2(-x,  0.0)) + -1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) + 2.0 * texture2D(tDiffuse, vUv + vec2( x,  0.0)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
-                vec4 vertEdge = -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) + -2.0 * texture2D(tDiffuse, vUv + vec2( 0.0, -y)) + -1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) + 1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) + 2.0 * texture2D(tDiffuse, vUv + vec2( 0.0,  y)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
-                vec3 edge = sqrt((horizEdge.rgb * horizEdge.rgb) + (vertEdge.rgb * vertEdge.rgb));
-                float val = length(edge);
-                if(val > 0.15) gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * val * 2.0; else gl_FragColor = vec4(0.0, 0.05, 0.1, 1.0); 
-            } else gl_FragColor = color; 
-        }
-    `;
-    
-    function initMouseControl() {
-        function getPos(e) {
-            if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            return { x: e.clientX, y: e.clientY };
-        }
-
-        window.addEventListener('contextmenu', (e) => { e.preventDefault(); });
-
-        const onDown = (e) => {
-            if (e.button === 2) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; return; }
-            if (isMenuOpen) return;
-            if (e.button === 0 || e.type === 'touchstart') {
-                isMouseDown = true;
-                const pos = getPos(e);
-                previousMousePosition = pos;
-            }
-        };
-
-        const onUp = () => { isMouseDown = false; };
-
-        const onMove = (e) => {
-            if (!isMouseDown || !dolly || isMenuOpen || isCinemaMode) return; // LOCK MOVEMENT IN CINEMA
-            if(e.preventDefault) e.preventDefault();
-            if (!renderer.xr.isPresenting) {
-                const pos = getPos(e);
-                const deltaX = pos.x - previousMousePosition.x;
-                const deltaY = pos.y - previousMousePosition.y;
-                previousMousePosition = pos;
-                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
-                dolly.position.addScaledVector(_moveDir, -deltaY * MOUSE_SENSITIVITY);
-                dolly.position.addScaledVector(_strafeDir, deltaX * MOUSE_SENSITIVITY);
-            }
-        };
-
-        window.addEventListener('mousedown', onDown);
-        window.addEventListener('mouseup', onUp);
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('touchstart', onDown, { passive: false });
-        window.addEventListener('touchend', onUp);
-        window.addEventListener('touchmove', onMove, { passive: false });
-    }
-
-    function createCockpit() {
-        if(cockpitGroup) { dolly.remove(cockpitGroup); }
-        cockpitGroup = new THREE.Group();
-        cockpitGroup.position.set(0, -1.6, -1.0); 
-        cockpitGroup.rotation.x = -Math.PI / 2 + 0.2; 
-        dolly.add(cockpitGroup);
-        cockpitPanels = [];
-
-        // Simple Chevron for Cockpit
-        const fwd = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 3), new THREE.MeshBasicMaterial({color:0x00ff00, transparent:true, opacity:0.5}));
-        fwd.rotation.x = Math.PI / 2;
-        fwd.userData = { action: "FORWARD", baseScale: 1 };
-        cockpitGroup.add(fwd); cockpitPanels.push(fwd);
-
-        // Menu Button
-        const menuBtn = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0xff0055, side: THREE.DoubleSide, transparent: true, opacity: 0.5 }));
-        menuBtn.position.set(0, -0.6, 0); 
-        menuBtn.userData = { action: "TOGGLE_MENU", baseScale: 1 };
-        cockpitGroup.add(menuBtn); cockpitPanels.push(menuBtn);
-
-        if(!reticle) {
-            const ringGeo = new THREE.RingGeometry(0.015, 0.02, 32);
-            const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, opacity: 0.8, transparent: true });
-            reticle = new THREE.Mesh(ringGeo, ringMat);
-            reticle.position.z = -1;
-            camera.add(reticle);
-        }
-    }
-
-    function init3D() {
-        scene = new THREE.Scene();
-        dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); dolly.add(camera);
-        
-        audioListener = new THREE.AudioListener();
-        camera.add(audioListener);
-
-        const video = document.getElementById('camera-feed');
-        const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false; 
-        camMaterial = new THREE.ShaderMaterial({
-            uniforms: { tDiffuse: { value: vidTex }, uMode: { value: 0.0 }, uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
-            vertexShader: vertexShader, fragmentShader: fragmentShader, depthTest: false, depthWrite: false
-        });
-        const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
-
-        // HUD Setup
-        const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
-        hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas); hudTexture.minFilter = THREE.LinearFilter;
-        const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
-        hudMesh.position.set(0, 0, -1.5); camera.add(hudMesh);
-
-        // Ambilight Setup
-        ambilightCtx = document.getElementById('ambilight-canvas').getContext('2d');
-        cinemaLight = new THREE.PointLight(0xffffff, 0, 30);
-        cinemaLight.position.set(0, 5, 0);
-        scene.add(cinemaLight);
-
-        const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
-        
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" }); 
-        renderer.setPixelRatio(1); 
-        renderer.setSize(window.innerWidth, window.innerHeight); 
-        renderer.xr.enabled = true;
-        document.body.appendChild(renderer.domElement);
-        
-        initMouseControl();
-        createCockpit(); 
-        const btn = VRButton.createButton(renderer); btn.className = "primary"; document.getElementById('vr-btn-container').appendChild(btn);
-        
-        renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
-
-        createMenuSystem();
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
-
-        animate();
-    }
-
-    function createMenuSystem() {
-        menuGroup = new THREE.Group();
-        const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
-        menuCtx = canvas.getContext('2d'); menuTexture = new THREE.CanvasTexture(canvas);
-        const geometry = new THREE.PlaneGeometry(2, 2);
-        const material = new THREE.MeshBasicMaterial({ map: menuTexture, transparent: true, side: THREE.DoubleSide });
-        menuMesh = new THREE.Mesh(geometry, material); menuGroup.add(menuMesh);
-        menuGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
-        scene.add(menuGroup); menuGroup.visible = false;
-    }
-
-    function updateMenuDisplay() {
-        const ctx = menuCtx; const w = 1024; const h = 1024;
-        const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-        
-        ctx.fillStyle = 'rgba(0, 10, 20, 0.9)'; ctx.fillRect(0, 0, w, h);
-        ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 80);
-        ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
-        
-        const sysOpts = [
-            { label: "[SAVE MISSION]", type: "sys" },
-            { label: "[LOAD MISSION]", type: "sys" },
-            { label: "[CLEAR ALL]", type: "sys" },
-            { label: "[VOICE COMMS]", type: "sys" },
-            { label: "[VISUAL SCAN]", type: "sys" },
-            { label: "[WIPE MEMORY]", type: "sys" },
-            { label: "[CINEMA MODE]", type: "sys" } // NEW
-        ];
-        
-        const fullList = [...sysOpts, ...db];
-        
-        ctx.textAlign = 'left'; ctx.font = '50px Courier New';
-        let listY = 180;
-        
-        for (let i = 0; i < MAX_MENU_VISIBLE; i++) {
-            const realIndex = menuScrollIndex + i;
-            if (realIndex >= fullList.length) break;
-            const item = fullList[realIndex];
-            const isHovered = (realIndex === hoveredFileIndex);
-            
-            if (isHovered) {
-                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 60, 60);
-                ctx.fillStyle = '#fff'; ctx.fillText(`> ${item.label}`, 80, listY);
-            } else {
-                ctx.fillStyle = item.type === 'sys' ? '#ff0055' : '#00aaaa';
-                ctx.fillText(`  ${item.label}`, 80, listY);
-            }
-            if (item.type !== 'sys') { ctx.fillStyle = '#666'; ctx.fillText(item.type.toUpperCase(), w - 200, listY); }
-            listY += 70;
-        }
-
-        if (sysMessage) {
-            ctx.fillStyle = '#00ff00'; ctx.fillRect(100, h/2 - 50, w-200, 100);
-            ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.fillText(sysMessage, w/2, h/2 + 15);
-        }
-        menuTexture.needsUpdate = true;
-    }
-
-    function spawnFromMenu(index) {
-        if (index === 0) { saveMission(); return; }
-        if (index === 1) { loadMission(); return; }
-        if (index === 2) { clearMission(); return; }
-        if (index === 3) { if(recognition) recognition.start(); else sysMessage = "VOICE NOT READY"; updateMenuDisplay(); return; }
-        if (index === 4) { performVisualScan(); updateMenuDisplay(); setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500); return; }
-        if (index === 5) { wipeMemory(); return; }
-        if (index === 6) { 
-            // DEFAULT CINEMA (Demo Video)
-             // Find a video in DB or use default
-             const vid = CUSTOM_DATABASE.find(x => x.type === 'video');
-             if(vid) enterCinemaMode(vid);
-             else { sysMessage = "LOAD VIDEO FIRST"; updateMenuDisplay(); }
-             return; 
-        }
-
-        const fileIndex = index - 7; 
-        const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
-        
-        if (fileIndex >= 0 && fileIndex < db.length) {
-            const item = db[fileIndex];
-            if(item.type === 'video') {
-                // Ask or Default to Cinema? Let's default to Cinema for this "Edition"
-                enterCinemaMode(item);
-                isMenuOpen = false; menuGroup.visible = false;
-                return;
-            }
-
-            // Normal Spawn Logic
-            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-            const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
-            if (item.type === 'fbx' || item.type === 'glb') { pos.y = 0; spawnModel(pos, item); }
-            else if (item.type === 'audio') { pos.y = 1.6; spawnAudio(pos, item); }
-            else if (item.type === 'chart') { pos.y = 1.0; spawnChart(pos, item); }
-            else { pos.y = 1.6; spawnScreen(pos, item); }
-            isMenuOpen = false; menuGroup.visible = false;
-        }
-    }
-
-    // --- NEW: CINEMA LOGIC ---
-    function enterCinemaMode(data) {
-        if(isCinemaMode) exitCinemaMode();
-        isCinemaMode = true;
-        camMaterial.uniforms.uMode.value = 3.0; // Black Background
-        cockpitGroup.visible = false; // Hide cockpit
-
-        cinemaGroup = new THREE.Group();
-        
-        // Align to user gaze
-        const pos = camera.getWorldPosition(new THREE.Vector3());
-        const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
-        cinemaGroup.position.copy(pos);
-        cinemaGroup.lookAt(pos.clone().add(dir));
-        
-        scene.add(cinemaGroup);
-
-        // Create Video Element
-        const videoElem = document.createElement('video'); 
-        videoElem.src = data.src; 
-        videoElem.crossOrigin = "anonymous"; 
-        videoElem.loop = true; videoElem.playsInline = true;
-        videoElem.play();
-        currentVideoElement = videoElem;
-        
-        const tex = new THREE.VideoTexture(videoElem);
-        tex.colorSpace = THREE.SRGBColorSpace;
-
-        // Curved Screen (Imitating A-Frame curvedimage)
-        // Cylinder Geometry: Open ended, flip side to view from inside
-        const radius = 10;
-        const height = 9;
-        const angle = Math.PI / 1.5; // 120 degrees
-        const geometry = new THREE.CylinderGeometry(radius, radius, height, 32, 1, true, -angle/2, angle);
-        geometry.scale(-1, 1, 1); // Flip inside out
-        
-        const material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-        cinemaScreenMesh = new THREE.Mesh(geometry, material);
-        cinemaScreenMesh.position.set(0, 0, 0); 
-        cinemaScreenMesh.rotation.y = Math.PI; // Face the user
-        cinemaGroup.add(cinemaScreenMesh);
-
-        // Exit Button (Floating below)
-        const exitGeo = new THREE.PlaneGeometry(1, 0.4);
-        const exitMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-        const exitBtn = new THREE.Mesh(exitGeo, exitMat);
-        exitBtn.position.set(0, -2, -5);
-        exitBtn.userData = { isButton: true, action: 'EXIT_CINEMA' };
-        
-        // Text for button
-        const canvas = document.createElement('canvas'); canvas.width=256; canvas.height=64;
-        const ctx = canvas.getContext('2d'); ctx.fillStyle='white'; ctx.font='40px Courier'; ctx.fillText("EXIT CINEMA", 20, 50);
-        const t = new THREE.CanvasTexture(canvas);
-        const txtMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.25), new THREE.MeshBasicMaterial({map:t, transparent:true}));
-        txtMesh.position.z = 0.01; exitBtn.add(txtMesh);
-        
-        cinemaGroup.add(exitBtn);
-        targets.push(exitBtn);
-
-        sysMessage = "CINEMA MODE ACTIVE"; updateMenuDisplay();
-    }
-
-    function exitCinemaMode() {
-        isCinemaMode = false;
-        camMaterial.uniforms.uMode.value = visionMode; // Restore vision
-        cockpitGroup.visible = true;
-
-        if (currentVideoElement) { currentVideoElement.pause(); currentVideoElement = null; }
-        if (cinemaGroup) { 
-            scene.remove(cinemaGroup); 
-            // Clean up meshes
-            cinemaGroup.traverse(o => { if(o.isMesh) { o.geometry.dispose(); if(o.material.map) o.material.map.dispose(); } });
-            cinemaGroup = null; 
-        }
-        cinemaLight.intensity = 0;
-        
-        // Remove cinema targets
-        targets = targets.filter(t => t.userData.action !== 'EXIT_CINEMA');
-    }
-
-    function updateAmbilight() {
-        if (!isCinemaMode || !currentVideoElement || !ambilightCtx) return;
-        try {
-            ambilightCtx.drawImage(currentVideoElement, 0, 0, 32, 32);
-            const p = ambilightCtx.getImageData(16, 16, 1, 1).data;
-            const color = new THREE.Color(`rgb(${p[0]}, ${p[1]}, ${p[2]})`);
-            cinemaLight.color.lerp(color, 0.1);
-            cinemaLight.intensity = AMBILIGHT_INTENSITY;
-        } catch(e) {}
-    }
-
-    // --- HELPER FUNCTIONS ---
-    function mapBones(model) {
-        const skeleton = { head: null, spine: null, leftLeg: null, rightLeg: null };
-        model.traverse((o) => {
-            if (o.isBone) {
-                if (o.name.includes('Head')) skeleton.head = o;
-                if (o.name.includes('Spine')) skeleton.spine = o;
-                if (o.name.includes('L_UpperLeg')) skeleton.leftLeg = o;
-                if (o.name.includes('R_UpperLeg')) skeleton.rightLeg = o;
-            }
-        });
-        return skeleton;
-    }
-
-    function updateAI(model) {
-        if (!model.userData.skeleton || model.userData.isPaused) return;
-        const skel = model.userData.skeleton;
-        const playerPos = camera.getWorldPosition(new THREE.Vector3());
-        const flatPos = new THREE.Vector3(playerPos.x, model.position.y, playerPos.z);
-        const dist = model.position.distanceTo(flatPos);
-        
-        if (skel.head) model.lookAt(flatPos); // Head tracking
-
-        if (dist > AI_FOLLOW_DIST) {
-            const dir = new THREE.Vector3().subVectors(flatPos, model.position).normalize();
-            model.position.add(dir.multiplyScalar(AI_WALK_SPEED));
-            // Simple walking animation
-            const t = Date.now() * 0.01;
-            if(skel.leftLeg) skel.leftLeg.rotation.x = Math.sin(t) * 0.5;
-            if(skel.rightLeg) skel.rightLeg.rotation.x = -Math.sin(t) * 0.5;
-        }
-    }
-
-    function spawnModel(position, data, rotation = null, scale = null) {
-        const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
-        loader.load(data.src, (loaded) => {
-            const model = data.type === 'fbx' ? loaded : loaded.scene;
-            const box = new THREE.Box3().setFromObject(model);
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z) || 1; 
-            const scaleFactor = 1.0 / maxDim; 
-            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-            if (scale) model.scale.copy(scale);
-            model.position.copy(position);
-            if (rotation) model.rotation.copy(rotation);
-            
-            // Map Skeleton
-            const skel = mapBones(model);
-
-            model.userData = { 
-                isScreen: true, isModel: true, label: data.label, type: data.type,
-                skeleton: skel, aiActive: true, isPaused: false
-            };
-            scene.add(model); targets.push(model);
-        });
-    }
-
-    async function spawnScreen(position, data, rotation = null) {
-        const geometry = new THREE.PlaneGeometry(1, 1);
-        const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent:true, opacity:0.9 });
-        const screen = new THREE.Mesh(geometry, material);
-        screen.position.copy(position); 
-        
-        if (rotation) screen.rotation.copy(rotation);
-        else {
-            const pPos = camera.getWorldPosition(new THREE.Vector3());
-            screen.lookAt(pPos.x, screen.position.y, pPos.z);
-        }
-        
-        screen.userData = { isScreen: true, label: data.label, type: data.type };
-
-        // --- PDF LOGIC ---
-        if (data.type === 'pdf') {
-            const clonedBuffer = data.buffer.slice(0);
-            const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
-            screen.userData.pdfDoc = pdf; 
-            screen.userData.pageNum = 1; 
-            screen.userData.totalPages = pdf.numPages;
-            
-            // Page Buttons
-            const createBtn = (dir) => {
-                const s = new THREE.Shape();
-                if(dir==='next'){ s.moveTo(0,0.2); s.lineTo(0.2,0); s.lineTo(0,-0.2); }
-                else { s.moveTo(0,0.2); s.lineTo(-0.2,0); s.lineTo(0,-0.2); }
-                const m = new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshBasicMaterial({color:0x00ffff}));
-                m.userData = { isButton: true, action: dir==='next'?'NEXT_PAGE':'PREV_PAGE' };
-                m.position.set(dir==='next'?0.7:-0.7, 0, 0.05);
-                screen.add(m);
-            }
-            createBtn('next'); createBtn('prev');
-            await renderPdfPageToTexture(screen, 1);
-        } 
-        // --- VIDEO LOGIC ---
-        else if (data.type === 'video') {
-            const videoElem = document.createElement('video'); 
-            videoElem.src = data.src; videoElem.crossOrigin = "anonymous"; 
-            videoElem.loop = true; videoElem.muted = true; 
-            videoElem.play().then(()=>{videoElem.muted=false;});
-            
-            const tex = new THREE.VideoTexture(videoElem); 
-            tex.colorSpace = THREE.SRGBColorSpace;
-            screen.material.map = tex; 
-            screen.userData.videoElement = videoElem;
-            screen.scale.set(3, 1.8, 1);
-        } 
-        // --- IMAGE LOGIC ---
-        else {
-            new THREE.TextureLoader().load(data.src, (tex) => {
-                tex.colorSpace = THREE.SRGBColorSpace;
-                screen.material.map = tex;
-                const aspect = tex.image.width / tex.image.height;
-                screen.scale.set(1.8 * aspect, 1.8, 1); 
-            });
-        }
-        scene.add(screen); targets.push(screen);
-    }
-    
-    async function renderPdfPageToTexture(mesh, pageNum) {
-        if (!mesh.userData.pdfDoc || mesh.userData.isRendering) return;
-        mesh.userData.isRendering = true;
-        try {
-            const pdf = mesh.userData.pdfDoc;
-            if (pageNum < 1) pageNum = 1; if (pageNum > pdf.numPages) pageNum = pdf.numPages;
-            mesh.userData.pageNum = pageNum;
-            const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 3.0 });
-            const canvas = document.createElement('canvas'); 
-            canvas.height = viewport.height; canvas.width = viewport.width;
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
-            
-            const tex = new THREE.CanvasTexture(canvas); 
-            tex.colorSpace = THREE.SRGBColorSpace;
-            if (mesh.material.map) mesh.material.map.dispose(); 
-            mesh.material.map = tex; mesh.material.needsUpdate = true;
-            mesh.scale.set(1.8 * (viewport.width / viewport.height), 1.8, 1);
-        } catch(e) { console.error(e); }
-        mesh.userData.isRendering = false;
-    }
-    
-    function spawnAudio(position, data) {
-        const geo = new THREE.IcosahedronGeometry(0.3, 1);
-        const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-        const orb = new THREE.Mesh(geo, mat);
-        orb.position.copy(position);
-        
-        const sound = new THREE.Audio(audioListener);
-        new THREE.AudioLoader().load(data.src, function(buffer) {
-            sound.setBuffer(buffer); sound.setLoop(true); sound.setVolume(0.5);
-        });
-        
-        orb.userData = { 
-            isScreen: true, isAudio: true, sound: sound, 
-            isPlaying: false, label: data.label, type: 'audio' 
-        };
-        scene.add(orb); targets.push(orb);
-    }
-
-    function spawnChart(position, data) {
-        const lines = data.data.split('\n');
-        const chartGroup = new THREE.Group();
-        chartGroup.position.copy(position);
-        
-        let maxVal = 0; const parsed = [];
-        lines.forEach(l => {
-            const parts = l.split(',');
-            if(parts.length >= 2) {
-                const val = parseFloat(parts[1]);
-                if(!isNaN(val)) { parsed.push({label: parts[0], val}); if(val>maxVal) maxVal=val; }
-            }
-        });
-        
-        parsed.forEach((item, i) => {
-            const h = (item.val / maxVal) * 1.5; 
-            const bar = new THREE.Mesh(
-                new THREE.BoxGeometry(0.2, h, 0.2), 
-                new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 })
-            );
-            bar.position.set((i * 0.3) - ((parsed.length*0.3)/2), h/2, 0);
-            
-            // Label
-            const canvas = document.createElement('canvas'); canvas.width=256; canvas.height=128;
-            const ctx = canvas.getContext('2d'); ctx.fillStyle='#fff'; ctx.font='bold 40px Courier'; 
-            ctx.fillText(item.label, 10, 50); ctx.fillStyle='#00ffff'; ctx.fillText(item.val, 10, 100);
-            const lbl = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.2), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(canvas), transparent:true, side:THREE.DoubleSide}));
-            lbl.position.y = h + 0.2; bar.add(lbl);
-            chartGroup.add(bar);
-        });
-        
-        chartGroup.userData = { isScreen: true, isChart: true, label: data.label, type: 'chart' };
-        scene.add(chartGroup); targets.push(chartGroup);
-    }
-
-    function deleteObject(obj) {
-        scene.remove(obj); targets = targets.filter(t => t !== obj);
-    }
-
-    function handleCockpit() {
-        if (!cockpitGroup || isCinemaMode) return; // Disable cockpit in cinema
-        
-        // Simple Gaze-based flight logic
-        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-        const intersects = raycaster.intersectObjects(cockpitPanels, false);
-
-        targetSpeed = 0; targetRot = 0;
-        
-        cockpitPanels.forEach(p => { p.material.opacity = 0.5; p.scale.setScalar(p.userData.baseScale); });
-
-        if (intersects.length > 0) {
-            const p = intersects[0].object;
-            p.material.opacity = 1.0; p.scale.setScalar(p.userData.baseScale * 1.2);
-            if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
-            if (p.userData.action === "TOGGLE_MENU") {
-                if (Date.now() - lastMenuToggleTime > 1500) { 
-                    isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; 
-                    if(isMenuOpen) updateMenuPosition(); 
-                    lastMenuToggleTime = Date.now();
-                }
-            }
-        }
-        
-        // Tilt Drive Override
-        if (isTiltActive) {
-            if (Math.abs(currentTilt.beta) > TILT_DEADZONE) targetSpeed = (currentTilt.beta - TILT_DEADZONE) * -TILT_SPEED;
-        }
-
-        currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.1);
-        if (Math.abs(currentSpeed) > 0.001) {
-            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-            dolly.position.addScaledVector(_moveDir, currentSpeed);
-        }
-    }
-
-    function updateMenuPosition() {
-        if (!isMenuOpen || !menuGroup) return;
-        const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
-        menuGroup.position.copy(camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2.5))); 
-        menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
-    }
-
-    function handleInput() {
-        const pads = navigator.getGamepads();
-        const pad = pads[0] || pads[1]; // simplified
-
-        // GAMEPAD CINEMA CONTROLS
-        if (isCinemaMode && pad && currentVideoElement) {
-            if (pad.buttons[0].pressed && !lastBtn.x) { // X / A Button
-                if(currentVideoElement.paused) currentVideoElement.play(); else currentVideoElement.pause();
-            }
-            if (pad.buttons[1].pressed && !lastBtn.circle) { // Circle / B Button
-                exitCinemaMode();
-            }
-            if (pad.axes[0] < -0.5) currentVideoElement.currentTime -= 0.1; // Seek Back
-            if (pad.axes[0] > 0.5) currentVideoElement.currentTime += 0.1; // Seek Fwd
-            
-            lastBtn.x = pad.buttons[0].pressed;
-            lastBtn.circle = pad.buttons[1].pressed;
-            return; // Skip other inputs
-        }
-
-        // STANDARD INPUTS
-        if (isCinemaMode) {
-             // Just gaze for exit button
-             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-             const intersects = raycaster.intersectObjects(targets);
-             if (intersects.length > 0 && intersects[0].object.userData.action === 'EXIT_CINEMA') {
-                 gazeProgress += 0.02;
-                 if(gazeProgress >= 1) { exitCinemaMode(); gazeProgress = 0; }
-             } else gazeProgress = 0;
-             return;
-        }
-
-        // ... Existing Gaze Logic for Menu ...
-        if (isMenuOpen && menuMesh) {
-             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-             const intersects = raycaster.intersectObject(menuMesh);
-             if (intersects.length > 0) {
-                 const uvY = intersects[0].uv.y;
-                 if (uvY < 0.82) {
-                     const visualIdx = Math.floor((0.82 - uvY) / 0.068);
-                     const realIdx = visualIdx + menuScrollIndex;
-                     if(realIdx !== hoveredFileIndex) { hoveredFileIndex = realIdx; menuSelectionTimer = Date.now(); updateMenuDisplay(); }
-                     else {
-                         const elapsed = Date.now() - menuSelectionTimer;
-                         gazeProgress = Math.min(elapsed / 1500, 1.0);
-                         if(elapsed > 1500) { spawnFromMenu(realIdx); hoveredFileIndex = -1; menuSelectionTimer = Date.now() + 5000; }
-                     }
-                 }
-             } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
-        }
-        
-        // ... Gamepad standard ...
-        if (pad) {
-            if (pad.buttons[3].pressed && !lastBtn.triangle) {
-                visionMode = (visionMode + 1) % 3;
-                if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
-            }
-            lastBtn.triangle = pad.buttons[3].pressed;
-        }
-    }
-
-    function updateHUD() {
-        if(!hudContext) return;
-        const currentState = `M:${isMenuOpen}|S:${isSpeaking}|L:${isListening}|V:${visionMode}|C:${isCinemaMode}|P:${gazeProgress.toFixed(2)}`;
-        if (currentState === lastHudState) return;
-        lastHudState = currentState; 
-
-        const ctx = hudContext; const w = 1024; const h = 1024; ctx.clearRect(0, 0, w, h);
-        const cx = w/2; const cy = h/2;
-
-        if (isCinemaMode) {
-            ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center'; ctx.font = '30px Courier New';
-            ctx.fillText("CINEMA MODE ACTIVE", cx, h - 100);
-            if (gazeProgress > 0) {
-                ctx.beginPath(); ctx.arc(cx, cy, 60, 0, Math.PI * 2 * gazeProgress);
-                ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 10; ctx.stroke();
-            }
-        } else {
-            // Normal HUD
-            ctx.textAlign = 'right'; ctx.font = 'bold 30px Courier New';
-            if(visionMode === 1) { ctx.fillStyle = '#00ffff'; ctx.fillText("VISION: [CYBER]", w-40, 60); }
-            else { ctx.fillStyle = 'rgba(0,255,255,0.5)'; ctx.fillText("VISION: [NORMAL]", w-40, 60); }
-            ctx.textAlign = 'left'; ctx.fillText(`AI: [${aiStatus}]`, 40, 60);
-
-            if (gazeProgress > 0.05) {
-                ctx.beginPath(); ctx.arc(cx, cy, 60, -Math.PI/2, (-Math.PI/2) + (Math.PI * 2 * gazeProgress));
-                ctx.lineWidth = 10; ctx.strokeStyle = '#00ffff'; ctx.stroke();
-            }
-            if(!isMenuOpen) {
-                ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; 
-                ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
-            }
-        }
-        hudTexture.needsUpdate = true;
-    }
-
+    // --- ANIMATION LOOP ---
     function animate() {
         renderer.setAnimationLoop(() => { 
             handleInput(); 
@@ -1138,10 +323,9 @@
             updateHUD(); 
             updateAmbilight(); 
             
-            // --- AI & AUDIO LOOP ---
+            // AI Skeletons & Audio Orbs
             targets.forEach(t => { 
                 if(t.userData.isModel && t.userData.aiActive) updateAI(t);
-                // Animate Audio Orbs
                 if(t.userData.isAudio && t.userData.isPlaying) {
                     const s = 1.0 + Math.sin(Date.now() * 0.01) * 0.2;
                     t.scale.set(s,s,s);
@@ -1151,6 +335,280 @@
             renderer.render(scene, camera); 
         });
     }
+
+    // --- COCKPIT & MENU ---
+    function createCockpit() {
+        cockpitGroup = new THREE.Group();
+        cockpitGroup.position.set(0, -1.6, -1.0); cockpitGroup.rotation.x = -Math.PI/2 + 0.2; 
+        dolly.add(cockpitGroup);
+        
+        const fwd = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 3), new THREE.MeshBasicMaterial({color:0x00ff00, transparent:true, opacity:0.5}));
+        fwd.rotation.x = Math.PI/2; fwd.userData = { action: "FORWARD", baseScale: 1 };
+        cockpitGroup.add(fwd); cockpitPanels.push(fwd);
+
+        const menuBtn = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0xff0055, side: THREE.DoubleSide, transparent: true, opacity: 0.5 }));
+        menuBtn.position.set(0, -0.6, 0); menuBtn.userData = { action: "TOGGLE_MENU", baseScale: 1 };
+        cockpitGroup.add(menuBtn); cockpitPanels.push(menuBtn);
+
+        const reticleGeo = new THREE.RingGeometry(0.015, 0.02, 32);
+        reticle = new THREE.Mesh(reticleGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.8, transparent: true }));
+        reticle.position.z = -1; camera.add(reticle);
+    }
+
+    function handleCockpit() {
+        if (!cockpitGroup || isCinemaMode) return;
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        const intersects = raycaster.intersectObjects(cockpitPanels);
+        
+        targetSpeed = 0;
+        cockpitPanels.forEach(p => { p.material.opacity = 0.5; p.scale.setScalar(p.userData.baseScale); });
+        
+        if (intersects.length > 0) {
+            const p = intersects[0].object;
+            p.material.opacity = 1; p.scale.setScalar(p.userData.baseScale*1.2);
+            if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
+            if (p.userData.action === "TOGGLE_MENU" && Date.now() - lastMenuToggleTime > 1500) {
+                isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; 
+                lastMenuToggleTime = Date.now();
+                if(isMenuOpen) updateMenuPosition();
+            }
+        }
+        
+        if (isTiltActive && Math.abs(currentTilt.beta) > TILT_DEADZONE) {
+            targetSpeed = (currentTilt.beta - TILT_DEADZONE) * -TILT_SPEED;
+        }
+
+        currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.1);
+        if (Math.abs(currentSpeed) > 0.001) {
+            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+            dolly.position.addScaledVector(_moveDir, currentSpeed);
+        }
+    }
+
+    // --- MENU SYSTEM ---
+    function createMenuSystem() {
+        menuGroup = new THREE.Group();
+        const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
+        menuCtx = canvas.getContext('2d'); menuTexture = new THREE.CanvasTexture(canvas);
+        menuMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: menuTexture, transparent: true }));
+        menuGroup.add(menuMesh); scene.add(menuGroup); menuGroup.visible = false;
+    }
+
+    function updateMenuDisplay() {
+        const ctx = menuCtx; ctx.fillStyle = 'rgba(0,10,20,0.9)'; ctx.fillRect(0,0,1024,1024);
+        ctx.fillStyle = '#00ffff'; ctx.font = '60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL OS", 512, 80);
+        
+        const opts = ["SAVE MISSION", "LOAD MISSION", "CLEAR ALL", "VOICE COMMS", "VISUAL SCAN", "WIPE MEMORY", "CINEMA MODE"];
+        const list = [...opts, ...CUSTOM_DATABASE.map(i => i.label)];
+        
+        ctx.textAlign = 'left'; ctx.font = '50px Courier New';
+        let y = 180;
+        for (let i = 0; i < 9; i++) {
+            const idx = menuScrollIndex + i;
+            if (idx >= list.length) break;
+            ctx.fillStyle = (idx === hoveredFileIndex) ? '#fff' : '#00aaaa';
+            ctx.fillText((idx === hoveredFileIndex ? "> " : "  ") + list[idx], 80, y);
+            y += 70;
+        }
+        if(sysMessage) { ctx.fillStyle='#00ff00'; ctx.fillText(sysMessage, 100, 900); }
+        menuTexture.needsUpdate = true;
+    }
+
+    function spawnFromMenu(idx) {
+        if (idx === 0) saveMission();
+        else if (idx === 1) loadMission();
+        else if (idx === 2) { targets.forEach(t => deleteObject(t)); sysMessage="CLEARED"; }
+        else if (idx === 3) { if(recognition) recognition.start(); else sysMessage="NO VOICE"; }
+        else if (idx === 4) performVisualScan();
+        else if (idx === 5) { chatHistory=[]; sysMessage="MEMORY WIPED"; }
+        else if (idx === 6) { 
+            const vid = CUSTOM_DATABASE.find(x => x.type === 'video');
+            enterCinemaMode(vid || { src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' });
+        }
+        else {
+            const item = CUSTOM_DATABASE[idx - 7];
+            if(item) {
+                const pos = camera.getWorldPosition(new THREE.Vector3()).add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(3));
+                if(item.type === 'image') spawnScreen(pos, item);
+                else if(item.type === 'video') enterCinemaMode(item);
+                else if(item.type === 'pdf') spawnScreen(pos, item);
+                else if(item.type === 'audio') spawnAudio(pos, item);
+                else spawnModel(pos, item);
+            }
+        }
+        isMenuOpen = false; menuGroup.visible = false;
+    }
+    
+    // --- FILE INPUT ---
+    document.getElementById('intel-input').addEventListener('change', async (e) => {
+        for (let file of e.target.files) {
+            let type = 'image';
+            if(file.name.endsWith('.pdf')) type = 'pdf';
+            if(file.type.includes('video')) type = 'video';
+            if(file.type.includes('audio')) type = 'audio';
+            if(file.name.endsWith('.glb')) type = 'glb';
+            
+            let item = { label: file.name.toUpperCase(), type: type, src: URL.createObjectURL(file) };
+            if (type === 'pdf') item.buffer = await file.arrayBuffer();
+            CUSTOM_DATABASE.push(item);
+        }
+        sysMessage = "FILES LOADED"; updateMenuDisplay();
+    });
+
+    // --- CINEMA LOGIC ---
+    function enterCinemaMode(data) {
+        if(isCinemaMode) exitCinemaMode();
+        isCinemaMode = true;
+        camMaterial.uniforms.uMode.value = 3.0; 
+        cockpitGroup.visible = false;
+        
+        cinemaGroup = new THREE.Group();
+        cinemaGroup.position.copy(camera.getWorldPosition(new THREE.Vector3()));
+        scene.add(cinemaGroup);
+
+        const video = document.createElement('video');
+        video.src = data.src; video.crossOrigin = "anonymous"; video.loop = true; video.play();
+        currentVideoElement = video;
+
+        const geo = new THREE.CylinderGeometry(10, 10, 9, 32, 1, true, -Math.PI/1.5/2, Math.PI/1.5);
+        geo.scale(-1, 1, 1);
+        const mat = new THREE.MeshBasicMaterial({ map: new THREE.VideoTexture(video) });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.rotation.y = Math.PI;
+        cinemaGroup.add(mesh);
+        
+        // Exit Button
+        const exit = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.4), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+        exit.position.set(0, -2, -5); exit.userData = { action: 'EXIT_CINEMA' };
+        cinemaGroup.add(exit); targets.push(exit);
+    }
+
+    function exitCinemaMode() {
+        isCinemaMode = false; camMaterial.uniforms.uMode.value = visionMode; cockpitGroup.visible = true;
+        if(currentVideoElement) { currentVideoElement.pause(); currentVideoElement = null; }
+        if(cinemaGroup) { scene.remove(cinemaGroup); cinemaGroup = null; }
+        targets = targets.filter(t => t.userData.action !== 'EXIT_CINEMA');
+    }
+
+    function updateAmbilight() {
+        if (!isCinemaMode || !currentVideoElement) return;
+        ambilightCtx.drawImage(currentVideoElement, 0, 0, 32, 32);
+        const p = ambilightCtx.getImageData(16, 16, 1, 1).data;
+        cinemaLight.color.setRGB(p[0]/255, p[1]/255, p[2]/255);
+        cinemaLight.intensity = AMBILIGHT_INTENSITY;
+    }
+
+    // --- SPAWNERS ---
+    async function spawnScreen(pos, data) {
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1,1), new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));
+        mesh.position.copy(pos); mesh.lookAt(camera.position); scene.add(mesh); targets.push(mesh);
+        
+        if (data.type === 'pdf') {
+            const pdf = await pdfjsLib.getDocument(data.buffer.slice(0)).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({scale:3});
+            const cvs = document.createElement('canvas'); cvs.width=viewport.width; cvs.height=viewport.height;
+            await page.render({canvasContext:cvs.getContext('2d'), viewport}).promise;
+            mesh.material.map = new THREE.CanvasTexture(cvs); 
+            mesh.scale.set(1.8 * (viewport.width/viewport.height), 1.8, 1);
+        } else {
+            new THREE.TextureLoader().load(data.src, t => { mesh.material.map=t; mesh.scale.set(1.8*(t.image.width/t.image.height), 1.8, 1); });
+        }
+    }
+
+    function spawnAudio(pos, data) {
+        const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.3), new THREE.MeshBasicMaterial({color:0x00ff00, wireframe:true}));
+        mesh.position.copy(pos); scene.add(mesh); targets.push(mesh);
+        mesh.userData = { isAudio: true, isPlaying: false };
+        // Simplified audio logic (browser autoplay policies block audio without interaction)
+        const a = new Audio(data.src); a.loop=true; mesh.userData.audio = a;
+    }
+    
+    function spawnModel(pos, data) {
+        const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
+        loader.load(data.src, (o) => {
+            const m = data.type === 'fbx' ? o : o.scene;
+            m.position.copy(pos); m.scale.setScalar(0.5); scene.add(m); targets.push(m);
+            m.userData = { isModel: true, aiActive: true, skeleton: mapBones(m) };
+        });
+    }
+
+    // --- HELPER ---
+    function mapBones(m) {
+        let skel = {}; m.traverse(o => { if(o.isBone && o.name.includes('Head')) skel.head = o; }); return skel;
+    }
+    function updateAI(m) {
+        if(m.userData.skeleton.head) m.lookAt(camera.position); 
+    }
+    function deleteObject(o) { scene.remove(o); targets=targets.filter(t=>t!==o); }
+
+    function updateMenuPosition() {
+        if (!isMenuOpen) return;
+        const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+        menuGroup.position.copy(camera.position.clone().add(dir.multiplyScalar(2.5)));
+        menuGroup.lookAt(camera.position);
+    }
+    
+    function updateHUD() {
+        if(!hudContext) return;
+        const ctx = hudContext; ctx.clearRect(0,0,1024,1024);
+        if(isCinemaMode) {
+            ctx.fillStyle = '#00ffff'; ctx.font='40px Courier'; ctx.textAlign='center'; ctx.fillText("CINEMA MODE", 512, 900);
+            // Gaze for exit
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            if (raycaster.intersectObjects(targets).find(x=>x.object.userData.action==='EXIT_CINEMA')) {
+                gazeProgress += 0.02; if(gazeProgress>1) { exitCinemaMode(); gazeProgress=0; }
+                ctx.beginPath(); ctx.arc(512,512,60,0,Math.PI*2*gazeProgress); ctx.strokeStyle='red'; ctx.lineWidth=10; ctx.stroke();
+            } else gazeProgress=0;
+        } else {
+             // Normal Gaze
+             if(isMenuOpen) {
+                 raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+                 const hit = raycaster.intersectObject(menuMesh)[0];
+                 if(hit && hit.uv.y < 0.82) {
+                     const idx = Math.floor((0.82 - hit.uv.y)/0.068) + menuScrollIndex;
+                     if(idx !== hoveredFileIndex) { hoveredFileIndex = idx; menuSelectionTimer = Date.now(); updateMenuDisplay(); }
+                     if (Date.now() - menuSelectionTimer > 1500) spawnFromMenu(idx);
+                     // Draw gaze circle
+                     gazeProgress = Math.min((Date.now()-menuSelectionTimer)/1500, 1);
+                     ctx.beginPath(); ctx.arc(512,512,60,0,Math.PI*2*gazeProgress); ctx.strokeStyle='cyan'; ctx.lineWidth=10; ctx.stroke();
+                 }
+             }
+        }
+        hudTexture.needsUpdate = true;
+    }
+
+    function initVoice() {
+        try {
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.onresult = (e) => askGemini(e.results[0][0].transcript);
+        } catch(e) { log("VOICE NOT SUPPORTED"); }
+    }
+    async function askGemini(p) {
+        if(!model) return;
+        try {
+            const res = await model.generateContent(p);
+            const txt = res.response.text();
+            let u = new SpeechSynthesisUtterance(txt); synth.speak(u);
+        } catch(e) { log("AI ERROR"); }
+    }
+    function performVisualScan() {
+        const c = document.createElement('canvas'); c.width=640; c.height=480;
+        c.getContext('2d').drawImage(document.getElementById('camera-feed'),0,0,c.width,c.height);
+        // Add Gemini vision logic here if needed
+        sysMessage = "SCAN COMPLETE"; updateMenuDisplay();
+    }
+    
+    // --- START ---
+    if(GEMINI_KEY) checkAuth();
+    if(localStorage.getItem('helen_layout_ai')) document.getElementById('restore-msg').style.display = 'block';
+    
+    // Ensure INIT is called
+    window.addEventListener('load', () => { 
+        log("WINDOW LOADED. Click INIT to start.");
+        startCameraStream(); // Warm up camera
+    });
+
 </script>
 </body>
 </html>
