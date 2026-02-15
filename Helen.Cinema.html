@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v8.0: 3D SBS Edition</title>
+    <title>The Hub v8.0: 3D Cinema</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        /* --- UI STYLES --- */
+        /* UI STYLES */
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
         
         #ui-layer {
@@ -56,22 +56,13 @@
         
         #light-canvas { display: none; }
     </style>
-
+    
     <script>
-        AFRAME.registerComponent('stereo-layer', {
-            schema: { type: 'string', default: 'both' }, // 'left', 'right', 'both'
-            init: function () { this.update(); },
-            update: function () {
-                const mesh = this.el.getObject3D('mesh');
-                if (!mesh) {
-                    this.el.addEventListener('model-loaded', () => this.update());
-                    return;
-                }
-                // WebXR Standards: Layer 1 = Left Eye, Layer 2 = Right Eye
-                mesh.layers.disableAll();
-                if (this.data === 'left') mesh.layers.enable(1);
-                else if (this.data === 'right') mesh.layers.enable(2);
-                else mesh.layers.enable(0);
+        AFRAME.registerComponent('layers', {
+            schema: { type: 'string', default: '0' },
+            init: function () {
+                const layer = parseInt(this.data);
+                this.el.object3D.traverse(function (obj) { obj.layers.set(layer); });
             }
         });
     </script>
@@ -122,26 +113,23 @@
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
-        <a-curvedimage id="screen-cinema" src="#video-src" stereo-layer="both"
+        <a-curvedimage id="screen-cinema" src="#video-src" 
             height="12" radius="14" theta-length="90" 
             rotation="0 135 0" position="0 5 0" 
             side="double" visible="true">
         </a-curvedimage>
 
-        <a-curvedimage id="screen-cinema-left" src="#video-src" stereo-layer="left"
+        <a-curvedimage id="screen-left" src="#video-src" layers="1"
             height="12" radius="14" theta-length="90" 
             rotation="0 135 0" position="0 5 0" 
-            side="double" visible="false"
-            material="repeat: 0.5 1; offset: 0 0">
+            side="double" visible="false">
         </a-curvedimage>
 
-        <a-curvedimage id="screen-cinema-right" src="#video-src" stereo-layer="right"
+        <a-curvedimage id="screen-right" src="#video-src" layers="2"
             height="12" radius="14" theta-length="90" 
             rotation="0 135 0" position="0 5 0" 
-            side="double" visible="false"
-            material="repeat: 0.5 1; offset: 0.5 0">
+            side="double" visible="false">
         </a-curvedimage>
-
 
         <a-entity id="screen-180" 
             geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
@@ -196,19 +184,19 @@
                 <a-text value=">>|" align="center" width="3"></a-text>
             </a-plane>
 
-            <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value="2D VIEW" align="center" width="1.8"></a-text>
+            <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.4" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value="2D/180/360" align="center" width="1.6"></a-text>
             </a-plane>
-
-            <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
+            
+            <a-plane id="btn-3d" position="-0.5 -0.1 0.02" width="0.4" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text id="txt-3d" value="3D: OFF" align="center" width="1.8"></a-text>
             </a-plane>
 
-            <a-plane id="btn-reset" position="0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value="RESET VIEW" align="center" width="1.8"></a-text>
-            </a-plane>
-            <a-plane id="btn-void" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
+            <a-plane id="btn-void" position="0.0 -0.1 0.02" width="0.4" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="VOID" align="center" width="1.8"></a-text>
+            </a-plane>
+            <a-plane id="btn-reset" position="0.5 -0.1 0.02" width="0.4" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value="RESET" align="center" width="1.8"></a-text>
             </a-plane>
 
             <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
@@ -222,81 +210,78 @@
         </a-entity>
 
         <a-entity id="rig" position="0 1.6 0">
-            <a-camera look-controls="reverseMouseDrag: true" wasd-controls="enabled: false">
-                <a-cursor id="cursor" fuse="true" fuse-timeout="1200" color="#ff9d00" raycaster="objects: .clickable"
-                    animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-                    animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1200">
-                </a-cursor>
-            </a-camera>
+            <a-entity id="camera-wrapper" rotation="0 0 0">
+                <a-camera id="cam-left" look-controls="reverseMouseDrag: true" wasd-controls="enabled: false" layers="0,1">
+                    <a-cursor id="cursor" fuse="true" fuse-timeout="1200" color="#ff9d00" raycaster="objects: .clickable"
+                        animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
+                        animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1200">
+                    </a-cursor>
+                </a-camera>
+                </a-entity>
         </a-entity>
     </a-scene>
 
     <script>
+        /* CONFIG */
         const pdfjsLib = window.pdfjsLib;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
         const state = {
-            playlist: [],
-            currentTrack: 0,
-            viewMode: 0, // 0=2D, 1=180, 2=360
-            is3D: false, // New 3D State
-            isVoid: false,
-            curve: 90,
-            currentObjectURL: null,
+            playlist: [], currentTrack: 0, 
+            viewMode: 0, isVoid: false, is3D: false, // New 3D State
+            curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
             audio: { ctx: null, source: null, panner: null }
         };
 
         const DOM = {
             ui: {
-                layer: document.getElementById('ui-layer'),
-                fileInput: document.getElementById('file-input'),
-                urlInput: document.getElementById('url-input'),
-                playlist: document.getElementById('playlist-ui'),
-                list: document.getElementById('playlist-list'),
-                btnStart: document.getElementById('btn-start'),
+                layer: document.getElementById('ui-layer'), fileInput: document.getElementById('file-input'),
+                urlInput: document.getElementById('url-input'), playlist: document.getElementById('playlist-ui'),
+                list: document.getElementById('playlist-list'), btnStart: document.getElementById('btn-start'),
                 dropOverlay: document.getElementById('drop-overlay')
             },
             media: {
-                video: document.getElementById('video-src'),
-                img: document.getElementById('img-src'),
-                pdfCanvas: document.getElementById('pdf-canvas'),
-                lightCanvas: document.getElementById('light-canvas')
+                video: document.getElementById('video-src'), img: document.getElementById('img-src'),
+                pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas')
             },
             vr: {
                 scene: document.querySelector('a-scene'),
                 screens: {
                     cinema: document.getElementById('screen-cinema'),
-                    cinemaLeft: document.getElementById('screen-cinema-left'),
-                    cinemaRight: document.getElementById('screen-cinema-right'),
+                    left: document.getElementById('screen-left'),
+                    right: document.getElementById('screen-right'),
                     cyl: document.getElementById('screen-180'),
                     sphere: document.getElementById('screen-360')
                 },
                 controls: {
-                    wrapper: document.getElementById('hub-wrapper'),
-                    videoGroup: document.getElementById('video-controls'),
-                    orb: document.getElementById('menu-orb'),
-                    playText: document.getElementById('txt-play'),
-                    timeText: document.getElementById('time-display'),
-                    progress: document.getElementById('progress-fill'),
-                    title: document.getElementById('txt-title'),
-                    seekBack: document.getElementById('txt-seek-back'),
-                    seekFwd: document.getElementById('txt-seek-fwd'),
+                    wrapper: document.getElementById('hub-wrapper'), videoGroup: document.getElementById('video-controls'),
+                    orb: document.getElementById('menu-orb'), playText: document.getElementById('txt-play'),
+                    timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'),
+                    title: document.getElementById('txt-title'), seekBack: document.getElementById('txt-seek-back'),
+                    seekFwd: document.getElementById('txt-seek-fwd'), 
                     modeBtn: document.getElementById('btn-mode'),
-                    btn3d: document.getElementById('btn-3d'),
-                    txt3d: document.getElementById('txt-3d'),
+                    btn3d: document.getElementById('btn-3d'), // New Button
+                    txt3d: document.getElementById('txt-3d'), // New Button Text
                     speedText: document.getElementById('txt-speed')
                 },
                 env: {
-                    floor: document.getElementById('env-floor'),
-                    ambi: document.getElementById('ambi-light'),
-                    glow: document.getElementById('screen-glow'),
-                    rig: document.getElementById('rig')
+                    floor: document.getElementById('env-floor'), ambi: document.getElementById('ambi-light'),
+                    glow: document.getElementById('screen-glow'), rig: document.getElementById('rig')
                 }
             }
         };
 
-        /* --- FILES --- */
+        /* SETUP STEREO LAYERS */
+        // When entering VR, A-Frame creates a second camera. We need to ensure layers are correct.
+        DOM.vr.scene.addEventListener('enter-vr', () => {
+             // A-Frame automatically handles stereo cameras in VR mode.
+             // We just need to make sure our objects are on the right layers.
+             DOM.vr.screens.left.object3D.layers.set(1);
+             DOM.vr.screens.right.object3D.layers.set(2);
+        });
+
+        /* FILE HANDLING */
         function handleFiles(files) {
             if (files.length > 0) {
                 const newItems = Array.from(files).map(f => {
@@ -347,7 +332,7 @@
             }
         });
 
-        /* --- LOAD --- */
+        /* MEDIA LOADER */
         function loadTrack(index) {
             if (index >= 0 && index < state.playlist.length) {
                 if (state.currentObjectURL) { URL.revokeObjectURL(state.currentObjectURL); state.currentObjectURL = null; }
@@ -360,23 +345,21 @@
                 let displayName = item.name.length > 25 ? item.name.substring(0, 22) + "..." : item.name;
                 DOM.vr.controls.title.setAttribute('value', `${state.currentTrack + 1}/${state.playlist.length}: ${displayName}`);
 
+                // Defaults
                 DOM.vr.controls.seekBack.setAttribute('value', '-15s');
                 DOM.vr.controls.seekFwd.setAttribute('value', '+15s');
                 DOM.vr.controls.playText.setAttribute('value', 'PLAY');
                 DOM.vr.controls.videoGroup.setAttribute('visible', true);
                 DOM.vr.controls.modeBtn.setAttribute('color', '#222');
-                
-                // UNLOCK 3D BUTTON (Default)
-                DOM.vr.controls.btn3d.setAttribute('color', '#222');
-                DOM.vr.controls.btn3d.classList.add('clickable');
 
+                // PDF Logic
                 if (item.type === 'pdf') {
                     DOM.media.video.pause();
-                    force2DMode(); 
-                    // DISABLE 3D for PDF
-                    state.is3D = false; update3DState();
+                    force2DMode();
+                    
+                    // Disable 3D button for PDF
+                    state.is3D = false; update3DMode();
                     DOM.vr.controls.btn3d.setAttribute('color', '#555');
-                    DOM.vr.controls.btn3d.classList.remove('clickable');
 
                     DOM.vr.controls.seekBack.setAttribute('value', 'PREV PG');
                     DOM.vr.controls.seekFwd.setAttribute('value', 'NEXT PG');
@@ -387,239 +370,240 @@
                         state.pdf.doc = pdf; state.pdf.pageNum = 1;
                         DOM.vr.controls.playText.setAttribute('value', 'PDF VIEW');
                         renderPDFPage(state.pdf.pageNum);
-                    }).catch(error => { console.error(error); DOM.vr.controls.playText.setAttribute('value', 'ERROR'); });
+                    }).catch(error => { DOM.vr.controls.playText.setAttribute('value', 'ERROR'); });
 
                 } else if (item.type === 'image') {
                     DOM.media.video.pause();
                     DOM.vr.controls.videoGroup.setAttribute('visible', false);
                     updateTexture('#img-src'); 
-                    DOM.media.img.onload = function() { refreshTextureMesh(); drawAmbilight(DOM.media.img); };
+                    // Enable 3D button for Images (Stereo photos exist)
+                    DOM.vr.controls.btn3d.setAttribute('color', '#222');
+                    DOM.media.img.onload = () => { refreshTextureMesh(); drawAmbilight(DOM.media.img); };
                     DOM.media.img.src = src;
+
                 } else {
+                    // Video
                     DOM.media.video.src = src;
                     updateTexture('#video-src');
+                    // Enable 3D button
+                    DOM.vr.controls.btn3d.setAttribute('color', '#222');
+                    
                     initAudio();
-                    DOM.media.video.play().then(() => DOM.vr.controls.playText.setAttribute('value', 'PAUSE')).catch(() => {});
+                    DOM.media.video.play().then(() => DOM.vr.controls.playText.setAttribute('value', 'PAUSE'))
+                        .catch(() => DOM.vr.controls.playText.setAttribute('value', 'PLAY'));
                     requestAnimationFrame(updateAmbilight);
                 }
             }
         }
 
-        /* --- TEXTURE & MODES --- */
+        /* TEXTURE & SCREEN MANAGEMENT */
         function updateTexture(sourceId) {
             DOM.vr.screens.cinema.setAttribute('src', sourceId);
-            DOM.vr.screens.cinemaLeft.setAttribute('src', sourceId);
-            DOM.vr.screens.cinemaRight.setAttribute('src', sourceId);
+            DOM.vr.screens.left.setAttribute('src', sourceId);
+            DOM.vr.screens.right.setAttribute('src', sourceId);
             DOM.vr.screens.sphere.setAttribute('src', sourceId);
             DOM.vr.screens.cyl.setAttribute('material', 'src', sourceId);
         }
 
         function refreshTextureMesh() {
-            [DOM.vr.screens.cinema, DOM.vr.screens.cinemaLeft, DOM.vr.screens.cinemaRight, DOM.vr.screens.cyl, DOM.vr.screens.sphere].forEach(el => {
+            [DOM.vr.screens.cinema, DOM.vr.screens.left, DOM.vr.screens.right, DOM.vr.screens.cyl, DOM.vr.screens.sphere].forEach(el => {
                 const mesh = el.getObject3D('mesh');
                 if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
             });
+            // Update SBS UVs if 3D is active
+            if(state.is3D) applySBSUVs();
         }
 
         function force2DMode() {
             state.viewMode = 0;
             updateVisibility();
             const modeText = DOM.vr.controls.modeBtn.querySelector('a-text');
-            if(modeText) modeText.setAttribute('value', '2D VIEW');
-            if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            if(modeText) modeText.setAttribute('value', '2D/180/360');
         }
 
-        // --- PDF ---
+        function updateVisibility() {
+            // HIDE ALL first
+            DOM.vr.screens.cinema.setAttribute('visible', false);
+            DOM.vr.screens.left.setAttribute('visible', false);
+            DOM.vr.screens.right.setAttribute('visible', false);
+            DOM.vr.screens.cyl.setAttribute('visible', false);
+            DOM.vr.screens.sphere.setAttribute('visible', false);
+            DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
+
+            if (state.viewMode === 0) {
+                // CINEMA MODE
+                if (state.is3D) {
+                    // Show Stereo Screens
+                    DOM.vr.screens.left.setAttribute('visible', true);
+                    DOM.vr.screens.right.setAttribute('visible', true);
+                    applySBSUVs(); // Ensure UVs are split
+                } else {
+                    // Show Mono Screen
+                    DOM.vr.screens.cinema.setAttribute('visible', true);
+                }
+                if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            } else {
+                // 180 / 360 MODE (No SBS support on these for simplicity, just mono)
+                if (state.viewMode === 1) DOM.vr.screens.cyl.setAttribute('visible', true);
+                else DOM.vr.screens.sphere.setAttribute('visible', true);
+                DOM.vr.scene.removeAttribute('fog');
+            }
+        }
+
+        /* 3D SBS LOGIC */
+        function applySBSUVs() {
+            // Apply texture splitting logic directly to ThreeJS geometry
+            // LEFT SCREEN: 0 to 0.5
+            setUVs(DOM.vr.screens.left, 0, 0.5);
+            // RIGHT SCREEN: 0.5 to 1.0
+            setUVs(DOM.vr.screens.right, 0.5, 1.0);
+        }
+
+        function setUVs(el, startU, endU) {
+            const mesh = el.getObject3D('mesh');
+            if (!mesh || !mesh.geometry) return;
+            
+            // Note: a-curvedimage geometry is complex. simpler to use Texture.repeat/offset properties
+            if (mesh.material.map) {
+                mesh.material.map.repeat.set(0.5, 1);
+                mesh.material.map.offset.set(startU, 0);
+            }
+        }
+        
+        // Reset UVs for 2D mode
+        function resetUVs() {
+             const els = [DOM.vr.screens.cinema, DOM.vr.screens.left, DOM.vr.screens.right];
+             els.forEach(el => {
+                 const mesh = el.getObject3D('mesh');
+                 if (mesh && mesh.material.map) {
+                     mesh.material.map.repeat.set(1, 1);
+                     mesh.material.map.offset.set(0, 0);
+                 }
+             });
+        }
+
+        /* BUTTONS */
+        DOM.vr.controls.btn3d.addEventListener('click', function() {
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; // No 3D for PDF
+            
+            state.is3D = !state.is3D;
+            update3DMode();
+            flash(this);
+        });
+
+        function update3DMode() {
+            if (state.is3D) {
+                DOM.vr.controls.txt3d.setAttribute('value', '3D: ON');
+                DOM.vr.controls.txt3d.setAttribute('color', '#ff9d00');
+            } else {
+                DOM.vr.controls.txt3d.setAttribute('value', '3D: OFF');
+                DOM.vr.controls.txt3d.setAttribute('color', 'white');
+                resetUVs();
+            }
+            updateVisibility();
+        }
+
+
+        /* PDF RENDERER */
         function renderPDFPage(num) {
             state.pdf.rendering = true;
             state.pdf.doc.getPage(num).then(page => {
                 const viewport = page.getViewport({scale: 2.0});
                 const canvas = DOM.media.pdfCanvas;
                 const ctx = canvas.getContext('2d');
-                canvas.height = viewport.height; canvas.width = viewport.width;
-                page.render({ canvasContext: ctx, viewport: viewport }).promise.then(() => {
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = { canvasContext: ctx, viewport: viewport };
+                page.render(renderContext).promise.then(() => {
                     state.pdf.rendering = false;
                     updateTexture('#pdf-canvas');
                     refreshTextureMesh();
+                    drawAmbilight(canvas);
+                    
                     const pct = num / state.pdf.doc.numPages;
                     DOM.vr.controls.progress.object3D.scale.x = pct;
                     DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
                     DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`);
+
                     if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; }
                 });
             });
         }
-        function onPrevPage() { if (state.pdf.pageNum > 1) { state.pdf.pageNum--; renderPDFPage(state.pdf.pageNum); } }
-        function onNextPage() { if (state.pdf.pageNum < state.pdf.doc.numPages) { state.pdf.pageNum++; renderPDFPage(state.pdf.pageNum); } }
-        DOM.media.video.addEventListener('ended', () => { if (state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); });
+        function queueRenderPage(num) { if (state.pdf.rendering) state.pdf.pending = num; else renderPDFPage(num); }
+        function onPrevPage() { if (state.pdf.pageNum <= 1) return; state.pdf.pageNum--; queueRenderPage(state.pdf.pageNum); }
+        function onNextPage() { if (state.pdf.pageNum >= state.pdf.doc.numPages) return; state.pdf.pageNum++; queueRenderPage(state.pdf.pageNum); }
 
-        /* --- CONTROLS --- */
-        function toggleMenu(show) {
-            DOM.vr.controls.wrapper.setAttribute('visible', show);
-            DOM.vr.controls.wrapper.setAttribute('scale', show ? '1 1 1' : '0 0 0');
-            DOM.vr.controls.orb.setAttribute('visible', !show);
-        }
-        document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
-        document.getElementById('menu-orb').addEventListener('click', function() { toggleMenu(true); flash(this); });
+        /* STANDARD CONTROLS */
         function flash(el) { const old = el.getAttribute('color'); el.setAttribute('color', '#fff'); setTimeout(() => el.setAttribute('color', old), 150); }
-
-        document.getElementById('btn-play').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'video') togglePlay(); flash(this); });
-        function togglePlay() {
-            if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume();
-            if(DOM.media.video.paused) { DOM.media.video.play(); DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }
-            else { DOM.media.video.pause(); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); }
-        }
-
-        document.getElementById('btn-prev').addEventListener('click', () => { if(state.currentTrack > 0) loadTrack(state.currentTrack - 1); });
-        document.getElementById('btn-next').addEventListener('click', () => { if(state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); });
-        document.getElementById('btn-seek-back').addEventListener('click', () => { if(state.playlist[state.currentTrack].type === 'pdf') onPrevPage(); else DOM.media.video.currentTime -= 15; });
-        document.getElementById('btn-seek-fwd').addEventListener('click', () => { if(state.playlist[state.currentTrack].type === 'pdf') onNextPage(); else DOM.media.video.currentTime += 15; });
-
-        // VIEW MODE
         DOM.vr.controls.modeBtn.addEventListener('click', function() {
-            state.viewMode = (state.viewMode + 1) % 3; 
+            state.viewMode = (state.viewMode + 1) % 3;
             updateVisibility();
-            const modes = ['2D VIEW', '180 IMAX', '360 FULL'];
-            this.querySelector('a-text').setAttribute('value', modes[state.viewMode]);
-            
-            if(state.viewMode === 0) { if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015'); }
-            else { DOM.vr.scene.removeAttribute('fog'); }
             flash(this);
         });
-
-        // 3D TOGGLE
-        DOM.vr.controls.btn3d.addEventListener('click', function() {
-            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return;
-            state.is3D = !state.is3D;
-            update3DState();
-            flash(this);
-        });
-
-        function update3DState() {
-            DOM.vr.controls.txt3d.setAttribute('value', state.is3D ? "3D: ON" : "3D: OFF");
-            DOM.vr.controls.txt3d.setAttribute('color', state.is3D ? "#ff9d00" : "#fff");
-            updateVisibility();
-        }
-
-        function updateVisibility() {
-            // Reset all
-            DOM.vr.screens.cinema.setAttribute('visible', false);
-            DOM.vr.screens.cinemaLeft.setAttribute('visible', false);
-            DOM.vr.screens.cinemaRight.setAttribute('visible', false);
-            DOM.vr.screens.cyl.setAttribute('visible', false);
-            DOM.vr.screens.sphere.setAttribute('visible', false);
-            DOM.vr.env.floor.setAttribute('visible', false);
-
-            if (state.viewMode === 0) { // Cinema Mode
-                DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
-                if (state.is3D) {
-                    DOM.vr.screens.cinemaLeft.setAttribute('visible', true);
-                    DOM.vr.screens.cinemaRight.setAttribute('visible', true);
-                } else {
-                    DOM.vr.screens.cinema.setAttribute('visible', true);
-                }
-            } else if (state.viewMode === 1) { // 180
-                DOM.vr.screens.cyl.setAttribute('visible', true);
-            } else { // 360
-                DOM.vr.screens.sphere.setAttribute('visible', true);
-            }
-        }
-
-        document.getElementById('btn-void').addEventListener('click', function() {
-            state.isVoid = !state.isVoid;
-            if(state.viewMode === 0) DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
-            if(state.isVoid || state.viewMode > 0) DOM.vr.scene.removeAttribute('fog'); 
-            else DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
-            flash(this);
-        });
-        document.getElementById('btn-reset').addEventListener('click', () => { 
-            const cam = document.querySelector('[camera]').object3D;
-            DOM.vr.env.rig.setAttribute('rotation', {x:0, y: -(cam.rotation.y * (180/Math.PI)), z:0}); 
-        });
-        document.getElementById('btn-speed').addEventListener('click', function() {
-            const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75];
-            DOM.media.video.playbackRate = speeds[(speeds.indexOf(DOM.media.video.playbackRate) + 1) % speeds.length];
-            DOM.vr.controls.speedText.setAttribute('value', DOM.media.video.playbackRate + 'x'); flash(this);
-        });
-
-        /* --- SEATING & CURVE --- */
-        const seats = { front: {p:"0 1.6 -1",r:"-25 0 0"}, back: {p:"0 2.5 2",r:"-25 0 0"}, recline: {p:"0 0.5 0",r:"-45 0 0"} };
-        document.getElementById('seat-front').addEventListener('click', function() { DOM.vr.env.rig.setAttribute('position',seats.front.p); DOM.vr.controls.wrapper.setAttribute('rotation',seats.front.r); flash(this); });
-        document.getElementById('seat-back').addEventListener('click', function() { DOM.vr.env.rig.setAttribute('position',seats.back.p); DOM.vr.controls.wrapper.setAttribute('rotation',seats.back.r); flash(this); });
-        document.getElementById('seat-lay').addEventListener('click', function() { DOM.vr.env.rig.setAttribute('position',seats.recline.p); DOM.vr.controls.wrapper.setAttribute('rotation',seats.recline.r); flash(this); });
-
-        function updateScreenCurve() {
-            DOM.vr.screens.cinema.setAttribute('theta-length', state.curve);
-            DOM.vr.screens.cinemaLeft.setAttribute('theta-length', state.curve);
-            DOM.vr.screens.cinemaRight.setAttribute('theta-length', state.curve);
+        
+        // Other basic listeners...
+        document.getElementById('btn-play').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'video') togglePlay(); flash(this); });
+        function togglePlay() { if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); if(DOM.media.video.paused) { DOM.media.video.play(); DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); } else { DOM.media.video.pause(); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); } }
+        document.getElementById('btn-prev').addEventListener('click', function() { if(state.currentTrack > 0) loadTrack(state.currentTrack - 1); flash(this); });
+        document.getElementById('btn-next').addEventListener('click', function() { if(state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); flash(this); });
+        document.getElementById('btn-seek-back').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onPrevPage(); else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); flash(this); });
+        document.getElementById('btn-seek-fwd').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onNextPage(); else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); flash(this); });
+        document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
+        document.getElementById('btn-reset').addEventListener('click', function() { const cam = document.querySelector('[camera]').object3D; const yRot = cam.rotation.y * (180 / Math.PI); DOM.vr.env.rig.setAttribute('rotation', {x:0, y: -yRot, z:0}); flash(this); });
+        
+        // Screen Adjustments
+        function updateScreenCurve() { 
             const rot = 180 - (state.curve / 2);
-            DOM.vr.screens.cinema.setAttribute('rotation', `0 ${rot} 0`);
-            DOM.vr.screens.cinemaLeft.setAttribute('rotation', `0 ${rot} 0`);
-            DOM.vr.screens.cinemaRight.setAttribute('rotation', `0 ${rot} 0`);
+            [DOM.vr.screens.cinema, DOM.vr.screens.left, DOM.vr.screens.right].forEach(s => {
+                s.setAttribute('theta-length', state.curve);
+                s.setAttribute('rotation', `0 ${rot} 0`);
+            });
         }
         document.getElementById('curve-more').addEventListener('click', function() { if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }});
         document.getElementById('curve-less').addEventListener('click', function() { if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }});
+        
+        // Seating
+        const seats = { front: { pos: "0 1.6 -1", rot: "-25 0 0" }, back: { pos: "0 2.5 2", rot: "-25 0 0" }, recline: { pos: "0 0.5 0", rot: "-45 0 0" } };
+        document.getElementById('seat-front').addEventListener('click', function() { DOM.vr.env.rig.setAttribute('position', seats.front.pos); DOM.vr.controls.wrapper.setAttribute('rotation', seats.front.rot); flash(this); });
+        document.getElementById('seat-back').addEventListener('click', function() { DOM.vr.env.rig.setAttribute('position', seats.back.pos); DOM.vr.controls.wrapper.setAttribute('rotation', seats.back.rot); flash(this); });
+        document.getElementById('seat-lay').addEventListener('click', function() { DOM.vr.env.rig.setAttribute('position', seats.recline.pos); DOM.vr.controls.wrapper.setAttribute('rotation', seats.recline.rot); flash(this); });
 
-        /* --- AUDIO & LOOP --- */
+        // Loop & Audio
         setInterval(() => {
-            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video' && DOM.media.video.duration) {
-                const pct = DOM.media.video.currentTime / DOM.media.video.duration;
+            const v = DOM.media.video;
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video' && v.duration) {
+                const pct = v.currentTime / v.duration;
                 DOM.vr.controls.progress.object3D.scale.x = pct;
                 DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
-                const m = Math.floor(DOM.media.video.currentTime/60), s = Math.floor(DOM.media.video.currentTime%60);
-                const dm = Math.floor(DOM.media.video.duration/60), ds = Math.floor(DOM.media.video.duration%60);
-                DOM.vr.controls.timeText.setAttribute('value', `${m}:${s<10?'0'+s:s} / ${dm}:${ds<10?'0'+ds:ds}`);
+                DOM.vr.controls.timeText.setAttribute('value', `${fmt(v.currentTime)} / ${fmt(v.duration)}`);
             }
         }, 500);
+        function fmt(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec<10?'0'+sec:sec}`; }
+
+        // Hover & Menu
+        function toggleMenu(show) { DOM.vr.controls.wrapper.setAttribute('visible', show); DOM.vr.controls.wrapper.setAttribute('scale', show ? '1 1 1' : '0 0 0'); DOM.vr.controls.orb.setAttribute('visible', !show); }
+        document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
+        document.getElementById('menu-orb').addEventListener('click', function() { toggleMenu(true); flash(this); });
+        document.querySelectorAll('.clickable').forEach(el => {
+            el.addEventListener('mouseenter', () => { if(el.classList.contains('btn-hover')) el.setAttribute('color', '#ff9d00'); });
+            el.addEventListener('mouseleave', () => { if(el.classList.contains('btn-hover')) { if(el.id === 'btn-close') el.setAttribute('color', '#cc0000'); else if(el.id === 'btn-3d' && !state.is3D) el.setAttribute('color', '#222'); else if(el.id === 'btn-3d' && state.is3D) el.setAttribute('color', '#222'); else el.setAttribute('color', '#222'); } });
+        });
 
         function initAudio() {
             if(!state.audio.ctx) state.audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
             if (!state.audio.source) {
                 state.audio.source = state.audio.ctx.createMediaElementSource(DOM.media.video);
                 const gain = state.audio.ctx.createGain(); gain.gain.value = 3.0;
-                state.audio.panner = state.audio.ctx.createPanner();
-                state.audio.panner.panningModel = 'HRTF'; state.audio.panner.distanceModel = 'inverse'; state.audio.panner.setPosition(0, 4.5, -5);
+                state.audio.panner = state.audio.ctx.createPanner(); state.audio.panner.panningModel = 'HRTF'; state.audio.panner.setPosition(0, 4.5, -5);
                 state.audio.source.connect(gain); gain.connect(state.audio.panner); state.audio.panner.connect(state.audio.ctx.destination);
             }
             if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume();
         }
 
-        const ctx = DOM.media.lightCanvas.getContext('2d');
-        function drawAmbilight(source) {
-            try {
-                ctx.drawImage(source, 0, 0, 32, 32);
-                const p = ctx.getImageData(16,16,1,1).data;
-                const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
-                if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex);
-                DOM.vr.env.glow.setAttribute('color', hex);
-            } catch(e) {}
-        }
-        function updateAmbilight() {
-            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video' && !DOM.media.video.paused) {
-                drawAmbilight(DOM.media.video); requestAnimationFrame(updateAmbilight);
-            }
-        }
-
-        // KEYBOARD
-        window.addEventListener('keydown', (e) => {
-             if(DOM.ui.layer.classList.contains('hidden')) {
-                 if (e.code === 'Space') { e.preventDefault(); if(state.playlist[state.currentTrack].type === 'video') togglePlay(); }
-                 if (e.code === 'KeyR') document.getElementById('btn-reset').click();
-             }
-        });
-
-        // HOVER
-        document.querySelectorAll('.clickable').forEach(el => {
-            el.addEventListener('mouseenter', () => { if(el.classList.contains('btn-hover')) el.setAttribute('color', '#ff9d00'); });
-            el.addEventListener('mouseleave', () => {
-                if(el.classList.contains('btn-hover')) {
-                    if(el.id === 'btn-close') el.setAttribute('color', '#cc0000');
-                    else if(el.id === 'btn-3d' && state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') el.setAttribute('color', '#555');
-                    else el.setAttribute('color', '#222');
-                }
-                if(el.id === 'btn-play') el.setAttribute('color', '#ff9d00');
-            });
-        });
+        const ambictx = DOM.media.lightCanvas.getContext('2d');
+        function updateAmbilight() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video' && !DOM.media.video.paused) { drawAmbilight(DOM.media.video); requestAnimationFrame(updateAmbilight); } }
+        function drawAmbilight(src) { try { ambictx.drawImage(src, 0, 0, 32, 32); const p = ambictx.getImageData(16,16,1,1).data; const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1); if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex); DOM.vr.env.glow.setAttribute('color', hex); } catch(e){} }
     </script>
 </body>
 </html>
