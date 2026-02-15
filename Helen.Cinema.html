@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v8.1: Native Core</title>
+    <title>The Hub v8.2: Perfect Reset</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -63,7 +63,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v8.1</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v8.2</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -291,26 +291,19 @@
         };
 
         /* NATIVE LAYER CONFIGURATION */
-        // This function assigns the layers to the meshes directly
         function configureStereoLayers() {
-            // Helper to safe-set layers
             const setLayer = (el, layerIndex) => {
                 if(!el) return;
                 const mesh = el.getObject3D('mesh');
                 if(mesh) {
                     mesh.layers.set(layerIndex);
                 } else {
-                    // Retry if mesh isn't ready
-                    el.addEventListener('model-loaded', () => { 
-                        el.getObject3D('mesh').layers.set(layerIndex); 
-                    });
                     el.addEventListener('loaded', () => { 
                         if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); 
                     });
                 }
             };
-
-            // 1 = Left Eye, 2 = Right Eye in WebXR standards
+            // 1=Left, 2=Right
             setLayer(DOM.vr.screens.cinemaL, 1);
             setLayer(DOM.vr.screens.cylL, 1);
             setLayer(DOM.vr.screens.sphereL, 1);
@@ -319,13 +312,11 @@
             setLayer(DOM.vr.screens.cylR, 2);
             setLayer(DOM.vr.screens.sphereR, 2);
             
-            // Ensure 2D screens are visible to default camera (Layer 0)
+            // 0=Default (Both)
             setLayer(DOM.vr.screens.cinema, 0);
             setLayer(DOM.vr.screens.cyl, 0);
             setLayer(DOM.vr.screens.sphere, 0);
         }
-
-        // Run config once scene loads
         if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } 
         else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
 
@@ -465,7 +456,6 @@
                 if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId);
                 else s.setAttribute('material', 'src', sourceId);
             });
-            // Re-apply layer logic just in case textures reset anything
             configureStereoLayers();
         }
 
@@ -477,16 +467,13 @@
         }
 
         function updateVisibility() {
-            // Hide Everything
             Object.values(DOM.vr.screens).forEach(s => s.setAttribute('visible', false));
             DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
 
-            // Determine visible set
             if (state.viewMode === 0) { // Cinema
                 if (state.is3D) {
                     DOM.vr.screens.cinemaL.setAttribute('visible', true);
                     DOM.vr.screens.cinemaR.setAttribute('visible', true);
-                    // Force refresh layers just to be safe
                     configureStereoLayers();
                 } else {
                     DOM.vr.screens.cinema.setAttribute('visible', true);
@@ -558,11 +545,30 @@
         });
 
         document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
+        
+        /* ROBUST RESET FUNCTION */
         document.getElementById('btn-reset').addEventListener('click', function() {
+            const rig = DOM.vr.env.rig.object3D;
             const cam = document.querySelector('[camera]').object3D;
-            const yRot = cam.rotation.y * (180 / Math.PI);
-            DOM.vr.env.rig.setAttribute('rotation', {x:0, y: -yRot, z:0}); flash(this);
+            
+            // Calculate Camera Y-rotation in degrees
+            const camY = cam.rotation.y * (180 / Math.PI);
+            
+            // Get Current Rig Rotation
+            const currentRigY = rig.rotation.y * (180 / Math.PI);
+            
+            // Subtract camera rotation from Rig to zero it out
+            const newRigY = currentRigY - camY;
+            rig.rotation.y = newRigY * (Math.PI / 180);
+            
+            // Reset other axes
+            rig.rotation.x = 0;
+            rig.rotation.z = 0;
+            rig.position.set(0, 1.6, 0); // Seat center
+            DOM.vr.controls.wrapper.setAttribute('rotation', ' -25 0 0'); // Reset menu tilt
+            flash(this);
         });
+
         document.getElementById('btn-speed').addEventListener('click', function() {
             const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; const v = DOM.media.video;
             v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length];
