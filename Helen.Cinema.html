@@ -3,29 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: CINEMA OS (HYBRID)</title>
+    <title>HELEN: TACTICAL OS V3.0 (CINEMA EDITION)</title>
     <style>
         body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action: none; }
         
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); color: #00ffff;
+            background: rgba(0,0,0,0.95); color: #00ffff;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 100; pointer-events: none; /* Let clicks pass through to hidden inputs */
+            z-index: 100;
         }
-        .interactive { pointer-events: auto; }
-        
         h1 { font-size: 40px; text-shadow: 0 0 10px #00ffff; margin-bottom: 10px; }
         .status { margin-top: 10px; font-size: 14px; color: #aaa; text-align: center; line-height: 1.5; white-space: pre-wrap;}
         
-        #api-container { margin: 20px 0; display: flex; flex-direction: column; gap: 10px; width: 80%; max-width: 400px; pointer-events: auto; }
+        #api-container { margin: 20px 0; display: flex; flex-direction: column; gap: 10px; width: 80%; max-width: 400px; }
         input { 
             background: rgba(0,20,20,0.8); border: 1px solid #00ffff; color: #00ffff; padding: 10px; 
             font-family: 'Courier New'; text-align: center; letter-spacing: 2px;
         }
         input:focus { outline: none; box-shadow: 0 0 15px #00ffff; }
         
-        .btn-group { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; width: 80%; max-width: 300px; pointer-events: auto; }
+        .btn-group { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; width: 80%; max-width: 300px; }
         button {
             padding: 15px; font-size: 16px; font-weight: bold; font-family: 'Courier New', monospace;
             background: transparent; color: #00ffff; border: 2px solid #00ffff; 
@@ -36,16 +34,17 @@
         .danger-btn { border-color: #ff0055; color: #ff0055; margin-top: 20px;}
         .danger-btn:hover { background: #ff0055; color: #fff; }
 
+        .file-count { color: #00ff00; font-size: 12px; margin-top: -10px; text-align: right; display: none; }
         .controls-hint { font-size: 11px; color: #666; margin-top: 20px; text-align: left; width: 100%; }
+        #restore-msg { color: #ffff00; font-weight:bold; display:none; margin-bottom:10px; }
         
         #flash {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #fff; opacity: 0; pointer-events: none; z-index: 200;
             transition: opacity 0.1s;
         }
-        
-        /* Ambilight Canvas (Hidden) */
-        #light-canvas { display: none; }
+        /* Hidden canvas for Ambilight analysis */
+        #ambilight-canvas { display: none; }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -56,6 +55,7 @@
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
                 "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "webxr-polyfill": "https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.module.js",
                 "@google/generative-ai": "https://esm.run/@google/generative-ai"
             }
         }
@@ -65,36 +65,36 @@
 
 <video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
 <canvas id="vision-canvas" style="display:none;"></canvas>
-<canvas id="light-canvas" width="32" height="32"></canvas>
-<div id="flash"></div>
+<canvas id="ambilight-canvas" width="32" height="32"></canvas> <div id="flash"></div>
 
 <input type="file" id="intel-input" multiple accept="*/*" style="display:none">
 
 <div id="overlay">
-    <h1>HELEN: CINEMA</h1>
+    <h1>HELEN v3.0</h1>
+    <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
     
     <div class="status" id="system-status">
-        [ THEATER PROTOCOL v1.0 ]<br>
-        3D Environment / Media Integration.<br>
-        Initialize to proceed.
+        [ COCKPIT MK.III ]<br>
+        System Initialized.<br>
+        Look DOWN at the Chevrons.
     </div>
 
-    <div id="api-container" class="interactive">
+    <div id="api-container">
         <input type="password" id="gemini-key" placeholder="PASTE GEMINI API KEY">
         <button onclick="saveKey()" id="init-btn">INITIALIZE SYSTEM</button>
         <button onclick="resetSystem()" class="danger-btn">[ RESET SYSTEM ]</button>
     </div>
 
-    <div class="btn-group interactive" id="main-controls" style="display:none;">
-        <button onclick="document.getElementById('intel-input').click()">📂 LOAD MEDIA / DATA</button>
-        <button onclick="requestTiltAccess()">📱 ENABLE GYRO</button>
+    <div class="btn-group" id="main-controls" style="display:none;">
+        <button onclick="document.getElementById('intel-input').click()">📂 LOAD INTEL</button>
+        <button onclick="requestTiltAccess()">📱 ENABLE TILT DRIVE</button>
+        <div id="file-status" class="file-count">0 FILES LOADED</div>
         <div id="vr-btn-container"></div>
         
         <div class="controls-hint">
-            [TILT/WASD] MOVE CAMERA<br>
-            [LOOK DOWN] COCKPIT CONTROLS<br>
-            [GAZE] SELECT ITEMS<br>
-            [MEDIA] AUTO-DETECTS VIDEO/AUDIO
+            [TILT] PHONE TO FLY (FWD/BACK/SIDE)<br>
+            [GAZE] LOOK AT RED SQUARE FOR MENU<br>
+            [CINEMA] LOAD VIDEO FOR THEATER MODE
         </div>
     </div>
 </div>
@@ -106,59 +106,103 @@
     import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
     import { GoogleGenerativeAI } from "@google/generative-ai";
 
-    // --- CORE THREE.JS VARIABLES ---
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext;
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     let audioListener; 
     
-    // --- HELEN VARIABLES ---
+    // --- COCKPIT VARIABLES ---
     let reticle;
     let cockpitGroup; 
     let cockpitPanels = [];
     let lastMenuToggleTime = 0;
-    let currentSpeed = 0, targetSpeed = 0;
-    let currentRot = 0, targetRot = 0;
     
-    // --- CINEMA VARIABLES (MERGED) ---
-    let cinemaGroup, cinemaScreen, cinemaBacklight;
-    let videoTexture, activeVideoElement;
-    let isCinemaActive = false;
-    let cinemaMode = 0; // 0=Curved, 1=180, 2=360
-    let ambilightCanvas, ambilightCtx;
-    let cinemaControls = []; // Specific cockpit buttons for media
+    let currentSpeed = 0;
+    let targetSpeed = 0;
+    let currentRot = 0;
+    let targetRot = 0;
 
-    // --- AI VARIABLES ---
+    const MAX_SPEED = 0.08;
+    const MAX_ROT = 0.04;
+
     let GEMINI_KEY = localStorage.getItem('helen_gemini_key');
-    let genAI, model, recognition, synth = window.speechSynthesis;
-    let isListening = false, isSpeaking = false, aiStatus = "STANDBY"; 
+    let genAI, model;
+    let recognition; 
+    let synth = window.speechSynthesis;
+    let isListening = false;
+    let isSpeaking = false;
+    let aiStatus = "STANDBY"; 
+    
     let chatHistory = [];
+    try {
+        const saved = localStorage.getItem('helen_chat_history');
+        if(saved) chatHistory = JSON.parse(saved);
+    } catch(e) {}
 
-    // --- DATA ---
     let CUSTOM_DATABASE = []; 
-    let targets = []; // Things we can look at
+    // ADDED: Sample video for Cinema Mode testing
+    const DEFAULT_DATABASE = [ 
+        { type: 'image', src: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg', label: 'DEFAULT.JPG' }
+    ];
+    let targets = []; 
+    
     let activeObject = { obj: null, progress: 0 }; 
     let grabbedObject = null; 
+    let pendingRestore = false; 
 
-    // --- INPUT ---
-    let isMouseDown = false, prevMouse = { x: 0, y: 0 };
-    let isTiltActive = false, tiltCalibration = { beta: 0, gamma: 0 }, currentTilt = { beta: 0, gamma: 0 };
-    let menuGroup, menuMesh, menuCtx, menuTexture, isMenuOpen = false;
-    let hoveredFileIndex = -1, menuScrollIndex = 0;
-    let menuSelectionTimer = 0, gazeProgress = 0;
-    let sysMessage = "";
-
-    // --- CONSTANTS ---
-    const MAX_SPEED = 0.08, MAX_ROT = 0.04;
+    // --- INPUT VARIABLES ---
+    let isMouseDown = false;
+    let previousMousePosition = { x: 0, y: 0 };
     const MOUSE_SENSITIVITY = 0.02;
     const VR_WALK_SPEED = 0.05;
-    const TILT_DEADZONE = 5, TILT_SPEED = 0.002;
-    const _moveDir = new THREE.Vector3(), _strafeDir = new THREE.Vector3();
 
-    // ==========================================
-    // 1. SYSTEM INITIALIZATION
-    // ==========================================
+    // --- TILT CONTROL VARIABLES ---
+    let isTiltActive = false;
+    let tiltCalibration = { beta: 0, gamma: 0 };
+    let currentTilt = { beta: 0, gamma: 0 };
+    const TILT_DEADZONE = 5; 
+    const TILT_SPEED = 0.002;
+
+    let menuGroup, menuMesh, menuCtx, menuTexture;
+    let isMenuOpen = false;
+    let hoveredFileIndex = -1;
+    let menuScrollIndex = 0; 
+    let lastMenuScrollTime = 0; 
+    const MAX_MENU_VISIBLE = 9; 
+    let sysMessage = "";
+    
+    // --- GAZE VARIABLES ---
+    let menuSelectionTimer = 0; 
+    let gazeProgress = 0;       
+    let hoveredPageButton = null;
+
+    // HUD Optimization
+    let lastHudState = "";
+
+    let activeCamId = null, currentVideoElement = null;
+    let visionMode = 0; 
+    let lastBtn = { x: false, circle: false, square: false, triangle: false, bumper: false, dpadDown: false, dpadUp: false, dpadLeft: false, dpadRight: false };
+    
+    const SPEED = 0.1; 
+    const ROTATE_SPEED = 0.05; 
+    const MOVE_SPEED = 0.05;
+    const SCALE_SPEED = 0.02; 
+    const _moveDir = new THREE.Vector3(); const _strafeDir = new THREE.Vector3();
+    const _camRight = new THREE.Vector3(); const _camUp = new THREE.Vector3();
+
+    const AI_FOLLOW_DIST = 2.5; 
+    const AI_STOP_DIST = 1.5;
+    const AI_BACKUP_DIST = 0.8;
+    const AI_WALK_SPEED = 0.03;
+
+    // --- NEW: CINEMA MODE VARIABLES ---
+    let isCinemaMode = false;
+    let cinemaGroup = null;
+    let cinemaLight = null;
+    let ambilightCtx = null;
+    let cinemaScreenMesh = null;
+    const AMBILIGHT_INTENSITY = 2.0;
 
     window.saveKey = function() {
         const key = document.getElementById('gemini-key').value.trim(); 
@@ -166,11 +210,14 @@
             localStorage.setItem('helen_gemini_key', key);
             GEMINI_KEY = key;
             checkAuth();
-        } else { alert("KEY TOO SHORT."); }
+        } else {
+            alert("KEY TOO SHORT.");
+        }
     };
 
     window.resetSystem = function() {
         localStorage.removeItem('helen_gemini_key');
+        localStorage.removeItem('helen_layout_ai');
         localStorage.removeItem('helen_chat_history'); 
         location.reload();
     }
@@ -178,18 +225,28 @@
     window.requestTiltAccess = function() {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             DeviceOrientationEvent.requestPermission()
-                .then(response => { if (response === 'granted') activateTiltListener(); })
+                .then(response => {
+                    if (response === 'granted') activateTiltListener();
+                    else alert("Permission denied.");
+                })
                 .catch(console.error);
-        } else { activateTiltListener(); }
+        } else {
+            activateTiltListener();
+        }
     };
 
     function activateTiltListener() {
-        sysMessage = "GYRO LINKED"; updateMenuDisplay();
+        sysMessage = "TILT DRIVE ACTIVE"; updateMenuDisplay();
         isTiltActive = true;
         let calibrated = false;
+        
         window.addEventListener('deviceorientation', (event) => {
             if (!event.beta || !event.gamma) return;
-            if (!calibrated) { tiltCalibration.beta = event.beta; tiltCalibration.gamma = event.gamma; calibrated = true; }
+            if (!calibrated) {
+                tiltCalibration.beta = event.beta;
+                tiltCalibration.gamma = event.gamma;
+                calibrated = true;
+            }
             currentTilt.beta = THREE.MathUtils.lerp(currentTilt.beta, event.beta - tiltCalibration.beta, 0.1);
             currentTilt.gamma = THREE.MathUtils.lerp(currentTilt.gamma, event.gamma - tiltCalibration.gamma, 0.1);
         });
@@ -199,232 +256,280 @@
         if (GEMINI_KEY) {
             document.getElementById('api-container').style.display = 'none';
             document.getElementById('main-controls').style.display = 'flex';
-            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Cinema Modules Loaded.<br>Look DOWN for Controls.`;
+            document.getElementById('system-status').innerHTML = `[ SYSTEM ONLINE ]<br>Cockpit Mk.III Active.<br>Look DOWN to Pilot.`;
             
             try {
                 genAI = new GoogleGenerativeAI(GEMINI_KEY);
-                model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: "You are HELEN, a tactical AI. You control a media interface. Commands: Play, Pause, Scan." });
+                model = genAI.getGenerativeModel({ 
+                    model: "gemini-2.5-flash",
+                    systemInstruction: "You are HELEN, a tactical AI companion. Responses concise & robotic."
+                });
                 initVoice();
             } catch(e) { console.error("AI INIT FAILED", e); }
         }
     }
 
-    // ==========================================
-    // 2. FILE LOADING & CINEMA LOGIC
-    // ==========================================
+    function initVoice() {
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+            
+            recognition.onstart = () => { isListening = true; aiStatus = "LISTENING..."; updateHUD(); };
+            recognition.onend = () => { isListening = false; if(aiStatus === "LISTENING...") aiStatus = "PROCESSING..."; updateHUD(); };
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                askGemini(transcript);
+            };
+        }
+    }
+
+    async function performVisualScan() {
+        if (!model) return;
+        aiStatus = "CAPTURING VISUALS..."; updateHUD();
+        const flash = document.getElementById('flash');
+        flash.style.opacity = 0.8;
+        setTimeout(() => { flash.style.opacity = 0; }, 100);
+
+        const video = document.getElementById('camera-feed');
+        const canvas = document.getElementById('vision-canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        const base64Image = dataUrl.split(',')[1]; 
+
+        aiStatus = "ANALYZING TARGET..."; updateHUD();
+        try {
+            const prompt = "Analyze this image tactically.";
+            const imagePart = { inlineData: { data: base64Image, mimeType: "image/jpeg" } };
+            const result = await model.generateContent([prompt, imagePart]);
+            const response = await result.response;
+            speak(response.text());
+        } catch (error) {
+            aiStatus = "VISUAL ERROR";
+            speak("Visual sensors malfunctioned.");
+        }
+    }
+
+    async function askGemini(prompt) {
+        aiStatus = "THINKING..."; updateHUD();
+        try {
+            const chat = model.startChat({
+                history: chatHistory,
+                generationConfig: { maxOutputTokens: 100 },
+            });
+            const result = await chat.sendMessage(prompt);
+            const text = await result.response.text();
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            chatHistory.push({ role: "model", parts: [{ text: text }] });
+            if(chatHistory.length > 20) chatHistory = chatHistory.slice(chatHistory.length - 20);
+            saveMemory();
+            speak(text);
+        } catch (error) {
+            aiStatus = "ERR: NET";
+            speak("System Error.");
+        }
+    }
+    
+    function saveMemory() { localStorage.setItem('helen_chat_history', JSON.stringify(chatHistory)); }
+    function wipeMemory() {
+        chatHistory = [];
+        localStorage.removeItem('helen_chat_history');
+        sysMessage = "MEMORY WIPED";
+        speak("Memory banks cleared.");
+        updateMenuDisplay();
+    }
+
+    function speak(text) {
+        if (synth.speaking) synth.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.1; utterance.pitch = 1.0;
+        const voices = synth.getVoices();
+        const preferred = voices.find(v => v.name.includes("Google US English") || v.name.includes("Female"));
+        if(preferred) utterance.voice = preferred;
+        utterance.onstart = () => { isSpeaking = true; aiStatus = "SPEAKING"; updateHUD(); };
+        utterance.onend = () => { isSpeaking = false; aiStatus = "STANDBY"; updateHUD(); };
+        synth.speak(utterance);
+    }
+    
+    if(GEMINI_KEY) checkAuth();
+
+    if (localStorage.getItem('helen_layout_ai')) {
+        document.getElementById('restore-msg').style.display = 'block';
+        pendingRestore = true;
+    }
 
     const input = document.getElementById('intel-input');
     input.addEventListener('change', async (e) => {
         if (e.target.files.length > 0) {
+            CUSTOM_DATABASE = [];
             for (let i = 0; i < e.target.files.length; i++) {
                 const file = e.target.files[i];
                 let name = file.name.toUpperCase();
-                let type = 'unknown';
+                let type = 'image'; 
                 
-                if (file.type.startsWith('video')) type = 'video';
-                else if (file.type.startsWith('image')) type = 'image';
-                else if (file.type.startsWith('audio')) type = 'audio';
-                else if (name.endsWith('.PDF')) type = 'pdf';
+                if (name.endsWith('.PDF')) type = 'pdf';
+                else if (name.endsWith('.FBX')) type = 'fbx';
                 else if (name.endsWith('.GLB') || name.endsWith('.GLTF')) type = 'glb';
-
-                // Store object URL
-                CUSTOM_DATABASE.push({ type: type, src: URL.createObjectURL(file), label: name, file: file });
+                else if (name.endsWith('.MP3') || name.endsWith('.WAV')) type = 'audio';
+                else if (name.endsWith('.CSV')) type = 'chart';
+                else if (file.type.startsWith('video')) type = 'video';
+                else if (file.type.startsWith('image')) type = 'image';
+                
+                let src = URL.createObjectURL(file);
+                if (type === 'pdf') {
+                    const buffer = await file.arrayBuffer();
+                    CUSTOM_DATABASE.push({ type: 'pdf', buffer: buffer, label: name });
+                } else if (type === 'chart') {
+                    const text = await file.text();
+                    CUSTOM_DATABASE.push({ type: 'chart', data: text, label: name });
+                } else {
+                    CUSTOM_DATABASE.push({ type: type, src: src, label: name });
+                }
             }
             input.value = ''; 
-            sysMessage = "FILES LOADED";
-            updateMenuDisplay();
+            sysMessage = "FILES LOADED"; updateMenuDisplay();
         }
     });
 
-    function spawnFromMenu(index) {
-        // System Commands
-        if (index === 0) { 
-            // Toggle Camera/Void
-            if (camMaterial.uniforms.uMode.value === 0) {
-                camMaterial.uniforms.uMode.value = 2; // Void
-                sysMessage = "VOID MODE";
-            } else {
-                camMaterial.uniforms.uMode.value = 0; // Camera
-                sysMessage = "AR MODE";
-            }
-            updateMenuDisplay();
-            return;
-        } 
-        if (index === 1) { performVisualScan(); updateMenuDisplay(); return; }
-        
-        // File Loading
-        const fileIndex = index - 2; 
-        const item = CUSTOM_DATABASE[fileIndex];
-        
-        if (item) {
-            if (item.type === 'video') {
-                initCinemaMode(item);
-            } else if (item.type === 'image') {
-                spawnScreen(item);
-            } else if (item.type === 'glb') {
-                const pos = camera.getWorldPosition(new THREE.Vector3()).add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(3));
-                spawnModel(pos, item);
-            }
-            isMenuOpen = false; menuGroup.visible = false;
-        }
+    function saveMission() {
+        const layout = targets.map(t => {
+            if(t === cinemaGroup) return null; // Don't save cinema mode
+            return {
+                label: t.userData.label,
+                pos: t.position,
+                rot: t.rotation,
+                scale: t.scale,
+                type: t.userData.type
+            };
+        }).filter(t => t !== null);
+        localStorage.setItem('helen_layout_ai', JSON.stringify(layout));
+        sysMessage = "MISSION SAVED"; updateMenuDisplay(); 
+        setTimeout(() => { sysMessage = ""; updateMenuDisplay(); }, 2000);
     }
 
-    // --- THE CORE CINEMA ENGINE (MERGED) ---
-    function initCinemaMode(data) {
-        // Clear previous cinema
-        if(activeVideoElement) { activeVideoElement.pause(); activeVideoElement.remove(); }
-        if(cinemaGroup) { scene.remove(cinemaGroup); targets = targets.filter(t => t !== cinemaScreen); }
-
-        isCinemaActive = true;
-        
-        // Switch to Dark Environment for viewing
-        camMaterial.uniforms.uMode.value = 2; // Force Void Mode
-        
-        // Create Video Element
-        activeVideoElement = document.createElement('video');
-        activeVideoElement.src = data.src;
-        activeVideoElement.crossOrigin = "anonymous";
-        activeVideoElement.loop = true;
-        activeVideoElement.playsInline = true;
-        activeVideoElement.play();
-
-        videoTexture = new THREE.VideoTexture(activeVideoElement);
-        videoTexture.colorSpace = THREE.SRGBColorSpace;
-        
-        cinemaGroup = new THREE.Group();
-        
-        // 1. Curved Screen (Default)
-        // A section of a cylinder
-        const geometry = new THREE.CylinderGeometry(15, 15, 14, 64, 1, true, Math.PI + 0.6, Math.PI - 1.2); 
-        // Flip geometry so texture is on inside
-        geometry.scale(-1, 1, 1);
-        
-        const material = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
-        cinemaScreen = new THREE.Mesh(geometry, material);
-        cinemaScreen.position.set(0, 4, -8); // Position in front of user
-        cinemaScreen.rotation.y = -Math.PI/2;
-        cinemaScreen.userData = { isScreen: true, label: "CINEMA SCREEN", isCinema: true };
-        
-        cinemaGroup.add(cinemaScreen);
-        targets.push(cinemaScreen);
-
-        // 2. Ambilight (Backlight)
-        cinemaBacklight = new THREE.PointLight(0xffffff, 0.5, 40);
-        cinemaBacklight.position.set(0, 5, -5);
-        cinemaGroup.add(cinemaBacklight);
-        
-        // 3. Floor Reflection
-        const floorGeo = new THREE.PlaneGeometry(60, 60);
-        const floorMat = new THREE.MeshStandardMaterial({ 
-            color: 0x000000, roughness: 0.1, metalness: 0.8,
-            map: videoTexture // Reflect the video roughly
+    function loadMission() {
+        const raw = localStorage.getItem('helen_layout_ai');
+        if (!raw) { sysMessage = "NO DATA FOUND"; updateMenuDisplay(); return; }
+        const layout = JSON.parse(raw);
+        let restoredCount = 0;
+        layout.forEach(item => {
+            const dbItem = CUSTOM_DATABASE.find(f => f.label === item.label) || DEFAULT_DATABASE[0];
+            if (dbItem) {
+                const pos = new THREE.Vector3(item.pos.x, item.pos.y, item.pos.z);
+                const rot = new THREE.Euler(item.rot._x, item.rot._y, item.rot._z);
+                const scale = item.scale ? new THREE.Vector3(item.scale.x, item.scale.y, item.scale.z) : null;
+                
+                if (dbItem.type === 'fbx' || dbItem.type === 'glb') spawnModel(pos, dbItem, rot, scale);
+                else if (dbItem.type === 'audio') spawnAudio(pos, dbItem);
+                else if (dbItem.type === 'chart') spawnChart(pos, dbItem);
+                else spawnScreen(pos, dbItem, rot);
+                restoredCount++;
+            }
         });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI/2;
-        floor.position.y = -4;
-        cinemaGroup.add(floor);
-
-        scene.add(cinemaGroup);
-        
-        // Initialize Audio
-        if(!audioListener) { audioListener = new THREE.AudioListener(); camera.add(audioListener); }
-        const sound = new THREE.Audio(audioListener);
-        // Attach audio logic if needed, but VideoTexture usually handles audio output from DOM
-        // For spatial audio, we'd need MediaElementSource, but let's stick to DOM audio for sync
-        
-        sysMessage = "THEATER ACTIVE";
-        rebuildCockpit(); // Switch to Media Controls
+        sysMessage = `RESTORED ${restoredCount} UNITS`; updateMenuDisplay(); 
     }
 
-    function updateAmbilight() {
-        if (!activeVideoElement || activeVideoElement.paused) return;
-        if (!ambilightCtx) {
-            ambilightCanvas = document.getElementById('light-canvas');
-            ambilightCtx = ambilightCanvas.getContext('2d');
-        }
-        
+    function clearMission() {
+        localStorage.removeItem('helen_layout_ai');
+        [...targets].forEach(t => deleteObject(t));
+        sysMessage = "DATABASE WIPED"; updateMenuDisplay();
+    }
+
+    async function scanCameras() {
+        if (!navigator.mediaDevices?.enumerateDevices) return;
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(d => d.kind === 'videoinput' && !d.label.toLowerCase().includes('front'));
+        startCameraStream(cameras.length > 0 ? cameras[0].deviceId : null);
+    }
+
+    async function startCameraStream(preferredId) {
+        if (currentStream) currentStream.getTracks().forEach(t => t.stop());
         try {
-            ambilightCtx.drawImage(activeVideoElement, 0, 0, 32, 32);
-            const p = ambilightCtx.getImageData(16, 16, 1, 1).data;
-            const hex = (p[0] << 16) + (p[1] << 8) + p[2];
-            cinemaBacklight.color.setHex(hex);
-            cinemaBacklight.intensity = 0.8 + (Math.random() * 0.1); // Slight flicker for realism
-        } catch(e) {}
+            const constraints = preferredId ? { video: { deviceId: { exact: preferredId } } } : { video: { facingMode: 'environment' } };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            const video = document.getElementById('camera-feed');
+            video.srcObject = stream;
+            await new Promise(r => video.onloadedmetadata = r);
+            await video.play();
+            currentStream = stream;
+            videoTrack = stream.getVideoTracks()[0];
+            if (camMaterial) {
+                camMaterial.uniforms.tDiffuse.value = new THREE.VideoTexture(video);
+                camMaterial.uniforms.tDiffuse.value.colorSpace = THREE.SRGBColorSpace;
+            }
+        } catch (err) {}
     }
 
-    function toggleVideoMode() {
-        if (!isCinemaActive || !cinemaScreen) return;
-        cinemaMode = (cinemaMode + 1) % 3;
-        
-        cinemaGroup.remove(cinemaScreen);
-        targets = targets.filter(t => t !== cinemaScreen);
-        
-        let geo;
-        
-        if (cinemaMode === 0) {
-             // Curved Screen
-             geo = new THREE.CylinderGeometry(15, 15, 14, 64, 1, true, Math.PI + 0.6, Math.PI - 1.2);
-             cinemaScreen.scale.set(-1,1,1);
-             cinemaScreen.rotation.y = -Math.PI/2;
-             sysMessage = "MODE: CURVED";
-        } else if (cinemaMode === 1) {
-             // 180 Dome
-             geo = new THREE.SphereGeometry(30, 64, 32, 0, Math.PI, 0, Math.PI);
-             cinemaScreen.scale.set(-1,1,1);
-             cinemaScreen.rotation.y = -Math.PI/2;
-             sysMessage = "MODE: 180 IMAX";
-        } else {
-             // 360 Sphere
-             geo = new THREE.SphereGeometry(30, 64, 32);
-             cinemaScreen.scale.set(-1,1,1);
-             cinemaScreen.rotation.y = 0;
-             sysMessage = "MODE: 360 VR";
+    scanCameras().then(init3D);
+
+    const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
+    const fragmentShader = `
+        uniform sampler2D tDiffuse; uniform float uMode; uniform vec2 uResolution; varying vec2 vUv;
+        void main() {
+            vec4 color = texture2D(tDiffuse, vUv);
+            if (uMode > 2.5) { // CINEMA MODE (BLACK)
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            } else if (uMode > 1.5) { // VOID MODE
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            } else if (uMode > 0.5) { // EDGE MODE
+                float x = 1.0 / uResolution.x; float y = 1.0 / uResolution.y;
+                vec4 horizEdge = -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) + -2.0 * texture2D(tDiffuse, vUv + vec2(-x,  0.0)) + -1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) + 2.0 * texture2D(tDiffuse, vUv + vec2( x,  0.0)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
+                vec4 vertEdge = -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) + -2.0 * texture2D(tDiffuse, vUv + vec2( 0.0, -y)) + -1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) + 1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) + 2.0 * texture2D(tDiffuse, vUv + vec2( 0.0,  y)) + 1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
+                vec3 edge = sqrt((horizEdge.rgb * horizEdge.rgb) + (vertEdge.rgb * vertEdge.rgb));
+                float val = length(edge);
+                if(val > 0.15) gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * val * 2.0; else gl_FragColor = vec4(0.0, 0.05, 0.1, 1.0); 
+            } else gl_FragColor = color; 
         }
-        
-        cinemaScreen.geometry.dispose();
-        cinemaScreen.geometry = geo;
-        
-        cinemaGroup.add(cinemaScreen);
-        targets.push(cinemaScreen);
-        updateMenuDisplay();
-    }
-
-    // ==========================================
-    // 3. 3D COCKPIT & CONTROLS
-    // ==========================================
-
-    function createChevron(color) {
-        const shape = new THREE.Shape();
-        shape.moveTo(0, 0.3); shape.lineTo(0.3, -0.2); shape.lineTo(0, -0.1);
-        shape.lineTo(-0.3, -0.2); shape.lineTo(0, 0.3);
-        const geo = new THREE.ShapeGeometry(shape);
-        const mat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-        const arrow = new THREE.Mesh(geo, mat);
-        arrow.add(new THREE.Mesh(new THREE.CircleGeometry(0.35, 32), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.1 })));
-        return arrow;
-    }
+    `;
     
-    function createButton(label, color) {
-        const geo = new THREE.PlaneGeometry(0.5, 0.3);
-        const mat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-        const mesh = new THREE.Mesh(geo, mat);
-        const edges = new THREE.EdgesGeometry(geo);
-        mesh.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: color })));
-        
-        // Text Label
-        const canvas = document.createElement('canvas'); canvas.width=128; canvas.height=64;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = color === 0x00ff00 ? '#00ff00' : '#00ffff';
-        ctx.font = 'bold 30px Courier New'; ctx.textAlign='center'; ctx.fillText(label, 64, 40);
-        const tex = new THREE.CanvasTexture(canvas);
-        const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.2), new THREE.MeshBasicMaterial({map:tex, transparent:true}));
-        labelMesh.position.z = 0.01;
-        mesh.add(labelMesh);
-        
-        return mesh;
+    function initMouseControl() {
+        function getPos(e) {
+            if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        window.addEventListener('contextmenu', (e) => { e.preventDefault(); });
+
+        const onDown = (e) => {
+            if (e.button === 2) { isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; return; }
+            if (isMenuOpen) return;
+            if (e.button === 0 || e.type === 'touchstart') {
+                isMouseDown = true;
+                const pos = getPos(e);
+                previousMousePosition = pos;
+            }
+        };
+
+        const onUp = () => { isMouseDown = false; };
+
+        const onMove = (e) => {
+            if (!isMouseDown || !dolly || isMenuOpen || isCinemaMode) return; // LOCK MOVEMENT IN CINEMA
+            if(e.preventDefault) e.preventDefault();
+            if (!renderer.xr.isPresenting) {
+                const pos = getPos(e);
+                const deltaX = pos.x - previousMousePosition.x;
+                const deltaY = pos.y - previousMousePosition.y;
+                previousMousePosition = pos;
+                camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
+                dolly.position.addScaledVector(_moveDir, -deltaY * MOUSE_SENSITIVITY);
+                dolly.position.addScaledVector(_strafeDir, deltaX * MOUSE_SENSITIVITY);
+            }
+        };
+
+        window.addEventListener('mousedown', onDown);
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchstart', onDown, { passive: false });
+        window.addEventListener('touchend', onUp);
+        window.addEventListener('touchmove', onMove, { passive: false });
     }
 
-    function rebuildCockpit() {
+    function createCockpit() {
         if(cockpitGroup) { dolly.remove(cockpitGroup); }
         cockpitGroup = new THREE.Group();
         cockpitGroup.position.set(0, -1.6, -1.0); 
@@ -432,114 +537,74 @@
         dolly.add(cockpitGroup);
         cockpitPanels = [];
 
-        // Always add Menu Button (Center Bottom)
-        const menuBtn = createButton("MENU", 0xff0055);
-        menuBtn.position.set(0, -0.6, 0);
+        // Simple Chevron for Cockpit
+        const fwd = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 3), new THREE.MeshBasicMaterial({color:0x00ff00, transparent:true, opacity:0.5}));
+        fwd.rotation.x = Math.PI / 2;
+        fwd.userData = { action: "FORWARD", baseScale: 1 };
+        cockpitGroup.add(fwd); cockpitPanels.push(fwd);
+
+        // Menu Button
+        const menuBtn = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0xff0055, side: THREE.DoubleSide, transparent: true, opacity: 0.5 }));
+        menuBtn.position.set(0, -0.6, 0); 
         menuBtn.userData = { action: "TOGGLE_MENU", baseScale: 1 };
-        cockpitGroup.add(menuBtn);
-        cockpitPanels.push(menuBtn);
+        cockpitGroup.add(menuBtn); cockpitPanels.push(menuBtn);
 
-        if (isCinemaActive) {
-            // --- MEDIA CONTROLS ---
-            const btnPlay = createButton("PLAY/PAUSE", 0x00ff00);
-            btnPlay.position.set(0, 0.3, 0); btnPlay.scale.setScalar(1.5);
-            btnPlay.userData = { action: "MEDIA_PLAY", baseScale: 1.5 };
-            cockpitGroup.add(btnPlay); cockpitPanels.push(btnPlay);
-
-            const btnBack = createButton("<< 15s", 0x00ffff);
-            btnBack.position.set(-0.7, 0, 0);
-            btnBack.userData = { action: "MEDIA_RW", baseScale: 1 };
-            cockpitGroup.add(btnBack); cockpitPanels.push(btnBack);
-            
-            const btnFwd = createButton("15s >>", 0x00ffff);
-            btnFwd.position.set(0.7, 0, 0);
-            btnFwd.userData = { action: "MEDIA_FF", baseScale: 1 };
-            cockpitGroup.add(btnFwd); cockpitPanels.push(btnFwd);
-
-            const btnMode = createButton("VIEW MODE", 0xffff00);
-            btnMode.position.set(0, 0.8, 0);
-            btnMode.userData = { action: "MEDIA_MODE", baseScale: 1 };
-            cockpitGroup.add(btnMode); cockpitPanels.push(btnMode);
-            
-        } else {
-            // --- FLIGHT CONTROLS ---
-            const fwd = createChevron(0x00ff00);
-            fwd.position.set(0, 0.5, 0); fwd.userData = { action: "FORWARD", baseScale: 1.5 }; fwd.scale.setScalar(1.5);
-            cockpitGroup.add(fwd); cockpitPanels.push(fwd);
-
-            const left = createChevron(0x00ffff);
-            left.position.set(-0.6, 0, 0); left.rotation.z = Math.PI/2; left.userData = { action: "LEFT", baseScale: 1 };
-            cockpitGroup.add(left); cockpitPanels.push(left);
-
-            const right = createChevron(0x00ffff);
-            right.position.set(0.6, 0, 0); right.rotation.z = -Math.PI/2; right.userData = { action: "RIGHT", baseScale: 1 };
-            cockpitGroup.add(right); cockpitPanels.push(right);
+        if(!reticle) {
+            const ringGeo = new THREE.RingGeometry(0.015, 0.02, 32);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, opacity: 0.8, transparent: true });
+            reticle = new THREE.Mesh(ringGeo, ringMat);
+            reticle.position.z = -1;
+            camera.add(reticle);
         }
     }
 
-    function handleCockpitInteraction() {
-        if (!cockpitGroup) return;
-        const time = Date.now() * 0.003;
-        cockpitGroup.position.y = -1.6 + Math.sin(time) * 0.02;
-
-        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-        const intersects = raycaster.intersectObjects(cockpitPanels, false);
-        targetSpeed = 0; targetRot = 0;
+    function init3D() {
+        scene = new THREE.Scene();
+        dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); dolly.add(camera);
         
-        cockpitPanels.forEach(p => { 
-            p.material.opacity = 0.4; 
-            p.scale.setScalar(p.userData.baseScale); 
+        audioListener = new THREE.AudioListener();
+        camera.add(audioListener);
+
+        const video = document.getElementById('camera-feed');
+        const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false; 
+        camMaterial = new THREE.ShaderMaterial({
+            uniforms: { tDiffuse: { value: vidTex }, uMode: { value: 0.0 }, uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) } },
+            vertexShader: vertexShader, fragmentShader: fragmentShader, depthTest: false, depthWrite: false
         });
+        const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
 
-        if (intersects.length > 0) {
-            const p = intersects[0].object;
-            p.material.opacity = 1.0;
-            p.scale.setScalar(p.userData.baseScale * 1.2);
-            
-            // Movement Logic
-            if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
-            if (p.userData.action === "LEFT") targetRot = MAX_ROT;
-            if (p.userData.action === "RIGHT") targetRot = -MAX_ROT;
-            
-            // System Logic
-            if (p.userData.action === "TOGGLE_MENU") {
-                if (Date.now() - lastMenuToggleTime > 1500) { 
-                    isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen;
-                    if(isMenuOpen) updateMenuDisplay();
-                    lastMenuToggleTime = Date.now();
-                }
-            }
+        // HUD Setup
+        const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
+        hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas); hudTexture.minFilter = THREE.LinearFilter;
+        const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
+        hudMesh.position.set(0, 0, -1.5); camera.add(hudMesh);
 
-            // Media Logic (Gaze Gated)
-            if (p.userData.action.startsWith("MEDIA")) {
-                if(!menuSelectionTimer) menuSelectionTimer = Date.now();
-                if(Date.now() - menuSelectionTimer > 1500) {
-                    if(p.userData.action === "MEDIA_PLAY" && activeVideoElement) {
-                         if(activeVideoElement.paused) activeVideoElement.play(); else activeVideoElement.pause();
-                    }
-                    if(p.userData.action === "MEDIA_RW" && activeVideoElement) activeVideoElement.currentTime -= 15;
-                    if(p.userData.action === "MEDIA_FF" && activeVideoElement) activeVideoElement.currentTime += 15;
-                    if(p.userData.action === "MEDIA_MODE") toggleVideoMode();
-                    
-                    menuSelectionTimer = Date.now() + 500; // Debounce
-                    sysMessage = "COMMAND SENT"; updateMenuDisplay();
-                }
-            } else { menuSelectionTimer = 0; }
-        } else { menuSelectionTimer = 0; }
+        // Ambilight Setup
+        ambilightCtx = document.getElementById('ambilight-canvas').getContext('2d');
+        cinemaLight = new THREE.PointLight(0xffffff, 0, 30);
+        cinemaLight.position.set(0, 5, 0);
+        scene.add(cinemaLight);
 
-        currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.1);
-        currentRot = THREE.MathUtils.lerp(currentRot, targetRot, 0.1);
+        const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(0, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 1));
+        
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" }); 
+        renderer.setPixelRatio(1); 
+        renderer.setSize(window.innerWidth, window.innerHeight); 
+        renderer.xr.enabled = true;
+        document.body.appendChild(renderer.domElement);
+        
+        initMouseControl();
+        createCockpit(); 
+        const btn = VRButton.createButton(renderer); btn.className = "primary"; document.getElementById('vr-btn-container').appendChild(btn);
+        
+        renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
 
-        if (Math.abs(currentSpeed) > 0.001) {
-            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-            dolly.position.addScaledVector(_moveDir, currentSpeed);
-        }
-        if (Math.abs(currentRot) > 0.001) dolly.rotation.y += currentRot;
+        createMenuSystem();
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+        animate();
     }
-
-    // ==========================================
-    // 4. MENU & HUD
-    // ==========================================
 
     function createMenuSystem() {
         menuGroup = new THREE.Group();
@@ -548,35 +613,38 @@
         const geometry = new THREE.PlaneGeometry(2, 2);
         const material = new THREE.MeshBasicMaterial({ map: menuTexture, transparent: true, side: THREE.DoubleSide });
         menuMesh = new THREE.Mesh(geometry, material); menuGroup.add(menuMesh);
-        
-        // Add a line border
-        const edges = new THREE.EdgesGeometry(geometry);
-        menuGroup.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x00ffff })));
-        
+        menuGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x00ffff })));
         scene.add(menuGroup); menuGroup.visible = false;
     }
 
     function updateMenuDisplay() {
-        if(!menuCtx) return;
         const ctx = menuCtx; const w = 1024; const h = 1024;
+        const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         
-        ctx.fillStyle = 'rgba(0, 10, 20, 0.95)'; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(0, 10, 20, 0.9)'; ctx.fillRect(0, 0, w, h);
         ctx.fillStyle = '#00ffff'; ctx.font = 'bold 60px Courier New'; ctx.textAlign = 'center'; ctx.fillText("TACTICAL INVENTORY", w/2, 80);
         ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(50, 100); ctx.lineTo(w-50, 100); ctx.stroke();
         
         const sysOpts = [
-            { label: "[TOGGLE AR/VOID]", type: "sys" },
-            { label: "[VISUAL SCAN]", type: "sys" }
+            { label: "[SAVE MISSION]", type: "sys" },
+            { label: "[LOAD MISSION]", type: "sys" },
+            { label: "[CLEAR ALL]", type: "sys" },
+            { label: "[VOICE COMMS]", type: "sys" },
+            { label: "[VISUAL SCAN]", type: "sys" },
+            { label: "[WIPE MEMORY]", type: "sys" },
+            { label: "[CINEMA MODE]", type: "sys" } // NEW
         ];
         
-        const fullList = [...sysOpts, ...CUSTOM_DATABASE];
+        const fullList = [...sysOpts, ...db];
+        
+        ctx.textAlign = 'left'; ctx.font = '50px Courier New';
         let listY = 180;
         
-        for (let i = 0; i < 9; i++) {
-            const index = i + menuScrollIndex;
-            if (index >= fullList.length) break;
-            const item = fullList[index];
-            const isHovered = (index === hoveredFileIndex);
+        for (let i = 0; i < MAX_MENU_VISIBLE; i++) {
+            const realIndex = menuScrollIndex + i;
+            if (realIndex >= fullList.length) break;
+            const item = fullList[realIndex];
+            const isHovered = (realIndex === hoveredFileIndex);
             
             if (isHovered) {
                 ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(50, listY - 50, w - 60, 60);
@@ -585,7 +653,7 @@
                 ctx.fillStyle = item.type === 'sys' ? '#ff0055' : '#00aaaa';
                 ctx.fillText(`  ${item.label}`, 80, listY);
             }
-            ctx.fillStyle = '#666'; ctx.fillText(item.type.toUpperCase(), w - 200, listY);
+            if (item.type !== 'sys') { ctx.fillStyle = '#666'; ctx.fillText(item.type.toUpperCase(), w - 200, listY); }
             listY += 70;
         }
 
@@ -596,233 +664,331 @@
         menuTexture.needsUpdate = true;
     }
 
-    function updateHUD() {
-        if(!hudContext) return;
-        const w = 1024; const h = 1024; const ctx = hudContext;
-        ctx.clearRect(0, 0, w, h);
-        
-        ctx.textAlign = 'right'; ctx.font = 'bold 30px Courier New'; ctx.fillStyle = '#00ffff';
-        ctx.fillText(`MODE: ${isCinemaActive ? 'THEATER' : 'TACTICAL'}`, w-40, 60);
-        ctx.textAlign = 'left'; 
-        ctx.fillStyle = isListening ? '#ff0055' : '#00ffff';
-        ctx.fillText(`AI: [${aiStatus}]`, 40, 60);
-
-        const cx = w/2; const cy = h/2;
-        
-        // Reticle
-        if (gazeProgress > 0.05) {
-            ctx.beginPath(); ctx.arc(cx, cy, 60, -Math.PI/2, (-Math.PI/2) + (Math.PI * 2 * gazeProgress));
-            ctx.lineWidth = 10; ctx.strokeStyle = '#00ffff'; ctx.stroke();
+    function spawnFromMenu(index) {
+        if (index === 0) { saveMission(); return; }
+        if (index === 1) { loadMission(); return; }
+        if (index === 2) { clearMission(); return; }
+        if (index === 3) { if(recognition) recognition.start(); else sysMessage = "VOICE NOT READY"; updateMenuDisplay(); return; }
+        if (index === 4) { performVisualScan(); updateMenuDisplay(); setTimeout(()=>{ isMenuOpen=false; menuGroup.visible=false; }, 500); return; }
+        if (index === 5) { wipeMemory(); return; }
+        if (index === 6) { 
+            // DEFAULT CINEMA (Demo Video)
+             // Find a video in DB or use default
+             const vid = CUSTOM_DATABASE.find(x => x.type === 'video');
+             if(vid) enterCinemaMode(vid);
+             else { sysMessage = "LOAD VIDEO FIRST"; updateMenuDisplay(); }
+             return; 
         }
 
-        ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; 
-        ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
-
-        hudTexture.needsUpdate = true;
-    }
-
-    // ==========================================
-    // 5. STANDARD OBJECT SPAWNING (Non-Cinema)
-    // ==========================================
-    
-    async function spawnScreen(data) {
-        const geometry = new THREE.PlaneGeometry(1, 1);
-        const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent:true, opacity:0.9 });
-        const screen = new THREE.Mesh(geometry, material);
-        const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-        screen.position.copy(camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3)));
-        screen.lookAt(camera.position);
+        const fileIndex = index - 7; 
+        const db = CUSTOM_DATABASE.length > 0 ? CUSTOM_DATABASE : DEFAULT_DATABASE;
         
-        const tex = new THREE.TextureLoader().load(data.src);
-        tex.colorSpace = THREE.SRGBColorSpace;
-        screen.material.map = tex;
-        
-        const img = new Image(); img.src = data.src;
-        img.onload = () => { screen.scale.set(1.8 * (img.width/img.height), 1.8, 1); }
-        
-        screen.userData = { isScreen: true, label: data.label };
-        scene.add(screen); targets.push(screen);
-    }
-    
-    function spawnModel(pos, data) {
-        const loader = new GLTFLoader();
-        loader.load(data.src, (gltf) => {
-             const model = gltf.scene;
-             model.position.copy(pos);
-             model.scale.set(0.5, 0.5, 0.5);
-             scene.add(model); targets.push(model);
-        });
-    }
-
-    // ==========================================
-    // 6. MAIN ENGINE SETUP
-    // ==========================================
-
-    function init3D() {
-        scene = new THREE.Scene();
-        dolly = new THREE.Group(); dolly.position.set(0, 0, 5); scene.add(dolly);
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100); 
-        dolly.add(camera);
-        
-        // Reticle (Simple Ring)
-        const ringGeo = new THREE.RingGeometry(0.015, 0.02, 32);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, opacity: 0.8, transparent: true });
-        reticle = new THREE.Mesh(ringGeo, ringMat); reticle.position.z = -1; camera.add(reticle);
-
-        // HUD Plane
-        const hudCanvas = document.createElement('canvas'); hudCanvas.width = 1024; hudCanvas.height = 1024;
-        hudContext = hudCanvas.getContext('2d'); hudTexture = new THREE.CanvasTexture(hudCanvas);
-        const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: hudTexture, transparent: true, opacity: 0.9, depthTest: false }));
-        hudMesh.position.set(0, 0, -1.5); camera.add(hudMesh);
-
-        // Camera Feed (Passthrough)
-        const video = document.getElementById('camera-feed');
-        const vidTex = new THREE.VideoTexture(video); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps=false;
-        camMaterial = new THREE.ShaderMaterial({
-            uniforms: { tDiffuse: { value: vidTex }, uMode: { value: 0.0 } },
-            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
-            fragmentShader: `uniform sampler2D tDiffuse; uniform float uMode; varying vec2 vUv;
-            void main() {
-                vec4 c = texture2D(tDiffuse, vUv);
-                if (uMode > 1.5) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); // VOID
-                else gl_FragColor = c; // NORMAL
-            }`,
-            depthTest: false, depthWrite: false
-        });
-        const camPlane = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), camMaterial); camPlane.position.z = -20; camera.add(camPlane); 
-        
-        // Start Camera
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
-            video.srcObject = stream; video.play();
-        });
-
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setPixelRatio(1); renderer.setSize(window.innerWidth, window.innerHeight); 
-        renderer.xr.enabled = true;
-        document.body.appendChild(renderer.domElement);
-        
-        rebuildCockpit(); 
-        createMenuSystem();
-        
-        const btn = VRButton.createButton(renderer);
-        document.getElementById('vr-btn-container').appendChild(btn);
-        
-        renderer.xr.addEventListener('sessionstart', () => { document.getElementById('overlay').style.display = 'none'; });
-
-        // Event Listeners
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
-        
-        // Mouse Look
-        document.addEventListener('mousedown', (e) => { isMouseDown=true; prevMouse = {x:e.clientX, y:e.clientY}; });
-        document.addEventListener('mouseup', () => isMouseDown=false);
-        document.addEventListener('mousemove', (e) => {
-            if(isMouseDown && !isMenuOpen) {
-                const dx = e.clientX - prevMouse.x; const dy = e.clientY - prevMouse.y;
-                dolly.rotation.y -= dx * 0.002;
-                prevMouse = {x:e.clientX, y:e.clientY};
-            }
-        });
-
-        renderer.setAnimationLoop(animate);
-    }
-
-    // ==========================================
-    // 7. INPUT & ANIMATION LOOP
-    // ==========================================
-
-    function handleGaze() {
-        if(isMenuOpen && menuMesh) {
-            // Menu Gaze Interaction
-            menuGroup.lookAt(camera.position);
-            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-            const intersects = raycaster.intersectObject(menuMesh);
-            
-            if (intersects.length > 0) {
-                const uvY = intersects[0].uv.y;
-                if (uvY < 0.82) {
-                    const idx = Math.floor((0.82 - uvY) / 0.068) + menuScrollIndex;
-                    const listSize = 2 + CUSTOM_DATABASE.length; // 2 sys opts
-                    
-                    if (idx < listSize) {
-                        if (hoveredFileIndex !== idx) { hoveredFileIndex = idx; menuSelectionTimer = Date.now(); updateMenuDisplay(); }
-                        else {
-                            gazeProgress = Math.min((Date.now() - menuSelectionTimer) / 1500, 1.0);
-                            if (gazeProgress >= 1.0) { spawnFromMenu(idx); hoveredFileIndex = -1; menuSelectionTimer = Date.now() + 5000; }
-                        }
-                    }
-                }
-            } else { hoveredFileIndex = -1; updateMenuDisplay(); gazeProgress = 0; }
-        } else {
-            gazeProgress = 0;
-        }
-    }
-    
-    // Voice Functions
-    function initVoice() {
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SR) {
-            recognition = new SR();
-            recognition.continuous = false; recognition.lang = 'en-US';
-            recognition.onstart = () => { isListening = true; aiStatus = "LISTENING..."; updateHUD(); };
-            recognition.onend = () => { isListening = false; aiStatus = "PROCESSING..."; updateHUD(); };
-            recognition.onresult = (e) => { askGemini(e.results[0][0].transcript); };
-        }
-    }
-    
-    async function askGemini(prompt) {
-        if(prompt.toLowerCase().includes("play") || prompt.toLowerCase().includes("pause")) {
-            if(activeVideoElement) { 
-                activeVideoElement.paused ? activeVideoElement.play() : activeVideoElement.pause();
-                speak("Media toggled.");
+        if (fileIndex >= 0 && fileIndex < db.length) {
+            const item = db[fileIndex];
+            if(item.type === 'video') {
+                // Ask or Default to Cinema? Let's default to Cinema for this "Edition"
+                enterCinemaMode(item);
+                isMenuOpen = false; menuGroup.visible = false;
                 return;
             }
+
+            // Normal Spawn Logic
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
+            if (item.type === 'fbx' || item.type === 'glb') { pos.y = 0; spawnModel(pos, item); }
+            else if (item.type === 'audio') { pos.y = 1.6; spawnAudio(pos, item); }
+            else if (item.type === 'chart') { pos.y = 1.0; spawnChart(pos, item); }
+            else { pos.y = 1.6; spawnScreen(pos, item); }
+            isMenuOpen = false; menuGroup.visible = false;
         }
-        
-        try {
-            const result = await model.generateContent(prompt);
-            const text = result.response.text();
-            speak(text);
-        } catch(e) { speak("Error."); }
     }
-    
-    function speak(text) {
-        const u = new SpeechSynthesisUtterance(text);
-        u.onstart = () => { isSpeaking = true; aiStatus="SPEAKING"; updateHUD(); };
-        u.onend = () => { isSpeaking = false; aiStatus="STANDBY"; updateHUD(); };
-        synth.speak(u);
+
+    // --- NEW: CINEMA LOGIC ---
+    function enterCinemaMode(data) {
+        if(isCinemaMode) exitCinemaMode();
+        isCinemaMode = true;
+        camMaterial.uniforms.uMode.value = 3.0; // Black Background
+        cockpitGroup.visible = false; // Hide cockpit
+
+        cinemaGroup = new THREE.Group();
+        
+        // Align to user gaze
+        const pos = camera.getWorldPosition(new THREE.Vector3());
+        const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
+        cinemaGroup.position.copy(pos);
+        cinemaGroup.lookAt(pos.clone().add(dir));
+        
+        scene.add(cinemaGroup);
+
+        // Create Video Element
+        const videoElem = document.createElement('video'); 
+        videoElem.src = data.src; 
+        videoElem.crossOrigin = "anonymous"; 
+        videoElem.loop = true; videoElem.playsInline = true;
+        videoElem.play();
+        currentVideoElement = videoElem;
+        
+        const tex = new THREE.VideoTexture(videoElem);
+        tex.colorSpace = THREE.SRGBColorSpace;
+
+        // Curved Screen (Imitating A-Frame curvedimage)
+        // Cylinder Geometry: Open ended, flip side to view from inside
+        const radius = 10;
+        const height = 9;
+        const angle = Math.PI / 1.5; // 120 degrees
+        const geometry = new THREE.CylinderGeometry(radius, radius, height, 32, 1, true, -angle/2, angle);
+        geometry.scale(-1, 1, 1); // Flip inside out
+        
+        const material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+        cinemaScreenMesh = new THREE.Mesh(geometry, material);
+        cinemaScreenMesh.position.set(0, 0, 0); 
+        cinemaScreenMesh.rotation.y = Math.PI; // Face the user
+        cinemaGroup.add(cinemaScreenMesh);
+
+        // Exit Button (Floating below)
+        const exitGeo = new THREE.PlaneGeometry(1, 0.4);
+        const exitMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const exitBtn = new THREE.Mesh(exitGeo, exitMat);
+        exitBtn.position.set(0, -2, -5);
+        exitBtn.userData = { isButton: true, action: 'EXIT_CINEMA' };
+        
+        // Text for button
+        const canvas = document.createElement('canvas'); canvas.width=256; canvas.height=64;
+        const ctx = canvas.getContext('2d'); ctx.fillStyle='white'; ctx.font='40px Courier'; ctx.fillText("EXIT CINEMA", 20, 50);
+        const t = new THREE.CanvasTexture(canvas);
+        const txtMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.25), new THREE.MeshBasicMaterial({map:t, transparent:true}));
+        txtMesh.position.z = 0.01; exitBtn.add(txtMesh);
+        
+        cinemaGroup.add(exitBtn);
+        targets.push(exitBtn);
+
+        sysMessage = "CINEMA MODE ACTIVE"; updateMenuDisplay();
     }
-    
-    async function performVisualScan() {
-        const flash = document.getElementById('flash'); flash.style.opacity = 0.8; setTimeout(() => { flash.style.opacity = 0; }, 100);
+
+    function exitCinemaMode() {
+        isCinemaMode = false;
+        camMaterial.uniforms.uMode.value = visionMode; // Restore vision
+        cockpitGroup.visible = true;
+
+        if (currentVideoElement) { currentVideoElement.pause(); currentVideoElement = null; }
+        if (cinemaGroup) { 
+            scene.remove(cinemaGroup); 
+            // Clean up meshes
+            cinemaGroup.traverse(o => { if(o.isMesh) { o.geometry.dispose(); if(o.material.map) o.material.map.dispose(); } });
+            cinemaGroup = null; 
+        }
+        cinemaLight.intensity = 0;
         
-        const video = document.getElementById('camera-feed');
-        const canvas = document.getElementById('vision-canvas');
-        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video,0,0);
-        
+        // Remove cinema targets
+        targets = targets.filter(t => t.userData.action !== 'EXIT_CINEMA');
+    }
+
+    function updateAmbilight() {
+        if (!isCinemaMode || !currentVideoElement || !ambilightCtx) return;
         try {
-            const data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-            const result = await model.generateContent(["Analyze this tactical view.", { inlineData: { data: data, mimeType: "image/jpeg" } }]);
-            speak(result.response.text());
+            ambilightCtx.drawImage(currentVideoElement, 0, 0, 32, 32);
+            const p = ambilightCtx.getImageData(16, 16, 1, 1).data;
+            const color = new THREE.Color(`rgb(${p[0]}, ${p[1]}, ${p[2]})`);
+            cinemaLight.color.lerp(color, 0.1);
+            cinemaLight.intensity = AMBILIGHT_INTENSITY;
         } catch(e) {}
     }
 
-    function animate() {
-        // Tilt Handling
-        if(isTiltActive && Math.abs(currentTilt.beta) > TILT_DEADZONE) {
-            const speed = (currentTilt.beta - (currentTilt.beta > 0 ? TILT_DEADZONE : -TILT_DEADZONE)) * TILT_SPEED;
-            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
-            dolly.position.addScaledVector(_moveDir, speed);
-        }
-
-        handleCockpitInteraction();
-        handleGaze();
-        updateAmbilight(); // Syncs light with video
-        updateHUD();
-        renderer.render(scene, camera);
+    // --- HELPER FUNCTIONS ---
+    function spawnModel(position, data, rotation = null, scale = null) {
+        const loader = data.type === 'fbx' ? new FBXLoader() : new GLTFLoader();
+        loader.load(data.src, (loaded) => {
+            const model = data.type === 'fbx' ? loaded : loaded.scene;
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z) || 1; 
+            const scaleFactor = 1.0 / maxDim; 
+            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+            if (scale) model.scale.copy(scale);
+            model.position.copy(position);
+            if (rotation) model.rotation.copy(rotation);
+            model.userData = { isScreen: true, isModel: true, label: data.label, type: data.type };
+            scene.add(model); targets.push(model);
+        });
     }
 
-    init3D();
+    function spawnScreen(position, data, rotation = null) {
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent:true, opacity:0.9 });
+        const screen = new THREE.Mesh(geometry, material);
+        screen.position.copy(position); 
+        if(rotation) screen.rotation.copy(rotation); else screen.lookAt(camera.getWorldPosition(new THREE.Vector3()));
+        
+        if (data.type === 'image') {
+            new THREE.TextureLoader().load(data.src, (tex) => {
+                tex.colorSpace = THREE.SRGBColorSpace; screen.material.map = tex;
+                screen.scale.set(1.8 * (tex.image.width/tex.image.height), 1.8, 1);
+            });
+        }
+        screen.userData = { isScreen: true, label: data.label, type: data.type };
+        scene.add(screen); targets.push(screen);
+    }
+    
+    function spawnAudio(pos, data) {
+         // Placeholder for audio logic
+    }
+    function spawnChart(pos, data) {
+         // Placeholder for chart logic
+    }
+
+    function deleteObject(obj) {
+        scene.remove(obj); targets = targets.filter(t => t !== obj);
+    }
+
+    function handleCockpit() {
+        if (!cockpitGroup || isCinemaMode) return; // Disable cockpit in cinema
+        
+        // Simple Gaze-based flight logic
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        const intersects = raycaster.intersectObjects(cockpitPanels, false);
+
+        targetSpeed = 0; targetRot = 0;
+        
+        cockpitPanels.forEach(p => { p.material.opacity = 0.5; p.scale.setScalar(p.userData.baseScale); });
+
+        if (intersects.length > 0) {
+            const p = intersects[0].object;
+            p.material.opacity = 1.0; p.scale.setScalar(p.userData.baseScale * 1.2);
+            if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
+            if (p.userData.action === "TOGGLE_MENU") {
+                if (Date.now() - lastMenuToggleTime > 1500) { 
+                    isMenuOpen = !isMenuOpen; menuGroup.visible = isMenuOpen; 
+                    if(isMenuOpen) updateMenuPosition(); 
+                    lastMenuToggleTime = Date.now();
+                }
+            }
+        }
+        
+        // Tilt Drive Override
+        if (isTiltActive) {
+            if (Math.abs(currentTilt.beta) > TILT_DEADZONE) targetSpeed = (currentTilt.beta - TILT_DEADZONE) * -TILT_SPEED;
+        }
+
+        currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.1);
+        if (Math.abs(currentSpeed) > 0.001) {
+            camera.getWorldDirection(_moveDir); _moveDir.y = 0; _moveDir.normalize();
+            dolly.position.addScaledVector(_moveDir, currentSpeed);
+        }
+    }
+
+    function updateMenuPosition() {
+        if (!isMenuOpen || !menuGroup) return;
+        const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
+        menuGroup.position.copy(camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2.5))); 
+        menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
+    }
+
+    function handleInput() {
+        const pads = navigator.getGamepads();
+        const pad = pads[0] || pads[1]; // simplified
+
+        // GAMEPAD CINEMA CONTROLS
+        if (isCinemaMode && pad && currentVideoElement) {
+            if (pad.buttons[0].pressed && !lastBtn.x) { // X / A Button
+                if(currentVideoElement.paused) currentVideoElement.play(); else currentVideoElement.pause();
+            }
+            if (pad.buttons[1].pressed && !lastBtn.circle) { // Circle / B Button
+                exitCinemaMode();
+            }
+            if (pad.axes[0] < -0.5) currentVideoElement.currentTime -= 0.1; // Seek Back
+            if (pad.axes[0] > 0.5) currentVideoElement.currentTime += 0.1; // Seek Fwd
+            
+            lastBtn.x = pad.buttons[0].pressed;
+            lastBtn.circle = pad.buttons[1].pressed;
+            return; // Skip other inputs
+        }
+
+        // STANDARD INPUTS
+        if (isCinemaMode) {
+             // Just gaze for exit button
+             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+             const intersects = raycaster.intersectObjects(targets);
+             if (intersects.length > 0 && intersects[0].object.userData.action === 'EXIT_CINEMA') {
+                 gazeProgress += 0.02;
+                 if(gazeProgress >= 1) { exitCinemaMode(); gazeProgress = 0; }
+             } else gazeProgress = 0;
+             return;
+        }
+
+        // ... Existing Gaze Logic for Menu ...
+        if (isMenuOpen && menuMesh) {
+             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+             const intersects = raycaster.intersectObject(menuMesh);
+             if (intersects.length > 0) {
+                 const uvY = intersects[0].uv.y;
+                 if (uvY < 0.82) {
+                     const visualIdx = Math.floor((0.82 - uvY) / 0.068);
+                     const realIdx = visualIdx + menuScrollIndex;
+                     if(realIdx !== hoveredFileIndex) { hoveredFileIndex = realIdx; menuSelectionTimer = Date.now(); updateMenuDisplay(); }
+                     else {
+                         const elapsed = Date.now() - menuSelectionTimer;
+                         gazeProgress = Math.min(elapsed / 1500, 1.0);
+                         if(elapsed > 1500) { spawnFromMenu(realIdx); hoveredFileIndex = -1; menuSelectionTimer = Date.now() + 5000; }
+                     }
+                 }
+             } else { if(hoveredFileIndex !== -1) { hoveredFileIndex = -1; updateMenuDisplay(); } }
+        }
+        
+        // ... Gamepad standard ...
+        if (pad) {
+            if (pad.buttons[3].pressed && !lastBtn.triangle) {
+                visionMode = (visionMode + 1) % 3;
+                if (camMaterial) camMaterial.uniforms.uMode.value = visionMode;
+            }
+            lastBtn.triangle = pad.buttons[3].pressed;
+        }
+    }
+
+    function updateHUD() {
+        if(!hudContext) return;
+        const currentState = `M:${isMenuOpen}|S:${isSpeaking}|L:${isListening}|V:${visionMode}|C:${isCinemaMode}|P:${gazeProgress.toFixed(2)}`;
+        if (currentState === lastHudState) return;
+        lastHudState = currentState; 
+
+        const ctx = hudContext; const w = 1024; const h = 1024; ctx.clearRect(0, 0, w, h);
+        const cx = w/2; const cy = h/2;
+
+        if (isCinemaMode) {
+            ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center'; ctx.font = '30px Courier New';
+            ctx.fillText("CINEMA MODE ACTIVE", cx, h - 100);
+            if (gazeProgress > 0) {
+                ctx.beginPath(); ctx.arc(cx, cy, 60, 0, Math.PI * 2 * gazeProgress);
+                ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 10; ctx.stroke();
+            }
+        } else {
+            // Normal HUD
+            ctx.textAlign = 'right'; ctx.font = 'bold 30px Courier New';
+            if(visionMode === 1) { ctx.fillStyle = '#00ffff'; ctx.fillText("VISION: [CYBER]", w-40, 60); }
+            else { ctx.fillStyle = 'rgba(0,255,255,0.5)'; ctx.fillText("VISION: [NORMAL]", w-40, 60); }
+            ctx.textAlign = 'left'; ctx.fillText(`AI: [${aiStatus}]`, 40, 60);
+
+            if (gazeProgress > 0.05) {
+                ctx.beginPath(); ctx.arc(cx, cy, 60, -Math.PI/2, (-Math.PI/2) + (Math.PI * 2 * gazeProgress));
+                ctx.lineWidth = 10; ctx.strokeStyle = '#00ffff'; ctx.stroke();
+            }
+            if(!isMenuOpen) {
+                ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; 
+                ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
+            }
+        }
+        hudTexture.needsUpdate = true;
+    }
+
+    function animate() {
+        renderer.setAnimationLoop(() => { 
+            handleInput(); 
+            handleCockpit(); 
+            updateMenuPosition(); 
+            updateHUD(); 
+            updateAmbilight(); // RUN AMBILIGHT
+            renderer.render(scene, camera); 
+        });
+    }
 </script>
 </body>
 </html>
