@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v16.0: Layout Fix</title>
+    <title>The Hub v17.0: Floorless</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -35,7 +35,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v16.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v17.0</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             
@@ -67,14 +67,9 @@
             <video id="cam-src" autoplay playsinline webkit-playsinline muted crossorigin="anonymous"></video>
             <img id="img-src" src="" crossorigin="anonymous">
             <canvas id="pdf-canvas"></canvas>
-            <img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
         </a-assets>
 
         <a-videosphere id="env-sky" radius="500" rotation="0 -90 0" color="#050505" side="back"></a-videosphere>
-
-        <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
-                 src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
-        </a-plane>
 
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
@@ -99,7 +94,6 @@
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
             <a-box depth="0.02" height="1.0" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
             <a-box position="0 0.49 0" depth="0.03" height="0.01" width="2.8" color="#ff9d00" opacity="0.8"></a-box>
-            
             <a-text id="txt-title" value="Waiting..." position="0 0.42 0.02" align="center" width="2.5" color="white"></a-text>
             
             <a-plane id="btn-close" position="1.2 0.4 0.03" width="0.25" height="0.15" color="#cc0000" class="clickable btn-hover">
@@ -125,8 +119,7 @@
 
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text value="2D VIEW" align="center" width="1.8"></a-text></a-plane>
             <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-3d" value="2D MODE" align="center" width="1.8"></a-text></a-plane>
-            <a-plane id="btn-void" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#222" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.8"></a-text></a-plane>
-
+            
             <a-plane id="btn-rot-left" position="0.65 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="< TURN" align="center" width="2"></a-text></a-plane>
             <a-plane id="btn-reset" position="0.95 -0.1 0.02" width="0.3" height="0.15" color="#222" class="clickable btn-hover"><a-text value="RESET" align="center" width="2"></a-text></a-plane>
             <a-plane id="btn-rot-right" position="1.25 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="TURN >" align="center" width="2"></a-text></a-plane>
@@ -156,7 +149,7 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
         const state = {
-            playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isVoid: false, curve: 90, currentObjectURL: null,
+            playlist: [], currentTrack: 0, viewMode: 0, is3D: false, curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
             audio: { ctx: null, source: null, panner: null },
             cam: { active: false, stream: null, mode: 'environment' }
@@ -187,7 +180,7 @@
                     seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
                     btnCam: document.getElementById('btn-cam'), txtCam: document.getElementById('txt-cam')
                 },
-                env: { floor: document.getElementById('env-floor'), sky: document.getElementById('env-sky'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') }
+                env: { sky: document.getElementById('env-sky'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') }
             }
         };
 
@@ -251,7 +244,7 @@
             const previewVideo = DOM.ui.camPreview;
 
             if (cam.active) {
-                // STOP (Toggle Off)
+                // STOP
                 if (cam.stream) {
                     cam.stream.getTracks().forEach(track => track.stop());
                     cam.stream = null;
@@ -266,11 +259,9 @@
                 // Reset VR Sky
                 sky.removeAttribute('src');
                 sky.setAttribute('color', '#050505');
-                DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
+                
                 DOM.vr.controls.txtCam.setAttribute('value', 'CAM ON');
                 DOM.vr.controls.btnCam.setAttribute('color', '#0078ff');
-                
-                // Reset mode for next try
                 cam.mode = 'environment';
                 
             } else {
@@ -289,7 +280,6 @@
                         return navigator.mediaDevices.getUserMedia({ video: true });
                     });
 
-                    // 3. Attach & Play
                     camVideo.srcObject = cam.stream;
                     await camVideo.play(); 
                     
@@ -301,17 +291,15 @@
 
                     cam.active = true;
                     
-                    // 5. Update VR Sky
+                    // Update Sky
                     sky.setAttribute('color', '#FFF'); 
                     sky.setAttribute('src', '#cam-src');
                     const mesh = sky.getObject3D('mesh');
                     if(mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
 
-                    DOM.vr.env.floor.setAttribute('visible', false);
                     DOM.vr.controls.txtCam.setAttribute('value', 'CAM OFF');
                     DOM.vr.controls.btnCam.setAttribute('color', '#00d2ff');
 
-                    // Prepare to switch mode next time (Toggle Front/Back logic)
                     state.cam.mode = (state.cam.mode === 'environment') ? 'user' : 'environment';
 
                 } catch (err) {
@@ -397,7 +385,6 @@
                     DOM.media.video.pause(); force2DMode(); 
                     DOM.vr.controls.modeBtn.setAttribute('color', '#555'); DOM.vr.controls.btn3d.setAttribute('color', '#555'); DOM.vr.controls.btn3d.classList.remove('clickable');
                     DOM.vr.controls.seekBack.setAttribute('value', 'PREV PG'); DOM.vr.controls.seekFwd.setAttribute('value', 'NEXT PG'); DOM.vr.controls.playText.setAttribute('value', 'LOADING..');
-                    // HIDE VIDEO CONTROLS FOR PDF (Except top level buttons)
                     DOM.vr.controls.videoGroup.setAttribute('visible', false);
                     
                     const loadingTask = pdfjsLib.getDocument(src);
@@ -406,7 +393,6 @@
                     }).catch(error => { DOM.vr.controls.playText.setAttribute('value', 'ERROR'); });
                 } else if (item.type === 'image') {
                     DOM.media.video.pause(); 
-                    // HIDE VIDEO CONTROLS FOR IMAGE
                     DOM.vr.controls.videoGroup.setAttribute('visible', false);
                     updateTexture('#img-src'); 
                     DOM.media.img.onload = function() { 
@@ -437,13 +423,13 @@
 
         function updateVisibility() {
             Object.values(DOM.vr.screens).forEach(s => s.setAttribute('visible', false));
-            DOM.vr.env.floor.setAttribute('visible', !state.isVoid && !state.cam.active);
+            // Floor removed, no visibility logic needed for it
             
             if (state.viewMode === 0) {
                 if (state.is3D) { DOM.vr.screens.cinemaL.setAttribute('visible', true); DOM.vr.screens.cinemaR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
                 else { DOM.vr.screens.cinema.setAttribute('visible', true); resetStereoMapping(); }
                 const modeText = DOM.vr.controls.modeBtn.querySelector('a-text'); if(modeText) modeText.setAttribute('value', '2D VIEW');
-                if(!state.isVoid && !state.cam.active) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015'); else DOM.vr.scene.removeAttribute('fog');
+                if(!state.cam.active) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015'); else DOM.vr.scene.removeAttribute('fog');
             } else if (state.viewMode === 1) {
                 if (state.is3D) { DOM.vr.screens.cylL.setAttribute('visible', true); DOM.vr.screens.cylR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
                 else { DOM.vr.screens.cyl.setAttribute('visible', true); resetStereoMapping(); }
@@ -468,7 +454,6 @@
         document.getElementById('btn-next').addEventListener('click', function() { if(state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); flash(this); });
         document.getElementById('btn-seek-back').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onPrevPage(); else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); flash(this); });
         document.getElementById('btn-seek-fwd').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onNextPage(); else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); flash(this); });
-        document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
         document.getElementById('btn-speed').addEventListener('click', function() { const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; const v = DOM.media.video; v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length]; DOM.vr.controls.speedText.setAttribute('value', v.playbackRate + 'x'); flash(this); });
 
         // CAM BTN
