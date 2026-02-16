@@ -3,155 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v9.1: Expanded & Complete</title>
+    <title>The Hub v9.2: 3D Video Fix</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
     <style>
         /* --- UI LAYER STYLES --- */
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            background: #050505; 
-            font-family: 'Segoe UI', Roboto, sans-serif; 
-            color: white; 
-        }
+        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
         
         #ui-layer {
-            position: absolute; 
-            z-index: 9999; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%;
+            position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        .hidden { 
-            opacity: 0; 
-            pointer-events: none; 
-        }
+        .hidden { opacity: 0; pointer-events: none; }
 
-        h1 { 
-            font-weight: 200; 
-            letter-spacing: 8px; 
-            text-transform: uppercase; 
-            margin-bottom: 30px; 
-        }
-        
-        h1 span { 
-            font-weight: 700; 
-            color: #00d2ff; 
-            text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); 
-        }
+        h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 30px; }
+        h1 span { font-weight: 700; color: #00d2ff; text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
 
         .hub-card {
-            background: rgba(255, 255, 255, 0.05); 
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px); 
-            padding: 40px; 
-            border-radius: 16px; 
-            width: 450px; 
-            text-align: center;
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px); padding: 40px; border-radius: 16px; width: 450px; text-align: center;
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
         .btn-main {
-            background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); 
-            border: none; 
-            padding: 15px 30px;
-            color: white; 
-            font-weight: bold; 
-            font-size: 16px; 
-            letter-spacing: 1px; 
-            border-radius: 30px;
-            cursor: pointer; 
-            margin-top: 20px; 
-            width: 100%; 
-            transition: transform 0.2s;
+            background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px;
+            color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px;
+            cursor: pointer; margin-top: 20px; width: 100%; transition: transform 0.2s;
         }
-        
-        .btn-main:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); 
-        }
+        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
 
-        .url-box { 
-            margin-top: 30px; 
-            border-top: 1px solid rgba(255,255,255,0.1); 
-            padding-top: 20px; 
-            display: flex; 
-            gap: 10px; 
-        }
-        
-        input[type="text"] { 
-            flex: 1; 
-            background: rgba(0,0,0,0.3); 
-            border: 1px solid #333; 
-            padding: 10px; 
-            color: white; 
-            border-radius: 4px; 
-        }
-        
-        .btn-small { 
-            background: #333; 
-            border: 1px solid #444; 
-            color: #aaa; 
-            padding: 0 15px; 
-            border-radius: 4px; 
-            cursor: pointer; 
-        }
+        .url-box { margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid #333; padding: 10px; color: white; border-radius: 4px; }
+        .btn-small { background: #333; border: 1px solid #444; color: #aaa; padding: 0 15px; border-radius: 4px; cursor: pointer; }
 
         #playlist-ui {
-            margin-top: 20px; 
-            max-height: 150px; 
-            overflow-y: auto; 
-            text-align: left;
-            background: rgba(0,0,0,0.3); 
-            padding: 10px; 
-            border-radius: 8px; 
-            font-size: 0.9rem; 
-            color: #aaa;
+            margin-top: 20px; max-height: 150px; overflow-y: auto; text-align: left;
+            background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; font-size: 0.9rem; color: #aaa;
         }
-        
-        .playlist-item { 
-            padding: 5px; 
-            border-bottom: 1px solid #333; 
-            cursor: pointer; 
-            transition: background 0.2s; 
-        }
-        
-        .playlist-item:hover { 
-            color: white; 
-            background: rgba(255,255,255,0.1); 
-        }
-        
-        .playlist-active { 
-            color: #ff9d00; 
-            font-weight: bold; 
-        }
+        .playlist-item { padding: 5px; border-bottom: 1px solid #333; cursor: pointer; transition: background 0.2s; }
+        .playlist-item:hover { color: white; background: rgba(255,255,255,0.1); }
+        .playlist-active { color: #ff9d00; font-weight: bold; }
 
         #drop-overlay {
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%;
-            background: rgba(0, 210, 255, 0.2); 
-            border: 5px dashed #00d2ff;
-            z-index: 10000; 
-            display: none; 
-            align-items: center; 
-            justify-content: center;
-            font-size: 2rem; 
-            font-weight: bold; 
-            text-transform: uppercase; 
-            pointer-events: none;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff;
+            z-index: 10000; display: none; align-items: center; justify-content: center;
+            font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none;
         }
         
         #light-canvas { display: none; }
@@ -162,7 +63,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v9.1</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v9.2</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -207,19 +108,19 @@
             height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="true">
         </a-curvedimage>
         <a-curvedimage id="screen-cinema-left" src="#video-src" 
-            height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false" material="repeat: 0.5 1; offset: 0 0">
+            height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false">
         </a-curvedimage>
         <a-curvedimage id="screen-cinema-right" src="#video-src" 
-            height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false" material="repeat: 0.5 1; offset: 0.5 0">
+            height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false">
         </a-curvedimage>
 
         <a-entity id="screen-180" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src" rotation="0 -270 0" visible="false"></a-entity>
-        <a-entity id="screen-180-left" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; repeat: 0.5 1; offset: 0 0" rotation="0 -270 0" visible="false"></a-entity>
-        <a-entity id="screen-180-right" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; repeat: 0.5 1; offset: 0.5 0" rotation="0 -270 0" visible="false"></a-entity>
+        <a-entity id="screen-180-left" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src" rotation="0 -270 0" visible="false"></a-entity>
+        <a-entity id="screen-180-right" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src" rotation="0 -270 0" visible="false"></a-entity>
 
         <a-videosphere id="screen-360" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
-        <a-videosphere id="screen-360-left" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false; repeat: 0.5 1; offset: 0 0" visible="false"></a-videosphere>
-        <a-videosphere id="screen-360-right" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false; repeat: 0.5 1; offset: 0.5 0" visible="false"></a-videosphere>
+        <a-videosphere id="screen-360-left" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
+        <a-videosphere id="screen-360-right" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
 
 
         <a-sphere id="menu-orb" position="0 -1.0 -1.5" radius="0.15" color="#ff9d00" 
@@ -410,7 +311,26 @@
         if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } 
         else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
 
-        /* --- 2. FILE HANDLING --- */
+        /* --- 2. TEXTURE MAPPING FIX (VIDEO SBS) --- */
+        // This function forces the UV mapping onto the video texture
+        function enforceStereoMapping() {
+            const setMap = (el, repeatX, offsetX) => {
+                const mesh = el.getObject3D('mesh');
+                if (!mesh || !mesh.material || !mesh.material.map) return;
+                
+                mesh.material.map.repeat.set(repeatX, 1);
+                mesh.material.map.offset.set(offsetX, 0);
+                mesh.material.map.needsUpdate = true;
+            };
+
+            // Left Eye Screens (0.5 width, 0 offset)
+            [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL].forEach(s => setMap(s, 0.5, 0));
+            
+            // Right Eye Screens (0.5 width, 0.5 offset)
+            [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(s => setMap(s, 0.5, 0.5));
+        }
+
+        /* --- 3. FILE HANDLING --- */
         function handleFiles(files) {
             if (files.length > 0) {
                 const newItems = Array.from(files).map(f => {
@@ -485,7 +405,7 @@
             }
         });
 
-        /* --- 3. MEDIA LOADER --- */
+        /* --- 4. MEDIA LOADER --- */
         function loadTrack(index) {
             if (index >= 0 && index < state.playlist.length) {
                 if (state.currentObjectURL) { 
@@ -542,7 +462,8 @@
                     updateTexture('#img-src'); 
                     DOM.media.img.onload = function() { 
                         refreshTextureMesh(); 
-                        drawAmbilight(DOM.media.img); 
+                        drawAmbilight(DOM.media.img);
+                        enforceStereoMapping(); // Ensure images are cropped too if 3D is active
                     }; 
                     DOM.media.img.src = src;
                 } else {
@@ -551,13 +472,15 @@
                     initAudio();
                     DOM.media.video.play().then(() => { 
                         DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); 
+                        // Force mapping after playback starts
+                        setTimeout(enforceStereoMapping, 500); 
                     }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY'));
                     requestAnimationFrame(updateAmbilight);
                 }
             }
         }
 
-        /* --- 4. TEXTURE & HELPERS --- */
+        /* --- 5. TEXTURE & HELPERS --- */
         function updateTexture(sourceId) {
             Object.values(DOM.vr.screens).forEach(s => {
                 if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId);
@@ -581,7 +504,8 @@
                 if (state.is3D) { 
                     DOM.vr.screens.cinemaL.setAttribute('visible', true); 
                     DOM.vr.screens.cinemaR.setAttribute('visible', true); 
-                    configureStereoLayers(); 
+                    configureStereoLayers();
+                    enforceStereoMapping(); // RE-APPLY VIDEO CROP ON TOGGLE
                 } else { 
                     DOM.vr.screens.cinema.setAttribute('visible', true); 
                 }
@@ -593,6 +517,7 @@
                     DOM.vr.screens.cylL.setAttribute('visible', true); 
                     DOM.vr.screens.cylR.setAttribute('visible', true); 
                     configureStereoLayers(); 
+                    enforceStereoMapping();
                 } else { 
                     DOM.vr.screens.cyl.setAttribute('visible', true); 
                 }
@@ -603,6 +528,7 @@
                     DOM.vr.screens.sphereL.setAttribute('visible', true); 
                     DOM.vr.screens.sphereR.setAttribute('visible', true); 
                     configureStereoLayers(); 
+                    enforceStereoMapping();
                 } else { 
                     DOM.vr.screens.sphere.setAttribute('visible', true); 
                 }
@@ -619,7 +545,7 @@
             updateVisibility(); 
         }
 
-        /* --- 5. BUTTON ACTIONS --- */
+        /* --- 6. BUTTON ACTIONS --- */
         DOM.vr.controls.modeBtn.addEventListener('click', function() { 
             state.viewMode = (state.viewMode + 1) % 3; 
             updateVisibility(); 
@@ -704,7 +630,7 @@
             flash(this);
         });
 
-        /* --- 6. SMOOTH SEAT ANIMATION --- */
+        /* --- 7. SMOOTH SEAT ANIMATION --- */
         function animateSeat(targetPos, targetRot) {
             DOM.vr.env.rig.removeAttribute('animation');
             DOM.vr.env.rig.setAttribute('animation', {
@@ -738,7 +664,7 @@
         document.getElementById('curve-more').addEventListener('click', function() { if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }});
         document.getElementById('curve-less').addEventListener('click', function() { if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }});
 
-        /* --- 7. UTILS & LOOP --- */
+        /* --- 8. UTILS & LOOP --- */
         setInterval(() => {
             const currentItem = state.playlist[state.currentTrack]; 
             const v = DOM.media.video;
