@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v9.2: 3D Video Fix</title>
+    <title>The Hub v9.3: Hardcoded 3D</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -63,7 +63,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v9.2</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v9.3</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -104,23 +104,61 @@
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
-        <a-curvedimage id="screen-cinema" src="#video-src" 
-            height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="true">
-        </a-curvedimage>
-        <a-curvedimage id="screen-cinema-left" src="#video-src" 
-            height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false">
-        </a-curvedimage>
-        <a-curvedimage id="screen-cinema-right" src="#video-src" 
-            height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false">
-        </a-curvedimage>
+        <a-entity id="screen-cinema" 
+            geometry="primitive: cylinder; radius: 14; height: 12; thetaLength: 90; openEnded: true" 
+            material="src: #video-src; side: double; shader: flat"
+            rotation="0 135 0" position="0 5 0" visible="true">
+        </a-entity>
+        
+        <a-entity id="screen-cinema-left" 
+            geometry="primitive: cylinder; radius: 14; height: 12; thetaLength: 90; openEnded: true" 
+            material="src: #video-src; side: double; shader: flat; repeat: 0.5 1; offset: 0 0"
+            rotation="0 135 0" position="0 5 0" visible="false">
+        </a-entity>
+        
+        <a-entity id="screen-cinema-right" 
+            geometry="primitive: cylinder; radius: 14; height: 12; thetaLength: 90; openEnded: true" 
+            material="src: #video-src; side: double; shader: flat; repeat: 0.5 1; offset: 0.5 0"
+            rotation="0 135 0" position="0 5 0" visible="false">
+        </a-entity>
 
-        <a-entity id="screen-180" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src" rotation="0 -270 0" visible="false"></a-entity>
-        <a-entity id="screen-180-left" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src" rotation="0 -270 0" visible="false"></a-entity>
-        <a-entity id="screen-180-right" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src" rotation="0 -270 0" visible="false"></a-entity>
 
-        <a-videosphere id="screen-360" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
-        <a-videosphere id="screen-360-left" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
-        <a-videosphere id="screen-360-right" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
+        <a-entity id="screen-180" 
+            geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
+            material="shader: flat; side: back; src: #video-src" 
+            rotation="0 -270 0" visible="false">
+        </a-entity>
+        
+        <a-entity id="screen-180-left" 
+            geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
+            material="shader: flat; side: back; src: #video-src; repeat: 0.5 1; offset: 0 0" 
+            rotation="0 -270 0" visible="false">
+        </a-entity>
+        
+        <a-entity id="screen-180-right" 
+            geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" 
+            material="shader: flat; side: back; src: #video-src; repeat: 0.5 1; offset: 0.5 0" 
+            rotation="0 -270 0" visible="false">
+        </a-entity>
+
+
+        <a-entity id="screen-360" 
+            geometry="primitive: sphere; radius: 60; segmentsWidth: 64; segmentsHeight: 64" 
+            material="shader: flat; side: back; src: #video-src; fog: false" 
+            rotation="0 -90 0" scale="-1 1 1" visible="false">
+        </a-entity>
+        
+        <a-entity id="screen-360-left" 
+            geometry="primitive: sphere; radius: 60; segmentsWidth: 64; segmentsHeight: 64" 
+            material="shader: flat; side: back; src: #video-src; fog: false; repeat: 0.5 1; offset: 0 0" 
+            rotation="0 -90 0" scale="-1 1 1" visible="false">
+        </a-entity>
+        
+        <a-entity id="screen-360-right" 
+            geometry="primitive: sphere; radius: 60; segmentsWidth: 64; segmentsHeight: 64" 
+            material="shader: flat; side: back; src: #video-src; fog: false; repeat: 0.5 1; offset: 0.5 0" 
+            rotation="0 -90 0" scale="-1 1 1" visible="false">
+        </a-entity>
 
 
         <a-sphere id="menu-orb" position="0 -1.0 -1.5" radius="0.15" color="#ff9d00" 
@@ -168,6 +206,7 @@
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="2D VIEW" align="center" width="1.8"></a-text>
             </a-plane>
+            
             <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text id="txt-3d" value="2D MODE" align="center" width="1.8"></a-text>
             </a-plane>
@@ -311,26 +350,7 @@
         if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } 
         else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
 
-        /* --- 2. TEXTURE MAPPING FIX (VIDEO SBS) --- */
-        // This function forces the UV mapping onto the video texture
-        function enforceStereoMapping() {
-            const setMap = (el, repeatX, offsetX) => {
-                const mesh = el.getObject3D('mesh');
-                if (!mesh || !mesh.material || !mesh.material.map) return;
-                
-                mesh.material.map.repeat.set(repeatX, 1);
-                mesh.material.map.offset.set(offsetX, 0);
-                mesh.material.map.needsUpdate = true;
-            };
-
-            // Left Eye Screens (0.5 width, 0 offset)
-            [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL].forEach(s => setMap(s, 0.5, 0));
-            
-            // Right Eye Screens (0.5 width, 0.5 offset)
-            [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(s => setMap(s, 0.5, 0.5));
-        }
-
-        /* --- 3. FILE HANDLING --- */
+        /* --- 2. FILE HANDLING --- */
         function handleFiles(files) {
             if (files.length > 0) {
                 const newItems = Array.from(files).map(f => {
@@ -405,7 +425,7 @@
             }
         });
 
-        /* --- 4. MEDIA LOADER --- */
+        /* --- 3. MEDIA LOADER --- */
         function loadTrack(index) {
             if (index >= 0 && index < state.playlist.length) {
                 if (state.currentObjectURL) { 
@@ -463,7 +483,6 @@
                     DOM.media.img.onload = function() { 
                         refreshTextureMesh(); 
                         drawAmbilight(DOM.media.img);
-                        enforceStereoMapping(); // Ensure images are cropped too if 3D is active
                     }; 
                     DOM.media.img.src = src;
                 } else {
@@ -472,15 +491,13 @@
                     initAudio();
                     DOM.media.video.play().then(() => { 
                         DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); 
-                        // Force mapping after playback starts
-                        setTimeout(enforceStereoMapping, 500); 
                     }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY'));
                     requestAnimationFrame(updateAmbilight);
                 }
             }
         }
 
-        /* --- 5. TEXTURE & HELPERS --- */
+        /* --- 4. TEXTURE & HELPERS --- */
         function updateTexture(sourceId) {
             Object.values(DOM.vr.screens).forEach(s => {
                 if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId);
@@ -504,8 +521,7 @@
                 if (state.is3D) { 
                     DOM.vr.screens.cinemaL.setAttribute('visible', true); 
                     DOM.vr.screens.cinemaR.setAttribute('visible', true); 
-                    configureStereoLayers();
-                    enforceStereoMapping(); // RE-APPLY VIDEO CROP ON TOGGLE
+                    configureStereoLayers(); 
                 } else { 
                     DOM.vr.screens.cinema.setAttribute('visible', true); 
                 }
@@ -517,7 +533,6 @@
                     DOM.vr.screens.cylL.setAttribute('visible', true); 
                     DOM.vr.screens.cylR.setAttribute('visible', true); 
                     configureStereoLayers(); 
-                    enforceStereoMapping();
                 } else { 
                     DOM.vr.screens.cyl.setAttribute('visible', true); 
                 }
@@ -528,7 +543,6 @@
                     DOM.vr.screens.sphereL.setAttribute('visible', true); 
                     DOM.vr.screens.sphereR.setAttribute('visible', true); 
                     configureStereoLayers(); 
-                    enforceStereoMapping();
                 } else { 
                     DOM.vr.screens.sphere.setAttribute('visible', true); 
                 }
@@ -545,7 +559,7 @@
             updateVisibility(); 
         }
 
-        /* --- 6. BUTTON ACTIONS --- */
+        /* --- 5. BUTTON ACTIONS --- */
         DOM.vr.controls.modeBtn.addEventListener('click', function() { 
             state.viewMode = (state.viewMode + 1) % 3; 
             updateVisibility(); 
@@ -630,7 +644,7 @@
             flash(this);
         });
 
-        /* --- 7. SMOOTH SEAT ANIMATION --- */
+        /* --- 6. SMOOTH SEAT ANIMATION --- */
         function animateSeat(targetPos, targetRot) {
             DOM.vr.env.rig.removeAttribute('animation');
             DOM.vr.env.rig.setAttribute('animation', {
@@ -664,7 +678,7 @@
         document.getElementById('curve-more').addEventListener('click', function() { if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }});
         document.getElementById('curve-less').addEventListener('click', function() { if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }});
 
-        /* --- 8. UTILS & LOOP --- */
+        /* --- 7. UTILS & LOOP --- */
         setInterval(() => {
             const currentItem = state.playlist[state.currentTrack]; 
             const v = DOM.media.video;
