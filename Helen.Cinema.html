@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v13.0: Visor HUD</title>
+    <title>The Hub v14.0: Camera Background</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -33,7 +33,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v13.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v14.0</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -58,15 +58,17 @@
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
             <video id="cam-src" autoplay playsinline webkit-playsinline muted crossorigin="anonymous"></video>
+            
             <img id="img-src" src="" crossorigin="anonymous">
             <canvas id="pdf-canvas"></canvas>
             <img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
         </a-assets>
 
+        <a-videosphere id="env-sky" radius="500" rotation="0 -90 0" color="#050505" side="back"></a-videosphere>
+
         <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
                  src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
         </a-plane>
-        <a-sky color="#050505"></a-sky>
 
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
@@ -103,7 +105,7 @@
                 <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-fwd" value="+15s" align="center" width="2"></a-text></a-plane>
                 <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-speed" value="1x" align="center" width="2"></a-text></a-plane>
                 
-                <a-plane id="btn-cam" position="1.6 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-cam" value="CAM: OFF" align="center" width="1.8"></a-text></a-plane>
+                <a-plane id="btn-cam" position="1.6 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-cam" value="BG: DARK" align="center" width="1.8"></a-text></a-plane>
             </a-entity>
 
             <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="|<<" align="center" width="3"></a-text></a-plane>
@@ -128,14 +130,6 @@
 
         <a-entity id="rig" position="0 1.6 0">
             <a-camera look-controls="reverseMouseDrag: true" wasd-controls="enabled: false">
-                
-                <a-plane id="hud-display" visible="false" src="#cam-src"
-                         position="0.5 -0.35 -0.8" 
-                         width="0.4" height="0.25" 
-                         rotation="-10 -10 0"
-                         material="shader: flat; depthTest: false; opacity: 0.9; side: double">
-                </a-plane>
-
                 <a-cursor id="cursor" fuse="true" fuse-timeout="2500" color="#ff9d00" raycaster="objects: .clickable"
                     animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
                     animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 2500"
@@ -153,7 +147,7 @@
             playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isVoid: false, curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
             audio: { ctx: null, source: null, panner: null },
-            cam: { active: false, stream: null, video: null }
+            cam: { active: false, stream: null }
         };
 
         const DOM = {
@@ -164,8 +158,7 @@
                 screens: { 
                     cinema: document.getElementById('screen-cinema'), cyl: document.getElementById('screen-180'), sphere: document.getElementById('screen-360'),
                     cinemaL: document.getElementById('screen-cinema-left'), cylL: document.getElementById('screen-180-left'), sphereL: document.getElementById('screen-360-left'),
-                    cinemaR: document.getElementById('screen-cinema-right'), cylR: document.getElementById('screen-180-right'), sphereR: document.getElementById('screen-360-right'),
-                    hud: document.getElementById('hud-display')
+                    cinemaR: document.getElementById('screen-cinema-right'), cylR: document.getElementById('screen-180-right'), sphereR: document.getElementById('screen-360-right')
                 },
                 controls: { 
                     wrapper: document.getElementById('hub-wrapper'), videoGroup: document.getElementById('video-controls'), orb: document.getElementById('menu-orb'),
@@ -173,7 +166,7 @@
                     seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
                     btnCam: document.getElementById('btn-cam'), txtCam: document.getElementById('txt-cam')
                 },
-                env: { floor: document.getElementById('env-floor'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') }
+                env: { floor: document.getElementById('env-floor'), sky: document.getElementById('env-sky'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') }
             }
         };
 
@@ -229,35 +222,52 @@
             Object.values(DOM.vr.screens).forEach(reset);
         }
 
-        /* 3. CAMERA LOGIC (THE VISOR) */
+        /* 3. CAMERA BACKGROUND LOGIC */
         async function toggleCamera() {
             const cam = state.cam;
+            const sky = DOM.vr.env.sky;
+            
             if (cam.active) {
-                // STOP
+                // STOP (Return to Void)
                 if (cam.stream) {
                     cam.stream.getTracks().forEach(track => track.stop());
                     cam.stream = null;
                 }
                 DOM.media.cam.srcObject = null;
                 cam.active = false;
-                DOM.vr.screens.hud.setAttribute('visible', false);
-                DOM.vr.controls.txtCam.setAttribute('value', 'CAM: OFF');
+                
+                // Restore Dark Environment
+                sky.removeAttribute('src');
+                sky.setAttribute('color', '#050505');
+                DOM.vr.env.floor.setAttribute('visible', !state.isVoid); // Respect void setting
+                
+                DOM.vr.controls.txtCam.setAttribute('value', 'BG: DARK');
                 DOM.vr.controls.btnCam.setAttribute('color', '#222');
             } else {
-                // START
+                // START (Replace Sky)
                 try {
-                    // Try to get rear camera ('environment'), fallback to front
+                    // Try rear camera first, fallback to any
                     cam.stream = await navigator.mediaDevices.getUserMedia({ 
                         video: { facingMode: 'environment' } 
+                    }).catch(e => {
+                        return navigator.mediaDevices.getUserMedia({ video: true });
                     });
+
                     DOM.media.cam.srcObject = cam.stream;
                     cam.active = true;
-                    DOM.vr.screens.hud.setAttribute('visible', true);
-                    DOM.vr.controls.txtCam.setAttribute('value', 'CAM: ON');
+                    
+                    // Apply Camera to Sky
+                    sky.setAttribute('color', '#FFF'); // Needs white to show texture
+                    sky.setAttribute('src', '#cam-src');
+                    DOM.vr.env.floor.setAttribute('visible', false); // Hide floor for full immersion
+                    
+                    DOM.vr.controls.txtCam.setAttribute('value', 'BG: CAM');
                     DOM.vr.controls.btnCam.setAttribute('color', '#00d2ff');
                 } catch (err) {
                     console.error('Camera error:', err);
-                    DOM.vr.controls.txtCam.setAttribute('value', 'ERR');
+                    if (err.name === 'NotAllowedError') DOM.vr.controls.txtCam.setAttribute('value', 'BLOCKED');
+                    else if (location.protocol !== 'https:' && location.hostname !== 'localhost') DOM.vr.controls.txtCam.setAttribute('value', 'NEED HTTPS');
+                    else DOM.vr.controls.txtCam.setAttribute('value', 'ERR');
                 }
             }
         }
@@ -361,9 +371,6 @@
         /* 6. TEXTURE & HELPERS */
         function updateTexture(sourceId) {
             Object.values(DOM.vr.screens).forEach(s => {
-                // Skip HUD
-                if(s.id === 'hud-display') return;
-                
                 if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId);
                 else s.setAttribute('material', 'src', sourceId);
             });
@@ -372,15 +379,14 @@
         function refreshTextureMesh() { Object.values(DOM.vr.screens).forEach(el => { const mesh = el.getObject3D('mesh'); if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true; }); }
 
         function updateVisibility() {
-            Object.values(DOM.vr.screens).forEach(s => {
-                if(s.id !== 'hud-display') s.setAttribute('visible', false);
-            });
-            DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
+            Object.values(DOM.vr.screens).forEach(s => s.setAttribute('visible', false));
+            DOM.vr.env.floor.setAttribute('visible', !state.isVoid && !state.cam.active);
+            
             if (state.viewMode === 0) {
                 if (state.is3D) { DOM.vr.screens.cinemaL.setAttribute('visible', true); DOM.vr.screens.cinemaR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
                 else { DOM.vr.screens.cinema.setAttribute('visible', true); resetStereoMapping(); }
                 const modeText = DOM.vr.controls.modeBtn.querySelector('a-text'); if(modeText) modeText.setAttribute('value', '2D VIEW');
-                if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+                if(!state.isVoid && !state.cam.active) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015'); else DOM.vr.scene.removeAttribute('fog');
             } else if (state.viewMode === 1) {
                 if (state.is3D) { DOM.vr.screens.cylL.setAttribute('visible', true); DOM.vr.screens.cylR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
                 else { DOM.vr.screens.cyl.setAttribute('visible', true); resetStereoMapping(); }
