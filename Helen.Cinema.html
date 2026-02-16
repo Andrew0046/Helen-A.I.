@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v14.0: Camera Background</title>
+    <title>The Hub v14.1: Camera Fix</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -33,7 +33,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v14.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v14.1</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -57,6 +57,7 @@
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
+            
             <video id="cam-src" autoplay playsinline webkit-playsinline muted crossorigin="anonymous"></video>
             
             <img id="img-src" src="" crossorigin="anonymous">
@@ -222,52 +223,64 @@
             Object.values(DOM.vr.screens).forEach(reset);
         }
 
-        /* 3. CAMERA BACKGROUND LOGIC */
+        /* 3. CAMERA BACKGROUND LOGIC (FIXED) */
         async function toggleCamera() {
             const cam = state.cam;
             const sky = DOM.vr.env.sky;
-            
+            const camVideo = DOM.media.cam; // Get the video element directly
+
             if (cam.active) {
-                // STOP (Return to Void)
+                // --- STOP CAMERA ---
                 if (cam.stream) {
                     cam.stream.getTracks().forEach(track => track.stop());
                     cam.stream = null;
                 }
-                DOM.media.cam.srcObject = null;
+                camVideo.pause();
+                camVideo.srcObject = null;
                 cam.active = false;
                 
                 // Restore Dark Environment
                 sky.removeAttribute('src');
                 sky.setAttribute('color', '#050505');
-                DOM.vr.env.floor.setAttribute('visible', !state.isVoid); // Respect void setting
+                DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
                 
                 DOM.vr.controls.txtCam.setAttribute('value', 'BG: DARK');
                 DOM.vr.controls.btnCam.setAttribute('color', '#222');
             } else {
-                // START (Replace Sky)
+                // --- START CAMERA ---
                 try {
-                    // Try rear camera first, fallback to any
+                    // 1. Get the Stream (Try rear, fallback to any, 720p constraint)
                     cam.stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: 'environment' } 
+                        video: { facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720} } 
                     }).catch(e => {
                         return navigator.mediaDevices.getUserMedia({ video: true });
                     });
 
-                    DOM.media.cam.srcObject = cam.stream;
+                    // 2. Attach to Video Element
+                    camVideo.srcObject = cam.stream;
+                    
+                    // 3. FORCE PLAY (Critical Fix)
+                    await camVideo.play(); 
+
                     cam.active = true;
                     
-                    // Apply Camera to Sky
-                    sky.setAttribute('color', '#FFF'); // Needs white to show texture
+                    // 4. Apply to Sky
+                    sky.setAttribute('color', '#FFF'); 
                     sky.setAttribute('src', '#cam-src');
-                    DOM.vr.env.floor.setAttribute('visible', false); // Hide floor for full immersion
                     
+                    // 5. Force Texture Refresh
+                    const mesh = sky.getObject3D('mesh');
+                    if(mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
+
+                    DOM.vr.env.floor.setAttribute('visible', false);
                     DOM.vr.controls.txtCam.setAttribute('value', 'BG: CAM');
                     DOM.vr.controls.btnCam.setAttribute('color', '#00d2ff');
+
                 } catch (err) {
                     console.error('Camera error:', err);
                     if (err.name === 'NotAllowedError') DOM.vr.controls.txtCam.setAttribute('value', 'BLOCKED');
                     else if (location.protocol !== 'https:' && location.hostname !== 'localhost') DOM.vr.controls.txtCam.setAttribute('value', 'NEED HTTPS');
-                    else DOM.vr.controls.txtCam.setAttribute('value', 'ERR');
+                    else DOM.vr.controls.txtCam.setAttribute('value', 'ERR: ' + err.name);
                 }
             }
         }
