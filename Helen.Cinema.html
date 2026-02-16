@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v10.0: 3D Fixed</title>
+    <title>The Hub v10.1: Smart 3D/2D Switching</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -33,7 +33,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v10.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v10.1</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -178,9 +178,11 @@
         }
         if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
 
-        /* 2. TEXTURE MAPPING FIX (THE SBS FIX) */
+        /* 2. TEXTURE MAPPING LOGIC (CRITICAL FIX) */
+        
+        // A. Forces Video into 3D (Split Left/Right)
         function enforceStereoMapping() {
-            // Standard Left mapping (0 - 0.5)
+            // Left Eye: First 50%
             const setLeft = (el) => {
                 const mesh = el.getObject3D('mesh');
                 if (!mesh || !mesh.material || !mesh.material.map) return;
@@ -188,13 +190,11 @@
                 mesh.material.map.offset.set(0, 0);
                 mesh.material.map.needsUpdate = true;
             };
-
-            // Standard Right mapping (0.5 - 1.0) - NEEDS CLONING
+            // Right Eye: Last 50% (CLONED to be independent)
             const setRight = (el) => {
                 const mesh = el.getObject3D('mesh');
                 if (!mesh || !mesh.material || !mesh.material.map) return;
-                
-                // CLONE TEXTURE IF NOT CLONED
+                // CLONE TEXTURE so offset doesn't affect Left Eye
                 if (!mesh.material.map.isClonedForStereo) {
                     mesh.material.map = mesh.material.map.clone();
                     mesh.material.map.needsUpdate = true;
@@ -203,9 +203,21 @@
                 mesh.material.map.repeat.set(0.5, 1);
                 mesh.material.map.offset.set(0.5, 0);
             };
-
             [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL].forEach(setLeft);
             [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(setRight);
+        }
+
+        // B. Forces Video into 2D (Full Width)
+        function resetStereoMapping() {
+            const reset = (el) => {
+                const mesh = el.getObject3D('mesh');
+                if (!mesh || !mesh.material || !mesh.material.map) return;
+                mesh.material.map.repeat.set(1, 1);
+                mesh.material.map.offset.set(0, 0);
+                mesh.material.map.needsUpdate = true;
+            };
+            // Reset ALL screens (including main) to be safe
+            Object.values(DOM.vr.screens).forEach(reset);
         }
 
         /* 3. FILE HANDLING */
@@ -288,12 +300,19 @@
                 } else if (item.type === 'image') {
                     DOM.media.video.pause(); DOM.vr.controls.videoGroup.setAttribute('visible', false);
                     updateTexture('#img-src'); 
-                    DOM.media.img.onload = function() { refreshTextureMesh(); drawAmbilight(DOM.media.img); enforceStereoMapping(); }; DOM.media.img.src = src;
+                    DOM.media.img.onload = function() { 
+                        refreshTextureMesh(); 
+                        drawAmbilight(DOM.media.img); 
+                        // If 3D is active, enforce split
+                        if(state.is3D) enforceStereoMapping(); else resetStereoMapping();
+                    }; 
+                    DOM.media.img.src = src;
                 } else {
                     DOM.media.video.src = src; updateTexture('#video-src'); initAudio();
                     DOM.media.video.play().then(() => { 
-                        DOM.vr.controls.playText.setAttribute('value', 'PAUSE');
-                        setTimeout(enforceStereoMapping, 200); // Wait for texture to be ready
+                        DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); 
+                        // Wait for texture ready, then check state
+                        setTimeout(() => { if(state.is3D) enforceStereoMapping(); else resetStereoMapping(); }, 200); 
                     }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY'));
                     requestAnimationFrame(updateAmbilight);
                 }
@@ -313,18 +332,34 @@
         function updateVisibility() {
             Object.values(DOM.vr.screens).forEach(s => s.setAttribute('visible', false));
             DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
+            
             if (state.viewMode === 0) {
-                if (state.is3D) { DOM.vr.screens.cinemaL.setAttribute('visible', true); DOM.vr.screens.cinemaR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
-                else { DOM.vr.screens.cinema.setAttribute('visible', true); }
+                if (state.is3D) { 
+                    DOM.vr.screens.cinemaL.setAttribute('visible', true); DOM.vr.screens.cinemaR.setAttribute('visible', true); 
+                    configureStereoLayers(); enforceStereoMapping(); 
+                } else { 
+                    DOM.vr.screens.cinema.setAttribute('visible', true); 
+                    resetStereoMapping(); // Back to 2D
+                }
                 const modeText = DOM.vr.controls.modeBtn.querySelector('a-text'); if(modeText) modeText.setAttribute('value', '2D VIEW');
                 if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             } else if (state.viewMode === 1) {
-                if (state.is3D) { DOM.vr.screens.cylL.setAttribute('visible', true); DOM.vr.screens.cylR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
-                else { DOM.vr.screens.cyl.setAttribute('visible', true); }
+                if (state.is3D) { 
+                    DOM.vr.screens.cylL.setAttribute('visible', true); DOM.vr.screens.cylR.setAttribute('visible', true); 
+                    configureStereoLayers(); enforceStereoMapping(); 
+                } else { 
+                    DOM.vr.screens.cyl.setAttribute('visible', true); 
+                    resetStereoMapping(); 
+                }
                 DOM.vr.controls.modeBtn.querySelector('a-text').setAttribute('value', '180 IMAX'); DOM.vr.scene.removeAttribute('fog');
             } else {
-                if (state.is3D) { DOM.vr.screens.sphereL.setAttribute('visible', true); DOM.vr.screens.sphereR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
-                else { DOM.vr.screens.sphere.setAttribute('visible', true); }
+                if (state.is3D) { 
+                    DOM.vr.screens.sphereL.setAttribute('visible', true); DOM.vr.screens.sphereR.setAttribute('visible', true); 
+                    configureStereoLayers(); enforceStereoMapping(); 
+                } else { 
+                    DOM.vr.screens.sphere.setAttribute('visible', true); 
+                    resetStereoMapping(); 
+                }
                 DOM.vr.controls.modeBtn.querySelector('a-text').setAttribute('value', '360 FULL'); DOM.vr.scene.removeAttribute('fog');
             }
             DOM.vr.controls.txt3d.setAttribute('value', state.is3D ? "3D SBS" : "2D MODE"); DOM.vr.controls.btn3d.setAttribute('color', state.is3D ? "#ff9d00" : "#222");
@@ -340,27 +375,24 @@
         document.getElementById('btn-play').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'video') togglePlay(); flash(this); });
         document.getElementById('btn-prev').addEventListener('click', function() { if(state.currentTrack > 0) loadTrack(state.currentTrack - 1); flash(this); });
         document.getElementById('btn-next').addEventListener('click', function() { if(state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); flash(this); });
-        
         document.getElementById('btn-seek-back').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onPrevPage(); else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); flash(this); });
         document.getElementById('btn-seek-fwd').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onNextPage(); else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); flash(this); });
-        
         document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
         document.getElementById('btn-speed').addEventListener('click', function() { const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; const v = DOM.media.video; v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length]; DOM.vr.controls.speedText.setAttribute('value', v.playbackRate + 'x'); flash(this); });
 
-        // ROTATION & RESET LOGIC
+        // ROTATION & RESET
         document.getElementById('btn-rot-left').addEventListener('click', function() { DOM.vr.env.rig.object3D.rotation.y += (Math.PI / 12); flash(this); });
         document.getElementById('btn-rot-right').addEventListener('click', function() { DOM.vr.env.rig.object3D.rotation.y -= (Math.PI / 12); flash(this); });
         
         document.getElementById('btn-reset').addEventListener('click', function() {
-            const rig = DOM.vr.env.rig.object3D;
-            const cam = document.querySelector('[camera]').object3D;
-            rig.rotation.y += cam.rotation.y; // Corrected sign
+            const rig = DOM.vr.env.rig.object3D; const cam = document.querySelector('[camera]').object3D;
+            rig.rotation.y += cam.rotation.y; // Snap room to camera
             rig.rotation.x = 0; rig.rotation.z = 0; rig.position.set(0, 1.6, 0);
             DOM.vr.controls.wrapper.setAttribute('rotation', '-25 0 0');
             flash(this);
         });
 
-        /* 7. ANIMATION & SEATING */
+        /* 7. ANIMATION */
         function animateSeat(targetPos, targetRot) {
             DOM.vr.env.rig.removeAttribute('animation');
             DOM.vr.env.rig.setAttribute('animation', { property: 'position', to: targetPos, dur: 1000, easing: 'easeInOutQuad' });
@@ -379,7 +411,7 @@
         document.getElementById('curve-more').addEventListener('click', function() { if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }});
         document.getElementById('curve-less').addEventListener('click', function() { if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }});
 
-        /* 8. LOOP & UTILS */
+        /* 8. LOOP */
         setInterval(() => {
             const currentItem = state.playlist[state.currentTrack]; const v = DOM.media.video;
             if(currentItem && currentItem.type === 'video' && v.duration) {
@@ -388,43 +420,15 @@
                 DOM.vr.controls.timeText.setAttribute('value', `${m}:${sec<10?'0'+sec:sec} / ${dm}:${dsec<10?'0'+dsec:dsec}`);
             }
         }, 500);
-
         const ctx = DOM.media.lightCanvas.getContext('2d');
         function updateAmbilight() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video' && !DOM.media.video.paused) { drawAmbilight(DOM.media.video); requestAnimationFrame(updateAmbilight); } }
         function drawAmbilight(source) { try { ctx.drawImage(source, 0, 0, 32, 32); const p = ctx.getImageData(16,16,1,1).data; const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1); if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex); DOM.vr.env.glow.setAttribute('color', hex); } catch(e) { } }
         DOM.media.video.addEventListener('ended', () => { if (state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); });
-        
-        window.addEventListener('keydown', (e) => {
-            if(DOM.ui.layer.classList.contains('hidden')) {
-                const isPdf = state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf';
-                switch(e.code) {
-                    case 'Space': e.preventDefault(); if(!isPdf) togglePlay(); break;
-                    case 'ArrowRight': if(isPdf) onNextPage(); else DOM.media.video.currentTime += 15; break;
-                    case 'ArrowLeft': if(isPdf) onPrevPage(); else DOM.media.video.currentTime -= 15; break;
-                }
-            }
-        });
-
-        function renderPDFPage(num) {
-            state.pdf.rendering = true;
-            state.pdf.doc.getPage(num).then(page => {
-                const viewport = page.getViewport({scale: 2.0});
-                const canvas = DOM.media.pdfCanvas;
-                const ctx = canvas.getContext('2d');
-                canvas.height = viewport.height; canvas.width = viewport.width;
-                const renderContext = { canvasContext: ctx, viewport: viewport };
-                page.render(renderContext).promise.then(() => {
-                    state.pdf.rendering = false; updateTexture('#pdf-canvas'); refreshTextureMesh(); drawAmbilight(canvas);
-                    const pct = num / state.pdf.doc.numPages; DOM.vr.controls.progress.object3D.scale.x = pct; DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
-                    DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`);
-                    if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; }
-                });
-            });
-        }
+        window.addEventListener('keydown', (e) => { if(DOM.ui.layer.classList.contains('hidden')) { const isPdf = state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf'; switch(e.code) { case 'Space': e.preventDefault(); if(!isPdf) togglePlay(); break; case 'ArrowRight': if(isPdf) onNextPage(); else DOM.media.video.currentTime += 15; break; case 'ArrowLeft': if(isPdf) onPrevPage(); else DOM.media.video.currentTime -= 15; break; } } });
+        function renderPDFPage(num) { state.pdf.rendering = true; state.pdf.doc.getPage(num).then(page => { const viewport = page.getViewport({scale: 2.0}); const canvas = DOM.media.pdfCanvas; const ctx = canvas.getContext('2d'); canvas.height = viewport.height; canvas.width = viewport.width; const renderContext = { canvasContext: ctx, viewport: viewport }; page.render(renderContext).promise.then(() => { state.pdf.rendering = false; updateTexture('#pdf-canvas'); refreshTextureMesh(); drawAmbilight(canvas); const pct = num / state.pdf.doc.numPages; DOM.vr.controls.progress.object3D.scale.x = pct; DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2); DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`); if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; } }); }); }
         function queueRenderPage(num) { if (state.pdf.rendering) state.pdf.pending = num; else renderPDFPage(num); }
         function onPrevPage() { if (state.pdf.pageNum <= 1) return; state.pdf.pageNum--; queueRenderPage(state.pdf.pageNum); }
         function onNextPage() { if (state.pdf.pageNum >= state.pdf.doc.numPages) return; state.pdf.pageNum++; queueRenderPage(state.pdf.pageNum); }
-
         function toggleMenu(show) { DOM.vr.controls.wrapper.setAttribute('visible', show); if(show) { DOM.vr.controls.wrapper.setAttribute('scale', '1 1 1'); DOM.vr.controls.orb.setAttribute('visible', false); } else { DOM.vr.controls.wrapper.setAttribute('scale', '0 0 0'); DOM.vr.controls.orb.setAttribute('visible', true); } }
         function flash(el) { const oldColor = el.getAttribute('color'); el.setAttribute('color', '#fff'); setTimeout(() => el.setAttribute('color', oldColor), 150); }
         function togglePlay() { if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); if(DOM.media.video.paused) { DOM.media.video.play(); DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); } else { DOM.media.video.pause(); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); } }
