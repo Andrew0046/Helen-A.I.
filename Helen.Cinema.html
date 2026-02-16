@@ -3,28 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v18.0: Nuclear Fix</title>
+    <title>The Hub v19.0: Canvas Bypass</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
     <style>
         body { margin: 0; overflow: hidden; background: #050505; font-family: sans-serif; color: white; }
         #ui-layer { position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .hidden { opacity: 0; pointer-events: none; }
         .btn-main { background: #00d2ff; border: none; padding: 15px 30px; color: black; font-weight: bold; border-radius: 30px; margin: 10px; cursor: pointer; }
-        #cam-preview { width: 300px; height: 200px; background: #000; border: 2px solid #555; margin-bottom: 20px; }
+        
+        /* DEBUG: Show the raw video and canvas tiny in the corner so we know they work */
+        #debug-panel { position: absolute; bottom: 10px; left: 10px; z-index: 10000; display: flex; gap: 5px; }
+        #cam-video-hidden { width: 100px; height: 60px; background: red; object-fit: cover; }
+        #cam-canvas-hidden { width: 100px; height: 60px; background: blue; }
     </style>
 
     <script>
-        // --- CUSTOM COMPONENT: THE NUCLEAR UPDATER ---
-        // This runs every single frame to force the texture to refresh
-        AFRAME.registerComponent('cam-updater', {
+        // --- COMPONENT: FORCE CANVAS UPDATE ---
+        AFRAME.registerComponent('canvas-updater', {
             tick: function () {
                 var el = this.el;
-                var mesh = el.getObject3D('mesh');
-                if (mesh && mesh.material.map) {
-                    // Tell Three.js the video frame changed
-                    mesh.material.map.needsUpdate = true;
+                var material = el.getObject3D('mesh').material;
+                if (material.map) {
+                    material.map.needsUpdate = true;
                 }
             }
         });
@@ -33,33 +34,31 @@
 <body>
 
     <div id="ui-layer">
-        <h1>v18.0 DIAGNOSTICS</h1>
-        <video id="cam-preview" autoplay playsinline muted></video>
-        <button class="btn-main" onclick="toggleCamera()">1. TEST CAM HERE</button>
-        <button id="btn-start" class="btn-main" style="background: #ff9d00;" onclick="enterVR()">2. ENTER VR</button>
-        <p>If you don't see yourself above, VR won't work.</p>
+        <h1>v19.0 CANVAS BYPASS</h1>
+        <p>1. Allow Camera. 2. Verify small video below is moving.</p>
+        <button class="btn-main" onclick="startCameraSystem()">1. START CAMERA</button>
+        <button id="btn-enter-vr" class="btn-main" style="background: #ff9d00; display:none" onclick="enterVR()">2. ENTER VR</button>
         
         <input type="file" id="file-input" style="display:none" multiple>
     </div>
 
-    <canvas id="light-canvas" width="32" height="32" style="display:none"></canvas>
+    <div id="debug-panel">
+        <video id="cam-video-hidden" autoplay playsinline muted></video>
+        <canvas id="cam-canvas-hidden" width="512" height="512"></canvas>
+    </div>
 
     <a-scene background="color: #000">
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
-            <video id="cam-src" autoplay playsinline webkit-playsinline muted crossorigin="anonymous"></video>
             <img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
         </a-assets>
 
-        <a-videosphere id="env-sky" radius="500" rotation="0 -90 0" color="#050505" side="back" cam-updater></a-videosphere>
+        <a-sky id="env-sky" radius="500" color="#050505" material="shader: flat; src: #cam-canvas-hidden" canvas-updater></a-sky>
 
-        <a-plane position="0 2 -3" width="2" height="1" color="#000" opacity="0.7">
-            <a-text id="debug-log" value="System Ready" align="center" width="4" color="#00ff00"></a-text>
+        <a-plane position="0 2 -3" width="2" height="0.5" color="#000" opacity="0.8">
+            <a-text id="vr-debug" value="Waiting for Cam..." align="center" width="4" color="#00ff00"></a-text>
         </a-plane>
-
-        <a-light type="ambient" color="#222"></a-light>
-        <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" intensity="0.5" color="#fff"></a-light>
 
         <a-curvedimage id="screen-cinema" src="#video-src" height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double"></a-curvedimage>
 
@@ -74,7 +73,7 @@
                 <a-text id="txt-play" value="PLAY MOVIE" align="center" width="4" color="black" font-weight="bold"></a-text>
             </a-plane>
 
-            <a-plane id="btn-close" position="1.2 0.4 0.03" width="0.25" height="0.15" color="#cc0000" class="clickable btn-hover">
+             <a-plane id="btn-close" position="1.2 0.4 0.03" width="0.25" height="0.15" color="#cc0000" class="clickable btn-hover">
                 <a-text value="X" align="center" width="6" font-weight="bold"></a-text>
             </a-plane>
         </a-entity>
@@ -88,94 +87,92 @@
 
     <script>
         const DOM = {
-            ui: { layer: document.getElementById('ui-layer'), preview: document.getElementById('cam-preview') },
+            ui: { layer: document.getElementById('ui-layer'), btnEnter: document.getElementById('btn-enter-vr') },
+            media: { 
+                video: document.getElementById('cam-video-hidden'), // The raw video
+                canvas: document.getElementById('cam-canvas-hidden'), // The painter
+                ctx: document.getElementById('cam-canvas-hidden').getContext('2d')
+            },
             vr: { 
                 sky: document.getElementById('env-sky'),
-                debug: document.getElementById('debug-log'),
+                debug: document.getElementById('vr-debug'),
                 btnCam: document.getElementById('btn-cam'),
                 txtCam: document.getElementById('txt-cam'),
                 menu: document.getElementById('hub-wrapper')
-            },
-            media: { cam: document.getElementById('cam-src'), video: document.getElementById('video-src') }
+            }
         };
 
-        const state = { camActive: false, stream: null };
+        let isPainting = false;
 
-        function log(msg) {
-            console.log(msg);
-            if(DOM.vr.debug) DOM.vr.debug.setAttribute('value', msg);
-        }
-
-        // --- 1. ROBUST CAMERA TOGGLE ---
-        async function toggleCamera() {
-            if (state.camActive) {
-                // STOP
-                if (state.stream) state.stream.getTracks().forEach(t => t.stop());
-                DOM.media.cam.srcObject = null;
-                DOM.ui.preview.srcObject = null;
-                state.camActive = false;
-                
-                // Reset VR
-                DOM.vr.sky.removeAttribute('src');
-                DOM.vr.sky.setAttribute('color', '#050505');
-                DOM.vr.txtCam.setAttribute('value', 'CAM ON');
-                log("Camera Stopped");
-                return;
-            }
-
-            // START
-            log("Requesting Camera...");
+        // --- 1. START CAMERA & CANVAS LOOP ---
+        async function startCameraSystem() {
             try {
-                // Ask for ANY video
+                // Get Stream
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: 'environment' } 
                 }).catch(() => navigator.mediaDevices.getUserMedia({ video: true }));
 
-                state.stream = stream;
+                // Attach to Video Element
+                DOM.media.video.srcObject = stream;
+                await DOM.media.video.play();
                 
-                // 1. Attach to HIDDEN video element (for VR)
-                DOM.media.cam.srcObject = stream;
-                await DOM.media.cam.play();
-
-                // 2. Attach to PREVIEW video (for 2D check)
-                DOM.ui.preview.srcObject = stream;
-                DOM.ui.preview.play();
-
-                state.camActive = true;
-                log("Stream Active: " + stream.id);
-
-                // 3. APPLY TO VR SKY
-                DOM.vr.sky.setAttribute('color', '#FFF'); 
-                DOM.vr.sky.setAttribute('src', '#cam-src');
-                DOM.vr.txtCam.setAttribute('value', 'CAM OFF');
-
+                // Start The Painting Loop
+                isPainting = true;
+                paintCanvas();
+                
+                // Unlock VR Button
+                DOM.ui.btnEnter.style.display = 'block';
+                DOM.vr.debug.setAttribute('value', 'Cam Ready. Painting...');
+                
             } catch (e) {
-                log("Error: " + e.name);
-                alert("Cam Error: " + e.name);
+                alert("Error: " + e.name);
             }
         }
 
-        // --- 2. VR ENTRY ---
+        // --- 2. THE PAINTER (Runs 60fps) ---
+        function paintCanvas() {
+            if (!isPainting) return;
+            
+            // Copy Video Frame -> Canvas
+            if (DOM.media.video.readyState === DOM.media.video.HAVE_ENOUGH_DATA) {
+                DOM.media.ctx.drawImage(DOM.media.video, 0, 0, 512, 512);
+            }
+            requestAnimationFrame(paintCanvas);
+        }
+
+        // --- 3. VR LOGIC ---
         function enterVR() {
             DOM.ui.layer.style.display = 'none';
-            const scene = document.querySelector('a-scene');
-            if(scene.enterVR) scene.enterVR();
-            
-            // Re-trigger play on VR entry (iOS fix)
-            if(state.camActive) {
-                DOM.media.cam.play();
-                log("Re-triggering Cam for VR...");
-            }
+            document.querySelector('a-scene').enterVR();
         }
 
-        // --- 3. EVENT LISTENERS ---
-        DOM.vr.btnCam.addEventListener('click', () => toggleCamera());
+        // --- 4. TOGGLE IN VR ---
+        let showCamInVR = false;
         
+        DOM.vr.btnCam.addEventListener('click', () => {
+            showCamInVR = !showCamInVR;
+            
+            if (showCamInVR) {
+                // Switch Sky to Canvas
+                DOM.vr.sky.setAttribute('src', '#cam-canvas-hidden');
+                DOM.vr.sky.setAttribute('color', '#FFF');
+                DOM.vr.txtCam.setAttribute('value', 'CAM OFF');
+                DOM.vr.debug.setAttribute('value', 'Sky: Canvas Texture');
+            } else {
+                // Switch Sky to Black
+                DOM.vr.sky.removeAttribute('src');
+                DOM.vr.sky.setAttribute('color', '#050505');
+                DOM.vr.txtCam.setAttribute('value', 'CAM ON');
+                DOM.vr.debug.setAttribute('value', 'Sky: Black');
+            }
+        });
+
+        // Close Menu
         document.getElementById('btn-close').addEventListener('click', () => {
              DOM.vr.menu.setAttribute('visible', false);
         });
-
-        // Basic Playlist Logic (Simplified for Debugging)
+        
+        // Load Movie Logic
         document.getElementById('btn-play').addEventListener('click', () => {
              document.getElementById('file-input').click();
         });
@@ -183,9 +180,9 @@
              const file = e.target.files[0];
              if(file) {
                  const url = URL.createObjectURL(file);
-                 DOM.media.video.src = url;
-                 DOM.media.video.play();
-                 log("Playing Video File");
+                 const v = document.getElementById('video-src');
+                 v.src = url;
+                 v.play();
              }
         });
 
