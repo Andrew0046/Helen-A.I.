@@ -3,20 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v14.1: Camera Fix</title>
+    <title>The Hub v14.2: Cam Button Fix</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
     <style>
         /* --- UI LAYER STYLES --- */
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
-        #ui-layer { position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        #ui-layer { 
+            position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; 
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%); 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), background 0.5s; /* Added background transition */
+        }
+        
+        /* New class to make UI transparent when Camera is ON */
+        #ui-layer.transparent-mode {
+            background: rgba(0,0,0,0.2); 
+        }
+
         .hidden { opacity: 0; pointer-events: none; }
         h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 30px; }
         h1 span { font-weight: 700; color: #00d2ff; text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
         .hub-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 40px; border-radius: 16px; width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
         .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px; cursor: pointer; margin-top: 20px; width: 100%; transition: transform 0.2s; }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
+        
+        /* New styles for the Test Camera Button */
+        .btn-cam-test { background: linear-gradient(135deg, #ff0055 0%, #ff4400 100%); margin-top: 10px; }
+        
         .url-box { margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; display: flex; gap: 10px; }
         input[type="text"] { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid #333; padding: 10px; color: white; border-radius: 4px; }
         .btn-small { background: #333; border: 1px solid #444; color: #aaa; padding: 0 15px; border-radius: 4px; cursor: pointer; }
@@ -33,12 +49,16 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v14.1</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v14.2</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
+            
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
+            
+            <button class="btn-main btn-cam-test" id="btn-2d-cam" onclick="toggleCamera()">TEST CAMERA FEED</button>
+
             <div class="url-box">
                 <input type="text" id="url-input" placeholder="Paste stream URL...">
                 <button class="btn-small" id="btn-url">GO</button>
@@ -57,7 +77,6 @@
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
-            
             <video id="cam-src" autoplay playsinline webkit-playsinline muted crossorigin="anonymous"></video>
             
             <img id="img-src" src="" crossorigin="anonymous">
@@ -106,7 +125,7 @@
                 <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-fwd" value="+15s" align="center" width="2"></a-text></a-plane>
                 <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-speed" value="1x" align="center" width="2"></a-text></a-plane>
                 
-                <a-plane id="btn-cam" position="1.6 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-cam" value="BG: DARK" align="center" width="1.8"></a-text></a-plane>
+                <a-plane id="btn-cam" position="1.55 -0.1 0.02" width="0.45" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-cam" value="BG: DARK" align="center" width="1.8"></a-text></a-plane>
             </a-entity>
 
             <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="|<<" align="center" width="3"></a-text></a-plane>
@@ -152,7 +171,16 @@
         };
 
         const DOM = {
-            ui: { layer: document.getElementById('ui-layer'), fileInput: document.getElementById('file-input'), urlInput: document.getElementById('url-input'), playlist: document.getElementById('playlist-ui'), list: document.getElementById('playlist-list'), btnStart: document.getElementById('btn-start'), dropOverlay: document.getElementById('drop-overlay') },
+            ui: { 
+                layer: document.getElementById('ui-layer'), 
+                fileInput: document.getElementById('file-input'), 
+                urlInput: document.getElementById('url-input'), 
+                playlist: document.getElementById('playlist-ui'), 
+                list: document.getElementById('playlist-list'), 
+                btnStart: document.getElementById('btn-start'), 
+                dropOverlay: document.getElementById('drop-overlay'),
+                btn2dCam: document.getElementById('btn-2d-cam') // New 2D button
+            },
             media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas'), cam: document.getElementById('cam-src') },
             vr: {
                 scene: document.querySelector('a-scene'),
@@ -223,11 +251,11 @@
             Object.values(DOM.vr.screens).forEach(reset);
         }
 
-        /* 3. CAMERA BACKGROUND LOGIC (FIXED) */
+        /* 3. CAMERA BACKGROUND LOGIC (FIXED FOR 2D & VR) */
         async function toggleCamera() {
             const cam = state.cam;
             const sky = DOM.vr.env.sky;
-            const camVideo = DOM.media.cam; // Get the video element directly
+            const camVideo = DOM.media.cam; 
 
             if (cam.active) {
                 // --- STOP CAMERA ---
@@ -239,6 +267,9 @@
                 camVideo.srcObject = null;
                 cam.active = false;
                 
+                // Restore UI Opacity
+                DOM.ui.layer.classList.remove('transparent-mode');
+
                 // Restore Dark Environment
                 sky.removeAttribute('src');
                 sky.setAttribute('color', '#050505');
@@ -246,23 +277,25 @@
                 
                 DOM.vr.controls.txtCam.setAttribute('value', 'BG: DARK');
                 DOM.vr.controls.btnCam.setAttribute('color', '#222');
+                DOM.ui.btn2dCam.innerText = "TEST CAMERA FEED";
             } else {
                 // --- START CAMERA ---
                 try {
-                    // 1. Get the Stream (Try rear, fallback to any, 720p constraint)
+                    // 1. Get the Stream (Try rear, fallback to any)
                     cam.stream = await navigator.mediaDevices.getUserMedia({ 
                         video: { facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720} } 
                     }).catch(e => {
                         return navigator.mediaDevices.getUserMedia({ video: true });
                     });
 
-                    // 2. Attach to Video Element
+                    // 2. Attach & FORCE PLAY
                     camVideo.srcObject = cam.stream;
-                    
-                    // 3. FORCE PLAY (Critical Fix)
                     await camVideo.play(); 
 
                     cam.active = true;
+
+                    // 3. Make UI Transparent so you can see it!
+                    DOM.ui.layer.classList.add('transparent-mode');
                     
                     // 4. Apply to Sky
                     sky.setAttribute('color', '#FFF'); 
@@ -275,12 +308,13 @@
                     DOM.vr.env.floor.setAttribute('visible', false);
                     DOM.vr.controls.txtCam.setAttribute('value', 'BG: CAM');
                     DOM.vr.controls.btnCam.setAttribute('color', '#00d2ff');
+                    DOM.ui.btn2dCam.innerText = "STOP CAMERA";
 
                 } catch (err) {
                     console.error('Camera error:', err);
-                    if (err.name === 'NotAllowedError') DOM.vr.controls.txtCam.setAttribute('value', 'BLOCKED');
-                    else if (location.protocol !== 'https:' && location.hostname !== 'localhost') DOM.vr.controls.txtCam.setAttribute('value', 'NEED HTTPS');
-                    else DOM.vr.controls.txtCam.setAttribute('value', 'ERR: ' + err.name);
+                    const msg = (err.name === 'NotAllowedError') ? 'BLOCKED' : 'ERR: ' + err.name;
+                    DOM.vr.controls.txtCam.setAttribute('value', msg);
+                    DOM.ui.btn2dCam.innerText = msg;
                 }
             }
         }
@@ -427,7 +461,7 @@
         document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
         document.getElementById('btn-speed').addEventListener('click', function() { const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; const v = DOM.media.video; v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length]; DOM.vr.controls.speedText.setAttribute('value', v.playbackRate + 'x'); flash(this); });
 
-        // CAM BTN
+        // CAM BTN (VR)
         DOM.vr.controls.btnCam.addEventListener('click', function() { toggleCamera(); flash(this); });
 
         document.getElementById('btn-rot-left').addEventListener('click', function() { DOM.vr.env.rig.object3D.rotation.y += (Math.PI / 12); flash(this); });
