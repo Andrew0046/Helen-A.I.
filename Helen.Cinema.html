@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v8.4: Fixed Reset</title>
+    <title>The Hub v9.0: Ultimate Edition</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -63,7 +63,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v8.4</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v9.0</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -263,7 +263,6 @@
             }
         }
         DOM.ui.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-        
         document.body.addEventListener('dragover', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'flex'; });
         document.body.addEventListener('dragleave', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'none'; });
         document.body.addEventListener('drop', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'none'; handleFiles(e.dataTransfer.files); });
@@ -397,18 +396,18 @@
 
         document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
         
-        // --- NEW RESET BUTTON LOGIC (FIXED) ---
+        /* --- CORRECTED RESET (ADDITION LOGIC) --- */
         document.getElementById('btn-reset').addEventListener('click', function() {
-            const rig = DOM.vr.env.rig.object3D; 
+            const rig = DOM.vr.env.rig.object3D;
             const cam = document.querySelector('[camera]').object3D;
             
-            // Absolute Reset: Set Rig to negative of Camera
-            rig.rotation.y = -cam.rotation.y; 
+            // KEY FIX: Use += to chase the camera rotation
+            rig.rotation.y += cam.rotation.y;
             
-            rig.rotation.x = 0; 
-            rig.rotation.z = 0; 
-            rig.position.set(0, 1.6, 0); 
-            DOM.vr.controls.wrapper.setAttribute('rotation', '-25 0 0'); 
+            rig.rotation.x = 0;
+            rig.rotation.z = 0;
+            rig.position.set(0, 1.6, 0);
+            DOM.vr.controls.wrapper.setAttribute('rotation', '-25 0 0');
             flash(this);
         });
 
