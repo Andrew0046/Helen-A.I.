@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v9.0: Ultimate Edition</title>
+    <title>The Hub v9.1: World Rotation</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -63,7 +63,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v9.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v9.1</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -168,16 +168,22 @@
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="2D VIEW" align="center" width="1.8"></a-text>
             </a-plane>
-            
             <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text id="txt-3d" value="2D MODE" align="center" width="1.8"></a-text>
             </a-plane>
-
-            <a-plane id="btn-void" position="0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
+            
+            <a-plane id="btn-void" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#222" class="clickable btn-hover">
                 <a-text value="VOID" align="center" width="1.8"></a-text>
             </a-plane>
-            <a-plane id="btn-reset" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value="RESET" align="center" width="1.8"></a-text>
+
+            <a-plane id="btn-rot-left" position="0.65 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value="< TURN" align="center" width="2"></a-text>
+            </a-plane>
+            <a-plane id="btn-reset" position="0.95 -0.1 0.02" width="0.3" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value="RESET" align="center" width="2"></a-text>
+            </a-plane>
+            <a-plane id="btn-rot-right" position="1.25 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text value="TURN >" align="center" width="2"></a-text>
             </a-plane>
 
             <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
@@ -242,7 +248,6 @@
                     el.addEventListener('loaded', () => { if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); });
                 }
             };
-            // 1=Left Eye, 2=Right Eye, 0=Default
             setLayer(DOM.vr.screens.cinemaL, 1); setLayer(DOM.vr.screens.cylL, 1); setLayer(DOM.vr.screens.sphereL, 1);
             setLayer(DOM.vr.screens.cinemaR, 2); setLayer(DOM.vr.screens.cylR, 2); setLayer(DOM.vr.screens.sphereR, 2);
             setLayer(DOM.vr.screens.cinema, 0); setLayer(DOM.vr.screens.cyl, 0); setLayer(DOM.vr.screens.sphere, 0);
@@ -314,7 +319,6 @@
                 let displayName = item.name.length > 25 ? item.name.substring(0, 22) + "..." : item.name;
                 DOM.vr.controls.title.setAttribute('value', `${state.currentTrack + 1}/${state.playlist.length}: ${displayName}`);
 
-                // Defaults
                 DOM.vr.controls.seekBack.setAttribute('value', '-15s'); DOM.vr.controls.seekFwd.setAttribute('value', '+15s');
                 DOM.vr.controls.playText.setAttribute('value', 'PLAY'); DOM.vr.controls.videoGroup.setAttribute('visible', true);
                 DOM.vr.controls.modeBtn.setAttribute('color', '#222'); DOM.vr.controls.btn3d.setAttribute('color', '#222'); DOM.vr.controls.btn3d.classList.add('clickable');
@@ -339,7 +343,6 @@
             }
         }
 
-        /* --- 4. TEXTURE & HELPERS --- */
         function updateTexture(sourceId) {
             Object.values(DOM.vr.screens).forEach(s => {
                 if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId);
@@ -347,13 +350,7 @@
             });
             configureStereoLayers();
         }
-
-        function refreshTextureMesh() {
-            Object.values(DOM.vr.screens).forEach(el => {
-                const mesh = el.getObject3D('mesh');
-                if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
-            });
-        }
+        function refreshTextureMesh() { Object.values(DOM.vr.screens).forEach(el => { const mesh = el.getObject3D('mesh'); if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true; }); }
 
         function updateVisibility() {
             Object.values(DOM.vr.screens).forEach(s => s.setAttribute('visible', false));
@@ -376,56 +373,48 @@
         }
         function force2DMode() { state.viewMode = 0; state.is3D = false; updateVisibility(); }
 
-        /* --- 5. BUTTON ACTIONS --- */
+        /* --- 5. CONTROLS LOGIC --- */
         DOM.vr.controls.modeBtn.addEventListener('click', function() { state.viewMode = (state.viewMode + 1) % 3; updateVisibility(); flash(this); });
         DOM.vr.controls.btn3d.addEventListener('click', function() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; state.is3D = !state.is3D; updateVisibility(); flash(this); });
+        
         document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
         document.getElementById('menu-orb').addEventListener('click', function() { toggleMenu(true); flash(this); });
+        
         document.getElementById('btn-play').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'video') togglePlay(); flash(this); });
         document.getElementById('btn-prev').addEventListener('click', function() { if(state.currentTrack > 0) loadTrack(state.currentTrack - 1); flash(this); });
         document.getElementById('btn-next').addEventListener('click', function() { if(state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); flash(this); });
-        
-        document.getElementById('btn-seek-back').addEventListener('click', function() { 
-            if(state.playlist[state.currentTrack].type === 'pdf') onPrevPage();
-            else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); flash(this);
-        });
-        document.getElementById('btn-seek-fwd').addEventListener('click', function() { 
-            if(state.playlist[state.currentTrack].type === 'pdf') onNextPage();
-            else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); flash(this);
-        });
-
+        document.getElementById('btn-seek-back').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onPrevPage(); else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); flash(this); });
+        document.getElementById('btn-seek-fwd').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onNextPage(); else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); flash(this); });
         document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
+        document.getElementById('btn-speed').addEventListener('click', function() { const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; const v = DOM.media.video; v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length]; DOM.vr.controls.speedText.setAttribute('value', v.playbackRate + 'x'); flash(this); });
+
+        // --- NEW ROTATION & RESET LOGIC ---
+        // Rotates the world 15 degrees per click
+        document.getElementById('btn-rot-left').addEventListener('click', function() {
+            DOM.vr.env.rig.object3D.rotation.y += (Math.PI / 12); // +15 Deg
+            flash(this);
+        });
+        document.getElementById('btn-rot-right').addEventListener('click', function() {
+            DOM.vr.env.rig.object3D.rotation.y -= (Math.PI / 12); // -15 Deg
+            flash(this);
+        });
         
-        /* --- CORRECTED RESET (ADDITION LOGIC) --- */
+        // Fixed Reset: Snaps world TO the camera heading
         document.getElementById('btn-reset').addEventListener('click', function() {
             const rig = DOM.vr.env.rig.object3D;
             const cam = document.querySelector('[camera]').object3D;
-            
-            // KEY FIX: Use += to chase the camera rotation
-            rig.rotation.y += cam.rotation.y;
-            
-            rig.rotation.x = 0;
-            rig.rotation.z = 0;
+            rig.rotation.y += cam.rotation.y; // Corrected sign to chase camera
+            rig.rotation.x = 0; rig.rotation.z = 0;
             rig.position.set(0, 1.6, 0);
             DOM.vr.controls.wrapper.setAttribute('rotation', '-25 0 0');
             flash(this);
         });
 
-        document.getElementById('btn-speed').addEventListener('click', function() {
-            const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; const v = DOM.media.video;
-            v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length];
-            DOM.vr.controls.speedText.setAttribute('value', v.playbackRate + 'x'); flash(this);
-        });
-
-        /* --- 6. SMOOTH SEAT ANIMATION --- */
         function animateSeat(targetPos, targetRot) {
             DOM.vr.env.rig.removeAttribute('animation');
-            DOM.vr.env.rig.setAttribute('animation', {
-                property: 'position', to: targetPos, dur: 1000, easing: 'easeInOutQuad'
-            });
+            DOM.vr.env.rig.setAttribute('animation', { property: 'position', to: targetPos, dur: 1000, easing: 'easeInOutQuad' });
             DOM.vr.controls.wrapper.setAttribute('rotation', targetRot);
         }
-
         const seats = { front: { pos: "0 1.6 -1", rot: "-25 0 0" }, back: { pos: "0 2.5 2", rot: "-25 0 0" }, recline: { pos: "0 0.5 0", rot: "-45 0 0" } };
         document.getElementById('seat-front').addEventListener('click', function() { animateSeat(seats.front.pos, seats.front.rot); flash(this); });
         document.getElementById('seat-back').addEventListener('click', function() { animateSeat(seats.back.pos, seats.back.rot); flash(this); });
@@ -443,79 +432,24 @@
         setInterval(() => {
             const currentItem = state.playlist[state.currentTrack]; const v = DOM.media.video;
             if(currentItem && currentItem.type === 'video' && v.duration) {
-                const pct = v.currentTime / v.duration;
-                DOM.vr.controls.progress.object3D.scale.x = pct;
-                DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
-                const m = Math.floor(v.currentTime/60); const sec = Math.floor(v.currentTime%60);
-                const dm = Math.floor(v.duration/60); const dsec = Math.floor(v.duration%60);
+                const pct = v.currentTime / v.duration; DOM.vr.controls.progress.object3D.scale.x = pct; DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
+                const m = Math.floor(v.currentTime/60); const sec = Math.floor(v.currentTime%60); const dm = Math.floor(v.duration/60); const dsec = Math.floor(v.duration%60);
                 DOM.vr.controls.timeText.setAttribute('value', `${m}:${sec<10?'0'+sec:sec} / ${dm}:${dsec<10?'0'+dsec:dsec}`);
             }
         }, 500);
-
         const ctx = DOM.media.lightCanvas.getContext('2d');
         function updateAmbilight() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video' && !DOM.media.video.paused) { drawAmbilight(DOM.media.video); requestAnimationFrame(updateAmbilight); } }
-        function drawAmbilight(source) {
-            try { ctx.drawImage(source, 0, 0, 32, 32); const p = ctx.getImageData(16,16,1,1).data;
-            const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
-            if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex);
-            DOM.vr.env.glow.setAttribute('color', hex); } catch(e) { }
-        }
+        function drawAmbilight(source) { try { ctx.drawImage(source, 0, 0, 32, 32); const p = ctx.getImageData(16,16,1,1).data; const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1); if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex); DOM.vr.env.glow.setAttribute('color', hex); } catch(e) { } }
         DOM.media.video.addEventListener('ended', () => { if (state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); });
-        
-        window.addEventListener('keydown', (e) => {
-            if(DOM.ui.layer.classList.contains('hidden')) {
-                const isPdf = state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf';
-                switch(e.code) {
-                    case 'Space': e.preventDefault(); if(!isPdf) togglePlay(); break;
-                    case 'ArrowRight': if(isPdf) onNextPage(); else DOM.media.video.currentTime += 15; break;
-                    case 'ArrowLeft': if(isPdf) onPrevPage(); else DOM.media.video.currentTime -= 15; break;
-                }
-            }
-        });
-
-        function renderPDFPage(num) {
-            state.pdf.rendering = true;
-            state.pdf.doc.getPage(num).then(page => {
-                const viewport = page.getViewport({scale: 2.0});
-                const canvas = DOM.media.pdfCanvas;
-                const ctx = canvas.getContext('2d');
-                canvas.height = viewport.height; canvas.width = viewport.width;
-                const renderContext = { canvasContext: ctx, viewport: viewport };
-                page.render(renderContext).promise.then(() => {
-                    state.pdf.rendering = false; updateTexture('#pdf-canvas'); refreshTextureMesh(); drawAmbilight(canvas);
-                    const pct = num / state.pdf.doc.numPages; DOM.vr.controls.progress.object3D.scale.x = pct; DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
-                    DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`);
-                    if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; }
-                });
-            });
-        }
+        window.addEventListener('keydown', (e) => { if(DOM.ui.layer.classList.contains('hidden')) { const isPdf = state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf'; switch(e.code) { case 'Space': e.preventDefault(); if(!isPdf) togglePlay(); break; case 'ArrowRight': if(isPdf) onNextPage(); else DOM.media.video.currentTime += 15; break; case 'ArrowLeft': if(isPdf) onPrevPage(); else DOM.media.video.currentTime -= 15; break; } } });
+        function renderPDFPage(num) { state.pdf.rendering = true; state.pdf.doc.getPage(num).then(page => { const viewport = page.getViewport({scale: 2.0}); const canvas = DOM.media.pdfCanvas; const ctx = canvas.getContext('2d'); canvas.height = viewport.height; canvas.width = viewport.width; const renderContext = { canvasContext: ctx, viewport: viewport }; page.render(renderContext).promise.then(() => { state.pdf.rendering = false; updateTexture('#pdf-canvas'); refreshTextureMesh(); drawAmbilight(canvas); const pct = num / state.pdf.doc.numPages; DOM.vr.controls.progress.object3D.scale.x = pct; DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2); DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`); if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; } }); }); }
         function queueRenderPage(num) { if (state.pdf.rendering) state.pdf.pending = num; else renderPDFPage(num); }
         function onPrevPage() { if (state.pdf.pageNum <= 1) return; state.pdf.pageNum--; queueRenderPage(state.pdf.pageNum); }
         function onNextPage() { if (state.pdf.pageNum >= state.pdf.doc.numPages) return; state.pdf.pageNum++; queueRenderPage(state.pdf.pageNum); }
-
-        function toggleMenu(show) {
-            DOM.vr.controls.wrapper.setAttribute('visible', show);
-            if(show) { DOM.vr.controls.wrapper.setAttribute('scale', '1 1 1'); DOM.vr.controls.orb.setAttribute('visible', false); }
-            else { DOM.vr.controls.wrapper.setAttribute('scale', '0 0 0'); DOM.vr.controls.orb.setAttribute('visible', true); }
-        }
+        function toggleMenu(show) { DOM.vr.controls.wrapper.setAttribute('visible', show); if(show) { DOM.vr.controls.wrapper.setAttribute('scale', '1 1 1'); DOM.vr.controls.orb.setAttribute('visible', false); } else { DOM.vr.controls.wrapper.setAttribute('scale', '0 0 0'); DOM.vr.controls.orb.setAttribute('visible', true); } }
         function flash(el) { const oldColor = el.getAttribute('color'); el.setAttribute('color', '#fff'); setTimeout(() => el.setAttribute('color', oldColor), 150); }
-        function togglePlay() {
-            if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume();
-            if(DOM.media.video.paused) { DOM.media.video.play(); DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }
-            else { DOM.media.video.pause(); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); }
-        }
-        function initAudio() {
-            if(!state.audio.ctx) { state.audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
-            if (!state.audio.source) {
-                state.audio.source = state.audio.ctx.createMediaElementSource(DOM.media.video);
-                const gainNode = state.audio.ctx.createGain(); gainNode.gain.value = 3.0;
-                state.audio.panner = state.audio.ctx.createPanner();
-                state.audio.panner.panningModel = 'HRTF'; state.audio.panner.distanceModel = 'inverse';
-                state.audio.panner.setPosition(0, 4.5, -5);
-                state.audio.source.connect(gainNode); gainNode.connect(state.audio.panner); state.audio.panner.connect(state.audio.ctx.destination);
-            }
-            if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume();
-        }
+        function togglePlay() { if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); if(DOM.media.video.paused) { DOM.media.video.play(); DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); } else { DOM.media.video.pause(); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); } }
+        function initAudio() { if(!state.audio.ctx) { state.audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); } if (!state.audio.source) { state.audio.source = state.audio.ctx.createMediaElementSource(DOM.media.video); const gainNode = state.audio.ctx.createGain(); gainNode.gain.value = 3.0; state.audio.panner = state.audio.ctx.createPanner(); state.audio.panner.panningModel = 'HRTF'; state.audio.panner.distanceModel = 'inverse'; state.audio.panner.setPosition(0, 4.5, -5); state.audio.source.connect(gainNode); gainNode.connect(state.audio.panner); state.audio.panner.connect(state.audio.ctx.destination); } if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); }
     </script>
 </body>
 </html>
