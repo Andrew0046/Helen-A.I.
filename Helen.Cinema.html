@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v15.0: Phone Fix</title>
+    <title>The Hub v15.1: Universal Cam</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -27,9 +27,8 @@
         #drop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff; z-index: 10000; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none; }
         #light-canvas { display: none; }
         
-        /* TEST VIDEO for 2D UI */
         #cam-preview {
-            width: 100%; height: 150px; background: #000; margin-top: 10px; display: none; object-fit: cover; border-radius: 8px; border: 1px solid #444;
+            width: 100%; height: 150px; background: #222; margin-top: 10px; display: none; object-fit: cover; border-radius: 8px; border: 1px solid #444;
         }
     </style>
 </head>
@@ -38,11 +37,11 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v15.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v15.1</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             
-            <button class="btn-main" onclick="toggleCamera()" style="background: #333; margin-top: 0; margin-bottom: 20px;">TEST PHONE CAMERA</button>
+            <button class="btn-main" onclick="toggleCamera()" style="background: #333; margin-top: 0; margin-bottom: 20px;">TEST CAMERA (CLICK TWICE)</button>
             <video id="cam-preview" autoplay playsinline muted></video>
 
             <p style="color: #888; font-size: 0.9rem; margin-top:10px;">Select media (Video, Image, PDF)</p>
@@ -158,7 +157,7 @@
             playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isVoid: false, curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
             audio: { ctx: null, source: null, panner: null },
-            cam: { active: false, stream: null }
+            cam: { active: false, stream: null, mode: 'environment' }
         };
 
         const DOM = {
@@ -242,7 +241,7 @@
             Object.values(DOM.vr.screens).forEach(reset);
         }
 
-        /* 3. CAMERA LOGIC (2D and VR) */
+        /* 3. CAMERA LOGIC (UNIVERSAL FIX) */
         async function toggleCamera() {
             const cam = state.cam;
             const sky = DOM.vr.env.sky;
@@ -250,7 +249,7 @@
             const previewVideo = DOM.ui.camPreview;
 
             if (cam.active) {
-                // STOP
+                // STOP (Toggle Off)
                 if (cam.stream) {
                     cam.stream.getTracks().forEach(track => track.stop());
                     cam.stream = null;
@@ -268,28 +267,35 @@
                 DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
                 DOM.vr.controls.txtCam.setAttribute('value', 'BG: DARK');
                 DOM.vr.controls.btnCam.setAttribute('color', '#222');
+                
+                // Reset mode for next try
+                cam.mode = 'environment';
+                
             } else {
                 // START
-                // Security Check for Phone users
+                // 1. Security Check
                 if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-                    alert("SECURITY BLOCK: Browser forbids camera access on insecure sites.\n\nSolution: You must upload this file to a secure host (like Netlify or GitHub Pages) to use the phone camera.");
+                    alert("SECURITY BLOCK: Browser forbids camera access on insecure sites.\n\nSolution: Upload this file to Netlify/GitHub.");
                     return;
                 }
 
                 try {
-                    // Try Rear Camera
-                    cam.stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720} } 
-                    }).catch(e => {
-                         // Fallback
+                    // 2. Try to get camera (NO RESOLUTION CONSTRAINTS)
+                    // If it fails with 'environment', we try 'user' next time or just 'true'
+                    const constraints = { video: { facingMode: state.cam.mode } };
+                    
+                    cam.stream = await navigator.mediaDevices.getUserMedia(constraints)
+                    .catch(e => {
+                        console.warn("Preferred cam failed, trying fallback...");
+                        // Fallback: Just give me ANY video
                         return navigator.mediaDevices.getUserMedia({ video: true });
                     });
 
-                    // Update VR Video
+                    // 3. Attach & Play
                     camVideo.srcObject = cam.stream;
-                    await camVideo.play();
+                    await camVideo.play(); // Force play
                     
-                    // Update 2D Preview (if in menu)
+                    // 4. Update Preview (if 2D)
                     if (!DOM.ui.layer.classList.contains('hidden')) {
                         previewVideo.style.display = 'block';
                         previewVideo.srcObject = cam.stream;
@@ -298,7 +304,7 @@
 
                     cam.active = true;
                     
-                    // Update Sky
+                    // 5. Update VR Sky
                     sky.setAttribute('color', '#FFF'); 
                     sky.setAttribute('src', '#cam-src');
                     const mesh = sky.getObject3D('mesh');
@@ -308,9 +314,12 @@
                     DOM.vr.controls.txtCam.setAttribute('value', 'BG: CAM');
                     DOM.vr.controls.btnCam.setAttribute('color', '#00d2ff');
 
+                    // Prepare to switch mode next time (Toggle Front/Back logic)
+                    state.cam.mode = (state.cam.mode === 'environment') ? 'user' : 'environment';
+
                 } catch (err) {
                     console.error(err);
-                    alert("CAMERA ERROR: " + err.name + "\n\nDid you allow permissions?");
+                    alert("CAMERA ERROR: " + err.name + "\n\nTry closing other apps (Camera/Snapchat) and refresh.");
                     DOM.vr.controls.txtCam.setAttribute('value', 'ERR');
                 }
             }
