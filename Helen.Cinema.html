@@ -3,22 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v11.1: Mixed Reality Fix</title>
+    <title>The Hub v12.0: Real AR</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
     <style>
         /* --- UI LAYER STYLES --- */
-        /* FIX: Body must be transparent for AR to show through */
         body { 
             margin: 0; 
             overflow: hidden; 
-            background: transparent; 
+            background: #000; /* Default Black Background */
             font-family: 'Segoe UI', Roboto, sans-serif; 
             color: white; 
         }
         
-        /* We move the black background to the UI layer itself */
+        /* THE CAMERA FEED (Sits behind everything) */
+        #camera-feed {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -2; /* Way in the back */
+            display: none; /* Hidden by default */
+        }
+
         #ui-layer {
             position: absolute; 
             z-index: 9999; 
@@ -55,8 +65,7 @@
 
         .btn-main {
             background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); 
-            border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px;
-            cursor: pointer; margin-top: 20px; width: 100%; transition: transform 0.2s;
+            border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px; cursor: pointer; margin-top: 20px; width: 100%; transition: transform 0.2s;
         }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
 
@@ -75,10 +84,12 @@
 </head>
 <body>
 
+    <video id="camera-feed" autoplay playsinline muted></video>
+
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v11.1</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v12.0</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -96,13 +107,13 @@
                 <div id="playlist-list"></div>
             </div>
             
-            <button id="btn-start" class="btn-main" style="display:none; background: #ff9d00; margin-top: 20px;">ENTER MIXED REALITY</button>
+            <button id="btn-start" class="btn-main" style="display:none; background: #ff9d00; margin-top: 20px;">ENTER VR</button>
         </div>
     </div>
 
     <canvas id="light-canvas" width="32" height="32"></canvas>
 
-    <a-scene renderer="alpha: true" webxr="optionalFeatures: dom-overlay, layers, hit-test; overlay: true; requiredFeatures: local-floor;" fog="type: exponential; color: #000; density: 0.015">
+    <a-scene renderer="alpha: true" webxr="optionalFeatures: dom-overlay; overlay: true" fog="type: exponential; color: #000; density: 0.015">
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
@@ -200,62 +211,27 @@
             curve: 90, 
             currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
-            audio: { ctx: null, source: null, panner: null }
+            audio: { ctx: null, source: null, panner: null },
+            cameraStream: null // To store the phone camera stream
         };
 
         const DOM = {
-            ui: { 
-                layer: document.getElementById('ui-layer'), 
-                fileInput: document.getElementById('file-input'), 
-                urlInput: document.getElementById('url-input'), 
-                playlist: document.getElementById('playlist-ui'), 
-                list: document.getElementById('playlist-list'), 
-                btnStart: document.getElementById('btn-start'), 
-                dropOverlay: document.getElementById('drop-overlay') 
-            },
-            media: { 
-                video: document.getElementById('video-src'), 
-                img: document.getElementById('img-src'), 
-                pdfCanvas: document.getElementById('pdf-canvas'), 
-                lightCanvas: document.getElementById('light-canvas') 
-            },
+            ui: { layer: document.getElementById('ui-layer'), fileInput: document.getElementById('file-input'), urlInput: document.getElementById('url-input'), playlist: document.getElementById('playlist-ui'), list: document.getElementById('playlist-list'), btnStart: document.getElementById('btn-start'), dropOverlay: document.getElementById('drop-overlay') },
+            media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas'), cameraFeed: document.getElementById('camera-feed') },
             vr: {
                 scene: document.querySelector('a-scene'),
                 screens: { 
-                    cinema: document.getElementById('screen-cinema'), 
-                    cyl: document.getElementById('screen-180'), 
-                    sphere: document.getElementById('screen-360'),
-                    cinemaL: document.getElementById('screen-cinema-left'), 
-                    cylL: document.getElementById('screen-180-left'), 
-                    sphereL: document.getElementById('screen-360-left'),
-                    cinemaR: document.getElementById('screen-cinema-right'), 
-                    cylR: document.getElementById('screen-180-right'), 
-                    sphereR: document.getElementById('screen-360-right') 
+                    cinema: document.getElementById('screen-cinema'), cyl: document.getElementById('screen-180'), sphere: document.getElementById('screen-360'),
+                    cinemaL: document.getElementById('screen-cinema-left'), cylL: document.getElementById('screen-180-left'), sphereL: document.getElementById('screen-360-left'),
+                    cinemaR: document.getElementById('screen-cinema-right'), cylR: document.getElementById('screen-180-right'), sphereR: document.getElementById('screen-360-right') 
                 },
                 controls: { 
-                    wrapper: document.getElementById('hub-wrapper'), 
-                    videoGroup: document.getElementById('video-controls'), 
-                    orb: document.getElementById('menu-orb'),
-                    playText: document.getElementById('txt-play'), 
-                    timeText: document.getElementById('time-display'), 
-                    progress: document.getElementById('progress-fill'), 
-                    title: document.getElementById('txt-title'),
-                    seekBack: document.getElementById('txt-seek-back'), 
-                    seekFwd: document.getElementById('txt-seek-fwd'), 
-                    modeBtn: document.getElementById('btn-mode'), 
-                    btn3d: document.getElementById('btn-3d'), 
-                    txt3d: document.getElementById('txt-3d'), 
-                    speedText: document.getElementById('txt-speed'),
-                    btnBg: document.getElementById('btn-bg'), 
-                    txtBg: document.getElementById('txt-bg')
+                    wrapper: document.getElementById('hub-wrapper'), videoGroup: document.getElementById('video-controls'), orb: document.getElementById('menu-orb'),
+                    playText: document.getElementById('txt-play'), timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'), title: document.getElementById('txt-title'),
+                    seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
+                    btnBg: document.getElementById('btn-bg'), txtBg: document.getElementById('txt-bg')
                 },
-                env: { 
-                    floor: document.getElementById('env-floor'), 
-                    sky: document.getElementById('env-sky'), 
-                    ambi: document.getElementById('ambi-light'), 
-                    glow: document.getElementById('screen-glow'), 
-                    rig: document.getElementById('rig') 
-                }
+                env: { floor: document.getElementById('env-floor'), sky: document.getElementById('env-sky'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') }
             }
         };
 
@@ -354,24 +330,11 @@
         }
         function highlightActive() { Array.from(DOM.ui.list.children).forEach((child, i) => { child.classList.toggle('playlist-active', i === state.currentTrack); }); }
 
-        // --- KEY FIX: TRY ENTERING AR MODE FIRST ---
         DOM.ui.btnStart.addEventListener('click', () => {
             if(state.playlist.length > 0) {
                 DOM.ui.layer.classList.add('hidden');
                 loadTrack(state.currentTrack);
-                
-                // Try to force AR session first
-                if (navigator.xr) {
-                    navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-                        if (supported) {
-                            DOM.vr.scene.enterAR(); // Quest 3 / Mobile AR
-                        } else {
-                            DOM.vr.scene.enterVR(); // Standard VR
-                        }
-                    }).catch(() => DOM.vr.scene.enterVR());
-                } else {
-                    DOM.vr.scene.enterVR();
-                }
+                if(DOM.vr.scene.enterVR) DOM.vr.scene.enterVR();
             }
         });
 
@@ -432,7 +395,8 @@
 
         function updateVisibility() {
             Object.values(DOM.vr.screens).forEach(s => s.setAttribute('visible', false));
-            // Update Env Visibility logic based on BG Mode
+            
+            // Check Camera & Environment
             updateEnvironment();
 
             if (state.viewMode === 0) {
@@ -467,21 +431,49 @@
         }
         function force2DMode() { state.viewMode = 0; state.is3D = false; updateVisibility(); }
 
-        /* 6. ENVIRONMENT LOGIC */
+        /* 6. ENVIRONMENT & CAMERA FEED LOGIC */
         function updateEnvironment() {
             const isPassthrough = (state.bgMode === 2);
-            // Floor visible only in Cinema (0)
-            DOM.vr.env.floor.setAttribute('visible', state.bgMode === 0);
-            // Sky visible in Cinema (0) and Void (1)
-            DOM.vr.env.sky.setAttribute('visible', !isPassthrough);
-            // Fog only in Cinema
-            if (state.bgMode === 0 && state.viewMode === 0) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
-            else DOM.vr.scene.removeAttribute('fog');
+            const isVoid = (state.bgMode === 1);
             
-            // Turn off ambilight in AR
+            // Floor
+            DOM.vr.env.floor.setAttribute('visible', state.bgMode === 0);
+            // Sky
+            DOM.vr.env.sky.setAttribute('visible', !isPassthrough);
+            // Ambilight
             DOM.vr.env.ambi.setAttribute('intensity', isPassthrough ? 0 : 0.2);
             DOM.vr.env.glow.setAttribute('visible', !isPassthrough);
+            // Fog
+            if (state.bgMode === 0 && state.viewMode === 0) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            else DOM.vr.scene.removeAttribute('fog');
 
+            // --- CAMERA STREAM LOGIC ---
+            const vid = DOM.media.cameraFeed;
+            if (isPassthrough) {
+                // START CAMERA
+                if (!state.cameraStream && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(stream => {
+                        state.cameraStream = stream;
+                        vid.srcObject = stream;
+                        vid.play();
+                        vid.style.display = 'block';
+                    }).catch(e => {
+                        console.error("Camera Access Denied:", e);
+                        DOM.vr.controls.txtBg.setAttribute('value', 'NO CAM');
+                    });
+                } else if(state.cameraStream) {
+                    vid.style.display = 'block';
+                }
+            } else {
+                // STOP/HIDE CAMERA
+                if(state.cameraStream) {
+                    vid.style.display = 'none';
+                    // We don't stop the track to allow quick toggling, just hide
+                }
+            }
+
+            // Labels
             const labels = ["ENV: DARK", "ENV: VOID", "ENV: PASS"];
             DOM.vr.controls.txtBg.setAttribute('value', labels[state.bgMode]);
             DOM.vr.controls.btnBg.setAttribute('color', isPassthrough ? "#00d2ff" : "#222");
@@ -504,6 +496,7 @@
         document.getElementById('btn-next').addEventListener('click', function() { if(state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); flash(this); });
         document.getElementById('btn-seek-back').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onPrevPage(); else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); flash(this); });
         document.getElementById('btn-seek-fwd').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onNextPage(); else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); flash(this); });
+        document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
         document.getElementById('btn-speed').addEventListener('click', function() { const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; const v = DOM.media.video; v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length]; DOM.vr.controls.speedText.setAttribute('value', v.playbackRate + 'x'); flash(this); });
 
         document.getElementById('btn-rot-left').addEventListener('click', function() { DOM.vr.env.rig.object3D.rotation.y += (Math.PI / 12); flash(this); });
@@ -546,6 +539,7 @@
         }, 500);
         const ctx = DOM.media.lightCanvas.getContext('2d');
         function updateAmbilight() { 
+            // Only update ambilight if NOT in passthrough mode
             if(state.bgMode === 0 && state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video' && !DOM.media.video.paused) { 
                 drawAmbilight(DOM.media.video); 
                 requestAnimationFrame(updateAmbilight); 
