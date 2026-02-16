@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v10.2: Full Source</title>
+    <title>The Hub v11.0: AR Passthrough</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -162,7 +162,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v10.2</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v11.0</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -186,7 +186,7 @@
 
     <canvas id="light-canvas" width="32" height="32"></canvas>
 
-    <a-scene background="color: #000" fog="type: exponential; color: #000; density: 0.015">
+    <a-scene renderer="alpha: true" fog="type: exponential; color: #000; density: 0.015">
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
@@ -198,7 +198,8 @@
         <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
                  src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
         </a-plane>
-        <a-sky color="#050505"></a-sky>
+        
+        <a-sky id="env-sky" color="#050505"></a-sky>
 
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
@@ -272,8 +273,8 @@
                 <a-text id="txt-3d" value="2D MODE" align="center" width="1.8"></a-text>
             </a-plane>
             
-            <a-plane id="btn-void" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#222" class="clickable btn-hover">
-                <a-text value="VOID" align="center" width="1.8"></a-text>
+            <a-plane id="btn-ar" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#222" class="clickable btn-hover">
+                <a-text id="txt-ar" value="PASS" align="center" width="1.8"></a-text>
             </a-plane>
 
             <a-plane id="btn-rot-left" position="0.65 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover">
@@ -317,7 +318,7 @@
             currentTrack: 0, 
             viewMode: 0, 
             is3D: false, 
-            isVoid: false, 
+            isAR: false,  // NEW AR STATE
             curve: 90, 
             currentObjectURL: null,
             pdf: { 
@@ -373,12 +374,15 @@
                     seekBack: document.getElementById('txt-seek-back'), 
                     seekFwd: document.getElementById('txt-seek-fwd'), 
                     modeBtn: document.getElementById('btn-mode'), 
-                    btn3d: document.getElementById('btn-3d'), 
+                    btn3d: document.getElementById('btn-3d'),
+                    btnAR: document.getElementById('btn-ar'), // NEW AR BUTTON
+                    txtAR: document.getElementById('txt-ar'), 
                     txt3d: document.getElementById('txt-3d'), 
                     speedText: document.getElementById('txt-speed')
                 },
                 env: { 
                     floor: document.getElementById('env-floor'), 
+                    sky: document.getElementById('env-sky'), // NEW SKY REF
                     ambi: document.getElementById('ambi-light'), 
                     glow: document.getElementById('screen-glow'), 
                     rig: document.getElementById('rig') 
@@ -402,7 +406,6 @@
                     });
                 }
             };
-            // 1=Left Eye, 2=Right Eye, 0=Default
             setLayer(DOM.vr.screens.cinemaL, 1); setLayer(DOM.vr.screens.cylL, 1); setLayer(DOM.vr.screens.sphereL, 1);
             setLayer(DOM.vr.screens.cinemaR, 2); setLayer(DOM.vr.screens.cylR, 2); setLayer(DOM.vr.screens.sphereR, 2);
             setLayer(DOM.vr.screens.cinema, 0); setLayer(DOM.vr.screens.cyl, 0); setLayer(DOM.vr.screens.sphere, 0);
@@ -411,11 +414,8 @@
         if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } 
         else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
 
-        /* --- 2. TEXTURE MAPPING LOGIC (CRITICAL FIX) --- */
-        
-        // A. Forces Video into 3D (Split Left/Right)
+        /* --- 2. TEXTURE MAPPING LOGIC --- */
         function enforceStereoMapping() {
-            // Left Eye: First 50%
             const setLeft = (el) => {
                 const mesh = el.getObject3D('mesh');
                 if (!mesh || !mesh.material || !mesh.material.map) return;
@@ -424,12 +424,9 @@
                 mesh.material.map.needsUpdate = true;
             };
             
-            // Right Eye: Last 50% (CLONED to be independent)
             const setRight = (el) => {
                 const mesh = el.getObject3D('mesh');
                 if (!mesh || !mesh.material || !mesh.material.map) return;
-                
-                // CLONE TEXTURE so offset doesn't affect Left Eye
                 if (!mesh.material.map.isClonedForStereo) {
                     mesh.material.map = mesh.material.map.clone();
                     mesh.material.map.needsUpdate = true;
@@ -443,7 +440,6 @@
             [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(setRight);
         }
 
-        // B. Forces Video into 2D (Full Width)
         function resetStereoMapping() {
             const reset = (el) => {
                 const mesh = el.getObject3D('mesh');
@@ -452,7 +448,6 @@
                 mesh.material.map.offset.set(0, 0);
                 mesh.material.map.needsUpdate = true;
             };
-            // Reset ALL screens (including main) to be safe
             Object.values(DOM.vr.screens).forEach(reset);
         }
 
@@ -589,7 +584,6 @@
                     DOM.media.img.onload = function() { 
                         refreshTextureMesh(); 
                         drawAmbilight(DOM.media.img); 
-                        // If 3D is active, enforce split
                         if(state.is3D) enforceStereoMapping(); else resetStereoMapping();
                     }; 
                     DOM.media.img.src = src;
@@ -599,7 +593,6 @@
                     initAudio();
                     DOM.media.video.play().then(() => { 
                         DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); 
-                        // Wait for texture ready, then check state
                         setTimeout(() => { if(state.is3D) enforceStereoMapping(); else resetStereoMapping(); }, 200); 
                     }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY'));
                     requestAnimationFrame(updateAmbilight);
@@ -625,7 +618,8 @@
 
         function updateVisibility() {
             Object.values(DOM.vr.screens).forEach(s => s.setAttribute('visible', false));
-            DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
+            // Show Floor ONLY if AR is OFF and Void is OFF
+            DOM.vr.env.floor.setAttribute('visible', !state.isVoid && !state.isAR);
             
             if (state.viewMode === 0) {
                 if (state.is3D) { 
@@ -634,11 +628,13 @@
                     configureStereoLayers(); enforceStereoMapping(); 
                 } else { 
                     DOM.vr.screens.cinema.setAttribute('visible', true); 
-                    resetStereoMapping(); // Back to 2D
+                    resetStereoMapping(); 
                 }
                 const modeText = DOM.vr.controls.modeBtn.querySelector('a-text'); 
                 if(modeText) modeText.setAttribute('value', '2D VIEW');
-                if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+                // FOG only active if NOT in AR
+                if(!state.isVoid && !state.isAR) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+                else DOM.vr.scene.removeAttribute('fog');
             } else if (state.viewMode === 1) {
                 if (state.is3D) { 
                     DOM.vr.screens.cylL.setAttribute('visible', true); 
@@ -685,6 +681,31 @@
             updateVisibility(); 
             flash(this); 
         });
+
+        // --- NEW AR PASSTHROUGH LOGIC ---
+        DOM.vr.controls.btnAR.addEventListener('click', function() {
+            state.isAR = !state.isAR;
+            
+            // 1. Toggle Sky Visibility (Hide to see camera)
+            DOM.vr.env.sky.setAttribute('visible', !state.isAR);
+            
+            // 2. Hide Floor/Void
+            DOM.vr.env.floor.setAttribute('visible', !state.isAR && !state.isVoid);
+            
+            // 3. Disable Ambilight (looks fake in AR)
+            DOM.vr.env.ambi.setAttribute('intensity', state.isAR ? 0 : 0.2);
+            DOM.vr.env.glow.setAttribute('visible', !state.isAR);
+            
+            // 4. Update Button Text
+            DOM.vr.controls.txtAR.setAttribute('value', state.isAR ? "AR ON" : "PASS");
+            DOM.vr.controls.btnAR.setAttribute('color', state.isAR ? "#ff9d00" : "#222");
+            
+            // 5. Disable Fog in AR
+            if(state.isAR) DOM.vr.scene.removeAttribute('fog');
+            else if(!state.isVoid && state.viewMode === 0) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+
+            flash(this);
+        });
         
         document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
         document.getElementById('menu-orb').addEventListener('click', function() { toggleMenu(true); flash(this); });
@@ -730,26 +751,21 @@
             flash(this);
         });
 
-        /* --- NEW ROTATION & RESET LOGIC --- */
-        // Rotates the world 15 degrees per click
+        // ROTATION & RESET
         document.getElementById('btn-rot-left').addEventListener('click', function() {
-            DOM.vr.env.rig.object3D.rotation.y += (Math.PI / 12); // +15 Deg
+            DOM.vr.env.rig.object3D.rotation.y += (Math.PI / 12); 
             flash(this);
         });
         
         document.getElementById('btn-rot-right').addEventListener('click', function() {
-            DOM.vr.env.rig.object3D.rotation.y -= (Math.PI / 12); // -15 Deg
+            DOM.vr.env.rig.object3D.rotation.y -= (Math.PI / 12); 
             flash(this);
         });
         
-        // Fixed Reset: Snaps world TO the camera heading
         document.getElementById('btn-reset').addEventListener('click', function() {
             const rig = DOM.vr.env.rig.object3D;
             const cam = document.querySelector('[camera]').object3D;
-            
-            // KEY FIX: Use += to chase the camera rotation
-            rig.rotation.y += cam.rotation.y;
-            
+            rig.rotation.y += cam.rotation.y; 
             rig.rotation.x = 0; 
             rig.rotation.z = 0;
             rig.position.set(0, 1.6, 0);
@@ -824,8 +840,9 @@
                 const p = ctx.getImageData(16,16,1,1).data; 
                 const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1); 
                 
-                if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex); 
-                DOM.vr.env.glow.setAttribute('color', hex); 
+                // Ambilight logic updated for AR check
+                if(state.viewMode === 0 && !state.isVoid && !state.isAR) DOM.vr.env.ambi.setAttribute('color', hex); 
+                if(!state.isAR) DOM.vr.env.glow.setAttribute('color', hex); 
             } catch(e) { } 
         }
         
