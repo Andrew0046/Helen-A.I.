@@ -3,27 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v11.0: AR Passthrough</title>
+    <title>The Hub v11.1: Mixed Reality Fix</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
     <style>
         /* --- UI LAYER STYLES --- */
-        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
-        #ui-layer { position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
-        .hidden { opacity: 0; pointer-events: none; }
+        /* FIX: Body must be transparent for AR to show through */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: transparent; 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            color: white; 
+        }
+        
+        /* We move the black background to the UI layer itself */
+        #ui-layer {
+            position: absolute; 
+            z-index: 9999; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .hidden { 
+            opacity: 0; 
+            pointer-events: none; 
+        }
+
         h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 30px; }
         h1 span { font-weight: 700; color: #00d2ff; text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
-        .hub-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 40px; border-radius: 16px; width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px; cursor: pointer; margin-top: 20px; width: 100%; transition: transform 0.2s; }
+
+        .hub-card {
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px); 
+            padding: 40px; 
+            border-radius: 16px; 
+            width: 450px; 
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .btn-main {
+            background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); 
+            border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px;
+            cursor: pointer; margin-top: 20px; width: 100%; transition: transform 0.2s;
+        }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
+
         .url-box { margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; display: flex; gap: 10px; }
         input[type="text"] { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid #333; padding: 10px; color: white; border-radius: 4px; }
         .btn-small { background: #333; border: 1px solid #444; color: #aaa; padding: 0 15px; border-radius: 4px; cursor: pointer; }
+
         #playlist-ui { margin-top: 20px; max-height: 150px; overflow-y: auto; text-align: left; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; font-size: 0.9rem; color: #aaa; }
         .playlist-item { padding: 5px; border-bottom: 1px solid #333; cursor: pointer; transition: background 0.2s; }
         .playlist-item:hover { color: white; background: rgba(255,255,255,0.1); }
         .playlist-active { color: #ff9d00; font-weight: bold; }
+
         #drop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff; z-index: 10000; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none; }
         #light-canvas { display: none; }
     </style>
@@ -33,27 +78,31 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v11.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v11.1</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
+            
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
+            
             <div class="url-box">
                 <input type="text" id="url-input" placeholder="Paste stream URL...">
                 <button class="btn-small" id="btn-url">GO</button>
             </div>
+
             <div id="playlist-ui" style="display:none">
                 <div style="color:white; font-weight:bold; margin-bottom:5px;">Queue:</div>
                 <div id="playlist-list"></div>
             </div>
-            <button id="btn-start" class="btn-main" style="display:none; background: #ff9d00; margin-top: 20px;">ENTER VR</button>
+            
+            <button id="btn-start" class="btn-main" style="display:none; background: #ff9d00; margin-top: 20px;">ENTER MIXED REALITY</button>
         </div>
     </div>
 
     <canvas id="light-canvas" width="32" height="32"></canvas>
 
-    <a-scene renderer="alpha: true" webxr="optionalFeatures: dom-overlay, layers; overlay: true" fog="type: exponential; color: #000; density: 0.015">
+    <a-scene renderer="alpha: true" webxr="optionalFeatures: dom-overlay, layers, hit-test; overlay: true; requiredFeatures: local-floor;" fog="type: exponential; color: #000; density: 0.015">
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
@@ -143,30 +192,70 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
         const state = {
-            playlist: [], currentTrack: 0, viewMode: 0, is3D: false, 
+            playlist: [], 
+            currentTrack: 0, 
+            viewMode: 0, 
+            is3D: false, 
             bgMode: 0, // 0=Cinema, 1=Void, 2=Passthrough
-            curve: 90, currentObjectURL: null,
+            curve: 90, 
+            currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
             audio: { ctx: null, source: null, panner: null }
         };
 
         const DOM = {
-            ui: { layer: document.getElementById('ui-layer'), fileInput: document.getElementById('file-input'), urlInput: document.getElementById('url-input'), playlist: document.getElementById('playlist-ui'), list: document.getElementById('playlist-list'), btnStart: document.getElementById('btn-start'), dropOverlay: document.getElementById('drop-overlay') },
-            media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas') },
+            ui: { 
+                layer: document.getElementById('ui-layer'), 
+                fileInput: document.getElementById('file-input'), 
+                urlInput: document.getElementById('url-input'), 
+                playlist: document.getElementById('playlist-ui'), 
+                list: document.getElementById('playlist-list'), 
+                btnStart: document.getElementById('btn-start'), 
+                dropOverlay: document.getElementById('drop-overlay') 
+            },
+            media: { 
+                video: document.getElementById('video-src'), 
+                img: document.getElementById('img-src'), 
+                pdfCanvas: document.getElementById('pdf-canvas'), 
+                lightCanvas: document.getElementById('light-canvas') 
+            },
             vr: {
                 scene: document.querySelector('a-scene'),
                 screens: { 
-                    cinema: document.getElementById('screen-cinema'), cyl: document.getElementById('screen-180'), sphere: document.getElementById('screen-360'),
-                    cinemaL: document.getElementById('screen-cinema-left'), cylL: document.getElementById('screen-180-left'), sphereL: document.getElementById('screen-360-left'),
-                    cinemaR: document.getElementById('screen-cinema-right'), cylR: document.getElementById('screen-180-right'), sphereR: document.getElementById('screen-360-right') 
+                    cinema: document.getElementById('screen-cinema'), 
+                    cyl: document.getElementById('screen-180'), 
+                    sphere: document.getElementById('screen-360'),
+                    cinemaL: document.getElementById('screen-cinema-left'), 
+                    cylL: document.getElementById('screen-180-left'), 
+                    sphereL: document.getElementById('screen-360-left'),
+                    cinemaR: document.getElementById('screen-cinema-right'), 
+                    cylR: document.getElementById('screen-180-right'), 
+                    sphereR: document.getElementById('screen-360-right') 
                 },
                 controls: { 
-                    wrapper: document.getElementById('hub-wrapper'), videoGroup: document.getElementById('video-controls'), orb: document.getElementById('menu-orb'),
-                    playText: document.getElementById('txt-play'), timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'), title: document.getElementById('txt-title'),
-                    seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
-                    btnBg: document.getElementById('btn-bg'), txtBg: document.getElementById('txt-bg')
+                    wrapper: document.getElementById('hub-wrapper'), 
+                    videoGroup: document.getElementById('video-controls'), 
+                    orb: document.getElementById('menu-orb'),
+                    playText: document.getElementById('txt-play'), 
+                    timeText: document.getElementById('time-display'), 
+                    progress: document.getElementById('progress-fill'), 
+                    title: document.getElementById('txt-title'),
+                    seekBack: document.getElementById('txt-seek-back'), 
+                    seekFwd: document.getElementById('txt-seek-fwd'), 
+                    modeBtn: document.getElementById('btn-mode'), 
+                    btn3d: document.getElementById('btn-3d'), 
+                    txt3d: document.getElementById('txt-3d'), 
+                    speedText: document.getElementById('txt-speed'),
+                    btnBg: document.getElementById('btn-bg'), 
+                    txtBg: document.getElementById('txt-bg')
                 },
-                env: { floor: document.getElementById('env-floor'), sky: document.getElementById('env-sky'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') }
+                env: { 
+                    floor: document.getElementById('env-floor'), 
+                    sky: document.getElementById('env-sky'), 
+                    ambi: document.getElementById('ambi-light'), 
+                    glow: document.getElementById('screen-glow'), 
+                    rig: document.getElementById('rig') 
+                }
             }
         };
 
@@ -265,11 +354,24 @@
         }
         function highlightActive() { Array.from(DOM.ui.list.children).forEach((child, i) => { child.classList.toggle('playlist-active', i === state.currentTrack); }); }
 
+        // --- KEY FIX: TRY ENTERING AR MODE FIRST ---
         DOM.ui.btnStart.addEventListener('click', () => {
             if(state.playlist.length > 0) {
                 DOM.ui.layer.classList.add('hidden');
                 loadTrack(state.currentTrack);
-                if(DOM.vr.scene.enterVR) DOM.vr.scene.enterVR();
+                
+                // Try to force AR session first
+                if (navigator.xr) {
+                    navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+                        if (supported) {
+                            DOM.vr.scene.enterAR(); // Quest 3 / Mobile AR
+                        } else {
+                            DOM.vr.scene.enterVR(); // Standard VR
+                        }
+                    }).catch(() => DOM.vr.scene.enterVR());
+                } else {
+                    DOM.vr.scene.enterVR();
+                }
             }
         });
 
@@ -367,28 +469,19 @@
 
         /* 6. ENVIRONMENT LOGIC */
         function updateEnvironment() {
-            // BgMode: 0=Cinema, 1=Void, 2=Passthrough
             const isPassthrough = (state.bgMode === 2);
-            const isVoid = (state.bgMode === 1);
-            
             // Floor visible only in Cinema (0)
             DOM.vr.env.floor.setAttribute('visible', state.bgMode === 0);
-            
             // Sky visible in Cinema (0) and Void (1)
             DOM.vr.env.sky.setAttribute('visible', !isPassthrough);
+            // Fog only in Cinema
+            if (state.bgMode === 0 && state.viewMode === 0) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+            else DOM.vr.scene.removeAttribute('fog');
             
-            // Fog only in Cinema (0)
-            if (state.bgMode === 0 && state.viewMode === 0) {
-                DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
-            } else {
-                DOM.vr.scene.removeAttribute('fog');
-            }
-
-            // Ambilight off in Passthrough to avoid weird ghosting
+            // Turn off ambilight in AR
             DOM.vr.env.ambi.setAttribute('intensity', isPassthrough ? 0 : 0.2);
             DOM.vr.env.glow.setAttribute('visible', !isPassthrough);
 
-            // Button Text Update
             const labels = ["ENV: DARK", "ENV: VOID", "ENV: PASS"];
             DOM.vr.controls.txtBg.setAttribute('value', labels[state.bgMode]);
             DOM.vr.controls.btnBg.setAttribute('color', isPassthrough ? "#00d2ff" : "#222");
@@ -398,7 +491,6 @@
         DOM.vr.controls.modeBtn.addEventListener('click', function() { state.viewMode = (state.viewMode + 1) % 3; updateVisibility(); flash(this); });
         DOM.vr.controls.btn3d.addEventListener('click', function() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; state.is3D = !state.is3D; updateVisibility(); flash(this); });
         
-        // NEW BG BUTTON
         DOM.vr.controls.btnBg.addEventListener('click', function() {
             state.bgMode = (state.bgMode + 1) % 3;
             updateVisibility();
@@ -454,7 +546,6 @@
         }, 500);
         const ctx = DOM.media.lightCanvas.getContext('2d');
         function updateAmbilight() { 
-            // Only draw light if Environment is Dark (0)
             if(state.bgMode === 0 && state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video' && !DOM.media.video.paused) { 
                 drawAmbilight(DOM.media.video); 
                 requestAnimationFrame(updateAmbilight); 
