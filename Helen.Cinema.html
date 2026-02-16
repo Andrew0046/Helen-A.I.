@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v15.1: Universal Cam</title>
+    <title>The Hub v16.0: Layout Fix</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -27,9 +27,7 @@
         #drop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff; z-index: 10000; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none; }
         #light-canvas { display: none; }
         
-        #cam-preview {
-            width: 100%; height: 150px; background: #222; margin-top: 10px; display: none; object-fit: cover; border-radius: 8px; border: 1px solid #444;
-        }
+        #cam-preview { width: 100%; height: 150px; background: #222; margin-top: 10px; display: none; object-fit: cover; border-radius: 8px; border: 1px solid #444; }
     </style>
 </head>
 <body>
@@ -37,7 +35,7 @@
     <div id="drop-overlay">Drop File to Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v15.1</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v16.0</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             
@@ -66,9 +64,7 @@
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
-            
             <video id="cam-src" autoplay playsinline webkit-playsinline muted crossorigin="anonymous"></video>
-            
             <img id="img-src" src="" crossorigin="anonymous">
             <canvas id="pdf-canvas"></canvas>
             <img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
@@ -103,8 +99,16 @@
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
             <a-box depth="0.02" height="1.0" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
             <a-box position="0 0.49 0" depth="0.03" height="0.01" width="2.8" color="#ff9d00" opacity="0.8"></a-box>
+            
             <a-text id="txt-title" value="Waiting..." position="0 0.42 0.02" align="center" width="2.5" color="white"></a-text>
-            <a-plane id="btn-close" position="1.2 0.4 0.03" width="0.25" height="0.15" color="#cc0000" class="clickable btn-hover"><a-text value="X" align="center" width="6" font-weight="bold"></a-text></a-plane>
+            
+            <a-plane id="btn-close" position="1.2 0.4 0.03" width="0.25" height="0.15" color="#cc0000" class="clickable btn-hover">
+                <a-text value="X" align="center" width="6" font-weight="bold"></a-text>
+            </a-plane>
+
+            <a-plane id="btn-cam" position="-1.2 0.4 0.03" width="0.4" height="0.15" color="#0078ff" class="clickable btn-hover">
+                <a-text id="txt-cam" value="CAM ON" align="center" width="2" font-weight="bold"></a-text>
+            </a-plane>
 
             <a-entity id="video-controls">
                 <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
@@ -114,8 +118,6 @@
                 <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ff9d00" class="clickable btn-hover"><a-text id="txt-play" value="PLAY" align="center" width="4" color="black" font-weight="bold"></a-text></a-plane>
                 <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-fwd" value="+15s" align="center" width="2"></a-text></a-plane>
                 <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-speed" value="1x" align="center" width="2"></a-text></a-plane>
-                
-                <a-plane id="btn-cam" position="0 -0.1 0.02" width="0.35" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-cam" value="BG: DARK" align="center" width="1.8"></a-text></a-plane>
             </a-entity>
 
             <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="|<<" align="center" width="3"></a-text></a-plane>
@@ -123,11 +125,11 @@
 
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text value="2D VIEW" align="center" width="1.8"></a-text></a-plane>
             <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-3d" value="2D MODE" align="center" width="1.8"></a-text></a-plane>
-            <a-plane id="btn-void" position="0.4 -0.1 0.02" width="0.35" height="0.15" color="#222" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.8"></a-text></a-plane>
+            <a-plane id="btn-void" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#222" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.8"></a-text></a-plane>
 
-            <a-plane id="btn-rot-left" position="0.8 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="< TURN" align="center" width="2"></a-text></a-plane>
-            <a-plane id="btn-reset" position="1.1 -0.1 0.02" width="0.3" height="0.15" color="#222" class="clickable btn-hover"><a-text value="RESET" align="center" width="2"></a-text></a-plane>
-            <a-plane id="btn-rot-right" position="1.4 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="TURN >" align="center" width="2"></a-text></a-plane>
+            <a-plane id="btn-rot-left" position="0.65 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="< TURN" align="center" width="2"></a-text></a-plane>
+            <a-plane id="btn-reset" position="0.95 -0.1 0.02" width="0.3" height="0.15" color="#222" class="clickable btn-hover"><a-text value="RESET" align="center" width="2"></a-text></a-plane>
+            <a-plane id="btn-rot-right" position="1.25 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="TURN >" align="center" width="2"></a-text></a-plane>
 
             <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
             <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
@@ -265,37 +267,32 @@
                 sky.removeAttribute('src');
                 sky.setAttribute('color', '#050505');
                 DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
-                DOM.vr.controls.txtCam.setAttribute('value', 'BG: DARK');
-                DOM.vr.controls.btnCam.setAttribute('color', '#222');
+                DOM.vr.controls.txtCam.setAttribute('value', 'CAM ON');
+                DOM.vr.controls.btnCam.setAttribute('color', '#0078ff');
                 
                 // Reset mode for next try
                 cam.mode = 'environment';
                 
             } else {
                 // START
-                // 1. Security Check
                 if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-                    alert("SECURITY BLOCK: Browser forbids camera access on insecure sites.\n\nSolution: Upload this file to Netlify/GitHub.");
+                    alert("SECURITY BLOCK: Browser forbids camera access on insecure sites.");
                     return;
                 }
 
                 try {
-                    // 2. Try to get camera (NO RESOLUTION CONSTRAINTS)
-                    // If it fails with 'environment', we try 'user' next time or just 'true'
                     const constraints = { video: { facingMode: state.cam.mode } };
                     
                     cam.stream = await navigator.mediaDevices.getUserMedia(constraints)
                     .catch(e => {
                         console.warn("Preferred cam failed, trying fallback...");
-                        // Fallback: Just give me ANY video
                         return navigator.mediaDevices.getUserMedia({ video: true });
                     });
 
                     // 3. Attach & Play
                     camVideo.srcObject = cam.stream;
-                    await camVideo.play(); // Force play
+                    await camVideo.play(); 
                     
-                    // 4. Update Preview (if 2D)
                     if (!DOM.ui.layer.classList.contains('hidden')) {
                         previewVideo.style.display = 'block';
                         previewVideo.srcObject = cam.stream;
@@ -311,7 +308,7 @@
                     if(mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
 
                     DOM.vr.env.floor.setAttribute('visible', false);
-                    DOM.vr.controls.txtCam.setAttribute('value', 'BG: CAM');
+                    DOM.vr.controls.txtCam.setAttribute('value', 'CAM OFF');
                     DOM.vr.controls.btnCam.setAttribute('color', '#00d2ff');
 
                     // Prepare to switch mode next time (Toggle Front/Back logic)
@@ -319,7 +316,7 @@
 
                 } catch (err) {
                     console.error(err);
-                    alert("CAMERA ERROR: " + err.name + "\n\nTry closing other apps (Camera/Snapchat) and refresh.");
+                    alert("CAMERA ERROR: " + err.name);
                     DOM.vr.controls.txtCam.setAttribute('value', 'ERR');
                 }
             }
@@ -371,7 +368,6 @@
         DOM.ui.btnStart.addEventListener('click', () => {
             if(state.playlist.length > 0) {
                 DOM.ui.layer.classList.add('hidden');
-                // Hide preview if active
                 DOM.ui.camPreview.style.display = 'none';
                 loadTrack(state.currentTrack);
                 if(DOM.vr.scene.enterVR) DOM.vr.scene.enterVR();
@@ -393,19 +389,25 @@
                 DOM.vr.controls.title.setAttribute('value', `${state.currentTrack + 1}/${state.playlist.length}: ${displayName}`);
 
                 DOM.vr.controls.seekBack.setAttribute('value', '-15s'); DOM.vr.controls.seekFwd.setAttribute('value', '+15s');
-                DOM.vr.controls.playText.setAttribute('value', 'PLAY'); DOM.vr.controls.videoGroup.setAttribute('visible', true);
+                DOM.vr.controls.playText.setAttribute('value', 'PLAY'); 
+                DOM.vr.controls.videoGroup.setAttribute('visible', true);
                 DOM.vr.controls.modeBtn.setAttribute('color', '#222'); DOM.vr.controls.btn3d.setAttribute('color', '#222'); DOM.vr.controls.btn3d.classList.add('clickable');
 
                 if (item.type === 'pdf') {
                     DOM.media.video.pause(); force2DMode(); 
                     DOM.vr.controls.modeBtn.setAttribute('color', '#555'); DOM.vr.controls.btn3d.setAttribute('color', '#555'); DOM.vr.controls.btn3d.classList.remove('clickable');
                     DOM.vr.controls.seekBack.setAttribute('value', 'PREV PG'); DOM.vr.controls.seekFwd.setAttribute('value', 'NEXT PG'); DOM.vr.controls.playText.setAttribute('value', 'LOADING..');
+                    // HIDE VIDEO CONTROLS FOR PDF (Except top level buttons)
+                    DOM.vr.controls.videoGroup.setAttribute('visible', false);
+                    
                     const loadingTask = pdfjsLib.getDocument(src);
                     loadingTask.promise.then(pdf => {
                         state.pdf.doc = pdf; state.pdf.pageNum = 1; DOM.vr.controls.playText.setAttribute('value', 'PDF VIEW'); renderPDFPage(state.pdf.pageNum);
                     }).catch(error => { DOM.vr.controls.playText.setAttribute('value', 'ERROR'); });
                 } else if (item.type === 'image') {
-                    DOM.media.video.pause(); DOM.vr.controls.videoGroup.setAttribute('visible', false);
+                    DOM.media.video.pause(); 
+                    // HIDE VIDEO CONTROLS FOR IMAGE
+                    DOM.vr.controls.videoGroup.setAttribute('visible', false);
                     updateTexture('#img-src'); 
                     DOM.media.img.onload = function() { 
                         refreshTextureMesh(); drawAmbilight(DOM.media.img); 
