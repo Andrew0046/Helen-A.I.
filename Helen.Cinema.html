@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v11.1: Instant Holodeck</title>
+    <title>The Hub v11.2: Canvas Loader</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -24,16 +24,36 @@
         .playlist-item:hover { color: white; background: rgba(255,255,255,0.1); }
         .playlist-active { color: #ff9d00; font-weight: bold; }
         #drop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff; z-index: 10000; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none; }
-        #light-canvas { display: none; }
         #status-msg { margin-top: 15px; color: #00d2ff; font-size: 0.9rem; min-height: 20px; }
+        
+        /* HIDDEN WORKERS */
+        #hidden-assets { display: none; }
     </style>
+
+    <script>
+        // --- TEXTURE KICKER ---
+        // This forces the sky to update if the canvas changes
+        AFRAME.registerComponent('canvas-updater', {
+            tick: function () {
+                var el = this.el;
+                if (el.getObject3D('mesh').material.map) {
+                    el.getObject3D('mesh').material.map.needsUpdate = true;
+                }
+            }
+        });
+    </script>
 </head>
 <body>
 
     <div id="drop-overlay">Drop File to Auto-Play</div>
 
+    <div id="hidden-assets">
+        <img id="temp-img" crossorigin="anonymous">
+        <canvas id="sky-canvas" width="2048" height="1024"></canvas>
+    </div>
+
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v11.1</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v11.2</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Holodeck System</h3>
             <p style="color: #888; font-size: 0.9rem;">Drop <b>Image</b> for Background<br>Drop <b>Video</b> for Screen</p>
@@ -55,19 +75,18 @@
         </div>
     </div>
 
-    <canvas id="light-canvas" width="32" height="32"></canvas>
+    <canvas id="light-canvas" width="32" height="32" style="display:none"></canvas>
 
     <a-scene background="color: #000" fog="type: exponential; color: #000; density: 0.015">
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
-            <img id="sky-img" src="" crossorigin="anonymous">
             <img id="img-src" src="" crossorigin="anonymous">
             <canvas id="pdf-canvas"></canvas>
             <img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
         </a-assets>
 
-        <a-sky id="env-sky" radius="500" color="#050505" src="#sky-img" rotation="0 -90 0"></a-sky>
+        <a-sky id="env-sky" radius="500" color="#050505" src="#sky-canvas" canvas-updater rotation="0 -90 0"></a-sky>
 
         <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
                  src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
@@ -107,6 +126,7 @@
                 <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-back" value="-15s" align="center" width="2"></a-text></a-plane>
                 <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ff9d00" class="clickable btn-hover"><a-text id="txt-play" value="PLAY" align="center" width="4" color="black" font-weight="bold"></a-text></a-plane>
                 <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-fwd" value="+15s" align="center" width="2"></a-text></a-plane>
+                
                 <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-speed" value="1x" align="center" width="2"></a-text></a-plane>
             </a-entity>
 
@@ -115,6 +135,7 @@
 
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text value="2D VIEW" align="center" width="1.8"></a-text></a-plane>
             <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-3d" value="2D MODE" align="center" width="1.8"></a-text></a-plane>
+            
             <a-plane id="btn-void" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#222" class="clickable btn-hover"><a-text value="RESET ENV" align="center" width="1.8"></a-text></a-plane>
 
             <a-plane id="btn-rot-left" position="0.65 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="< TURN" align="center" width="2"></a-text></a-plane>
@@ -151,9 +172,16 @@
             audio: { ctx: null, source: null, panner: null }
         };
 
+        // SETUP CANVAS PAINTING
+        const skyCanvas = document.getElementById('sky-canvas');
+        const skyCtx = skyCanvas.getContext('2d');
+        // Paint black initially
+        skyCtx.fillStyle = '#050505';
+        skyCtx.fillRect(0,0,2048,1024);
+
         const DOM = {
             ui: { layer: document.getElementById('ui-layer'), fileInput: document.getElementById('file-input'), urlInput: document.getElementById('url-input'), playlist: document.getElementById('playlist-ui'), list: document.getElementById('playlist-list'), btnStart: document.getElementById('btn-start'), dropOverlay: document.getElementById('drop-overlay'), status: document.getElementById('status-msg') },
-            media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), skyImg: document.getElementById('sky-img'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas') },
+            media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), tempImg: document.getElementById('temp-img'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas') },
             vr: {
                 scene: document.querySelector('a-scene'),
                 screens: { 
@@ -234,7 +262,7 @@
                 });
                 state.playlist = state.playlist.concat(newItems);
                 
-                // AUTO-LOAD THE NEWEST FILE IMMEDIATELY
+                // AUTO-LOAD THE NEWEST FILE
                 const newIndex = state.playlist.length - newItems.length;
                 updatePlaylistUI();
                 loadTrack(newIndex); 
@@ -270,13 +298,12 @@
         DOM.ui.btnStart.addEventListener('click', () => {
             if(state.playlist.length > 0) {
                 DOM.ui.layer.classList.add('hidden');
-                // Ensure current track is loaded/playing
                 loadTrack(state.currentTrack);
                 if(DOM.vr.scene.enterVR) DOM.vr.scene.enterVR();
             }
         });
 
-        /* 4. MEDIA LOADER (WITH ROBUST IMAGE LOADING) */
+        /* 4. MEDIA LOADER (THE CANVAS FIX) */
         function loadTrack(index) {
             if (index >= 0 && index < state.playlist.length) {
                 state.currentTrack = index;
@@ -292,22 +319,20 @@
 
                 // --- HOLODECK SWITCH ---
                 if (item.type === 'image') {
-                    // Update the dedicated asset tag (Best Practice)
-                    DOM.media.skyImg.src = src;
-                    
-                    // Update Sky
-                    DOM.vr.env.sky.setAttribute('color', '#FFF'); 
-                    DOM.vr.scene.removeAttribute('fog'); 
-                    DOM.vr.env.floor.setAttribute('visible', false);
-                    
-                    // Force Refresh
-                    DOM.media.skyImg.onload = () => {
-                        // Sometimes sky needs a nudge
-                        const mesh = DOM.vr.env.sky.getObject3D('mesh');
-                        if(mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
+                    // 1. Load image into hidden <img>
+                    const tempImg = DOM.media.tempImg;
+                    tempImg.onload = function() {
+                        // 2. Draw to Canvas (Nuclear Option)
+                        skyCtx.drawImage(tempImg, 0, 0, 2048, 1024);
+                        
+                        // 3. Update Sky Settings
+                        DOM.vr.env.sky.setAttribute('color', '#FFF'); 
+                        DOM.vr.scene.removeAttribute('fog'); 
+                        DOM.vr.env.floor.setAttribute('visible', false);
+                        
+                        DOM.vr.controls.title.setAttribute('value', "BG SET: " + displayName);
                     };
-                    
-                    DOM.vr.controls.title.setAttribute('value', "BG SET: " + displayName);
+                    tempImg.src = src;
                     
                 } else if (item.type === 'pdf') {
                     DOM.media.video.pause(); force2DMode(); 
@@ -375,11 +400,12 @@
         document.getElementById('btn-seek-back').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onPrevPage(); else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); flash(this); });
         document.getElementById('btn-seek-fwd').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onNextPage(); else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); flash(this); });
         
-        // RESET ENV BUTTON (The "Void" Button functionality)
+        // RESET ENV BUTTON (Restores the Void)
         document.getElementById('btn-void').addEventListener('click', function() { 
-            // Restore Black Void
-            DOM.vr.env.sky.removeAttribute('src');
-            DOM.vr.env.sky.setAttribute('color', '#050505');
+            // Paint canvas black
+            skyCtx.fillStyle = '#050505';
+            skyCtx.fillRect(0,0,2048,1024);
+            // Restore Fog & Floor
             DOM.vr.env.floor.setAttribute('visible', true);
             DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
             flash(this); 
