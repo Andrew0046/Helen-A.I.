@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v26.0: Dual Screen</title>
+    <title>The Hub v26.1: Big Screen</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -38,7 +38,7 @@
     <video id="cam-input" autoplay playsinline webkit-playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v26.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v26.1</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Dual Screen System</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
@@ -78,11 +78,11 @@
         <a-curvedimage id="screen-cinema" src="#video-src" height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="true"></a-curvedimage>
         
         <a-curvedimage id="my-feed" 
-            height="16" 
-            radius="40" 
+            height="25" 
+            radius="30" 
             theta-length="120" 
-            rotation="0 -135 0" 
-            position="0 14 9 " 
+            rotation="0 135 0" 
+            position="0 20 0" 
             side="double" 
             visible="false"
             material="opacity: 0.8; transparent: true; color: #333">
@@ -480,5 +480,3 @@
     </script>
 </body>
 </html>
-
-
