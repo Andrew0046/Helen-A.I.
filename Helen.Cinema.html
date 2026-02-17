@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v20.0: Complete</title>
+    <title>The Hub v21.0: Passthrough First</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -26,12 +26,12 @@
         .playlist-active { color: #ff9d00; font-weight: bold; }
         #drop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff; z-index: 10000; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none; }
         
-        /* HIDDEN WORKERS (The Magic Trick) */
+        /* HIDDEN WORKERS */
         #hidden-work-area { position: absolute; top: -9999px; left: -9999px; visibility: hidden; }
     </style>
 
     <script>
-        // --- CORE COMPONENT: FORCE CANVAS UPDATE (The Fix) ---
+        // --- CORE COMPONENT: FORCE CANVAS UPDATE ---
         AFRAME.registerComponent('canvas-updater', {
             tick: function () {
                 var el = this.el;
@@ -53,11 +53,11 @@
     </div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v20.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v21.0</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
             
-            <button class="btn-main" onclick="initCameraSystem()" style="background: #333; margin-top: 0; margin-bottom: 20px;">1. ACTIVATE CAMERA</button>
+            <button class="btn-main" onclick="initCameraSystem()" style="background: #333; margin-top: 0; margin-bottom: 20px;">1. ACTIVATE PASSTHROUGH</button>
             <div id="cam-status" style="color: #666; font-size: 0.8rem; margin-bottom: 10px;">Status: Standby</div>
 
             <p style="color: #888; font-size: 0.9rem; margin-top:10px;">Select media (Video, Image, PDF)</p>
@@ -119,7 +119,7 @@
             </a-plane>
 
             <a-plane id="btn-cam" position="-1.2 0.4 0.03" width="0.4" height="0.15" color="#0078ff" class="clickable btn-hover">
-                <a-text id="txt-cam" value="CAM ON" align="center" width="2" font-weight="bold"></a-text>
+                <a-text id="txt-cam" value="CAM OFF" align="center" width="2" font-weight="bold"></a-text>
             </a-plane>
 
             <a-entity id="video-controls">
@@ -233,10 +233,20 @@
                 DOM.media.camVideo.srcObject = stream;
                 await DOM.media.camVideo.play();
                 
+                // Activate Painting
                 state.cam.painting = true;
-                paintCanvasLoop(); // Start painting
+                paintCanvasLoop(); 
                 
-                DOM.ui.status.innerText = "Status: ACTIVE (Canvas Painting)";
+                // IMMEDIATELY SET VR ENVIRONMENT TO CAMERA
+                state.cam.active = true;
+                const sky = DOM.vr.sky;
+                sky.setAttribute('src', '#cam-canvas-hidden');
+                sky.setAttribute('color', '#FFF');
+                DOM.vr.scene.removeAttribute('fog'); // Kill fog immediately
+                DOM.vr.controls.txtCam.setAttribute('value', 'CAM OFF');
+                DOM.vr.controls.btnCam.setAttribute('color', '#00d2ff');
+
+                DOM.ui.status.innerText = "Status: ACTIVE. (Passthrough Ready)";
                 DOM.ui.status.style.color = "#00ff00";
                 
             } catch (e) {
@@ -252,20 +262,18 @@
 
             if (state.cam.active) {
                 // Turn Cam ON
-                if(!state.cam.painting) {
-                     // Auto-start if they forgot to click it in menu
-                     initCameraSystem();
-                }
+                if(!state.cam.painting) initCameraSystem();
                 sky.setAttribute('src', '#cam-canvas-hidden');
                 sky.setAttribute('color', '#FFF');
-                sky.removeAttribute('fog'); // Kill fog for clarity
+                DOM.vr.scene.removeAttribute('fog'); 
                 DOM.vr.controls.txtCam.setAttribute('value', 'CAM OFF');
                 DOM.vr.controls.btnCam.setAttribute('color', '#00d2ff');
             } else {
-                // Turn Cam OFF
+                // Turn Cam OFF (Back to Void)
                 sky.removeAttribute('src');
                 sky.setAttribute('color', '#050505');
-                // Re-enable Fog if needed (simple toggle here)
+                // Re-enable Fog
+                DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
                 DOM.vr.controls.txtCam.setAttribute('value', 'CAM ON');
                 DOM.vr.controls.btnCam.setAttribute('color', '#0078ff');
             }
