@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v10.2: Stable VR</title>
+    <title>The Hub v24.0: Helen Engine</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
     <style>
-        /* --- UI LAYER STYLES --- */
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
         #ui-layer { position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
         .hidden { opacity: 0; pointer-events: none; }
@@ -24,18 +23,26 @@
         .playlist-item { padding: 5px; border-bottom: 1px solid #333; cursor: pointer; transition: background 0.2s; }
         .playlist-item:hover { color: white; background: rgba(255,255,255,0.1); }
         .playlist-active { color: #ff9d00; font-weight: bold; }
-        #drop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff; z-index: 10000; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none; }
-        #light-canvas { display: none; }
+        #cam-status { margin-bottom:15px; color:#666; font-size:0.9em; }
+        
+        /* Debug Preview from Helen */
+        #helen-preview { width: 120px; height: 80px; position:absolute; bottom:10px; left:10px; background:#000; border:1px solid #333; z-index:10001; object-fit: cover; }
     </style>
 </head>
 <body>
 
-    <div id="drop-overlay">Drop File to Play</div>
+    <video id="helen-cam-feed" autoplay muted playsinline style="display:none;"></video>
+    
+    <video id="helen-preview" autoplay muted playsinline></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v10.2</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v24.0</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Initialize System</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Helen Engine Integration</h3>
+            
+            <button class="btn-main" onclick="startHelenCamera()" style="background:#333; margin-top:0;">1. ACTIVATE CAM</button>
+            <div id="cam-status">Status: Standby</div>
+
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -47,11 +54,9 @@
                 <div style="color:white; font-weight:bold; margin-bottom:5px;">Queue:</div>
                 <div id="playlist-list"></div>
             </div>
-            <button id="btn-start" class="btn-main" style="display:none; background: #ff9d00; margin-top: 20px;">ENTER VR</button>
+            <button id="btn-start" class="btn-main" style="display:none; background: #ff9d00; margin-top: 20px;">2. ENTER VR</button>
         </div>
     </div>
-
-    <canvas id="light-canvas" width="32" height="32"></canvas>
 
     <a-scene background="color: #000" fog="type: exponential; color: #000; density: 0.015">
         
@@ -62,10 +67,11 @@
             <img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
         </a-assets>
 
+        <a-sky id="env-sky" radius="500" color="#050505" rotation="0 -90 0"></a-sky>
+
         <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
                  src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
         </a-plane>
-        <a-sky color="#050505"></a-sky>
 
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
@@ -90,19 +96,20 @@
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
             <a-box depth="0.02" height="1.0" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
             <a-box position="0 0.49 0" depth="0.03" height="0.01" width="2.8" color="#ff9d00" opacity="0.8"></a-box>
-            
             <a-text id="txt-title" value="Waiting..." position="0 0.42 0.02" align="center" width="2.5" color="white"></a-text>
             <a-plane id="btn-close" position="1.2 0.4 0.03" width="0.25" height="0.15" color="#cc0000" class="clickable btn-hover"><a-text value="X" align="center" width="6" font-weight="bold"></a-text></a-plane>
+
+            <a-plane id="btn-cam" position="-1.2 0.4 0.03" width="0.4" height="0.15" color="#0078ff" class="clickable btn-hover">
+                <a-text id="txt-cam" value="CAM OFF" align="center" width="2" font-weight="bold"></a-text>
+            </a-plane>
 
             <a-entity id="video-controls">
                 <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
                 <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333" class="clickable btn-hover" id="bar-bg"></a-plane>
                 <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
-                
                 <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-back" value="-15s" align="center" width="2"></a-text></a-plane>
                 <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ff9d00" class="clickable btn-hover"><a-text id="txt-play" value="PLAY" align="center" width="4" color="black" font-weight="bold"></a-text></a-plane>
                 <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-fwd" value="+15s" align="center" width="2"></a-text></a-plane>
-                
                 <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-speed" value="1x" align="center" width="2"></a-text></a-plane>
             </a-entity>
 
@@ -119,11 +126,9 @@
 
             <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
             <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
-            
             <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
             <a-plane id="seat-back" position="-0.8 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="BACK" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
             <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
-            
             <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
             <a-plane id="curve-more" position="1.0 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
         </a-entity>
@@ -143,10 +148,68 @@
         const pdfjsLib = window.pdfjsLib;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
+        // --- HELEN ENGINE INTEGRATION ---
+        let helenStream = null;
+        let helenVideo = document.getElementById('helen-cam-feed');
+        let helenPreview = document.getElementById('helen-preview');
+        
+        async function startHelenCamera() {
+            try {
+                // Exact constraints from Helen
+                const constraints = { video: { facingMode: 'environment' } };
+                
+                // Get Stream
+                helenStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // Assign to video elements
+                helenVideo.srcObject = helenStream;
+                helenPreview.srcObject = helenStream;
+                
+                // CRITICAL: Wait for metadata (The Helen Method)
+                await new Promise(resolve => helenVideo.onloadedmetadata = resolve);
+                await helenVideo.play();
+                
+                // UI Updates
+                document.getElementById('cam-status').innerHTML = "Status: ACTIVE (Helen Engine)";
+                document.getElementById('cam-status').style.color = "#00ff00";
+                DOM.ui.btnStart.style.display = 'block';
+                
+                // Auto-Apply to VR if already inside
+                if(state.cam.active) applyHelenTexture();
+                
+            } catch (err) {
+                console.error("Helen Cam Error:", err);
+                document.getElementById('cam-status').innerHTML = "Error: " + err.name;
+                document.getElementById('cam-status').style.color = "red";
+            }
+        }
+
+        // --- MANUAL TEXTURE MAPPER (Bypassing A-Frame's Loader) ---
+        function applyHelenTexture() {
+            const sky = DOM.vr.env.sky;
+            const mesh = sky.getObject3D('mesh');
+            
+            // Create texture manually like Helen does
+            const vidTex = new THREE.VideoTexture(helenVideo);
+            vidTex.colorSpace = THREE.SRGBColorSpace;
+            vidTex.generateMipmaps = false;
+            
+            // Apply to material
+            if(mesh && mesh.material) {
+                mesh.material.map = vidTex;
+                mesh.material.needsUpdate = true;
+                sky.setAttribute('color', '#FFF'); // Brighten
+                DOM.vr.scene.removeAttribute('fog'); // Clear view
+                DOM.vr.env.floor.setAttribute('visible', false); // Hide floor
+            }
+        }
+
+        // --- REST OF THE HUB LOGIC ---
         const state = {
             playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isVoid: false, curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
-            audio: { ctx: null, source: null, panner: null }
+            audio: { ctx: null, source: null, panner: null },
+            cam: { active: false }
         };
 
         const DOM = {
@@ -162,11 +225,36 @@
                 controls: { 
                     wrapper: document.getElementById('hub-wrapper'), videoGroup: document.getElementById('video-controls'), orb: document.getElementById('menu-orb'),
                     playText: document.getElementById('txt-play'), timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'), title: document.getElementById('txt-title'),
-                    seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed')
+                    seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
+                    btnCam: document.getElementById('btn-cam'), txtCam: document.getElementById('txt-cam')
                 },
-                env: { floor: document.getElementById('env-floor'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') }
+                env: { sky: document.getElementById('env-sky'), floor: document.getElementById('env-floor'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') }
             }
         };
+
+        // --- NEW: CAM TOGGLE LOGIC ---
+        DOM.vr.controls.btnCam.addEventListener('click', function() {
+            state.cam.active = !state.cam.active;
+            
+            if(state.cam.active) {
+                // Turn ON
+                if(!helenStream) startHelenCamera(); // Auto-start if needed
+                applyHelenTexture();
+                DOM.vr.controls.txtCam.setAttribute('value', 'CAM ON');
+                DOM.vr.controls.btnCam.setAttribute('color', '#00d2ff');
+            } else {
+                // Turn OFF
+                DOM.vr.env.sky.removeAttribute('src'); // Remove texture
+                DOM.vr.env.sky.getObject3D('mesh').material.map = null; // Clean ThreeJS
+                DOM.vr.env.sky.setAttribute('color', '#050505');
+                DOM.vr.env.floor.setAttribute('visible', true);
+                DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+                
+                DOM.vr.controls.txtCam.setAttribute('value', 'CAM OFF');
+                DOM.vr.controls.btnCam.setAttribute('color', '#0078ff');
+            }
+            flash(this);
+        });
 
         /* 1. STEREOSCOPIC LAYERS */
         function configureStereoLayers() {
@@ -328,12 +416,13 @@
 
         function updateVisibility() {
             Object.values(DOM.vr.screens).forEach(s => s.setAttribute('visible', false));
-            DOM.vr.env.floor.setAttribute('visible', !state.isVoid);
+            DOM.vr.env.floor.setAttribute('visible', !state.isVoid && !state.cam.active);
+            
             if (state.viewMode === 0) {
                 if (state.is3D) { DOM.vr.screens.cinemaL.setAttribute('visible', true); DOM.vr.screens.cinemaR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
                 else { DOM.vr.screens.cinema.setAttribute('visible', true); resetStereoMapping(); }
                 const modeText = DOM.vr.controls.modeBtn.querySelector('a-text'); if(modeText) modeText.setAttribute('value', '2D VIEW');
-                if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015');
+                if(!state.isVoid && !state.cam.active) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015'); else DOM.vr.scene.removeAttribute('fog');
             } else if (state.viewMode === 1) {
                 if (state.is3D) { DOM.vr.screens.cylL.setAttribute('visible', true); DOM.vr.screens.cylR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
                 else { DOM.vr.screens.cyl.setAttribute('visible', true); resetStereoMapping(); }
