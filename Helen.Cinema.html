@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v11.0: Holodeck</title>
+    <title>The Hub v11.1: Instant Holodeck</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
@@ -25,19 +25,24 @@
         .playlist-active { color: #ff9d00; font-weight: bold; }
         #drop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff; z-index: 10000; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none; }
         #light-canvas { display: none; }
+        #status-msg { margin-top: 15px; color: #00d2ff; font-size: 0.9rem; min-height: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="drop-overlay">Drop File to Play</div>
+    <div id="drop-overlay">Drop File to Auto-Play</div>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v11.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v11.1</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Holodeck System</h3>
             <p style="color: #888; font-size: 0.9rem;">Drop <b>Image</b> for Background<br>Drop <b>Video</b> for Screen</p>
+            
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
+            
+            <div id="status-msg">Waiting for media...</div>
+
             <div class="url-box">
                 <input type="text" id="url-input" placeholder="Paste stream URL...">
                 <button class="btn-small" id="btn-url">GO</button>
@@ -56,12 +61,13 @@
         
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
+            <img id="sky-img" src="" crossorigin="anonymous">
             <img id="img-src" src="" crossorigin="anonymous">
             <canvas id="pdf-canvas"></canvas>
             <img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
         </a-assets>
 
-        <a-sky id="env-sky" radius="500" color="#050505" rotation="0 -90 0"></a-sky>
+        <a-sky id="env-sky" radius="500" color="#050505" src="#sky-img" rotation="0 -90 0"></a-sky>
 
         <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
                  src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
@@ -101,7 +107,6 @@
                 <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-back" value="-15s" align="center" width="2"></a-text></a-plane>
                 <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ff9d00" class="clickable btn-hover"><a-text id="txt-play" value="PLAY" align="center" width="4" color="black" font-weight="bold"></a-text></a-plane>
                 <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-fwd" value="+15s" align="center" width="2"></a-text></a-plane>
-                
                 <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-speed" value="1x" align="center" width="2"></a-text></a-plane>
             </a-entity>
 
@@ -110,7 +115,6 @@
 
             <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text value="2D VIEW" align="center" width="1.8"></a-text></a-plane>
             <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-3d" value="2D MODE" align="center" width="1.8"></a-text></a-plane>
-            
             <a-plane id="btn-void" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#222" class="clickable btn-hover"><a-text value="RESET ENV" align="center" width="1.8"></a-text></a-plane>
 
             <a-plane id="btn-rot-left" position="0.65 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="< TURN" align="center" width="2"></a-text></a-plane>
@@ -148,8 +152,8 @@
         };
 
         const DOM = {
-            ui: { layer: document.getElementById('ui-layer'), fileInput: document.getElementById('file-input'), urlInput: document.getElementById('url-input'), playlist: document.getElementById('playlist-ui'), list: document.getElementById('playlist-list'), btnStart: document.getElementById('btn-start'), dropOverlay: document.getElementById('drop-overlay') },
-            media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas') },
+            ui: { layer: document.getElementById('ui-layer'), fileInput: document.getElementById('file-input'), urlInput: document.getElementById('url-input'), playlist: document.getElementById('playlist-ui'), list: document.getElementById('playlist-list'), btnStart: document.getElementById('btn-start'), dropOverlay: document.getElementById('drop-overlay'), status: document.getElementById('status-msg') },
+            media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), skyImg: document.getElementById('sky-img'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas') },
             vr: {
                 scene: document.querySelector('a-scene'),
                 screens: { 
@@ -218,7 +222,7 @@
             Object.values(DOM.vr.screens).forEach(reset);
         }
 
-        /* 3. FILE HANDLING (UPDATED FOR HOLODECK) */
+        /* 3. FILE HANDLING (AUTO-PLAY ADDED) */
         function handleFiles(files) {
             if (files.length > 0) {
                 const newItems = Array.from(files).map(f => {
@@ -228,7 +232,12 @@
                     else if (f.type === 'application/pdf' || ext === 'pdf') { type = 'pdf'; }
                     return { type: type, src: f, name: f.name };
                 });
-                state.playlist = state.playlist.concat(newItems); updatePlaylistUI();
+                state.playlist = state.playlist.concat(newItems);
+                
+                // AUTO-LOAD THE NEWEST FILE IMMEDIATELY
+                const newIndex = state.playlist.length - newItems.length;
+                updatePlaylistUI();
+                loadTrack(newIndex); 
             }
         }
         DOM.ui.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
@@ -239,12 +248,9 @@
         document.getElementById('btn-url').addEventListener('click', () => {
             const url = DOM.ui.urlInput.value.trim();
             if(url) {
-                const ext = url.split('.').pop().toLowerCase();
-                let type = 'video';
-                if(['jpg','jpeg','png','gif'].includes(ext)) type = 'image';
-                if(ext === 'pdf') type = 'pdf';
-                state.playlist.push({ type: type, src: url, name: "Web Stream" });
-                DOM.ui.urlInput.value = ""; updatePlaylistUI();
+                state.playlist.push({ type: 'video', src: url, name: "Web Stream" });
+                updatePlaylistUI();
+                loadTrack(state.playlist.length - 1); // Auto-play
             }
         });
 
@@ -264,15 +270,15 @@
         DOM.ui.btnStart.addEventListener('click', () => {
             if(state.playlist.length > 0) {
                 DOM.ui.layer.classList.add('hidden');
+                // Ensure current track is loaded/playing
                 loadTrack(state.currentTrack);
                 if(DOM.vr.scene.enterVR) DOM.vr.scene.enterVR();
             }
         });
 
-        /* 4. MEDIA LOADER (HOLODECK LOGIC) */
+        /* 4. MEDIA LOADER (WITH ROBUST IMAGE LOADING) */
         function loadTrack(index) {
             if (index >= 0 && index < state.playlist.length) {
-                if (state.currentObjectURL) { URL.revokeObjectURL(state.currentObjectURL); state.currentObjectURL = null; }
                 state.currentTrack = index;
                 const item = state.playlist[state.currentTrack];
                 
@@ -282,17 +288,25 @@
 
                 let displayName = item.name.length > 25 ? item.name.substring(0, 22) + "..." : item.name;
                 DOM.vr.controls.title.setAttribute('value', `${state.currentTrack + 1}/${state.playlist.length}: ${displayName}`);
+                DOM.ui.status.innerText = "Loaded: " + item.name;
 
                 // --- HOLODECK SWITCH ---
                 if (item.type === 'image') {
-                    // It's an image: Apply to Sky
-                    DOM.vr.env.sky.setAttribute('src', src);
-                    DOM.vr.env.sky.setAttribute('color', '#FFF'); // Brightness up
-                    DOM.vr.scene.removeAttribute('fog'); // Clear visibility
-                    DOM.vr.env.floor.setAttribute('visible', false); // Hide grid
+                    // Update the dedicated asset tag (Best Practice)
+                    DOM.media.skyImg.src = src;
                     
-                    // Don't change the controls, let user play previous video if they want
-                    // Just update title
+                    // Update Sky
+                    DOM.vr.env.sky.setAttribute('color', '#FFF'); 
+                    DOM.vr.scene.removeAttribute('fog'); 
+                    DOM.vr.env.floor.setAttribute('visible', false);
+                    
+                    // Force Refresh
+                    DOM.media.skyImg.onload = () => {
+                        // Sometimes sky needs a nudge
+                        const mesh = DOM.vr.env.sky.getObject3D('mesh');
+                        if(mesh && mesh.material.map) mesh.material.map.needsUpdate = true;
+                    };
+                    
                     DOM.vr.controls.title.setAttribute('value', "BG SET: " + displayName);
                     
                 } else if (item.type === 'pdf') {
@@ -331,7 +345,6 @@
 
         function updateVisibility() {
             Object.values(DOM.vr.screens).forEach(s => s.setAttribute('visible', false));
-            // Floor visibility now depends on Holodeck mode (managed in loadTrack/Reset)
             
             if (state.viewMode === 0) {
                 if (state.is3D) { DOM.vr.screens.cinemaL.setAttribute('visible', true); DOM.vr.screens.cinemaR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
