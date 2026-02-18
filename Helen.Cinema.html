@@ -102,59 +102,84 @@
             <a-text value="OPEN MENU" align="center" position="0 0.25 0" width="3" color="#ff9d00"></a-text>
         </a-sphere>
 
-        <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
-            <a-box depth="0.02" height="1.0" width="2.8" color="#050505" opacity="0.9" class="clickable"></a-box>
-            <a-box position="0 0.49 0" depth="0.03" height="0.01" width="2.8" color="#ff9d00" opacity="0.8"></a-box>
-            
-            <a-text id="txt-title" value="Waiting..." position="0 0.42 0.02" align="center" width="2.5" color="white"></a-text>
-            <a-plane id="btn-close" position="1.2 0.4 0.03" width="0.25" height="0.15" color="#cc0000" class="clickable btn-hover"><a-text value="X" align="center" width="6" font-weight="bold"></a-text></a-plane>
+        <<a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
+    
+    <a-box depth="0.01" height="1.0" width="2.8" color="#ffffff" opacity="0.15" class="clickable"></a-box>
+    
+    <a-box position="0 0.49 0" depth="0.015" height="0.02" width="2.8" color="#ffffff" opacity="0.8"></a-box>
+    
+    <a-text id="txt-title" value="System Ready" position="0 0.42 0.02" align="center" width="2.5" color="#ffffff" font="roboto"></a-text>
+    
+    <a-circle id="btn-close" position="1.3 0.4 0.02" radius="0.08" color="#ff4444" opacity="0.8" class="clickable btn-hover">
+        <a-text value="X" align="center" width="6" font-weight="bold" color="white"></a-text>
+    </a-circle>
 
-            <a-plane id="btn-feed" position="-1.2 0.4 0.03" width="0.45" height="0.15" color="#0078ff" class="clickable btn-hover">
-                <a-text id="txt-feed" value="OPEN FEED" align="center" width="2" font-weight="bold"></a-text>
-            </a-plane>
+    <a-plane id="btn-feed" position="-1.1 0.4 0.02" width="0.5" height="0.12" radius="0.06" color="#ffffff" opacity="0.2" class="clickable btn-hover">
+        <a-text id="txt-feed" value="OPEN FEED" align="center" width="2" color="white"></a-text>
+    </a-plane>
 
-            <a-entity id="video-controls">
-                <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#aaa"></a-text>
-                <a-plane position="0 0.28 0.02" width="2.4" height="0.02" color="#333" class="clickable btn-hover" id="bar-bg"></a-plane>
-                <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.02" color="#ff9d00" scale="0 1 1" pivot="center left"></a-plane>
-                
-                <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-back" value="-15s" align="center" width="2"></a-text></a-plane>
-                <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ff9d00" class="clickable btn-hover"><a-text id="txt-play" value="PLAY" align="center" width="4" color="black" font-weight="bold"></a-text></a-plane>
-                <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-seek-fwd" value="+15s" align="center" width="2"></a-text></a-plane>
-                <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-speed" value="1x" align="center" width="2"></a-text></a-plane>
-            </a-entity>
+    <a-entity id="video-controls">
+        <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#ccc"></a-text>
+        
+        <a-plane position="0 0.28 0.02" width="2.4" height="0.005" color="#ffffff" opacity="0.3" class="clickable btn-hover" id="bar-bg"></a-plane>
+        <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.01" color="#00d2ff" scale="0 1 1" pivot="center left"></a-plane>
+        
+        <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
+            <a-text id="txt-seek-back" value="-15s" align="center" width="2" color="white"></a-text>
+        </a-plane>
+        
+        <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ffffff" opacity="0.9" class="clickable btn-hover">
+            <a-text id="txt-play" value="PLAY" align="center" width="4" color="#000" font-weight="bold"></a-text>
+        </a-plane>
+        
+        <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
+            <a-text id="txt-seek-fwd" value="+15s" align="center" width="2" color="white"></a-text>
+        </a-plane>
+        
+        <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
+            <a-text id="txt-speed" value="1x" align="center" width="2" color="white"></a-text>
+        </a-plane>
+    </a-entity>
 
-            <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="|<<" align="center" width="3"></a-text></a-plane>
-            <a-plane id="btn-next" position="0.9 0.15 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value=">>|" align="center" width="3"></a-text></a-plane>
+    <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
+        <a-text value="|<" align="center" width="3" color="white"></a-text>
+    </a-plane>
+    <a-plane id="btn-next" position="0.9 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
+        <a-text value=">|" align="center" width="3" color="white"></a-text>
+    </a-plane>
 
-            <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text value="2D VIEW" align="center" width="1.8"></a-text></a-plane>
-            <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#222" class="clickable btn-hover"><a-text id="txt-3d" value="2D MODE" align="center" width="1.8"></a-text></a-plane>
-            <a-plane id="btn-void" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#222" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.8"></a-text></a-plane>
+    <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover">
+        <a-text value="2D VIEW" align="center" width="1.8" color="#00d2ff"></a-text>
+    </a-plane>
+    <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover">
+        <a-text id="txt-3d" value="2D MODE" align="center" width="1.8" color="#00d2ff"></a-text>
+    </a-plane>
+    
+    <a-plane id="btn-void" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
+        <a-text value="VOID" align="center" width="1.8" color="#aaa"></a-text>
+    </a-plane>
 
-            <a-plane id="btn-rot-left" position="0.65 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="< TURN" align="center" width="2"></a-text></a-plane>
-            <a-plane id="btn-reset" position="0.95 -0.1 0.02" width="0.3" height="0.15" color="#222" class="clickable btn-hover"><a-text value="RESET" align="center" width="2"></a-text></a-plane>
-            <a-plane id="btn-rot-right" position="1.25 -0.1 0.02" width="0.25" height="0.15" color="#222" class="clickable btn-hover"><a-text value="TURN >" align="center" width="2"></a-text></a-plane>
+    <a-plane id="btn-rot-left" position="0.65 -0.1 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
+        <a-text value="<" align="center" width="3" color="white"></a-text>
+    </a-plane>
+    <a-plane id="btn-reset" position="0.95 -0.1 0.02" width="0.3" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
+        <a-text value="RESET" align="center" width="2" color="white"></a-text>
+    </a-plane>
+    <a-plane id="btn-rot-right" position="1.25 -0.1 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
+        <a-text value=">" align="center" width="3" color="white"></a-text>
+    </a-plane>
 
-            <a-text value="SEAT POSITION" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
-            <a-text value="SCREEN CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
-            <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
-            <a-plane id="seat-back" position="-0.8 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="BACK" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
-            <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
-            <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
-            <a-plane id="curve-more" position="1.0 -0.35 0.02" width="0.25" height="0.1" color="#333" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.5" scale="0.8 0.8 1"></a-text></a-plane>
-        </a-entity>
+    <a-text value="SEAT" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
+    <a-text value="CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
+    
+    <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
+    <a-plane id="seat-back" position="-0.8 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="BACK" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
+    <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="BED" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
+    
+    <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
+    <a-plane id="curve-more" position="1.0 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
 
-        <a-entity id="rig" position="0 1.6 0">
-            <a-camera look-controls="reverseMouseDrag: true" wasd-controls="enabled: false">
-                <a-cursor id="cursor" fuse="true" fuse-timeout="2500" color="#ff9d00" raycaster="objects: .clickable"
-                    animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-                    animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 2500"
-                    animation__color="property: color; startEvents: fusing; from: #ff9d00; to: #ff0000; dur: 2500">
-                </a-cursor>
-            </a-camera>
-        </a-entity>
-    </a-scene>
-
+</a-entity>
     <script>
         const pdfjsLib = window.pdfjsLib;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
@@ -480,3 +505,4 @@
     </script>
 </body>
 </html>
+
