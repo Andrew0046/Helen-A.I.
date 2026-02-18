@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v26.2: GlassOS</title>
+    <title>The Hub v27.2: HUD Mode</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
     <style>
-        /* --- UI LAYER STYLES --- */
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
         #ui-layer { position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
         .hidden { opacity: 0; pointer-events: none; }
@@ -25,7 +24,6 @@
         .playlist-item:hover { color: white; background: rgba(255,255,255,0.1); }
         .playlist-active { color: #ff9d00; font-weight: bold; }
         
-        /* HIDDEN VIDEO FOR CAMERA */
         #cam-input { display: none; }
         #drop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff; z-index: 10000; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none; }
         #light-canvas { display: none; }
@@ -34,13 +32,12 @@
 <body>
 
     <div id="drop-overlay">Drop File to Play</div>
-    
     <video id="cam-input" autoplay playsinline webkit-playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v26.2</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v27.2</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">GlassOS Interface</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">HUD Mode</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -67,27 +64,15 @@
             <img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
         </a-assets>
 
+        <a-sky id="env-sky" color="#050505"></a-sky>
         <a-plane id="env-floor" position="0 0 -4" rotation="-90 0 0" width="80" height="80" 
                  src="#grid-texture" repeat="40 40" color="#1a1a1a" roughness="0.2" metalness="0.8">
         </a-plane>
-        <a-sky color="#050505"></a-sky>
 
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
         <a-curvedimage id="screen-cinema" src="#video-src" height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="true"></a-curvedimage>
-        
-        <a-curvedimage id="my-feed" 
-            height="25" 
-            radius="30" 
-            theta-length="120" 
-            rotation="0 135 0" 
-            position="0 20 0" 
-            side="double" 
-            visible="false"
-            material="opacity: 0.8; transparent: true; color: #333">
-        </a-curvedimage>
-
         <a-curvedimage id="screen-cinema-left" src="#video-src" height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"></a-curvedimage>
         <a-curvedimage id="screen-cinema-right" src="#video-src" height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"></a-curvedimage>
         <a-entity id="screen-180" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; fog: false" rotation="0 -270 0" visible="false"></a-entity>
@@ -103,79 +88,37 @@
         </a-sphere>
 
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
-            
             <a-box depth="0.01" height="1.0" width="2.8" color="#ffffff" opacity="0.1" class="clickable"></a-box>
             <a-box position="0 0.49 0" depth="0.015" height="0.02" width="2.8" color="#ffffff" opacity="0.8"></a-box>
             <a-text id="txt-title" value="System Ready" position="0 0.42 0.02" align="center" width="2.5" color="#ffffff"></a-text>
-            
-            <a-circle id="btn-close" position="1.3 0.4 0.02" radius="0.08" color="#ff4444" opacity="0.8" class="clickable btn-hover">
-                <a-text value="X" align="center" width="6" font-weight="bold" color="white"></a-text>
-            </a-circle>
-
-            <a-plane id="btn-feed" position="-1.1 0.4 0.02" width="0.5" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover">
-                <a-text id="txt-feed" value="OPEN FEED" align="center" width="2" color="white"></a-text>
-            </a-plane>
+            <a-circle id="btn-close" position="1.3 0.4 0.02" radius="0.08" color="#ff4444" opacity="0.8" class="clickable btn-hover"><a-text value="X" align="center" width="6" font-weight="bold" color="white"></a-text></a-circle>
+            <a-plane id="btn-feed" position="-1.1 0.4 0.02" width="0.5" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-feed" value="OPEN HUD" align="center" width="2" color="white"></a-text></a-plane>
 
             <a-entity id="video-controls">
                 <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#ccc"></a-text>
-                
                 <a-plane position="0 0.28 0.02" width="2.4" height="0.005" color="#ffffff" opacity="0.3" class="clickable btn-hover" id="bar-bg"></a-plane>
                 <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.01" color="#00d2ff" scale="0 1 1" pivot="center left"></a-plane>
-                
-                <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
-                    <a-text id="txt-seek-back" value="-15s" align="center" width="2" color="white"></a-text>
-                </a-plane>
-                
-                <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ffffff" opacity="0.9" class="clickable btn-hover">
-                    <a-text id="txt-play" value="PLAY" align="center" width="4" color="#000" font-weight="bold"></a-text>
-                </a-plane>
-                
-                <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
-                    <a-text id="txt-seek-fwd" value="+15s" align="center" width="2" color="white"></a-text>
-                </a-plane>
-                
-                <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
-                    <a-text id="txt-speed" value="1x" align="center" width="2" color="white"></a-text>
-                </a-plane>
+                <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text id="txt-seek-back" value="-15s" align="center" width="2" color="white"></a-text></a-plane>
+                <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ffffff" opacity="0.9" class="clickable btn-hover"><a-text id="txt-play" value="PLAY" align="center" width="4" color="#000" font-weight="bold"></a-text></a-plane>
+                <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text id="txt-seek-fwd" value="+15s" align="center" width="2" color="white"></a-text></a-plane>
+                <a-plane id="btn-speed" position="1.0 -0.1 0.02" width="0.5" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text id="txt-speed" value="1x" align="center" width="2" color="white"></a-text></a-plane>
             </a-entity>
 
-            <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
-                <a-text value="|<" align="center" width="3" color="white"></a-text>
-            </a-plane>
-            <a-plane id="btn-next" position="0.9 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
-                <a-text value=">|" align="center" width="3" color="white"></a-text>
-            </a-plane>
-
-            <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover">
-                <a-text value="2D VIEW" align="center" width="1.8" color="#00d2ff"></a-text>
-            </a-plane>
-            <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover">
-                <a-text id="txt-3d" value="2D MODE" align="center" width="1.8" color="#00d2ff"></a-text>
-            </a-plane>
-            <a-plane id="btn-void" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
-                <a-text value="VOID" align="center" width="1.8" color="#aaa"></a-text>
-            </a-plane>
-
-            <a-plane id="btn-rot-left" position="0.65 -0.1 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
-                <a-text value="<" align="center" width="3" color="white"></a-text>
-            </a-plane>
-            <a-plane id="btn-reset" position="0.95 -0.1 0.02" width="0.3" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
-                <a-text value="RESET" align="center" width="2" color="white"></a-text>
-            </a-plane>
-            <a-plane id="btn-rot-right" position="1.25 -0.1 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover">
-                <a-text value=">" align="center" width="3" color="white"></a-text>
-            </a-plane>
-
+            <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text value="|<" align="center" width="3" color="white"></a-text></a-plane>
+            <a-plane id="btn-next" position="0.9 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text value=">|" align="center" width="3" color="white"></a-text></a-plane>
+            <a-plane id="btn-mode" position="-1.0 -0.1 0.02" width="0.5" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="2D VIEW" align="center" width="1.8" color="#00d2ff"></a-text></a-plane>
+            <a-plane id="btn-3d" position="-0.4 -0.1 0.02" width="0.5" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-3d" value="2D MODE" align="center" width="1.8" color="#00d2ff"></a-text></a-plane>
+            <a-plane id="btn-void" position="0.2 -0.1 0.02" width="0.35" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.8" color="#aaa"></a-text></a-plane>
+            <a-plane id="btn-rot-left" position="0.65 -0.1 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text value="<" align="center" width="3" color="white"></a-text></a-plane>
+            <a-plane id="btn-reset" position="0.95 -0.1 0.02" width="0.3" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text value="RESET" align="center" width="2" color="white"></a-text></a-plane>
+            <a-plane id="btn-rot-right" position="1.25 -0.1 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text value=">" align="center" width="3" color="white"></a-text></a-plane>
             <a-text value="SEAT" position="-0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
             <a-text value="CURVE" position="0.8 -0.28 0.02" width="1.5" align="center" color="#666"></a-text>
-            
             <a-plane id="seat-front" position="-1.1 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="FRONT" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
             <a-plane id="seat-back" position="-0.8 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="BACK" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
-            <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="RECLINE" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
-            
+            <a-plane id="seat-lay" position="-0.5 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="BED" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
             <a-plane id="curve-less" position="0.6 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="FLAT" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
             <a-plane id="curve-more" position="1.0 -0.35 0.02" width="0.25" height="0.1" color="#ffffff" opacity="0.05" class="clickable btn-hover"><a-text value="CURVE" align="center" width="1.5" scale="0.8 0.8 1" color="#aaa"></a-text></a-plane>
-
         </a-entity>
 
         <a-entity id="rig" position="0 1.6 0">
@@ -185,6 +128,15 @@
                     animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 2500"
                     animation__color="property: color; startEvents: fusing; from: #00d2ff; to: #ffffff; dur: 2500">
                 </a-cursor>
+
+                <a-plane 
+                    id="ar-hud" 
+                    width="6" 
+                    height="3.37" 
+                    position="0 0 -4" 
+                    material="shader: flat; transparent: true; opacity: 1; side: double" 
+                    visible="false">
+                </a-plane>
             </a-camera>
         </a-entity>
     </a-scene>
@@ -205,7 +157,8 @@
             media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas'), cam: document.getElementById('cam-input') },
             vr: {
                 scene: document.querySelector('a-scene'),
-                feedScreen: document.getElementById('my-feed'),
+                arHud: document.getElementById('ar-hud'), // <--- UPDATED: Targets the HUD screen inside camera
+                env: { sky: document.getElementById('env-sky'), floor: document.getElementById('env-floor'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') },
                 screens: { 
                     cinema: document.getElementById('screen-cinema'), cyl: document.getElementById('screen-180'), sphere: document.getElementById('screen-360'),
                     cinemaL: document.getElementById('screen-cinema-left'), cylL: document.getElementById('screen-180-left'), sphereL: document.getElementById('screen-360-left'),
@@ -216,12 +169,11 @@
                     playText: document.getElementById('txt-play'), timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'), title: document.getElementById('txt-title'),
                     seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
                     btnFeed: document.getElementById('btn-feed'), txtFeed: document.getElementById('txt-feed')
-                },
-                env: { floor: document.getElementById('env-floor'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') }
+                }
             }
         };
 
-        // --- FEED TOGGLE LOGIC ---
+        // --- UPDATED: HUD LOGIC ---
         DOM.vr.controls.btnFeed.addEventListener('click', async function() {
             if (!state.feed.active) {
                 try {
@@ -234,16 +186,18 @@
                     vidTex.colorSpace = THREE.SRGBColorSpace;
                     vidTex.generateMipmaps = false;
                     
-                    const mesh = DOM.vr.feedScreen.getObject3D('mesh');
+                    const mesh = DOM.vr.arHud.getObject3D('mesh');
                     if (mesh) {
                         mesh.material.map = vidTex;
                         mesh.material.needsUpdate = true;
                         mesh.material.color.setHex(0xffffff);
                     }
                     
-                    DOM.vr.feedScreen.setAttribute('visible', true);
-                    DOM.vr.controls.txtFeed.setAttribute('value', 'CLOSE FEED');
-                    this.setAttribute('opacity', '0.5'); // Highlight glass
+                    // SHOW HUD
+                    DOM.vr.arHud.setAttribute('visible', true);
+                    
+                    DOM.vr.controls.txtFeed.setAttribute('value', 'CLOSE HUD');
+                    this.setAttribute('opacity', '0.5'); 
                     state.feed.active = true;
                     
                 } catch (e) {
@@ -254,9 +208,11 @@
                     state.feed.stream.getTracks().forEach(t => t.stop());
                     DOM.media.cam.srcObject = null;
                 }
-                DOM.vr.feedScreen.setAttribute('visible', false);
-                DOM.vr.controls.txtFeed.setAttribute('value', 'OPEN FEED');
-                this.setAttribute('opacity', '0.15'); // Dim glass
+                
+                DOM.vr.arHud.setAttribute('visible', false);
+                
+                DOM.vr.controls.txtFeed.setAttribute('value', 'OPEN HUD');
+                this.setAttribute('opacity', '0.15');
                 state.feed.active = false;
             }
             flash(this);
@@ -502,13 +458,7 @@
         function onPrevPage() { if (state.pdf.pageNum <= 1) return; state.pdf.pageNum--; queueRenderPage(state.pdf.pageNum); }
         function onNextPage() { if (state.pdf.pageNum >= state.pdf.doc.numPages) return; state.pdf.pageNum++; queueRenderPage(state.pdf.pageNum); }
         function toggleMenu(show) { DOM.vr.controls.wrapper.setAttribute('visible', show); if(show) { DOM.vr.controls.wrapper.setAttribute('scale', '1 1 1'); DOM.vr.controls.orb.setAttribute('visible', false); } else { DOM.vr.controls.wrapper.setAttribute('scale', '0 0 0'); DOM.vr.controls.orb.setAttribute('visible', true); } }
-        function flash(el) { const oldColor = el.getAttribute('color'); 
-            el.setAttribute('color', '#fff'); 
-            setTimeout(() => {
-                if (el.getAttribute('id') === 'btn-feed' && state.feed.active) return; // Keep active state logic for feed if needed
-                el.setAttribute('color', oldColor);
-            }, 150); 
-        }
+        function flash(el) { const oldColor = el.getAttribute('color'); el.setAttribute('color', '#fff'); setTimeout(() => { if (el.getAttribute('id') === 'btn-feed' && state.feed.active) return; el.setAttribute('color', oldColor); }, 150); }
         function togglePlay() { if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); if(DOM.media.video.paused) { DOM.media.video.play(); DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); } else { DOM.media.video.pause(); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); } }
         function initAudio() { if(!state.audio.ctx) { state.audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); } if (!state.audio.source) { state.audio.source = state.audio.ctx.createMediaElementSource(DOM.media.video); const gainNode = state.audio.ctx.createGain(); gainNode.gain.value = 3.0; state.audio.panner = state.audio.ctx.createPanner(); state.audio.panner.panningModel = 'HRTF'; state.audio.panner.distanceModel = 'inverse'; state.audio.panner.setPosition(0, 4.5, -5); state.audio.source.connect(gainNode); gainNode.connect(state.audio.panner); state.audio.panner.connect(state.audio.ctx.destination); } if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); }
     </script>
