@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>VR Cam Sender</title>
+    <title>VR Cam Sender V2</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { background: #000; color: #0f0; font-family: monospace; text-align: center; padding: 20px; }
@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>CLOUD CAM</h1>
+    <h1>CLOUD CAM V2</h1>
     <div id="status">Initializing...</div>
     
     <div class="id-box">ID: <span id="my-id">vr-hub-cam-01</span></div>
@@ -21,46 +21,57 @@
     <video id="localVideo" autoplay muted playsinline></video>
 
     <script>
-        // 1. HARDCODED ID (Must match the one in index.html)
         const PEER_ID = "vr-hub-cam-01"; 
-
         const status = document.getElementById('status');
         const video = document.getElementById('localVideo');
-        
-        // 2. Start Camera
+        let localStream = null;
+
         async function startCam() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' }, 
-                    audio: false 
+                status.innerText = "Accessing Camera...";
+                // Ask for video AND audio (sometimes helps connection stability)
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', width: 640 }, // Lower res for speed
+                    audio: true 
                 });
-                video.srcObject = stream;
-                status.innerText = "Camera Ready. connecting to cloud...";
-                initPeer(stream);
+                
+                // Mute local playback to avoid feedback loop
+                video.srcObject = localStream;
+                video.muted = true;
+                
+                status.innerText = "Cam Ready. Connecting to Cloud...";
+                initPeer();
             } catch (e) {
-                status.innerText = "Camera Error: " + e;
+                status.innerText = "Cam Error: " + e;
             }
         }
 
-        // 3. Connect to PeerJS Cloud
-        function initPeer(stream) {
-            const peer = new Peer(PEER_ID);
+        function initPeer() {
+            const peer = new Peer(PEER_ID, {
+                debug: 2
+            });
 
             peer.on('open', (id) => {
                 document.getElementById('my-id').innerText = id;
-                status.innerText = "ONLINE. Waiting for VR Headset...";
+                status.innerText = "ONLINE. Ready for VR.";
                 status.style.color = "#0f0";
             });
 
-            peer.on('error', (err) => {
-                status.innerText = "ID Taken or Error: " + err;
-                status.style.color = "red";
+            peer.on('call', (call) => {
+                status.innerText = "VR CALLING...";
+                
+                // CRITICAL: Answer with the stream immediately
+                if (localStream) {
+                    call.answer(localStream);
+                    status.innerText = "STREAMING TO VR!";
+                } else {
+                    status.innerText = "Error: No Stream to send!";
+                }
             });
 
-            // 4. Answer calls automatically
-            peer.on('call', (call) => {
-                status.innerText = "VR HEADSET CONNECTED!";
-                call.answer(stream); // Send our camera stream back
+            peer.on('error', (err) => {
+                status.innerText = "Error: " + err.type;
+                console.error(err);
             });
         }
 
