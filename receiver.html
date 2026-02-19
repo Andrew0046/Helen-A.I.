@@ -30,28 +30,30 @@
             peer.on('open', (id) => {
                 logEl.innerText = "2. Cloud OK! Dialing Phone B...";
                 
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const dummyStream = ctx.createMediaStreamDestination().stream;
+                // THE FIX: Create a fake 1-pixel VIDEO stream so the browser opens a Video Channel
+                const canvas = document.createElement('canvas');
+                canvas.width = 1; 
+                canvas.height = 1;
+                const dummyVideoStream = canvas.captureStream(1); // 1 frame per second
                 
-                const call = peer.call('sandbox-cam-99', dummyStream); 
+                // Make the call using the fake video stream
+                const call = peer.call('sandbox-cam-99', dummyVideoStream); 
                 
                 if (!call) return;
 
-                // X-RAY: Watch the physical network connection
                 call.peerConnection.oniceconnectionstatechange = () => {
                     const state = call.peerConnection.iceConnectionState;
                     logEl.innerText += "\nNetwork Pipe: " + state.toUpperCase();
-                    if (state === "failed" || state === "disconnected") {
-                        logEl.style.color = "red";
-                    }
                 };
                 
+                // When Phone B answers with the REAL video...
                 call.on('stream', remoteStream => {
                     logEl.innerText += "\n3. Stream arrived! Playing...";
+                    
                     vid.srcObject = remoteStream;
                     
                     vid.play().then(() => {
-                        logEl.innerText = "SUCCESS: LIVE FEED ACTIVE";
+                        logEl.innerText += "\nSUCCESS: LIVE FEED ACTIVE!";
                         logEl.style.color = "green";
                     }).catch(e => logEl.innerText += "\nPlay Error: " + e);
                 });
