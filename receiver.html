@@ -13,7 +13,7 @@
         1. CLICK TO CONNECT
     </button>
     
-    <h3 id="log">Waiting to connect...</h3>
+    <h3 id="log" style="line-height: 1.5;">Waiting to connect...</h3>
     
     <video id="vid" autoplay playsinline muted style="width: 100%; max-width: 400px; background: black; border: 2px solid #0078ff; min-height: 200px;"></video>
     
@@ -30,42 +30,31 @@
             peer.on('open', (id) => {
                 logEl.innerText = "2. Cloud OK! Dialing Phone B...";
                 
-                // THE FIX: We must send a dummy stream or PeerJS crashes silently
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const dummyStream = ctx.createMediaStreamDestination().stream;
                 
                 const call = peer.call('sandbox-cam-99', dummyStream); 
                 
-                if (!call) {
-                    logEl.innerText = "ERROR: Call Object Failed to create.";
-                    logEl.style.color = "red";
-                    return;
-                }
+                if (!call) return;
+
+                // X-RAY: Watch the physical network connection
+                call.peerConnection.oniceconnectionstatechange = () => {
+                    const state = call.peerConnection.iceConnectionState;
+                    logEl.innerText += "\nNetwork Pipe: " + state.toUpperCase();
+                    if (state === "failed" || state === "disconnected") {
+                        logEl.style.color = "red";
+                    }
+                };
                 
                 call.on('stream', remoteStream => {
-                    logEl.innerText = "3. Stream arrived! Forcing play...";
-                    logEl.style.color = "orange";
-                    
+                    logEl.innerText += "\n3. Stream arrived! Playing...";
                     vid.srcObject = remoteStream;
                     
                     vid.play().then(() => {
                         logEl.innerText = "SUCCESS: LIVE FEED ACTIVE";
                         logEl.style.color = "green";
-                    }).catch(e => {
-                        logEl.innerText = "PLAY ERROR: " + e;
-                        logEl.style.color = "red";
-                    });
+                    }).catch(e => logEl.innerText += "\nPlay Error: " + e);
                 });
-                
-                call.on('error', err => {
-                    logEl.innerText = "Call Error: " + err;
-                    logEl.style.color = "red";
-                });
-            });
-            
-            peer.on('error', err => {
-                logEl.innerText = "Cloud Error: " + err.type;
-                logEl.style.color = "red";
             });
         });
     </script>
