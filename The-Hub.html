@@ -3,36 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v33.0: Native Core</title>
+    <title>The Hub v33.1: Overlay Test</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: monospace; color: white; }
+        
+        /* THE RAW VIDEO OVERLAY */
+        /* This sits ON TOP of VR. If this is black, the stream is dead. */
+        #remote-video { 
+            position: fixed; 
+            bottom: 10px; right: 10px; 
+            width: 160px; height: 120px; 
+            border: 2px solid lime; 
+            z-index: 99999; 
+            background: #222;
+            object-fit: cover;
+        }
+
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 999; }
         .hidden { display: none !important; }
         .btn-main { padding: 20px 40px; font-size: 20px; background: #00d2ff; border: none; font-weight: bold; cursor: pointer; }
-        
-        /* THE VIDEO ELEMENT - VISIBLE BUT TINY */
-        /* We keep it visible so the browser doesn't pause decoding */
-        #remote-video { 
-            position: absolute; top: 0; left: 0; 
-            width: 160px; height: 120px; 
-            z-index: 1000; background: #333;
-            border: 2px solid red; /* Visual check on 2D screen */
-        }
     </style>
+
+    <script>
+        // CUSTOM COMPONENT: Forces the VR screen to update every frame
+        AFRAME.registerComponent('force-update', {
+            tick: function () {
+                const mesh = this.el.getObject3D('mesh');
+                if (mesh && mesh.material.map) {
+                    mesh.material.map.needsUpdate = true;
+                }
+            }
+        });
+    </script>
 </head>
 <body>
 
-    <video id="remote-video" autoplay playsinline muted crossorigin="anonymous"></video>
+    <video id="remote-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The Hub v33.0</h1>
-        <p>1. Check Phone B is running.</p>
+        <h1>v33.1 Overlay Test</h1>
+        <p>1. Start Phone B.</p>
         <p>2. Enter VR.</p>
-        <p>3. Click the CONNECT button in VR.</p>
+        <p>3. Click CONNECT inside VR.</p>
         <button id="btn-enter" class="btn-main">ENTER VR</button>
     </div>
 
@@ -49,39 +64,31 @@
             <a-camera look-controls="reverseMouseDrag: true" wasd-controls="enabled: false">
                 <a-cursor color="#00d2ff" fuse="true" fuse-timeout="1500"></a-cursor>
                 
-                <a-plane position="0 0 -3.05" width="4.2" height="3.2" color="#ff00ff" shader="flat" visible="true"></a-plane>
+                <a-plane 
+                    id="vr-screen"
+                    position="0 0 -3" width="4" height="3" 
+                    visible="false"
+                    material="shader: flat; side: double"
+                    force-update>
+                </a-plane>
 
-                <a-video 
-                    id="vid-screen"
-                    src="#remote-video"
-                    width="4" height="3"
-                    position="0 0 -3"
-                    visible="false">
-                </a-video>
+                <a-text id="status-text" value="READY" position="0 0.8 -3" align="center" color="yellow"></a-text>
 
-                <a-plane id="btn-accept" position="0 0 -2.5" width="2" height="0.5" color="#00ff00" visible="false" class="clickable">
-                    <a-text value="TAP TO VIEW STREAM" align="center" color="black" scale="2 2 2"></a-text>
+                <a-plane id="btn-connect" position="0 -0.8 -2.5" width="1.5" height="0.4" color="#333" class="clickable">
+                    <a-text value="CONNECT" align="center"></a-text>
                 </a-plane>
 
             </a-camera>
         </a-entity>
-
-        <a-entity id="menu" position="0 1 -2" rotation="-20 0 0">
-            <a-plane id="btn-connect" width="1" height="0.3" color="#333" class="clickable">
-                <a-text id="txt-status" value="CONNECT" align="center"></a-text>
-            </a-plane>
-        </a-entity>
-
     </a-scene>
 
     <script>
         const REMOTE_ID = "vr-hub-cam-01";
         const els = {
             vid: document.getElementById('remote-video'),
-            screen: document.getElementById('vid-screen'),
-            btnConnect: document.getElementById('btn-connect'),
-            txtStatus: document.getElementById('txt-status'),
-            btnAccept: document.getElementById('btn-accept')
+            screen: document.getElementById('vr-screen'),
+            status: document.getElementById('status-text'),
+            btn: document.getElementById('btn-connect')
         };
 
         // 1. Enter VR
@@ -90,60 +97,51 @@
             document.querySelector('a-scene').enterVR();
         });
 
-        // 2. Connect Button Logic
-        els.btnConnect.addEventListener('click', () => {
-            els.txtStatus.setAttribute('value', 'DIALING...');
-            startPeer();
-        });
-
-        // 3. PeerJS Logic
-        function startPeer() {
+        // 2. Connect Logic
+        els.btn.addEventListener('click', () => {
+            els.status.setAttribute('value', 'DIALING...');
+            
             const peer = new Peer({ debug: 1 });
 
             peer.on('open', () => {
-                els.txtStatus.setAttribute('value', 'CALLING...');
-                // Dummy stream to open the door
-                const dummy = new AudioContext().createMediaStreamDestination().stream;
-                const call = peer.call(REMOTE_ID, dummy);
+                els.status.setAttribute('value', 'CALLING...');
+                
+                // Audio dummy to keep connection alive
+                const ctx = new AudioContext();
+                const dest = ctx.createMediaStreamDestination();
+                const call = peer.call(REMOTE_ID, dest.stream);
 
                 call.on('stream', (stream) => {
-                    els.txtStatus.setAttribute('value', 'SIGNAL FOUND!');
+                    els.status.setAttribute('value', 'STREAM FOUND');
                     
-                    // Assign stream to video tag
+                    // A. Attach to Video Element
                     els.vid.srcObject = stream;
                     
-                    // SHOW THE "ACCEPT" BUTTON
-                    // We force the user to click this to authorize playback
-                    els.btnAccept.setAttribute('visible', true);
+                    // B. Force Play
+                    els.vid.play().then(() => {
+                        els.status.setAttribute('value', 'PLAYING');
+                        
+                        // C. Paint to VR
+                        const texture = new THREE.VideoTexture(els.vid);
+                        texture.minFilter = THREE.LinearFilter;
+                        texture.magFilter = THREE.LinearFilter;
+                        
+                        const mesh = els.screen.getObject3D('mesh');
+                        mesh.material.map = texture;
+                        mesh.material.needsUpdate = true;
+                        
+                        els.screen.setAttribute('visible', true);
+                        els.btn.setAttribute('visible', false); // Hide button
+                    }).catch(e => {
+                        els.status.setAttribute('value', 'PLAY ERROR: ' + e);
+                    });
                 });
             });
 
             peer.on('error', (err) => {
-                els.txtStatus.setAttribute('value', 'ERROR: ' + err.type);
-            });
-        }
-
-        // 4. THE MAGIC BUTTON (User Gesture)
-        els.btnAccept.addEventListener('click', () => {
-            // Play video triggered by USER CLICK
-            els.vid.play().then(() => {
-                console.log("Video Playing!");
-                
-                // Show screen, Hide button
-                els.screen.setAttribute('visible', true);
-                els.btnAccept.setAttribute('visible', false);
-                els.txtStatus.setAttribute('value', 'LIVE FEED');
-                
-                // Force an update just in case
-                setTimeout(() => {
-                    els.vid.width = 640; // Force layout reflow
-                }, 500);
-
-            }).catch(e => {
-                els.txtStatus.setAttribute('value', 'PLAY BLOCKED: ' + e);
+                els.status.setAttribute('value', 'ERR: ' + err.type);
             });
         });
-
     </script>
 </body>
 </html>
