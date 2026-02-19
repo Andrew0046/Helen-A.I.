@@ -22,24 +22,34 @@
         const vid = document.getElementById('vid');
         
         document.getElementById('btn').addEventListener('click', () => {
-            logEl.innerText = "Dialing Phone B...";
+            logEl.innerText = "1. Connecting to Cloud...";
             logEl.style.color = "blue";
             
-            const peer = new Peer();
+            const peer = new Peer({ debug: 2 });
             
-            peer.on('open', () => {
-                // Call Phone B's ID
-                const call = peer.call('sandbox-cam-99'); 
+            peer.on('open', (id) => {
+                logEl.innerText = "2. Cloud OK! Dialing Phone B...";
+                
+                // THE FIX: We must send a dummy stream or PeerJS crashes silently
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const dummyStream = ctx.createMediaStreamDestination().stream;
+                
+                const call = peer.call('sandbox-cam-99', dummyStream); 
+                
+                if (!call) {
+                    logEl.innerText = "ERROR: Call Object Failed to create.";
+                    logEl.style.color = "red";
+                    return;
+                }
                 
                 call.on('stream', remoteStream => {
-                    logEl.innerText = "Stream arrived! Forcing play...";
+                    logEl.innerText = "3. Stream arrived! Forcing play...";
                     logEl.style.color = "orange";
                     
                     vid.srcObject = remoteStream;
                     
-                    // Promise to catch playback errors
                     vid.play().then(() => {
-                        logEl.innerText = "LIVE FEED ACTIVE";
+                        logEl.innerText = "SUCCESS: LIVE FEED ACTIVE";
                         logEl.style.color = "green";
                     }).catch(e => {
                         logEl.innerText = "PLAY ERROR: " + e;
@@ -47,11 +57,14 @@
                     });
                 });
                 
-                call.on('error', err => logEl.innerText = "Call Error: " + err);
+                call.on('error', err => {
+                    logEl.innerText = "Call Error: " + err;
+                    logEl.style.color = "red";
+                });
             });
             
             peer.on('error', err => {
-                logEl.innerText = "Peer Error: " + err.type;
+                logEl.innerText = "Cloud Error: " + err.type;
                 logEl.style.color = "red";
             });
         });
