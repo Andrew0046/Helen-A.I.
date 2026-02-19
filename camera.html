@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VR Cam Sender</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { background: #000; color: #0f0; font-family: monospace; text-align: center; padding: 20px; }
+        video { width: 100%; max-width: 400px; border: 2px solid #0f0; margin-top: 20px; }
+        #status { font-size: 1.2rem; margin-bottom: 10px; }
+        .id-box { background: #111; padding: 10px; border: 1px dashed #444; color: #fff; font-size: 1.5rem; user-select: all; }
+    </style>
+</head>
+<body>
+    <h1>CLOUD CAM</h1>
+    <div id="status">Initializing...</div>
+    
+    <div class="id-box">ID: <span id="my-id">vr-hub-cam-01</span></div>
+
+    <video id="localVideo" autoplay muted playsinline></video>
+
+    <script>
+        // 1. HARDCODED ID (Must match the one in index.html)
+        const PEER_ID = "vr-hub-cam-01"; 
+
+        const status = document.getElementById('status');
+        const video = document.getElementById('localVideo');
+        
+        // 2. Start Camera
+        async function startCam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' }, 
+                    audio: false 
+                });
+                video.srcObject = stream;
+                status.innerText = "Camera Ready. connecting to cloud...";
+                initPeer(stream);
+            } catch (e) {
+                status.innerText = "Camera Error: " + e;
+            }
+        }
+
+        // 3. Connect to PeerJS Cloud
+        function initPeer(stream) {
+            const peer = new Peer(PEER_ID);
+
+            peer.on('open', (id) => {
+                document.getElementById('my-id').innerText = id;
+                status.innerText = "ONLINE. Waiting for VR Headset...";
+                status.style.color = "#0f0";
+            });
+
+            peer.on('error', (err) => {
+                status.innerText = "ID Taken or Error: " + err;
+                status.style.color = "red";
+            });
+
+            // 4. Answer calls automatically
+            peer.on('call', (call) => {
+                status.innerText = "VR HEADSET CONNECTED!";
+                call.answer(stream); // Send our camera stream back
+            });
+        }
+
+        startCam();
+    </script>
+</body>
+</html>
