@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sandbox Receiver</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body style="font-family: sans-serif; text-align: center; padding: 20px;">
+
+    <h2>RECEIVER (Phone A)</h2>
+    
+    <button id="btn" style="padding: 20px; font-size: 20px; background: #0078ff; color: white; border: none; border-radius: 10px; width: 100%; max-width: 400px;">
+        1. CLICK TO CONNECT
+    </button>
+    
+    <h3 id="log">Waiting to connect...</h3>
+    
+    <video id="vid" autoplay playsinline muted style="width: 100%; max-width: 400px; background: black; border: 2px solid #0078ff; min-height: 200px;"></video>
+    
+    <script>
+        const logEl = document.getElementById('log');
+        const vid = document.getElementById('vid');
+        
+        document.getElementById('btn').addEventListener('click', () => {
+            logEl.innerText = "Dialing Phone B...";
+            logEl.style.color = "blue";
+            
+            const peer = new Peer();
+            
+            peer.on('open', () => {
+                // Call Phone B's ID
+                const call = peer.call('sandbox-cam-99'); 
+                
+                call.on('stream', remoteStream => {
+                    logEl.innerText = "Stream arrived! Forcing play...";
+                    logEl.style.color = "orange";
+                    
+                    vid.srcObject = remoteStream;
+                    
+                    // Promise to catch playback errors
+                    vid.play().then(() => {
+                        logEl.innerText = "LIVE FEED ACTIVE";
+                        logEl.style.color = "green";
+                    }).catch(e => {
+                        logEl.innerText = "PLAY ERROR: " + e;
+                        logEl.style.color = "red";
+                    });
+                });
+                
+                call.on('error', err => logEl.innerText = "Call Error: " + err);
+            });
+            
+            peer.on('error', err => {
+                logEl.innerText = "Peer Error: " + err.type;
+                logEl.style.color = "red";
+            });
+        });
+    </script>
+</body>
+</html>

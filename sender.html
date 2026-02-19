@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sandbox Sender</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body style="font-family: sans-serif; text-align: center; padding: 20px;">
+    
+    <h2>SENDER (Phone B)</h2>
+    <h3 id="log" style="color: blue;">Starting Camera...</h3>
+    
+    <video id="vid" autoplay muted playsinline style="width: 100%; max-width: 400px; background: #eee; border: 2px solid black;"></video>
+
+    <script>
+        const peer = new Peer('sandbox-cam-99');
+        const logEl = document.getElementById('log');
+        const vid = document.getElementById('vid');
+
+        // 1. Get Camera
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+        .then(stream => {
+            vid.srcObject = stream;
+            logEl.innerText = "Camera ON. Waiting for Phone A...";
+            logEl.style.color = "green";
+            
+            // 2. Answer when Phone A calls
+            peer.on('call', call => {
+                logEl.innerText = "Phone A is calling! Sending video...";
+                call.answer(stream);
+            });
+        })
+        .catch(err => {
+            logEl.innerText = "Camera Blocked: " + err;
+            logEl.style.color = "red";
+        });
+    </script>
+</body>
+</html>
