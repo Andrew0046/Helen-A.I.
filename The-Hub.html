@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v30.3: Grand Restoration</title>
+    <title>The Hub v30.4: Force Feed</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -33,14 +33,14 @@
 
     <div id="drop-overlay">Drop File to Play</div>
     
-    <video id="remote-video" autoplay playsinline crossorigin="anonymous"></video>
+    <video id="remote-video" autoplay playsinline muted crossorigin="anonymous"></video>
     <video id="cam-input" autoplay playsinline webkit-playsinline muted></video>
     <canvas id="light-canvas" width="32" height="32"></canvas>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v30.3</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v30.4</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">System Ready</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Force Feed</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, GLB)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf, .glb" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -82,7 +82,6 @@
         <a-entity id="screen-180" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; fog: false" rotation="0 -270 0" visible="false"></a-entity>
         <a-entity id="screen-180-left" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; fog: false" rotation="0 -270 0" visible="false"></a-entity>
         <a-entity id="screen-180-right" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; fog: false" rotation="0 -270 0" visible="false"></a-entity>
-        
         <a-videosphere id="screen-360" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
         <a-videosphere id="screen-360-left" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
         <a-videosphere id="screen-360-right" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
@@ -95,9 +94,8 @@
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
             <a-box depth="0.01" height="1.0" width="2.8" color="#ffffff" opacity="0.1" class="clickable"></a-box>
             <a-box position="0 0.49 0" depth="0.015" height="0.02" width="2.8" color="#ffffff" opacity="0.8"></a-box>
-            <a-text id="txt-title" value="Waiting..." position="0 0.42 0.02" align="center" width="2.5" color="#ffffff"></a-text>
+            <a-text id="txt-title" value="System Ready" position="0 0.42 0.02" align="center" width="2.5" color="#ffffff"></a-text>
             <a-circle id="btn-close" position="1.3 0.4 0.02" radius="0.08" color="#ff4444" opacity="0.8" class="clickable btn-hover"><a-text value="X" align="center" width="6" font-weight="bold" color="white"></a-text></a-circle>
-            
             <a-plane id="btn-feed" position="-1.1 0.4 0.02" width="0.5" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-feed" value="REMOTE CAM" align="center" width="2" color="white"></a-text></a-plane>
 
             <a-entity id="video-controls">
@@ -176,13 +174,14 @@
 
         function logStatus(msg) { console.log(msg); DOM.vr.controls.txtFeed.setAttribute('value', msg.substring(0, 10)); }
 
-        // --- REMOTE CAM LOGIC (Fixed) ---
+        // --- REMOTE CAM LOGIC (BYPASS MODE) ---
         DOM.vr.controls.btnFeed.addEventListener('click', async function() {
             if (!state.feed.active) {
                 logStatus('INIT...');
                 DOM.vr.arHud.setAttribute('visible', true);
                 DOM.vr.arHud.setAttribute('color', '#ff0000'); 
                 
+                // Audio Hack to keep connection open
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const oscillator = ctx.createOscillator();
                 const dst = ctx.createMediaStreamDestination();
@@ -204,18 +203,14 @@
                         vid.srcObject = remoteStream;
                         vid.play();
 
-                        const checkVideo = setInterval(() => {
-                            if (vid.readyState >= 2 && vid.videoWidth > 0) {
-                                clearInterval(checkVideo);
-                                logStatus('LIVE!');
-                                DOM.vr.arHud.setAttribute('src', '#remote-video');
-                                DOM.vr.arHud.setAttribute('color', '#ffffff'); 
-                                setTimeout(() => { 
-                                    DOM.vr.controls.txtFeed.setAttribute('value', 'CLOSE CAM'); 
-                                    document.getElementById('btn-feed').setAttribute('opacity', '0.5');
-                                }, 1000);
-                            }
-                        }, 500);
+                        // BYPASS: Apply texture immediately, trust the browser
+                        logStatus('LIVE!');
+                        DOM.vr.arHud.setAttribute('src', '#remote-video');
+                        DOM.vr.arHud.setAttribute('color', '#ffffff'); 
+                        setTimeout(() => { 
+                            DOM.vr.controls.txtFeed.setAttribute('value', 'CLOSE CAM'); 
+                            document.getElementById('btn-feed').setAttribute('opacity', '0.5');
+                        }, 1000);
                     });
                     state.feed.conn = call;
                 });
@@ -233,7 +228,7 @@
             flash(this);
         });
 
-        // --- LOCAL MEDIA LOGIC (Restored) ---
+        // --- LOCAL MEDIA LOGIC (Full Restoration) ---
         function handleFiles(files) {
             if (files.length > 0) {
                 const newItems = Array.from(files).map(f => {
@@ -248,8 +243,6 @@
             }
         }
         DOM.ui.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-        
-        // (Drag & Drop Logic)
         document.body.addEventListener('dragover', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'flex'; });
         document.body.addEventListener('dragleave', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'none'; });
         document.body.addEventListener('drop', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'none'; handleFiles(e.dataTransfer.files); });
@@ -270,7 +263,7 @@
                 DOM.vr.controls.title.setAttribute('value', `${state.currentTrack + 1}/${state.playlist.length}: ${item.name}`);
                 DOM.vr.controls.videoGroup.setAttribute('visible', true);
                 
-                // RESET STATE
+                // RESET
                 DOM.media.video.pause(); DOM.vr.modelViewer.setAttribute('visible', false); DOM.vr.screens.cinema.setAttribute('visible', false);
                 
                 if (item.type === 'model') {
@@ -286,7 +279,7 @@
             } 
         }
 
-        // --- CORE FUNCTIONS ---
+        // --- HELPERS ---
         function updateTexture(sourceId) { Object.values(DOM.vr.screens).forEach(s => { if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId); else s.setAttribute('material', 'src', sourceId); }); configureStereoLayers(); }
         function refreshTextureMesh() { Object.values(DOM.vr.screens).forEach(el => { const mesh = el.getObject3D('mesh'); if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true; }); }
         
@@ -309,7 +302,6 @@
         document.getElementById('btn-rot-right').addEventListener('click', function() { DOM.vr.env.rig.object3D.rotation.y -= (Math.PI / 12); flash(this); });
         document.getElementById('btn-reset').addEventListener('click', function() { const rig = DOM.vr.env.rig.object3D; const cam = document.querySelector('[camera]').object3D; rig.rotation.y += cam.rotation.y; rig.rotation.x = 0; rig.rotation.z = 0; rig.position.set(0, 1.6, 0); DOM.vr.controls.wrapper.setAttribute('rotation', '-25 0 0'); flash(this); });
 
-        // --- ANIMATIONS & HELPERS ---
         function animateSeat(targetPos, targetRot) { DOM.vr.env.rig.removeAttribute('animation'); DOM.vr.env.rig.setAttribute('animation', { property: 'position', to: targetPos, dur: 1000, easing: 'easeInOutQuad' }); DOM.vr.controls.wrapper.setAttribute('rotation', targetRot); }
         const seats = { front: { pos: "0 1.6 -1", rot: "-25 0 0" }, back: { pos: "0 2.5 2", rot: "-25 0 0" }, recline: { pos: "0 0.5 0", rot: "-45 0 0" } };
         document.getElementById('seat-front').addEventListener('click', function() { animateSeat(seats.front.pos, seats.front.rot); flash(this); });
@@ -326,7 +318,6 @@
         DOM.media.video.addEventListener('ended', () => { if (state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); });
         window.addEventListener('keydown', (e) => { if(DOM.ui.layer.classList.contains('hidden')) { const isPdf = state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf'; switch(e.code) { case 'Space': e.preventDefault(); if(!isPdf) togglePlay(); break; case 'ArrowRight': if(isPdf) onNextPage(); else DOM.media.video.currentTime += 15; break; case 'ArrowLeft': if(isPdf) onPrevPage(); else DOM.media.video.currentTime -= 15; break; } } });
         
-        // PDF Logic
         function renderPDFPage(num) { state.pdf.rendering = true; state.pdf.doc.getPage(num).then(page => { const viewport = page.getViewport({scale: 2.0}); const canvas = DOM.media.pdfCanvas; const ctx = canvas.getContext('2d'); canvas.height = viewport.height; canvas.width = viewport.width; const renderContext = { canvasContext: ctx, viewport: viewport }; page.render(renderContext).promise.then(() => { state.pdf.rendering = false; updateTexture('#pdf-canvas'); refreshTextureMesh(); drawAmbilight(canvas); const pct = num / state.pdf.doc.numPages; DOM.vr.controls.progress.object3D.scale.x = pct; DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2); DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`); if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; } }); }); }
         function queueRenderPage(num) { if (state.pdf.rendering) state.pdf.pending = num; else renderPDFPage(num); }
         function onPrevPage() { if (state.pdf.pageNum <= 1) return; state.pdf.pageNum--; queueRenderPage(state.pdf.pageNum); }
@@ -338,7 +329,7 @@
         function togglePlayModel() { const anim = DOM.vr.modelViewer.getAttribute('animation'); if (anim.enabled) { DOM.vr.modelViewer.setAttribute('animation', 'enabled: false'); DOM.vr.controls.playText.setAttribute('value', 'SPIN'); } else { DOM.vr.modelViewer.setAttribute('animation', 'enabled: true'); DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); } }
         function initAudio() { if(!state.audio.ctx) { state.audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); } if (!state.audio.source) { state.audio.source = state.audio.ctx.createMediaElementSource(DOM.media.video); const gainNode = state.audio.ctx.createGain(); gainNode.gain.value = 3.0; state.audio.panner = state.audio.ctx.createPanner(); state.audio.panner.panningModel = 'HRTF'; state.audio.panner.distanceModel = 'inverse'; state.audio.panner.setPosition(0, 4.5, -5); state.audio.source.connect(gainNode); gainNode.connect(state.audio.panner); state.audio.panner.connect(state.audio.ctx.destination); } if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); }
         
-        // STEREOSCOPIC SETUP
+        // SETUP LAYERS
         function configureStereoLayers() { const setLayer = (el, layerIndex) => { if(!el) return; const mesh = el.getObject3D('mesh'); if(mesh) { mesh.layers.set(layerIndex); } else { el.addEventListener('model-loaded', () => { el.getObject3D('mesh').layers.set(layerIndex); }); el.addEventListener('loaded', () => { if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); }); } }; setLayer(DOM.vr.screens.cinemaL, 1); setLayer(DOM.vr.screens.cylL, 1); setLayer(DOM.vr.screens.sphereL, 1); setLayer(DOM.vr.screens.cinemaR, 2); setLayer(DOM.vr.screens.cylR, 2); setLayer(DOM.vr.screens.sphereR, 2); setLayer(DOM.vr.screens.cinema, 0); setLayer(DOM.vr.screens.cyl, 0); setLayer(DOM.vr.screens.sphere, 0); }
         if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
         function enforceStereoMapping() { const setLeft = (el) => { const mesh = el.getObject3D('mesh'); if (!mesh || !mesh.material || !mesh.material.map) return; mesh.material.map.repeat.set(0.5, 1); mesh.material.map.offset.set(0, 0); mesh.material.map.needsUpdate = true; }; const setRight = (el) => { const mesh = el.getObject3D('mesh'); if (!mesh || !mesh.material || !mesh.material.map) return; if (!mesh.material.map.isClonedForStereo) { mesh.material.map = mesh.material.map.clone(); mesh.material.map.needsUpdate = true; mesh.material.map.isClonedForStereo = true; } mesh.material.map.repeat.set(0.5, 1); mesh.material.map.offset.set(0.5, 0); }; [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL].forEach(setLeft); [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(setRight); }
