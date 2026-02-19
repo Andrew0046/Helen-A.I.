@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v30.1: Video Fix</title>
+    <title>The Hub v30.2: Sync Patch</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -25,7 +25,6 @@
         .playlist-item:hover { color: white; background: rgba(255,255,255,0.1); }
         .playlist-active { color: #ff9d00; font-weight: bold; }
         
-        /* HIDDEN ELEMENTS */
         #cam-input, #remote-video, #light-canvas { display: none; }
         #drop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff; z-index: 10000; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none; }
     </style>
@@ -34,15 +33,15 @@
 
     <div id="drop-overlay">Drop File to Play</div>
     
-    <video id="remote-video" autoplay playsinline></video>
+    <video id="remote-video" autoplay playsinline crossorigin="anonymous"></video>
     
     <video id="cam-input" autoplay playsinline webkit-playsinline muted></video>
     <canvas id="light-canvas" width="32" height="32"></canvas>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v30.1</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v30.2</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Cloud Link Fix</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Sync Patch</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -82,7 +81,6 @@
         <a-entity id="screen-180" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; fog: false" rotation="0 -270 0" visible="false"></a-entity>
         <a-entity id="screen-180-left" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; fog: false" rotation="0 -270 0" visible="false"></a-entity>
         <a-entity id="screen-180-right" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; fog: false" rotation="0 -270 0" visible="false"></a-entity>
-        
         <a-videosphere id="screen-360" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
         <a-videosphere id="screen-360-left" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
         <a-videosphere id="screen-360-right" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
@@ -166,11 +164,7 @@
                 scene: document.querySelector('a-scene'),
                 arHud: document.getElementById('ar-hud'),
                 env: { floor: document.getElementById('env-floor'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') },
-                screens: { 
-                    cinema: document.getElementById('screen-cinema'), cyl: document.getElementById('screen-180'), sphere: document.getElementById('screen-360'),
-                    cinemaL: document.getElementById('screen-cinema-left'), cylL: document.getElementById('screen-180-left'), sphereL: document.getElementById('screen-360-left'),
-                    cinemaR: document.getElementById('screen-cinema-right'), cylR: document.getElementById('screen-180-right'), sphereR: document.getElementById('screen-360-right')
-                },
+                screens: { cinema: document.getElementById('screen-cinema') }, // Shortened
                 controls: { 
                     wrapper: document.getElementById('hub-wrapper'), videoGroup: document.getElementById('video-controls'), orb: document.getElementById('menu-orb'),
                     playText: document.getElementById('txt-play'), timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'), title: document.getElementById('txt-title'),
@@ -185,16 +179,15 @@
             DOM.vr.controls.txtFeed.setAttribute('value', msg.substring(0, 10));
         }
 
-        // --- IMPROVED REMOTE LOGIC ---
+        // --- NEW SYNC PATCH ---
         DOM.vr.controls.btnFeed.addEventListener('click', async function() {
             if (!state.feed.active) {
                 logStatus('INIT...');
                 
-                // 1. Show Red Screen IMMEDIATELY to prove HUD exists
+                // Show RED to prove we are trying
                 DOM.vr.arHud.setAttribute('visible', true);
-                DOM.vr.arHud.setAttribute('color', '#ff0000'); // Red = Connecting
+                DOM.vr.arHud.setAttribute('color', '#ff0000'); 
                 
-                // 2. Dummy Audio trick
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const oscillator = ctx.createOscillator();
                 const dst = ctx.createMediaStreamDestination();
@@ -211,23 +204,31 @@
                     if(!call) { logStatus('CALL FAIL'); return; }
 
                     call.on('stream', (remoteStream) => {
-                        logStatus('GOT VIDEO!');
+                        logStatus('BUFFERING...');
                         
-                        const vid = document.getElementById('remote-video'); // Using direct ID
+                        // Turn BLUE while buffering
+                        DOM.vr.arHud.setAttribute('color', '#0000ff'); 
+
+                        const vid = document.getElementById('remote-video');
                         vid.srcObject = remoteStream;
-                        vid.play().then(() => {
-                            logStatus('PLAYING...');
-                            
-                            // NATIVE A-FRAME BINDING (The Fix)
-                            DOM.vr.arHud.setAttribute('src', '#remote-video');
-                            DOM.vr.arHud.setAttribute('color', '#ffffff'); // Remove red tint
-                            
-                            // Visual success
-                            setTimeout(() => { 
-                                DOM.vr.controls.txtFeed.setAttribute('value', 'CLOSE CAM'); 
-                                document.getElementById('btn-feed').setAttribute('opacity', '0.5');
-                            }, 1000);
-                        }).catch(e => console.error("Play error:", e));
+                        vid.play();
+
+                        // WAIT FOR VIDEO SIZE (Crucial Step)
+                        const checkVideo = setInterval(() => {
+                            if (vid.readyState >= 2 && vid.videoWidth > 0) {
+                                clearInterval(checkVideo);
+                                logStatus('LIVE!');
+                                
+                                // FORCE TEXTURE UPDATE
+                                DOM.vr.arHud.setAttribute('src', '#remote-video');
+                                DOM.vr.arHud.setAttribute('color', '#ffffff'); // Clear tint
+                                
+                                setTimeout(() => { 
+                                    DOM.vr.controls.txtFeed.setAttribute('value', 'CLOSE CAM'); 
+                                    document.getElementById('btn-feed').setAttribute('opacity', '0.5');
+                                }, 1000);
+                            }
+                        }, 500);
                     });
 
                     state.feed.conn = call;
@@ -255,7 +256,7 @@
             flash(this);
         });
 
-        // --- STANDARD FUNCTIONS ---
+        // --- STANDARD FUNCTIONS (Identical to previous) ---
         function handleFiles(files) { if (files.length > 0) { const newItems = Array.from(files).map(f => { let type = 'video'; const ext = f.name.split('.').pop().toLowerCase(); if (f.type.startsWith('image/') || ['jpg','jpeg','png','gif','webp'].includes(ext)) { type = 'image'; } else if (f.type === 'application/pdf' || ext === 'pdf') { type = 'pdf'; } return { type: type, src: f, name: f.name }; }); state.playlist = state.playlist.concat(newItems); updatePlaylistUI(); } }
         DOM.ui.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
         document.body.addEventListener('dragover', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'flex'; });
