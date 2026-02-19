@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v34.0: Tactical Link</title>
+    <title>The Hub v34.1: Dual-Vision</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -30,6 +30,7 @@
         /* HIDDEN ELEMENTS FOR PROCESSING */
         #light-canvas { display: none; }
         #remote-video { display: none; } 
+        #local-cam-video { display: none; }
     </style>
 </head>
 <body>
@@ -37,11 +38,12 @@
     <div id="drop-overlay">Drop File to Play</div>
     
     <video id="remote-video" autoplay playsinline muted crossorigin="anonymous"></video>
+    <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v34.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v34.1</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Tactical Link Edition</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Dual-Vision Edition</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -103,6 +105,10 @@
                 <a-text id="txt-feed" value="REMOTE CAM" align="center" width="2" color="white"></a-text>
             </a-plane>
 
+            <a-plane id="btn-local" position="-0.5 0.4 0.02" width="0.5" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover">
+                <a-text id="txt-local" value="LOCAL AR" align="center" width="2" color="white"></a-text>
+            </a-plane>
+
             <a-entity id="video-controls">
                 <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#ccc"></a-text>
                 <a-plane position="0 0.28 0.02" width="2.4" height="0.005" color="#ffffff" opacity="0.3" class="clickable btn-hover" id="bar-bg"></a-plane>
@@ -153,12 +159,13 @@
             playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isVoid: false, curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
             audio: { ctx: null, source: null, panner: null },
-            feed: { active: false, peer: null, conn: null }
+            feed: { active: false, peer: null, conn: null }, // Remote Camera state
+            localCam: { active: false, stream: null } // Local Camera state
         };
 
         const DOM = {
             ui: { layer: document.getElementById('ui-layer'), fileInput: document.getElementById('file-input'), urlInput: document.getElementById('url-input'), playlist: document.getElementById('playlist-ui'), list: document.getElementById('playlist-list'), btnStart: document.getElementById('btn-start'), dropOverlay: document.getElementById('drop-overlay') },
-            media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas'), remoteVideo: document.getElementById('remote-video') },
+            media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas'), remoteVideo: document.getElementById('remote-video'), localVideo: document.getElementById('local-cam-video') },
             vr: {
                 scene: document.querySelector('a-scene'),
                 arHud: document.getElementById('ar-hud'),
@@ -172,15 +179,21 @@
                     wrapper: document.getElementById('hub-wrapper'), videoGroup: document.getElementById('video-controls'), orb: document.getElementById('menu-orb'),
                     playText: document.getElementById('txt-play'), timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'), title: document.getElementById('txt-title'),
                     seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
-                    btnFeed: document.getElementById('btn-feed'), txtFeed: document.getElementById('txt-feed')
+                    btnFeed: document.getElementById('btn-feed'), txtFeed: document.getElementById('txt-feed'),
+                    btnLocal: document.getElementById('btn-local'), txtLocal: document.getElementById('txt-local')
                 }
             }
         };
 
         // ==========================================
-        // THE TRANSPLANT: Sandbox WebRTC Logic
+        // DUAL-VISION SYSTEM
         // ==========================================
+
+        // VISION MODE 1: REMOTE CAM (WebRTC)
         DOM.vr.controls.btnFeed.addEventListener('click', function() {
+            // Auto-Kill Local AR if it is running to prevent texture conflicts
+            if (state.localCam.active) { DOM.vr.controls.btnLocal.click(); }
+
             if (!state.feed.active) {
                 DOM.vr.controls.txtFeed.setAttribute('value', 'DIALING...');
                 DOM.vr.arHud.setAttribute('visible', true);
@@ -191,7 +204,7 @@
                 peer.on('open', (id) => {
                     DOM.vr.controls.txtFeed.setAttribute('value', 'CALLING...');
                     
-                    // THE SANDBOX MAGIC TRICK (Fake Video Stream)
+                    // Invisible Handshake Video
                     const canvas = document.createElement('canvas');
                     canvas.width = 1; canvas.height = 1;
                     const dummyVideoStream = canvas.captureStream(1);
@@ -213,7 +226,6 @@
                             DOM.vr.controls.txtFeed.setAttribute('value', 'CLOSE CAM');
                             document.getElementById('btn-feed').setAttribute('opacity', '0.5');
 
-                            // Map the incoming video to the VR Glass HUD
                             const texture = new THREE.VideoTexture(vid);
                             texture.minFilter = THREE.LinearFilter;
                             texture.magFilter = THREE.LinearFilter;
@@ -222,22 +234,18 @@
                             const mesh = DOM.vr.arHud.getObject3D('mesh');
                             if (mesh) {
                                 mesh.material.map = texture;
-                                mesh.material.color.setHex(0xffffff); // Clear color tint
+                                mesh.material.color.setHex(0xffffff);
                                 mesh.material.needsUpdate = true;
                             }
-                        }).catch(e => {
-                            DOM.vr.controls.txtFeed.setAttribute('value', 'PLAY ERR');
-                        });
+                        }).catch(e => { DOM.vr.controls.txtFeed.setAttribute('value', 'PLAY ERR'); });
                     });
                 });
                 
-                peer.on('error', (err) => {
-                    DOM.vr.controls.txtFeed.setAttribute('value', 'NET ERR');
-                });
-
+                peer.on('error', (err) => { DOM.vr.controls.txtFeed.setAttribute('value', 'NET ERR'); });
                 state.feed.active = true;
+
             } else {
-                // STOP CONNECTION
+                // Shut down Remote
                 if (state.feed.conn) state.feed.conn.close();
                 if (state.feed.peer) state.feed.peer.destroy();
                 DOM.vr.arHud.setAttribute('visible', false);
@@ -248,8 +256,54 @@
             flash(this);
         });
 
+        // VISION MODE 2: LOCAL AR (Passthrough)
+        DOM.vr.controls.btnLocal.addEventListener('click', async function() {
+            // Auto-Kill Remote Cam if it is running
+            if (state.feed.active) { DOM.vr.controls.btnFeed.click(); }
+
+            if (!state.localCam.active) {
+                DOM.vr.controls.txtLocal.setAttribute('value', 'LOADING...');
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                    state.localCam.stream = stream;
+                    DOM.media.localVideo.srcObject = stream;
+                    await DOM.media.localVideo.play();
+                    
+                    const vidTex = new THREE.VideoTexture(DOM.media.localVideo);
+                    vidTex.colorSpace = THREE.SRGBColorSpace;
+                    vidTex.generateMipmaps = false;
+                    
+                    const mesh = DOM.vr.arHud.getObject3D('mesh');
+                    if (mesh) {
+                        mesh.material.map = vidTex;
+                        mesh.material.color.setHex(0xffffff);
+                        mesh.material.needsUpdate = true;
+                    }
+                    
+                    DOM.vr.arHud.setAttribute('visible', true);
+                    DOM.vr.controls.txtLocal.setAttribute('value', 'CLOSE AR');
+                    this.setAttribute('opacity', '0.5'); 
+                    state.localCam.active = true;
+                    
+                } catch (e) {
+                    DOM.vr.controls.txtLocal.setAttribute('value', 'CAM ERROR');
+                }
+            } else {
+                // Shut down Local
+                if (state.localCam.stream) {
+                    state.localCam.stream.getTracks().forEach(t => t.stop());
+                    DOM.media.localVideo.srcObject = null;
+                }
+                DOM.vr.arHud.setAttribute('visible', false);
+                DOM.vr.controls.txtLocal.setAttribute('value', 'LOCAL AR');
+                this.setAttribute('opacity', '0.15');
+                state.localCam.active = false;
+            }
+            flash(this);
+        });
+
         // ==========================================
-        // STANDARD CINEMA FUNCTIONS (Intact)
+        // STANDARD CINEMA FUNCTIONS
         // ==========================================
 
         /* 1. STEREOSCOPIC LAYERS */
@@ -492,7 +546,7 @@
         function onPrevPage() { if (state.pdf.pageNum <= 1) return; state.pdf.pageNum--; queueRenderPage(state.pdf.pageNum); }
         function onNextPage() { if (state.pdf.pageNum >= state.pdf.doc.numPages) return; state.pdf.pageNum++; queueRenderPage(state.pdf.pageNum); }
         function toggleMenu(show) { DOM.vr.controls.wrapper.setAttribute('visible', show); if(show) { DOM.vr.controls.wrapper.setAttribute('scale', '1 1 1'); DOM.vr.controls.orb.setAttribute('visible', false); } else { DOM.vr.controls.wrapper.setAttribute('scale', '0 0 0'); DOM.vr.controls.orb.setAttribute('visible', true); } }
-        function flash(el) { const oldColor = el.getAttribute('color'); el.setAttribute('color', '#fff'); setTimeout(() => { if (el.getAttribute('id') === 'btn-feed' && state.feed.active) return; el.setAttribute('color', oldColor); }, 150); }
+        function flash(el) { const oldColor = el.getAttribute('color'); el.setAttribute('color', '#fff'); setTimeout(() => { if (el.getAttribute('id') === 'btn-feed' && state.feed.active) return; if (el.getAttribute('id') === 'btn-local' && state.localCam.active) return; el.setAttribute('color', oldColor); }, 150); }
         function togglePlay() { if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); if(DOM.media.video.paused) { DOM.media.video.play(); DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); } else { DOM.media.video.pause(); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); } }
         function initAudio() { if(!state.audio.ctx) { state.audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); } if (!state.audio.source) { state.audio.source = state.audio.ctx.createMediaElementSource(DOM.media.video); const gainNode = state.audio.ctx.createGain(); gainNode.gain.value = 3.0; state.audio.panner = state.audio.ctx.createPanner(); state.audio.panner.panningModel = 'HRTF'; state.audio.panner.distanceModel = 'inverse'; state.audio.panner.setPosition(0, 4.5, -5); state.audio.source.connect(gainNode); gainNode.connect(state.audio.panner); state.audio.panner.connect(state.audio.ctx.destination); } if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); }
     </script>
