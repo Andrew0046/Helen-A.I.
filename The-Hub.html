@@ -3,200 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v32.0: Decoder Override</title>
+    <title>The Hub v33.0: Native Core</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
     <style>
-        body { margin: 0; overflow: hidden; background: #050505; font-family: monospace; color: white; }
-        #ui-layer { position: absolute; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s; }
-        .hidden { opacity: 0; pointer-events: none; }
-        h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 30px; }
-        .hub-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 40px; border-radius: 16px; width: 450px; text-align: center; }
-        .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; border-radius: 30px; cursor: pointer; margin-top: 20px; width: 100%; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: monospace; color: white; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 999; }
+        .hidden { display: none !important; }
+        .btn-main { padding: 20px 40px; font-size: 20px; background: #00d2ff; border: none; font-weight: bold; cursor: pointer; }
         
-        /* THE PIXEL HACK: Visible, Solid, Top-Layer */
+        /* THE VIDEO ELEMENT - VISIBLE BUT TINY */
+        /* We keep it visible so the browser doesn't pause decoding */
         #remote-video { 
             position: absolute; top: 0; left: 0; 
-            width: 1px; height: 1px; /* Tiny but real */
-            opacity: 1; /* SOLID */
-            z-index: 99999; /* On top of everything */
-            background: red; /* Visual confirmation */
-        }
-        
-        #debug-canvas { 
-            position: absolute; top: 10px; right: 10px; 
-            width: 100px; height: 100px; 
-            border: 1px solid lime; z-index: 10000; background: #000; 
+            width: 160px; height: 120px; 
+            z-index: 1000; background: #333;
+            border: 2px solid red; /* Visual check on 2D screen */
         }
     </style>
 </head>
 <body>
 
     <video id="remote-video" autoplay playsinline muted crossorigin="anonymous"></video>
-    
-    <canvas id="debug-canvas" width="512" height="512"></canvas>
-    
+
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v32.0</span></h1>
-        <div class="hub-card">
-            <h3>Decoder Override</h3>
-            <p style="color: #888;">If stuck at 0x0, use the KICK button.</p>
-            <button id="btn-start" class="btn-main">ENTER VR</button>
-        </div>
+        <h1>The Hub v33.0</h1>
+        <p>1. Check Phone B is running.</p>
+        <p>2. Enter VR.</p>
+        <p>3. Click the CONNECT button in VR.</p>
+        <button id="btn-enter" class="btn-main">ENTER VR</button>
     </div>
 
     <a-scene background="color: #000">
-        <a-assets><img id="grid-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg"></a-assets>
-        <a-sky color="#050505"></a-sky>
-        <a-plane position="0 0 -4" rotation="-90 0 0" width="80" height="80" src="#grid-texture" repeat="40 40" color="#1a1a1a"></a-plane>
-        <a-light type="ambient" intensity="0.5"></a-light>
+        
+        <a-assets>
+            <img id="grid" src="https://cdn.aframe.io/a-painter/images/floor.jpg">
+        </a-assets>
 
-        <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0">
-            <a-box depth="0.01" height="1.0" width="2.8" color="#ffffff" opacity="0.1" class="clickable"></a-box>
-            <a-text value="System Ready" position="0 0.42 0.02" align="center" width="2.5"></a-text>
-            
-            <a-plane id="btn-feed" position="-1.1 0.4 0.02" width="0.5" height="0.12" color="#ffffff" opacity="0.15" class="clickable">
-                <a-text id="txt-feed" value="CONNECT" align="center" width="2"></a-text>
-            </a-plane>
-
-            <a-plane id="btn-kick" position="0 0 0.05" width="1" height="0.3" color="red" visible="false" class="clickable">
-                <a-text value="KICK DECODER" align="center" width="3" color="white"></a-text>
-            </a-plane>
-
-            <a-text id="debug-log" value="LOG: Waiting..." position="0 -0.6 0.02" align="center" width="3" color="#00ff00"></a-text>
-        </a-entity>
+        <a-plane position="0 0 -4" rotation="-90 0 0" width="80" height="80" src="#grid" color="#222"></a-plane>
+        <a-sky color="#111"></a-sky>
 
         <a-entity id="rig" position="0 1.6 0">
             <a-camera look-controls="reverseMouseDrag: true" wasd-controls="enabled: false">
                 <a-cursor color="#00d2ff" fuse="true" fuse-timeout="1500"></a-cursor>
                 
-                <a-plane id="ar-hud" width="6" height="3.37" position="0 0 -4" 
-                         material="shader: flat; side: double; color: #fff; transparent: true; opacity: 0.9" 
-                         visible="false">
+                <a-plane position="0 0 -3.05" width="4.2" height="3.2" color="#ff00ff" shader="flat" visible="true"></a-plane>
+
+                <a-video 
+                    id="vid-screen"
+                    src="#remote-video"
+                    width="4" height="3"
+                    position="0 0 -3"
+                    visible="false">
+                </a-video>
+
+                <a-plane id="btn-accept" position="0 0 -2.5" width="2" height="0.5" color="#00ff00" visible="false" class="clickable">
+                    <a-text value="TAP TO VIEW STREAM" align="center" color="black" scale="2 2 2"></a-text>
                 </a-plane>
+
             </a-camera>
         </a-entity>
+
+        <a-entity id="menu" position="0 1 -2" rotation="-20 0 0">
+            <a-plane id="btn-connect" width="1" height="0.3" color="#333" class="clickable">
+                <a-text id="txt-status" value="CONNECT" align="center"></a-text>
+            </a-plane>
+        </a-entity>
+
     </a-scene>
 
     <script>
-        const REMOTE_PEER_ID = "vr-hub-cam-01"; 
-        
-        const state = { active: false, peer: null, conn: null, loop: null };
+        const REMOTE_ID = "vr-hub-cam-01";
         const els = {
-            btn: document.getElementById('btn-feed'),
-            txt: document.getElementById('txt-feed'),
-            log: document.getElementById('debug-log'),
-            hud: document.getElementById('ar-hud'),
-            kickBtn: document.getElementById('btn-kick'),
-            video: document.getElementById('remote-video'),
-            canvas: document.getElementById('debug-canvas')
+            vid: document.getElementById('remote-video'),
+            screen: document.getElementById('vid-screen'),
+            btnConnect: document.getElementById('btn-connect'),
+            txtStatus: document.getElementById('txt-status'),
+            btnAccept: document.getElementById('btn-accept')
         };
-        const ctx = els.canvas.getContext('2d');
 
-        function log(msg) { console.log(msg); els.log.setAttribute('value', msg); }
-
-        document.getElementById('btn-start').addEventListener('click', function() {
+        // 1. Enter VR
+        document.getElementById('btn-enter').addEventListener('click', () => {
             document.getElementById('ui-layer').classList.add('hidden');
-            const scene = document.querySelector('a-scene');
-            if(scene.enterVR) scene.enterVR();
+            document.querySelector('a-scene').enterVR();
         });
 
-        // 1. MAIN CONNECT BUTTON
-        els.btn.addEventListener('click', function() {
-            if(!state.active) startConnection();
-            else stopConnection();
+        // 2. Connect Button Logic
+        els.btnConnect.addEventListener('click', () => {
+            els.txtStatus.setAttribute('value', 'DIALING...');
+            startPeer();
         });
 
-        // 2. KICK BUTTON (Manual Reset)
-        els.kickBtn.addEventListener('click', function() {
-            log("KICKING...");
-            els.video.pause();
-            els.video.currentTime = 0;
-            els.video.load(); // Force reload
-            els.video.play().then(() => log("KICKED: PLAYING"));
-            els.kickBtn.setAttribute('visible', false);
-        });
-
-        function startConnection() {
-            log("INIT...");
-            els.hud.setAttribute('visible', true);
-            els.hud.setAttribute('color', '#ff0000'); // RED = Init
-
-            // WARM UP VIDEO ENGINE
-            els.video.play().catch(e => console.log("Warmup silent fail (expected)"));
-
+        // 3. PeerJS Logic
+        function startPeer() {
             const peer = new Peer({ debug: 1 });
 
-            peer.on('open', (id) => {
-                log("DIALING...");
+            peer.on('open', () => {
+                els.txtStatus.setAttribute('value', 'CALLING...');
+                // Dummy stream to open the door
                 const dummy = new AudioContext().createMediaStreamDestination().stream;
-                const call = peer.call(REMOTE_PEER_ID, dummy);
-
-                if(!call) { log("CALL FAIL"); return; }
+                const call = peer.call(REMOTE_ID, dummy);
 
                 call.on('stream', (stream) => {
-                    log("CONNECTED!");
-                    els.hud.setAttribute('color', '#0000ff'); // BLUE = Data
+                    els.txtStatus.setAttribute('value', 'SIGNAL FOUND!');
                     
-                    els.video.srcObject = stream;
-                    els.video.play().then(() => startRendering());
+                    // Assign stream to video tag
+                    els.vid.srcObject = stream;
+                    
+                    // SHOW THE "ACCEPT" BUTTON
+                    // We force the user to click this to authorize playback
+                    els.btnAccept.setAttribute('visible', true);
                 });
-
-                call.on('close', () => stopConnection());
-                state.conn = call;
             });
 
-            peer.on('error', (err) => log("ERR: " + err.type));
-            state.peer = peer;
-            state.active = true;
-            els.txt.setAttribute('value', 'STOP');
+            peer.on('error', (err) => {
+                els.txtStatus.setAttribute('value', 'ERROR: ' + err.type);
+            });
         }
 
-        function stopConnection() {
-            if(state.conn) state.conn.close();
-            if(state.peer) state.peer.destroy();
-            if(state.loop) cancelAnimationFrame(state.loop);
-            els.hud.setAttribute('visible', false);
-            els.txt.setAttribute('value', 'CONNECT');
-            state.active = false;
-            log("STOPPED");
-        }
-
-        function startRendering() {
-            const texture = new THREE.CanvasTexture(els.canvas);
-            texture.minFilter = THREE.LinearFilter;
-            
-            const mesh = els.hud.getObject3D('mesh');
-            if(mesh) { mesh.material.map = texture; mesh.material.needsUpdate = true; }
-
-            let frameCount = 0;
-
-            function step() {
-                if(!state.active) return;
+        // 4. THE MAGIC BUTTON (User Gesture)
+        els.btnAccept.addEventListener('click', () => {
+            // Play video triggered by USER CLICK
+            els.vid.play().then(() => {
+                console.log("Video Playing!");
                 
-                frameCount++;
-                if (frameCount % 30 === 0) {
-                    const w = els.video.videoWidth;
-                    const h = els.video.videoHeight;
-                    log(`SIZE: ${w}x${h}`);
-                    
-                    // Show KICK button if stuck at 0x0
-                    if (w === 0) els.kickBtn.setAttribute('visible', true);
-                    else els.kickBtn.setAttribute('visible', false);
-                }
-
-                if (els.video.readyState >= 2 && els.video.videoWidth > 0) {
-                    if (els.hud.getAttribute('color') !== '#ffffff') els.hud.setAttribute('color', '#ffffff'); // Turn White
-                    ctx.drawImage(els.video, 0, 0, 512, 512);
-                    if(mesh.material.map) mesh.material.map.needsUpdate = true;
-                }
+                // Show screen, Hide button
+                els.screen.setAttribute('visible', true);
+                els.btnAccept.setAttribute('visible', false);
+                els.txtStatus.setAttribute('value', 'LIVE FEED');
                 
-                state.loop = requestAnimationFrame(step);
-            }
-            step();
-        }
+                // Force an update just in case
+                setTimeout(() => {
+                    els.vid.width = 640; // Force layout reflow
+                }, 500);
+
+            }).catch(e => {
+                els.txtStatus.setAttribute('value', 'PLAY BLOCKED: ' + e);
+            });
+        });
+
     </script>
 </body>
 </html>
