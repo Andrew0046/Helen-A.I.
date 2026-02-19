@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v31.0: Diagnostic</title>
+    <title>The Hub v31.1: Visible Fix</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -16,9 +16,15 @@
         .hub-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 40px; border-radius: 16px; width: 450px; text-align: center; }
         .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; border-radius: 30px; cursor: pointer; margin-top: 20px; width: 100%; }
         
-        /* DEBUG VIDEO: Visible but tiny to force rendering */
-        #remote-video { position: absolute; top: 0; left: 0; width: 10px; height: 10px; opacity: 0.1; z-index: 1000; }
-        #debug-canvas { position: absolute; top: 0; right: 0; width: 100px; height: 100px; border: 1px solid red; z-index: 1000; background: black; }
+        /* DEBUG MONITOR: Top Right Corner */
+        #debug-canvas { 
+            position: absolute; top: 10px; right: 10px; 
+            width: 150px; height: 150px; 
+            border: 2px solid #00d2ff; 
+            z-index: 10000; 
+            background: #222; 
+        }
+        #remote-video { position: absolute; top: 0; left: 0; opacity: 0; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -27,10 +33,10 @@
     <canvas id="debug-canvas" width="512" height="512"></canvas>
     
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v31.0</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v31.1</span></h1>
         <div class="hub-card">
             <h3>Diagnostic Mode</h3>
-            <p style="color: #888;">If connection fails, read the VR Log.</p>
+            <p style="color: #888;">Check top-right corner for video.</p>
             <button id="btn-start" class="btn-main">ENTER VR</button>
         </div>
     </div>
@@ -65,7 +71,7 @@
                 <a-cursor color="#00d2ff" fuse="true" fuse-timeout="1500"></a-cursor>
                 
                 <a-plane id="ar-hud" width="6" height="3.37" position="0 0 -4" 
-                         material="shader: flat; transparent: true; opacity: 0.9; side: double; color: #333" 
+                         material="shader: flat; side: double; color: #000000" 
                          visible="false">
                 </a-plane>
             </a-camera>
@@ -73,7 +79,7 @@
     </a-scene>
 
     <script>
-        // CONFIG
+        // --- CONFIG ---
         const REMOTE_PEER_ID = "vr-hub-cam-01"; 
         
         const state = { active: false, peer: null, conn: null, loop: null };
@@ -88,29 +94,22 @@
         };
         const ctx = els.canvas.getContext('2d');
 
-        // LOGGING FUNCTION
         function log(msg) {
             console.log(msg);
             els.log.setAttribute('value', "LOG: " + msg);
         }
 
-        // ENTER VR
         document.getElementById('btn-start').addEventListener('click', function() {
             document.getElementById('ui-layer').classList.add('hidden');
             const scene = document.querySelector('a-scene');
             if(scene.enterVR) scene.enterVR();
         });
 
-        // CONNECT BUTTON
         els.btn.addEventListener('click', function() {
-            if(!state.active) {
-                startConnection();
-            } else {
-                stopConnection();
-            }
+            if(!state.active) startConnection();
+            else stopConnection();
         });
 
-        // FORCE START BUTTON
         els.forceBtn.addEventListener('click', function() {
             log("Forcing Play...");
             els.video.play().then(() => log("Forced: Playing!")).catch(e => log("Force Fail: " + e));
@@ -126,8 +125,6 @@
 
             peer.on('open', (id) => {
                 log("Calling Camera...");
-                
-                // Dummy stream to open channel
                 const dummy = new AudioContext().createMediaStreamDestination().stream;
                 const call = peer.call(REMOTE_PEER_ID, dummy);
 
@@ -135,27 +132,23 @@
 
                 call.on('stream', (stream) => {
                     log("Stream Received!");
-                    els.hud.setAttribute('color', '#0000ff'); // BLUE = Stream Received
-                    
+                    els.hud.setAttribute('color', '#0000ff'); // BLUE = Buffer
                     els.video.srcObject = stream;
                     
-                    // Attempt Play
+                    // Trigger rendering immediately
+                    startRendering();
+
                     const playPromise = els.video.play();
                     if (playPromise !== undefined) {
-                        playPromise.then(_ => {
-                            log("Video Playing!");
-                            startRendering(); // Start Canvas Loop
-                        })
-                        .catch(error => {
+                        playPromise.then(_ => log("Video Playing!")).catch(error => {
                             log("AutoPlay Blocked!");
-                            els.forceBtn.setAttribute('visible', true); // Show Force Button
+                            els.forceBtn.setAttribute('visible', true);
                         });
                     }
                 });
 
                 call.on('close', () => stopConnection());
                 call.on('error', (e) => log("Call Err: " + e));
-                
                 state.conn = call;
             });
 
@@ -170,30 +163,39 @@
             if(state.conn) state.conn.close();
             if(state.peer) state.peer.destroy();
             if(state.loop) cancelAnimationFrame(state.loop);
-            
             els.hud.setAttribute('visible', false);
             els.txt.setAttribute('value', 'CONNECT');
             els.forceBtn.setAttribute('visible', false);
             state.active = false;
         }
 
-        // THE RENDER LOOP (Canvas -> Texture)
+        // --- RENDER LOOP ---
         function startRendering() {
-            els.hud.setAttribute('color', '#ffffff'); // WHITE = Live
+            log("Render Loop Start");
             
-            // Create Texture from Canvas
+            // 1. Paint it GREEN initially so we know texture is attached
+            ctx.fillStyle = "green";
+            ctx.fillRect(0,0,512,512);
+            
+            // 2. Create Texture
             const texture = new THREE.CanvasTexture(els.canvas);
+            texture.minFilter = THREE.LinearFilter;
+            
             const mesh = els.hud.getObject3D('mesh');
-            if(mesh) mesh.material.map = texture;
+            if(mesh) {
+                mesh.material.map = texture;
+                mesh.material.needsUpdate = true;
+                // Important: Reset color to white so it doesn't tint the video
+                els.hud.setAttribute('color', '#ffffff'); 
+            }
 
             function step() {
                 if(!state.active) return;
                 
-                if (els.video.readyState === els.video.HAVE_ENOUGH_DATA) {
-                    // Draw video to canvas
+                // 3. Draw Video if available
+                // We use >= 2 (HAVE_CURRENT_DATA) to be more forgiving
+                if (els.video.readyState >= 2) {
                     ctx.drawImage(els.video, 0, 0, 512, 512);
-                    
-                    // Update VR Texture
                     if(mesh.material.map) mesh.material.map.needsUpdate = true;
                 }
                 
