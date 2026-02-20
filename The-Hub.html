@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v37.1: The Holy Trinity</title>
+    <title>The Hub v37.2: Engine Stabilized</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -38,9 +38,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v37.1</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v37.2</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Omniversal Edition</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Stabilized Edition</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -89,42 +89,42 @@
             <a-box depth="0.01" height="1.0" width="2.8" color="#ffffff" opacity="0.1" class="clickable"></a-box>
             <a-box position="0 0.49 0" depth="0.015" height="0.02" width="2.8" color="#ffffff" opacity="0.8"></a-box>
             
-            <a-text id="txt-pin" value="PIN: ----" position="-1.2 0.42 0.02" align="left" width="2.5" color="#00ff00" font-weight="bold"></a-text>
-            <a-text id="txt-title" value="System Ready" position="0 0.42 0.02" align="center" width="2.5" color="#ffffff"></a-text>
-            <a-circle id="btn-close" position="1.3 0.4 0.02" radius="0.08" color="#ff4444" opacity="0.8" class="clickable btn-hover"><a-text value="X" align="center" width="6" font-weight="bold" color="white"></a-text></a-circle>
+            <a-text id="txt-pin" value="PIN: ----" position="-1.2 0.42 0.03" align="left" width="2.5" color="#00ff00" font-weight="bold"></a-text>
+            <a-text id="txt-title" value="System Ready" position="0 0.42 0.03" align="center" width="2.5" color="#ffffff"></a-text>
+            <a-circle id="btn-close" position="1.3 0.4 0.03" radius="0.08" color="#ff4444" opacity="0.8" class="clickable btn-hover"><a-text value="X" align="center" width="6" font-weight="bold" color="white"></a-text></a-circle>
             
-            <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.02" align="center" width="2.5" color="#ccc"></a-text>
+            <a-text id="time-display" value="00:00 / 00:00" position="0 0.35 0.03" align="center" width="2.5" color="#ccc"></a-text>
             <a-plane position="0 0.28 0.02" width="2.4" height="0.005" color="#ffffff" opacity="0.3" class="clickable btn-hover" id="bar-bg"></a-plane>
-            <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.01" color="#00d2ff" scale="0 1 1" pivot="center left"></a-plane>
+            <a-plane id="progress-fill" position="-1.2 0.28 0.03" width="2.4" height="0.01" color="#00d2ff" scale="0.001 1 1" pivot="center left"></a-plane>
             
             <a-entity id="video-controls">
-                <a-plane id="btn-prev" position="-0.9 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="|<" align="center" width="3" color="white"></a-text></a-plane>
-                <a-plane id="btn-seek-back" position="-0.55 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-seek-back" value="-15s" align="center" width="2" color="white"></a-text></a-plane>
-                <a-plane id="btn-play" position="0 0.15 0.02" width="0.7" height="0.2" color="#ffffff" opacity="0.9" class="clickable btn-hover"><a-text id="txt-play" value="PLAY" align="center" width="4" color="#000" font-weight="bold"></a-text></a-plane>
-                <a-plane id="btn-seek-fwd" position="0.55 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-seek-fwd" value="+15s" align="center" width="2" color="white"></a-text></a-plane>
-                <a-plane id="btn-next" position="0.9 0.15 0.02" width="0.25" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value=">|" align="center" width="3" color="white"></a-text></a-plane>
+                <a-plane id="btn-prev" position="-0.9 0.15 0.03" width="0.25" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="|<" align="center" width="3" color="white"></a-text></a-plane>
+                <a-plane id="btn-seek-back" position="-0.55 0.15 0.03" width="0.25" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-seek-back" value="-15s" align="center" width="2" color="white"></a-text></a-plane>
+                <a-plane id="btn-play" position="0 0.15 0.03" width="0.7" height="0.2" color="#ffffff" opacity="0.9" class="clickable btn-hover"><a-text id="txt-play" value="PLAY" align="center" width="4" color="#000" font-weight="bold"></a-text></a-plane>
+                <a-plane id="btn-seek-fwd" position="0.55 0.15 0.03" width="0.25" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-seek-fwd" value="+15s" align="center" width="2" color="white"></a-text></a-plane>
+                <a-plane id="btn-next" position="0.9 0.15 0.03" width="0.25" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value=">|" align="center" width="3" color="white"></a-text></a-plane>
             </a-entity>
 
-            <a-plane id="btn-mode" position="-0.9 -0.05 0.02" width="0.45" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="2D VIEW" align="center" width="1.8" color="#00d2ff"></a-text></a-plane>
-            <a-plane id="btn-3d" position="-0.3 -0.05 0.02" width="0.45" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-3d" value="3D OFF" align="center" width="1.8" color="#00d2ff"></a-text></a-plane>
-            <a-plane id="btn-depth" position="0.3 -0.05 0.02" width="0.45" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-depth" value="DEPTH OFF" align="center" width="1.8" color="#ff9d00"></a-text></a-plane>
-            <a-plane id="btn-void" position="0.9 -0.05 0.02" width="0.45" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.8" color="#aaa"></a-text></a-plane>
+            <a-plane id="btn-mode" position="-0.9 -0.05 0.03" width="0.45" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="2D VIEW" align="center" width="1.8" color="#00d2ff"></a-text></a-plane>
+            <a-plane id="btn-3d" position="-0.3 -0.05 0.03" width="0.45" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-3d" value="3D OFF" align="center" width="1.8" color="#00d2ff"></a-text></a-plane>
+            <a-plane id="btn-depth" position="0.3 -0.05 0.03" width="0.45" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-depth" value="DEPTH OFF" align="center" width="1.8" color="#ff9d00"></a-text></a-plane>
+            <a-plane id="btn-void" position="0.9 -0.05 0.03" width="0.45" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.8" color="#aaa"></a-text></a-plane>
 
-            <a-plane id="btn-drone" position="-1.0 -0.22 0.02" width="0.35" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-drone" value="DRONE" align="center" width="1.8" color="white"></a-text></a-plane>
-            <a-plane id="btn-pc" position="-0.5 -0.22 0.02" width="0.35" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-pc" value="PC LINK" align="center" width="1.8" color="white"></a-text></a-plane>
-            <a-plane id="btn-local" position="0.0 -0.22 0.02" width="0.35" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-local" value="LOCAL AR" align="center" width="1.8" color="white"></a-text></a-plane>
-            <a-plane id="btn-rot-left" position="0.5 -0.22 0.02" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="<" align="center" width="3" color="white"></a-text></a-plane>
-            <a-plane id="btn-reset" position="0.75 -0.22 0.02" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="RST" align="center" width="2" color="white"></a-text></a-plane>
-            <a-plane id="btn-rot-right" position="1.0 -0.22 0.02" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value=">" align="center" width="3" color="white"></a-text></a-plane>
+            <a-plane id="btn-drone" position="-1.0 -0.22 0.03" width="0.35" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-drone" value="DRONE" align="center" width="1.8" color="white"></a-text></a-plane>
+            <a-plane id="btn-pc" position="-0.5 -0.22 0.03" width="0.35" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-pc" value="PC LINK" align="center" width="1.8" color="white"></a-text></a-plane>
+            <a-plane id="btn-local" position="0.0 -0.22 0.03" width="0.35" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-local" value="LOCAL AR" align="center" width="1.8" color="white"></a-text></a-plane>
+            <a-plane id="btn-rot-left" position="0.5 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="<" align="center" width="3" color="white"></a-text></a-plane>
+            <a-plane id="btn-reset" position="0.75 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="RST" align="center" width="2" color="white"></a-text></a-plane>
+            <a-plane id="btn-rot-right" position="1.0 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value=">" align="center" width="3" color="white"></a-text></a-plane>
 
-            <a-text value="SEAT:" position="-1.2 -0.38 0.02" align="center" color="#666" scale="0.8 0.8 1"></a-text>
-            <a-plane id="seat-front" position="-0.9 -0.38 0.02" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="FRNT" align="center" scale="0.8 0.8 1" color="#fff"></a-text></a-plane>
-            <a-plane id="seat-back" position="-0.65 -0.38 0.02" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="BACK" align="center" scale="0.8 0.8 1" color="#fff"></a-text></a-plane>
-            <a-plane id="seat-lay" position="-0.4 -0.38 0.02" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="BED" align="center" scale="0.8 0.8 1" color="#fff"></a-text></a-plane>
+            <a-text value="SEAT:" position="-1.1 -0.38 0.03" align="center" color="#666" width="1.5"></a-text>
+            <a-plane id="seat-front" position="-0.85 -0.38 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="FRNT" align="center" color="#fff" width="2.5"></a-text></a-plane>
+            <a-plane id="seat-back" position="-0.6 -0.38 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="BACK" align="center" color="#fff" width="2.5"></a-text></a-plane>
+            <a-plane id="seat-lay" position="-0.35 -0.38 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="BED" align="center" color="#fff" width="2.5"></a-text></a-plane>
             
-            <a-text value="CURVE:" position="0.3 -0.38 0.02" align="center" color="#666" scale="0.8 0.8 1"></a-text>
-            <a-plane id="curve-less" position="0.6 -0.38 0.02" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="-" align="center" color="#fff"></a-text></a-plane>
-            <a-plane id="curve-more" position="0.85 -0.38 0.02" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="+" align="center" color="#fff"></a-text></a-plane>
+            <a-text value="CURVE:" position="0.3 -0.38 0.03" align="center" color="#666" width="1.5"></a-text>
+            <a-plane id="curve-less" position="0.6 -0.38 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="-" align="center" color="#fff" width="4"></a-text></a-plane>
+            <a-plane id="curve-more" position="0.85 -0.38 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="+" align="center" color="#fff" width="4"></a-text></a-plane>
         </a-entity>
 
         <a-entity id="rig" position="0 1.6 0">
@@ -176,7 +176,6 @@
             }
         };
 
-        // VISUAL FEEDBACK FLASH
         function flash(el) { 
             el.setAttribute('color', '#00d2ff'); 
             setTimeout(() => { 
@@ -188,28 +187,38 @@
         }
 
         // ==========================================
-        // MULTI-STREAM ARCHITECTURE
+        // THE CLEAN FEED KILL-SWITCH
         // ==========================================
-        
+        function stopAllFeeds(except) {
+            if(except !== 'drone' && state.drone.active) {
+                if(state.drone.conn) state.drone.conn.close(); state.drone.active = false;
+                DOM.vr.controls.txtDrone.setAttribute('value', 'DRONE'); DOM.vr.controls.btnDrone.setAttribute('color', '#ffffff');
+            }
+            if(except !== 'pc' && state.pc.active) {
+                if(state.pc.conn) state.pc.conn.close(); state.pc.active = false;
+                DOM.vr.controls.txtPc.setAttribute('value', 'PC LINK'); DOM.vr.controls.btnPc.setAttribute('color', '#ffffff');
+            }
+            if(except !== 'local' && state.localCam.active) {
+                if (state.localCam.stream) { state.localCam.stream.getTracks().forEach(t => t.stop()); DOM.media.localVideo.srcObject = null; state.localCam.stream = null; }
+                state.localCam.active = false;
+                DOM.vr.controls.txtLocal.setAttribute('value', 'LOCAL AR'); DOM.vr.controls.btnLocal.setAttribute('color', '#ffffff');
+            }
+            if(!state.drone.active && !state.pc.active && !state.localCam.active) { DOM.vr.arHud.setAttribute('visible', false); }
+        }
+
         const hubPin = Math.floor(1000 + Math.random() * 9000);
         const hubId = 'juncos-hub-' + hubPin;
         DOM.vr.controls.txtPin.setAttribute('value', 'PIN: ' + hubPin);
-
         state.peer = new Peer(hubId, { debug: 2 });
         
-        // --- 1. THE PC UPLINK (Reverse Pairing) ---
         state.peer.on('call', (call) => {
+            stopAllFeeds('pc');
             DOM.vr.controls.txtPc.setAttribute('value', 'CONNECTING...');
-            call.answer(); 
-            state.pc.conn = call;
+            call.answer(); state.pc.conn = call;
 
             call.on('stream', remoteStream => {
-                if(state.localCam.active) DOM.vr.controls.btnLocal.click();
-                if(state.drone.active) DOM.vr.controls.btnDrone.click();
-
                 DOM.vr.controls.txtPc.setAttribute('value', 'CLOSE PC');
                 DOM.vr.controls.btnPc.setAttribute('color', '#00d2ff');
-                
                 const vid = DOM.media.remoteVideo;
                 vid.srcObject = remoteStream;
                 vid.play().then(() => {
@@ -217,35 +226,23 @@
                     texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter; texture.colorSpace = THREE.SRGBColorSpace;
                     const mesh = DOM.vr.arHud.getObject3D('mesh');
                     if (mesh) { mesh.material.map = texture; mesh.material.color.setHex(0xffffff); mesh.material.needsUpdate = true; }
-                    DOM.vr.arHud.setAttribute('visible', true);
-                    state.pc.active = true;
+                    DOM.vr.arHud.setAttribute('visible', true); state.pc.active = true;
                 });
             });
         });
 
         DOM.vr.controls.btnPc.addEventListener('click', function() {
-            if (state.pc.active) {
-                if(state.pc.conn) state.pc.conn.close();
-                DOM.vr.arHud.setAttribute('visible', false);
-                DOM.vr.controls.txtPc.setAttribute('value', 'PC LINK');
-                this.setAttribute('color', '#ffffff');
-                state.pc.active = false;
-            } else {
-                DOM.vr.controls.txtPc.setAttribute('value', 'WAITING...');
-                setTimeout(() => { if(!state.pc.active) DOM.vr.controls.txtPc.setAttribute('value', 'PC LINK'); }, 2000);
-            }
+            if (state.pc.active) { stopAllFeeds(); } 
+            else { DOM.vr.controls.txtPc.setAttribute('value', 'WAITING...'); setTimeout(() => { if(!state.pc.active) DOM.vr.controls.txtPc.setAttribute('value', 'PC LINK'); }, 2000); }
             flash(this);
         });
 
-        // --- 2. THE DRONE CAM (Dial Out) ---
         DOM.vr.controls.btnDrone.addEventListener('click', function() {
             if (!state.drone.active) {
+                stopAllFeeds('drone');
                 DOM.vr.controls.txtDrone.setAttribute('value', 'DIALING...');
                 DOM.vr.arHud.setAttribute('visible', true);
                 
-                if(state.localCam.active) DOM.vr.controls.btnLocal.click();
-                if(state.pc.active) DOM.vr.controls.btnPc.click();
-
                 const canvas = document.createElement('canvas'); canvas.width=1; canvas.height=1;
                 const dummyStream = canvas.captureStream(1);
                 const call = state.peer.call('vr-hub-cam-01', dummyStream);
@@ -256,9 +253,7 @@
                 call.on('stream', remoteStream => {
                     DOM.vr.controls.txtDrone.setAttribute('value', 'CLOSE CAM');
                     this.setAttribute('color', '#00d2ff');
-                    
-                    const vid = DOM.media.remoteVideo;
-                    vid.srcObject = remoteStream;
+                    const vid = DOM.media.remoteVideo; vid.srcObject = remoteStream;
                     vid.play().then(() => {
                         const texture = new THREE.VideoTexture(vid);
                         texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter; texture.colorSpace = THREE.SRGBColorSpace;
@@ -267,29 +262,19 @@
                         state.drone.active = true;
                     });
                 });
-            } else {
-                if(state.drone.conn) state.drone.conn.close();
-                DOM.vr.arHud.setAttribute('visible', false);
-                DOM.vr.controls.txtDrone.setAttribute('value', 'DRONE');
-                this.setAttribute('color', '#ffffff');
-                state.drone.active = false;
-            }
+            } else { stopAllFeeds(); }
             flash(this);
         });
 
-        // --- 3. LOCAL AR ---
         DOM.vr.controls.btnLocal.addEventListener('click', async function() {
             if (!state.localCam.active) {
+                stopAllFeeds('local');
                 DOM.vr.controls.txtLocal.setAttribute('value', 'LOADING...');
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                    state.localCam.stream = stream;
-                    DOM.media.localVideo.srcObject = stream;
+                    state.localCam.stream = stream; DOM.media.localVideo.srcObject = stream;
                     await DOM.media.localVideo.play();
                     
-                    if(state.pc.active) DOM.vr.controls.btnPc.click();
-                    if(state.drone.active) DOM.vr.controls.btnDrone.click();
-
                     const vidTex = new THREE.VideoTexture(DOM.media.localVideo);
                     vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false;
                     const mesh = DOM.vr.arHud.getObject3D('mesh');
@@ -297,16 +282,9 @@
                     
                     DOM.vr.arHud.setAttribute('visible', true);
                     DOM.vr.controls.txtLocal.setAttribute('value', 'CLOSE AR');
-                    this.setAttribute('color', '#00d2ff'); 
-                    state.localCam.active = true;
+                    this.setAttribute('color', '#00d2ff'); state.localCam.active = true;
                 } catch (e) { DOM.vr.controls.txtLocal.setAttribute('value', 'CAM ERR'); }
-            } else {
-                if (state.localCam.stream) { state.localCam.stream.getTracks().forEach(t => t.stop()); DOM.media.localVideo.srcObject = null; }
-                DOM.vr.arHud.setAttribute('visible', false);
-                DOM.vr.controls.txtLocal.setAttribute('value', 'LOCAL AR');
-                this.setAttribute('color', '#ffffff');
-                state.localCam.active = false;
-            }
+            } else { stopAllFeeds(); }
             flash(this);
         });
 
@@ -338,11 +316,7 @@
             const setRight = (el) => {
                 const mesh = el.getObject3D('mesh');
                 if (!mesh || !mesh.material || !mesh.material.map) return;
-                if (!mesh.material.map.isClonedForStereo) {
-                    mesh.material.map = mesh.material.map.clone();
-                    mesh.material.map.needsUpdate = true;
-                    mesh.material.map.isClonedForStereo = true;
-                }
+                if (!mesh.material.map.isClonedForStereo) { mesh.material.map = mesh.material.map.clone(); mesh.material.map.needsUpdate = true; mesh.material.map.isClonedForStereo = true; }
                 if (state.isDepthMode) { mesh.material.map.repeat.set(1, 1); mesh.material.map.offset.set(0.005, 0); } 
                 else { mesh.material.map.repeat.set(0.5, 1); mesh.material.map.offset.set(0.5, 0); }
             };
@@ -388,7 +362,6 @@
         }
         function force2DMode() { state.viewMode = 0; state.is3D = false; state.isDepthMode = false; updateVisibility(); }
 
-        /* BUTTON ACTIONS */
         DOM.vr.controls.modeBtn.addEventListener('click', function() { state.viewMode = (state.viewMode + 1) % 3; updateVisibility(); flash(this); });
         DOM.vr.controls.btn3d.addEventListener('click', function() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; state.is3D = !state.is3D; if(state.is3D) state.isDepthMode = false; updateVisibility(); flash(this); });
         DOM.vr.controls.btnDepth.addEventListener('click', function() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; state.isDepthMode = !state.isDepthMode; if(state.isDepthMode) state.is3D = false; updateVisibility(); flash(this); });
@@ -501,20 +474,32 @@
         document.getElementById('curve-more').addEventListener('click', function() { if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }});
         document.getElementById('curve-less').addEventListener('click', function() { if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }});
 
+        // THE FIXED NAN-SAFE PROGRESS LOOP
         setInterval(() => {
             const currentItem = state.playlist[state.currentTrack]; const v = DOM.media.video;
-            if(currentItem && currentItem.type === 'video' && v.duration) {
-                const pct = v.currentTime / v.duration; DOM.vr.controls.progress.object3D.scale.x = pct; DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
-                const m = Math.floor(v.currentTime/60); const sec = Math.floor(v.currentTime%60); const dm = Math.floor(v.duration/60); const dsec = Math.floor(v.duration%60);
-                DOM.vr.controls.timeText.setAttribute('value', `${m}:${sec<10?'0'+sec:sec} / ${dm}:${dsec<10?'0'+dsec:dsec}`);
+            if(currentItem && currentItem.type === 'video' && !v.paused) {
+                if(isFinite(v.duration) && v.duration > 0) {
+                    const pct = Math.max(0.001, v.currentTime / v.duration); 
+                    DOM.vr.controls.progress.object3D.scale.set(pct, 1, 1);
+                    DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
+                    const m = Math.floor(v.currentTime/60); const sec = Math.floor(v.currentTime%60); const dm = Math.floor(v.duration/60); const dsec = Math.floor(v.duration%60);
+                    DOM.vr.controls.timeText.setAttribute('value', `${m}:${sec<10?'0'+sec:sec} / ${dm}:${dsec<10?'0'+dsec:dsec}`);
+                } else {
+                    // It's a Live Stream or buffering
+                    DOM.vr.controls.progress.object3D.scale.set(1, 1, 1);
+                    DOM.vr.controls.progress.object3D.position.x = 0;
+                    const m = Math.floor(v.currentTime/60); const sec = Math.floor(v.currentTime%60);
+                    DOM.vr.controls.timeText.setAttribute('value', `LIVE STREAM | ${m}:${sec<10?'0'+sec:sec}`);
+                }
             }
         }, 500);
+
         const ctx = DOM.media.lightCanvas.getContext('2d');
         function updateAmbilight() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video' && !DOM.media.video.paused) { drawAmbilight(DOM.media.video); requestAnimationFrame(updateAmbilight); } }
         function drawAmbilight(source) { try { ctx.drawImage(source, 0, 0, 32, 32); const p = ctx.getImageData(16,16,1,1).data; const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1); if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex); DOM.vr.env.glow.setAttribute('color', hex); } catch(e) { } }
         DOM.media.video.addEventListener('ended', () => { if (state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); });
         window.addEventListener('keydown', (e) => { if(DOM.ui.layer.classList.contains('hidden')) { const isPdf = state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf'; switch(e.code) { case 'Space': e.preventDefault(); if(!isPdf) togglePlay(); break; case 'ArrowRight': if(isPdf) onNextPage(); else DOM.media.video.currentTime += 15; break; case 'ArrowLeft': if(isPdf) onPrevPage(); else DOM.media.video.currentTime -= 15; break; } } });
-        function renderPDFPage(num) { state.pdf.rendering = true; state.pdf.doc.getPage(num).then(page => { const viewport = page.getViewport({scale: 2.0}); const canvas = DOM.media.pdfCanvas; const ctx = canvas.getContext('2d'); canvas.height = viewport.height; canvas.width = viewport.width; const renderContext = { canvasContext: ctx, viewport: viewport }; page.render(renderContext).promise.then(() => { state.pdf.rendering = false; updateTexture('#pdf-canvas'); refreshTextureMesh(); drawAmbilight(canvas); const pct = num / state.pdf.doc.numPages; DOM.vr.controls.progress.object3D.scale.x = pct; DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2); DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`); if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; } }); }); }
+        function renderPDFPage(num) { state.pdf.rendering = true; state.pdf.doc.getPage(num).then(page => { const viewport = page.getViewport({scale: 2.0}); const canvas = DOM.media.pdfCanvas; const ctx = canvas.getContext('2d'); canvas.height = viewport.height; canvas.width = viewport.width; const renderContext = { canvasContext: ctx, viewport: viewport }; page.render(renderContext).promise.then(() => { state.pdf.rendering = false; updateTexture('#pdf-canvas'); refreshTextureMesh(); drawAmbilight(canvas); const pct = num / state.pdf.doc.numPages; DOM.vr.controls.progress.object3D.scale.set(pct, 1, 1); DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2); DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`); if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; } }); }); }
         function queueRenderPage(num) { if (state.pdf.rendering) state.pdf.pending = num; else renderPDFPage(num); }
         function onPrevPage() { if (state.pdf.pageNum <= 1) return; state.pdf.pageNum--; queueRenderPage(state.pdf.pageNum); }
         function onNextPage() { if (state.pdf.pageNum >= state.pdf.doc.numPages) return; state.pdf.pageNum++; queueRenderPage(state.pdf.pageNum); }
