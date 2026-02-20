@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Hub PC Uplink</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { background: #050505; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding-top: 10vh; }
+        button { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 40px; color: white; font-weight: bold; font-size: 18px; border-radius: 30px; cursor: pointer; transition: 0.2s; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
+        video { margin-top: 30px; width: 80%; max-width: 800px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+    <h1 style="font-weight: 200; letter-spacing: 4px;">PC <span style="color: #00d2ff; font-weight: bold;">UPLINK</span></h1>
+    <button id="btn-share">SHARE SCREEN</button>
+    <p id="status" style="color: #ff9d00; margin-top: 20px;">Waiting to capture screen...</p>
+    <video id="preview" autoplay muted playsinline></video>
+
+    <script>
+        // We use the exact ID your VR Hub is hardcoded to call
+        const peer = new Peer('vr-hub-cam-01', { debug: 2 });
+        let screenStream = null;
+
+        document.getElementById('btn-share').addEventListener('click', async () => {
+            try {
+                // THE MAGIC LINE: Grabbing the desktop instead of a camera
+                screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: { cursor: "always" }, 
+                    audio: true // Captures desktop audio if you want it!
+                });
+                document.getElementById('preview').srcObject = screenStream;
+                document.getElementById('status').innerText = "Screen captured! Waiting for VR Hub to call...";
+                document.getElementById('status').style.color = "#00ff00";
+            } catch (err) {
+                console.error("Error: ", err);
+                document.getElementById('status').innerText = "Failed to capture screen.";
+                document.getElementById('status').style.color = "#ff4444";
+            }
+        });
+
+        // When you click 'REMOTE CAM' in VR, it triggers this answer
+        peer.on('call', (call) => {
+            if (screenStream) {
+                document.getElementById('status').innerText = "VR Hub Connected! Streaming...";
+                call.answer(screenStream); // Send the desktop stream to VR
+            } else {
+                console.log("Hub called, but screen not shared yet.");
+            }
+        });
+    </script>
+</body>
+</html>
