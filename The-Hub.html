@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v34.1: Dual-Vision (Fast Cursor)</title>
+    <title>The Hub v36.0: Omniversal Player</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
     
     <style>
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
@@ -27,7 +28,6 @@
         
         #drop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 210, 255, 0.2); border: 5px dashed #00d2ff; z-index: 10000; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; text-transform: uppercase; pointer-events: none; }
         
-        /* HIDDEN ELEMENTS FOR PROCESSING */
         #light-canvas { display: none; }
         #remote-video { display: none; } 
         #local-cam-video { display: none; }
@@ -41,14 +41,14 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v34.1</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.0</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Dual-Vision Edition</h3>
-            <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF)</p>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Omniversal Edition</h3>
+            <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
             <div class="url-box">
-                <input type="text" id="url-input" placeholder="Paste stream URL...">
+                <input type="text" id="url-input" placeholder="Paste stream URL (.m3u8, .mp4)...">
                 <button class="btn-small" id="btn-url">GO</button>
             </div>
             <div id="playlist-ui" style="display:none">
@@ -189,59 +189,42 @@
         // DUAL-VISION SYSTEM
         // ==========================================
 
-        // VISION MODE 1: REMOTE CAM (WebRTC)
         DOM.vr.controls.btnFeed.addEventListener('click', function() {
             if (state.localCam.active) { DOM.vr.controls.btnLocal.click(); }
-
             if (!state.feed.active) {
                 DOM.vr.controls.txtFeed.setAttribute('value', 'DIALING...');
                 DOM.vr.arHud.setAttribute('visible', true);
-                
                 const peer = new Peer({ debug: 2 });
                 state.feed.peer = peer;
 
                 peer.on('open', (id) => {
                     DOM.vr.controls.txtFeed.setAttribute('value', 'CALLING...');
-                    
                     const canvas = document.createElement('canvas');
                     canvas.width = 1; canvas.height = 1;
                     const dummyVideoStream = canvas.captureStream(1);
-                    
                     const call = peer.call(REMOTE_PEER_ID, dummyVideoStream);
                     state.feed.conn = call;
 
-                    if (!call) {
-                        DOM.vr.controls.txtFeed.setAttribute('value', 'CALL FAIL');
-                        return;
-                    }
+                    if (!call) { DOM.vr.controls.txtFeed.setAttribute('value', 'CALL FAIL'); return; }
 
                     call.on('stream', remoteStream => {
                         DOM.vr.controls.txtFeed.setAttribute('value', 'PLAYING...');
                         const vid = DOM.media.remoteVideo;
                         vid.srcObject = remoteStream;
-                        
                         vid.play().then(() => {
                             DOM.vr.controls.txtFeed.setAttribute('value', 'CLOSE CAM');
                             document.getElementById('btn-feed').setAttribute('opacity', '0.5');
-
                             const texture = new THREE.VideoTexture(vid);
                             texture.minFilter = THREE.LinearFilter;
                             texture.magFilter = THREE.LinearFilter;
                             texture.colorSpace = THREE.SRGBColorSpace;
-                            
                             const mesh = DOM.vr.arHud.getObject3D('mesh');
-                            if (mesh) {
-                                mesh.material.map = texture;
-                                mesh.material.color.setHex(0xffffff);
-                                mesh.material.needsUpdate = true;
-                            }
+                            if (mesh) { mesh.material.map = texture; mesh.material.color.setHex(0xffffff); mesh.material.needsUpdate = true; }
                         }).catch(e => { DOM.vr.controls.txtFeed.setAttribute('value', 'PLAY ERR'); });
                     });
                 });
-                
                 peer.on('error', (err) => { DOM.vr.controls.txtFeed.setAttribute('value', 'NET ERR'); });
                 state.feed.active = true;
-
             } else {
                 if (state.feed.conn) state.feed.conn.close();
                 if (state.feed.peer) state.feed.peer.destroy();
@@ -253,10 +236,8 @@
             flash(this);
         });
 
-        // VISION MODE 2: LOCAL AR (Passthrough)
         DOM.vr.controls.btnLocal.addEventListener('click', async function() {
             if (state.feed.active) { DOM.vr.controls.btnFeed.click(); }
-
             if (!state.localCam.active) {
                 DOM.vr.controls.txtLocal.setAttribute('value', 'LOADING...');
                 try {
@@ -270,20 +251,13 @@
                     vidTex.generateMipmaps = false;
                     
                     const mesh = DOM.vr.arHud.getObject3D('mesh');
-                    if (mesh) {
-                        mesh.material.map = vidTex;
-                        mesh.material.color.setHex(0xffffff);
-                        mesh.material.needsUpdate = true;
-                    }
+                    if (mesh) { mesh.material.map = vidTex; mesh.material.color.setHex(0xffffff); mesh.material.needsUpdate = true; }
                     
                     DOM.vr.arHud.setAttribute('visible', true);
                     DOM.vr.controls.txtLocal.setAttribute('value', 'CLOSE AR');
                     this.setAttribute('opacity', '0.5'); 
                     state.localCam.active = true;
-                    
-                } catch (e) {
-                    DOM.vr.controls.txtLocal.setAttribute('value', 'CAM ERROR');
-                }
+                } catch (e) { DOM.vr.controls.txtLocal.setAttribute('value', 'CAM ERROR'); }
             } else {
                 if (state.localCam.stream) {
                     state.localCam.stream.getTracks().forEach(t => t.stop());
@@ -433,12 +407,29 @@
                     }; 
                     DOM.media.img.src = src;
                 } else {
-                    DOM.media.video.src = src; updateTexture('#video-src'); initAudio();
-                    DOM.media.video.play().then(() => { 
-                        DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); 
-                        setTimeout(() => { if(state.is3D) enforceStereoMapping(); else resetStereoMapping(); }, 200); 
-                    }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY'));
-                    requestAnimationFrame(updateAmbilight);
+                    // --- THE HLS BRAIN IMPLANT ---
+                    if (src.includes('.m3u8') && Hls.isSupported()) {
+                        const hls = new Hls();
+                        hls.loadSource(src);
+                        hls.attachMedia(DOM.media.video);
+                        
+                        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                            updateTexture('#video-src');
+                            initAudio();
+                            DOM.media.video.play().then(() => {
+                                DOM.vr.controls.playText.setAttribute('value', 'PAUSE');
+                                setTimeout(() => { if(state.is3D) enforceStereoMapping(); else resetStereoMapping(); }, 200); 
+                            });
+                            requestAnimationFrame(updateAmbilight);
+                        });
+                    } else {
+                        DOM.media.video.src = src; updateTexture('#video-src'); initAudio();
+                        DOM.media.video.play().then(() => { 
+                            DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); 
+                            setTimeout(() => { if(state.is3D) enforceStereoMapping(); else resetStereoMapping(); }, 200); 
+                        }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY'));
+                        requestAnimationFrame(updateAmbilight);
+                    }
                 }
             }
         }
