@@ -519,7 +519,7 @@
         }
         document.getElementById('curve-more').addEventListener('click', function() { if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }});
         document.getElementById('curve-less').addEventListener('click', function() { if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }});
-
+ 
         setInterval(() => {
             const currentItem = state.playlist[state.currentTrack]; const v = DOM.media.video;
             if(currentItem && currentItem.type === 'video' && v.duration) {
