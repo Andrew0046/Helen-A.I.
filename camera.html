@@ -1,44 +1,62 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tactical Camera</title>
+    <title>Drone Cam Uplink</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { background: #050505; color: #00d2ff; font-family: monospace; text-align: center; padding: 20px; margin: 0; }
-        video { width: 100%; max-width: 400px; border: 2px solid #00d2ff; border-radius: 8px; margin-top: 20px; background: #000; }
-        .box { background: #111; padding: 15px; border: 1px solid #333; border-radius: 8px; margin-bottom: 20px; }
-        h1 { margin: 0 0 10px 0; font-weight: normal; letter-spacing: 2px; }
+        body { background: #050505; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding-top: 5vh; display: flex; flex-direction: column; align-items: center; margin: 0; }
+        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 30px; border-radius: 16px; width: 85%; max-width: 400px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        input { background: rgba(0,0,0,0.5); border: 2px solid #333; color: #00ff00; font-size: 32px; text-align: center; letter-spacing: 8px; padding: 15px; border-radius: 8px; width: 80%; outline: none; transition: 0.3s; margin-bottom: 20px; font-weight: bold; }
+        input:focus { border-color: #00d2ff; box-shadow: 0 0 15px rgba(0, 210, 255, 0.3); }
+        button { background: linear-gradient(135deg, #ff9d00 0%, #ff4444 100%); border: none; padding: 15px 20px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 2px; border-radius: 30px; cursor: pointer; transition: 0.2s; width: 100%; }
+        video { margin-top: 20px; width: 90%; max-width: 800px; border-radius: 8px; opacity: 0.8; border: 2px solid #333; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h1>TACTICAL SENDER</h1>
-        <h3 id="log" style="color: #ff9d00; margin: 0;">Starting Engine...</h3>
+    <div class="card">
+        <h1 style="font-weight: 200; letter-spacing: 4px; margin-top:0;">DRONE <span style="color: #ff9d00; font-weight: bold;">CAM</span></h1>
+        <p style="color: #888; margin-bottom: 20px; font-size: 0.9rem;">Enter Hub PIN to initiate feed.</p>
+        
+        <input type="number" id="pin-input" placeholder="0000" maxlength="4" autocomplete="off">
+        <button id="btn-connect">INITIATE DRONE LINK</button>
+        
+        <p id="status" style="color: #00d2ff; margin-top: 20px; font-weight: bold;"></p>
     </div>
-    <video id="vid" autoplay muted playsinline></video>
+    <video id="preview" autoplay muted playsinline></video>
 
     <script>
-        // MATCH THIS ID IN THE VR HUB
-        const peer = new Peer('vr-hub-cam-01');
-        const logEl = document.getElementById('log');
-        const vid = document.getElementById('vid');
+        const peer = new Peer({ debug: 2 });
+        let camStream = null;
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-        .then(stream => {
-            vid.srcObject = stream;
-            logEl.innerText = "ONLINE. WAITING FOR VR...";
-            logEl.style.color = "#00ff00";
+        // Auto-start camera on load so you can position the drone
+        async function initCamera() {
+            try {
+                camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: true });
+                document.getElementById('preview').srcObject = camStream;
+            } catch (err) {
+                document.getElementById('status').innerText = "Camera access denied.";
+                document.getElementById('status').style.color = "#ff4444";
+            }
+        }
+        initCamera();
+
+        document.getElementById('btn-connect').addEventListener('click', () => {
+            const pin = document.getElementById('pin-input').value;
+            if(pin.length !== 4) return alert("Please enter the 4-digit PIN.");
+            if(!camStream) return alert("Camera not ready.");
             
-            peer.on('call', call => {
-                logEl.innerText = "VR CONNECTED. STREAMING.";
-                logEl.style.color = "#00d2ff";
-                call.answer(stream);
-            });
-        })
-        .catch(err => {
-            logEl.innerText = "CAMERA BLOCKED";
-            logEl.style.color = "red";
+            const targetId = 'juncos-hub-' + pin;
+            document.getElementById('status').innerText = "Dialing Hub [" + pin + "]...";
+
+            // THE ID BADGE: Notice the metadata tag
+            const call = peer.call(targetId, camStream, { metadata: { device: 'drone' } });
+            
+            call.on('stream', () => { /* Hub accepted */ });
+            call.on('error', () => { document.getElementById('status').innerText = "Connection Failed."; });
+            
+            document.getElementById('status').innerText = "Drone Link Established. Streaming.";
+            document.getElementById('status').style.color = "#00ff00";
         });
     </script>
 </body>
