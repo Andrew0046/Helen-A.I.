@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.5: Stable Redemption</title>
+    <title>The Hub v36.7: Smart Automation</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -38,9 +38,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.5</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.7</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Stable Redemption</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Smart Automation</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -114,8 +114,7 @@
             <a-plane id="btn-depth" position="0.3 -0.05 0.03" width="0.45" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-depth" value="DEPTH OFF" align="center" width="1.8" color="#ff9d00"></a-text></a-plane>
             <a-plane id="btn-void" position="0.9 -0.05 0.03" width="0.45" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.8" color="#aaa"></a-text></a-plane>
 
-            <a-plane id="btn-drone" position="-1.0 -0.22 0.03" width="0.35" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-drone" value="DRONE" align="center" width="1.8" color="white"></a-text></a-plane>
-            <a-plane id="btn-pc" position="-0.5 -0.22 0.03" width="0.35" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-pc" value="PC LINK" align="center" width="1.8" color="white"></a-text></a-plane>
+            <a-plane id="btn-ext" position="-0.75 -0.22 0.03" width="0.85" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-ext" value="AWAITING LINK" align="center" width="1.8" color="white"></a-text></a-plane>
             <a-plane id="btn-local" position="0.0 -0.22 0.03" width="0.35" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-local" value="LOCAL AR" align="center" width="1.8" color="white"></a-text></a-plane>
             <a-plane id="btn-rot-left" position="0.5 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="<" align="center" width="1.5" scale="1.5 1.5 1" color="white"></a-text></a-plane>
             <a-plane id="btn-reset" position="0.75 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="RST" align="center" width="1.5" color="white"></a-text></a-plane>
@@ -147,13 +146,12 @@
         const pdfjsLib = window.pdfjsLib;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        // STATE MANAGER
+        // UNIFIED STATE MANAGER
         const state = {
             playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isDepthMode: false, isVoid: false, curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
             audio: { ctx: null, source: null, panner: null },
-            drone: { active: false, conn: null }, 
-            pc: { active: false, conn: null },
+            ext: { active: false, type: null, conn: null }, // Unified External Feed (PC or Drone)
             localCam: { active: false, stream: null } 
         };
 
@@ -172,8 +170,7 @@
                     wrapper: document.getElementById('hub-wrapper'), videoGroup: document.getElementById('video-controls'), orb: document.getElementById('menu-orb'),
                     playText: document.getElementById('txt-play'), timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'), title: document.getElementById('txt-title'),
                     seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
-                    btnDrone: document.getElementById('btn-drone'), txtDrone: document.getElementById('txt-drone'),
-                    btnPc: document.getElementById('btn-pc'), txtPc: document.getElementById('txt-pc'),
+                    btnExt: document.getElementById('btn-ext'), txtExt: document.getElementById('txt-ext'),
                     btnLocal: document.getElementById('btn-local'), txtLocal: document.getElementById('txt-local'),
                     btnDepth: document.getElementById('btn-depth'), txtDepth: document.getElementById('txt-depth'),
                     txtPin: document.getElementById('txt-pin')
@@ -185,35 +182,34 @@
             const oldColor = el.getAttribute('color');
             el.setAttribute('color', '#00d2ff'); 
             setTimeout(() => { 
-                if (el.getAttribute('id') === 'btn-drone' && state.drone.active) return; 
-                if (el.getAttribute('id') === 'btn-pc' && state.pc.active) return; 
+                if (el.getAttribute('id') === 'btn-ext' && state.ext.active) return; 
                 if (el.getAttribute('id') === 'btn-local' && state.localCam.active) return; 
                 el.setAttribute('color', oldColor || '#ffffff'); 
             }, 150); 
         }
 
         // ==========================================
-        // THE KILL SWITCH (Prevents Gridlock)
+        // THE UNIFIED KILL SWITCH
         // ==========================================
         function stopAllFeeds(except) {
-            if(except !== 'drone' && state.drone.active) {
-                if(state.drone.conn) state.drone.conn.close(); state.drone.active = false;
-                DOM.vr.controls.txtDrone.setAttribute('value', 'DRONE'); DOM.vr.controls.btnDrone.setAttribute('color', '#ffffff');
-            }
-            if(except !== 'pc' && state.pc.active) {
-                if(state.pc.conn) state.pc.conn.close(); state.pc.active = false;
-                DOM.vr.controls.txtPc.setAttribute('value', 'PC LINK'); DOM.vr.controls.btnPc.setAttribute('color', '#ffffff');
+            if(except !== 'ext' && state.ext.active) {
+                if(state.ext.conn) state.ext.conn.close(); 
+                state.ext.active = false; state.ext.type = null;
+                DOM.vr.controls.txtExt.setAttribute('value', 'AWAITING LINK'); 
+                DOM.vr.controls.btnExt.setAttribute('color', '#ffffff');
+                DOM.media.remoteVideo.srcObject = null;
             }
             if(except !== 'local' && state.localCam.active) {
                 if (state.localCam.stream) { state.localCam.stream.getTracks().forEach(t => t.stop()); DOM.media.localVideo.srcObject = null; state.localCam.stream = null; }
                 state.localCam.active = false;
-                DOM.vr.controls.txtLocal.setAttribute('value', 'LOCAL AR'); DOM.vr.controls.btnLocal.setAttribute('color', '#ffffff');
+                DOM.vr.controls.txtLocal.setAttribute('value', 'LOCAL AR'); 
+                DOM.vr.controls.btnLocal.setAttribute('color', '#ffffff');
             }
-            if(!state.drone.active && !state.pc.active && !state.localCam.active) { DOM.vr.arHud.setAttribute('visible', false); }
+            if(!state.ext.active && !state.localCam.active) { DOM.vr.arHud.setAttribute('visible', false); }
         }
 
         // ==========================================
-        // REVERSE PAIRING WEBRTC
+        // SMART ROUTER (Handles both PC & Drone automatically)
         // ==========================================
         const hubPin = Math.floor(1000 + Math.random() * 9000);
         const hubId = 'juncos-hub-' + hubPin;
@@ -221,60 +217,42 @@
         
         state.peer = new Peer(hubId, { debug: 2 });
         
-        // RECEIVE PC CALL
         state.peer.on('call', (call) => {
-            stopAllFeeds('pc');
-            DOM.vr.controls.txtPc.setAttribute('value', 'CONNECTING...');
-            call.answer(); state.pc.conn = call;
+            const deviceType = (call.metadata && call.metadata.device) ? call.metadata.device : 'pc';
+            stopAllFeeds('ext'); // Clear any running feed to make room
+            
+            DOM.vr.controls.txtExt.setAttribute('value', 'CONNECTING...');
+            call.answer(); 
+            state.ext.conn = call;
+            state.ext.type = deviceType;
 
             call.on('stream', remoteStream => {
-                DOM.vr.controls.txtPc.setAttribute('value', 'CLOSE PC');
-                DOM.vr.controls.btnPc.setAttribute('color', '#00d2ff');
-                const vid = DOM.media.remoteVideo;
+                DOM.vr.controls.txtExt.setAttribute('value', deviceType === 'drone' ? 'CLOSE DRONE' : 'CLOSE PC');
+                DOM.vr.controls.btnExt.setAttribute('color', '#00d2ff');
+                const vid = DOM.media.remoteVideo; 
                 vid.srcObject = remoteStream;
-                vid.play().then(() => {
-                    const texture = new THREE.VideoTexture(vid);
-                    texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter; texture.colorSpace = THREE.SRGBColorSpace;
-                    const mesh = DOM.vr.arHud.getObject3D('mesh');
-                    if (mesh) { mesh.material.map = texture; mesh.material.color.setHex(0xffffff); mesh.material.needsUpdate = true; }
-                    DOM.vr.arHud.setAttribute('visible', true); state.pc.active = true;
-                });
+                vid.play().then(() => { paintVideoTexture(vid); state.ext.active = true; });
             });
+
+            call.on('close', () => { stopAllFeeds(); });
         });
 
-        DOM.vr.controls.btnPc.addEventListener('click', function() {
-            if (state.pc.active) { stopAllFeeds(); } 
-            else { DOM.vr.controls.txtPc.setAttribute('value', 'WAITING...'); setTimeout(() => { if(!state.pc.active) DOM.vr.controls.txtPc.setAttribute('value', 'PC LINK'); }, 2000); }
-            flash(this);
-        });
+        function paintVideoTexture(vid) {
+            const texture = new THREE.VideoTexture(vid);
+            texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter; texture.colorSpace = THREE.SRGBColorSpace;
+            const mesh = DOM.vr.arHud.getObject3D('mesh');
+            if (mesh) { mesh.material.map = texture; mesh.material.color.setHex(0xffffff); mesh.material.needsUpdate = true; }
+            DOM.vr.arHud.setAttribute('visible', true);
+        }
 
-        // DIAL DRONE CAM
-        DOM.vr.controls.btnDrone.addEventListener('click', function() {
-            if (!state.drone.active) {
-                stopAllFeeds('drone');
-                DOM.vr.controls.txtDrone.setAttribute('value', 'DIALING...');
-                DOM.vr.arHud.setAttribute('visible', true);
-                
-                const canvas = document.createElement('canvas'); canvas.width=1; canvas.height=1;
-                const dummyStream = canvas.captureStream(1);
-                const call = state.peer.call('vr-hub-cam-01', dummyStream);
-                state.drone.conn = call;
-
-                if(!call) { DOM.vr.controls.txtDrone.setAttribute('value', 'FAIL'); return; }
-
-                call.on('stream', remoteStream => {
-                    DOM.vr.controls.txtDrone.setAttribute('value', 'CLOSE CAM');
-                    this.setAttribute('color', '#00d2ff');
-                    const vid = DOM.media.remoteVideo; vid.srcObject = remoteStream;
-                    vid.play().then(() => {
-                        const texture = new THREE.VideoTexture(vid);
-                        texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter; texture.colorSpace = THREE.SRGBColorSpace;
-                        const mesh = DOM.vr.arHud.getObject3D('mesh');
-                        if (mesh) { mesh.material.map = texture; mesh.material.color.setHex(0xffffff); mesh.material.needsUpdate = true; }
-                        state.drone.active = true;
-                    });
-                });
-            } else { stopAllFeeds(); }
+        // THE SMART BUTTON CLICK
+        DOM.vr.controls.btnExt.addEventListener('click', function() {
+            if (state.ext.active) { 
+                stopAllFeeds(); 
+            } else { 
+                DOM.vr.controls.txtExt.setAttribute('value', 'USE PIN TO LINK'); 
+                setTimeout(() => { if(!state.ext.active) DOM.vr.controls.txtExt.setAttribute('value', 'AWAITING LINK'); }, 2000); 
+            }
             flash(this);
         });
 
