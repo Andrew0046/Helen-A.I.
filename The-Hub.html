@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.8: Image Navigation Patch</title>
+    <title>The Hub v36.9: Dynamic Cast Router</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -38,9 +38,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.8</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.9</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Image Navigation Patch</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Dynamic Cast Router</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -115,11 +115,15 @@
             <a-plane id="btn-depth" position="0.3 -0.05 0.03" width="0.45" height="0.15" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-depth" value="DEPTH OFF" align="center" width="1.8" color="#ff9d00"></a-text></a-plane>
             <a-plane id="btn-void" position="0.9 -0.05 0.03" width="0.45" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.8" color="#aaa"></a-text></a-plane>
 
-            <a-plane id="btn-ext" position="-0.75 -0.22 0.03" width="0.85" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-ext" value="AWAITING LINK" align="center" width="1.8" color="white"></a-text></a-plane>
-            <a-plane id="btn-local" position="0.0 -0.22 0.03" width="0.35" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-local" value="LOCAL AR" align="center" width="1.8" color="white"></a-text></a-plane>
-            <a-plane id="btn-rot-left" position="0.5 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="<" align="center" width="1.5" scale="1.5 1.5 1" color="white"></a-text></a-plane>
+            <a-plane id="btn-ext" position="-0.9 -0.22 0.03" width="0.6" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-ext" value="AWAITING LINK" align="center" width="1.6" color="white"></a-text></a-plane>
+            
+            <a-plane id="btn-cast" position="-0.35 -0.22 0.03" width="0.4" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-cast" value="CAST: AR" align="center" width="1.6" color="#00d2ff"></a-text></a-plane>
+            
+            <a-plane id="btn-local" position="0.1 -0.22 0.03" width="0.4" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-local" value="LOCAL AR" align="center" width="1.6" color="white"></a-text></a-plane>
+            
+            <a-plane id="btn-rot-left" position="0.5 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="<" align="center" width="1.5" color="white"></a-text></a-plane>
             <a-plane id="btn-reset" position="0.75 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="RST" align="center" width="1.5" color="white"></a-text></a-plane>
-            <a-plane id="btn-rot-right" position="1.0 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value=">" align="center" width="1.5" scale="1.5 1.5 1" color="white"></a-text></a-plane>
+            <a-plane id="btn-rot-right" position="1.0 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value=">" align="center" width="1.5" color="white"></a-text></a-plane>
 
             <a-text value="SEAT:" position="-1.1 -0.38 0.03" align="center" color="#666" width="1.5"></a-text>
             <a-plane id="seat-front" position="-0.85 -0.38 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="FRNT" align="center" width="1.5" scale="0.9 0.9 1" color="#fff"></a-text></a-plane>
@@ -147,12 +151,12 @@
         const pdfjsLib = window.pdfjsLib;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        // UNIFIED STATE MANAGER
+        // STATE MANAGER
         const state = {
             playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isDepthMode: false, isVoid: false, curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
             audio: { ctx: null, source: null, panner: null },
-            ext: { active: false, type: null, conn: null }, // Unified External Feed
+            ext: { active: false, type: null, conn: null, castToMain: false }, // ADDED castToMain state
             localCam: { active: false, stream: null } 
         };
 
@@ -172,6 +176,7 @@
                     playText: document.getElementById('txt-play'), timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'), title: document.getElementById('txt-title'),
                     seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
                     btnExt: document.getElementById('btn-ext'), txtExt: document.getElementById('txt-ext'),
+                    btnCast: document.getElementById('btn-cast'), txtCast: document.getElementById('txt-cast'), // ADDED CAST DOM
                     btnLocal: document.getElementById('btn-local'), txtLocal: document.getElementById('txt-local'),
                     btnDepth: document.getElementById('btn-depth'), txtDepth: document.getElementById('txt-depth'),
                     txtPin: document.getElementById('txt-pin')
@@ -184,10 +189,53 @@
             el.setAttribute('color', '#00d2ff'); 
             setTimeout(() => { 
                 if (el.getAttribute('id') === 'btn-ext' && state.ext.active) return; 
-                if (el.getAttribute('id') === 'btn-local' && state.localCam.active) return; 
+                if (el.getAttribute('id') === 'btn-local' && state.localCam.active) return;
+                if (el.getAttribute('id') === 'btn-cast' && state.ext.castToMain) { el.setAttribute('color', '#ff9d00'); return; }
                 el.setAttribute('color', oldColor || '#ffffff'); 
             }, 150); 
         }
+
+        // ==========================================
+        // DYNAMIC ROUTING LOGIC
+        // ==========================================
+        function applyCastRouting() {
+            if (state.ext.active) {
+                if (state.ext.castToMain) {
+                    // Route PC feed to the Big Cinema Screen
+                    updateTexture('#remote-video');
+                    DOM.vr.arHud.setAttribute('visible', false);
+                } else {
+                    // Route PC feed back to AR glass, restore movie to Big Screen
+                    restoreMainScreenTexture();
+                    paintVideoTextureToAR(DOM.media.remoteVideo);
+                }
+            } else {
+                // Not active yet, just prep the screens
+                restoreMainScreenTexture();
+            }
+        }
+
+        function restoreMainScreenTexture() {
+            if (state.playlist.length === 0) {
+                updateTexture('#video-src');
+                return;
+            }
+            const item = state.playlist[state.currentTrack];
+            if (item.type === 'pdf') updateTexture('#pdf-canvas');
+            else if (item.type === 'image') updateTexture('#img-src');
+            else updateTexture('#video-src');
+            
+            if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
+        }
+
+        // TOGGLE BUTTON LOGIC
+        DOM.vr.controls.btnCast.addEventListener('click', function() {
+            state.ext.castToMain = !state.ext.castToMain;
+            DOM.vr.controls.txtCast.setAttribute('value', state.ext.castToMain ? 'CAST: MAIN' : 'CAST: AR');
+            DOM.vr.controls.txtCast.setAttribute('color', state.ext.castToMain ? '#ff9d00' : '#00d2ff');
+            applyCastRouting();
+            flash(this);
+        });
 
         // ==========================================
         // THE UNIFIED KILL SWITCH
@@ -199,6 +247,8 @@
                 DOM.vr.controls.txtExt.setAttribute('value', 'AWAITING LINK'); 
                 DOM.vr.controls.btnExt.setAttribute('color', '#ffffff');
                 DOM.media.remoteVideo.srcObject = null;
+                DOM.vr.arHud.setAttribute('visible', false);
+                restoreMainScreenTexture(); // Safely restore the movie if we were casting to main
             }
             if(except !== 'local' && state.localCam.active) {
                 if (state.localCam.stream) { state.localCam.stream.getTracks().forEach(t => t.stop()); DOM.media.localVideo.srcObject = null; state.localCam.stream = null; }
@@ -210,7 +260,7 @@
         }
 
         // ==========================================
-        // SMART ROUTER (Handles both PC & Drone automatically)
+        // SMART ROUTER (PC & Drone)
         // ==========================================
         const hubPin = Math.floor(1000 + Math.random() * 9000);
         const hubId = 'juncos-hub-' + hubPin;
@@ -220,7 +270,7 @@
         
         state.peer.on('call', (call) => {
             const deviceType = (call.metadata && call.metadata.device) ? call.metadata.device : 'pc';
-            stopAllFeeds('ext'); // Clear any running feed to make room
+            stopAllFeeds('ext'); 
             
             DOM.vr.controls.txtExt.setAttribute('value', 'CONNECTING...');
             call.answer(); 
@@ -232,13 +282,16 @@
                 DOM.vr.controls.btnExt.setAttribute('color', '#00d2ff');
                 const vid = DOM.media.remoteVideo; 
                 vid.srcObject = remoteStream;
-                vid.play().then(() => { paintVideoTexture(vid); state.ext.active = true; });
+                vid.play().then(() => { 
+                    state.ext.active = true;
+                    applyCastRouting(); // Automatically sends it to wherever the toggle is set
+                });
             });
 
             call.on('close', () => { stopAllFeeds(); });
         });
 
-        function paintVideoTexture(vid) {
+        function paintVideoTextureToAR(vid) {
             const texture = new THREE.VideoTexture(vid);
             texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter; texture.colorSpace = THREE.SRGBColorSpace;
             const mesh = DOM.vr.arHud.getObject3D('mesh');
@@ -437,7 +490,21 @@
             }
         }
 
-        function updateTexture(sourceId) { Object.values(DOM.vr.screens).forEach(s => { if(s) { if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId); else s.setAttribute('material', 'src', sourceId); }}); configureStereoLayers(); }
+        // Modified updateTexture to respect Cast Router
+        function updateTexture(sourceId) { 
+            // If we are currently casting PC to Main, override attempts to change it to local media
+            if (state.ext.active && state.ext.castToMain && sourceId !== '#remote-video') {
+                return; 
+            }
+            Object.values(DOM.vr.screens).forEach(s => { 
+                if(s) { 
+                    if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId); 
+                    else s.setAttribute('material', 'src', sourceId); 
+                }
+            }); 
+            configureStereoLayers(); 
+        }
+
         function refreshTextureMesh() { Object.values(DOM.vr.screens).forEach(el => { if(el){ const mesh = el.getObject3D('mesh'); if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true; }}); }
 
         document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
