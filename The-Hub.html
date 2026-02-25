@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.11: The Smart Mirror</title>
+    <title>The Hub v36.9: Dynamic Cast Router</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -38,9 +38,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.11</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.9</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">The Smart Mirror Patch</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Dynamic Cast Router</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -79,7 +79,6 @@
         <a-entity id="screen-180-left" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; fog: false" rotation="0 -270 0" visible="false"></a-entity>
         <a-entity id="screen-180-right" geometry="primitive: cylinder; radius: 60; height: 100; thetaLength: 180; openEnded: true; segmentsRadial: 64" material="shader: flat; side: back; src: #video-src; fog: false" rotation="0 -270 0" visible="false"></a-entity>
         
-		
         <a-videosphere id="screen-360" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
         <a-videosphere id="screen-360-left" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
         <a-videosphere id="screen-360-right" src="#video-src" radius="60" rotation="0 -90 0" material="shader: flat; side: back; fog: false" visible="false"></a-videosphere>
@@ -117,8 +116,11 @@
             <a-plane id="btn-void" position="0.9 -0.05 0.03" width="0.45" height="0.15" color="#ffffff" opacity="0.1" class="clickable btn-hover"><a-text value="VOID" align="center" width="1.8" color="#aaa"></a-text></a-plane>
 
             <a-plane id="btn-ext" position="-0.9 -0.22 0.03" width="0.6" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-ext" value="AWAITING LINK" align="center" width="1.6" color="white"></a-text></a-plane>
+            
             <a-plane id="btn-cast" position="-0.35 -0.22 0.03" width="0.4" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-cast" value="CAST: AR" align="center" width="1.6" color="#00d2ff"></a-text></a-plane>
+            
             <a-plane id="btn-local" position="0.1 -0.22 0.03" width="0.4" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text id="txt-local" value="LOCAL AR" align="center" width="1.6" color="white"></a-text></a-plane>
+            
             <a-plane id="btn-rot-left" position="0.5 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="<" align="center" width="1.5" color="white"></a-text></a-plane>
             <a-plane id="btn-reset" position="0.75 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="RST" align="center" width="1.5" color="white"></a-text></a-plane>
             <a-plane id="btn-rot-right" position="1.0 -0.22 0.03" width="0.2" height="0.12" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value=">" align="center" width="1.5" color="white"></a-text></a-plane>
@@ -154,7 +156,7 @@
             playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isDepthMode: false, isVoid: false, curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
             audio: { ctx: null, source: null, panner: null },
-            ext: { active: false, type: null, conn: null, castToMain: false }, 
+            ext: { active: false, type: null, conn: null, castToMain: false }, // ADDED castToMain state
             localCam: { active: false, stream: null } 
         };
 
@@ -174,7 +176,7 @@
                     playText: document.getElementById('txt-play'), timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'), title: document.getElementById('txt-title'),
                     seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
                     btnExt: document.getElementById('btn-ext'), txtExt: document.getElementById('txt-ext'),
-                    btnCast: document.getElementById('btn-cast'), txtCast: document.getElementById('txt-cast'), 
+                    btnCast: document.getElementById('btn-cast'), txtCast: document.getElementById('txt-cast'), // ADDED CAST DOM
                     btnLocal: document.getElementById('btn-local'), txtLocal: document.getElementById('txt-local'),
                     btnDepth: document.getElementById('btn-depth'), txtDepth: document.getElementById('txt-depth'),
                     txtPin: document.getElementById('txt-pin')
@@ -193,22 +195,31 @@
             }, 150); 
         }
 
+        // ==========================================
+        // DYNAMIC ROUTING LOGIC
+        // ==========================================
         function applyCastRouting() {
             if (state.ext.active) {
                 if (state.ext.castToMain) {
+                    // Route PC feed to the Big Cinema Screen
                     updateTexture('#remote-video');
                     DOM.vr.arHud.setAttribute('visible', false);
                 } else {
+                    // Route PC feed back to AR glass, restore movie to Big Screen
                     restoreMainScreenTexture();
                     paintVideoTextureToAR(DOM.media.remoteVideo);
                 }
             } else {
+                // Not active yet, just prep the screens
                 restoreMainScreenTexture();
             }
         }
 
         function restoreMainScreenTexture() {
-            if (state.playlist.length === 0) { updateTexture('#video-src'); return; }
+            if (state.playlist.length === 0) {
+                updateTexture('#video-src');
+                return;
+            }
             const item = state.playlist[state.currentTrack];
             if (item.type === 'pdf') updateTexture('#pdf-canvas');
             else if (item.type === 'image') updateTexture('#img-src');
@@ -217,6 +228,7 @@
             if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
         }
 
+        // TOGGLE BUTTON LOGIC
         DOM.vr.controls.btnCast.addEventListener('click', function() {
             state.ext.castToMain = !state.ext.castToMain;
             DOM.vr.controls.txtCast.setAttribute('value', state.ext.castToMain ? 'CAST: MAIN' : 'CAST: AR');
@@ -225,6 +237,9 @@
             flash(this);
         });
 
+        // ==========================================
+        // THE UNIFIED KILL SWITCH
+        // ==========================================
         function stopAllFeeds(except) {
             if(except !== 'ext' && state.ext.active) {
                 if(state.ext.conn) state.ext.conn.close(); 
@@ -233,7 +248,7 @@
                 DOM.vr.controls.btnExt.setAttribute('color', '#ffffff');
                 DOM.media.remoteVideo.srcObject = null;
                 DOM.vr.arHud.setAttribute('visible', false);
-                restoreMainScreenTexture();
+                restoreMainScreenTexture(); // Safely restore the movie if we were casting to main
             }
             if(except !== 'local' && state.localCam.active) {
                 if (state.localCam.stream) { state.localCam.stream.getTracks().forEach(t => t.stop()); DOM.media.localVideo.srcObject = null; state.localCam.stream = null; }
@@ -244,6 +259,9 @@
             if(!state.ext.active && !state.localCam.active) { DOM.vr.arHud.setAttribute('visible', false); }
         }
 
+        // ==========================================
+        // SMART ROUTER (PC & Drone)
+        // ==========================================
         const hubPin = Math.floor(1000 + Math.random() * 9000);
         const hubId = 'juncos-hub-' + hubPin;
         DOM.vr.controls.txtPin.setAttribute('value', 'PIN: ' + hubPin);
@@ -266,9 +284,10 @@
                 vid.srcObject = remoteStream;
                 vid.play().then(() => { 
                     state.ext.active = true;
-                    applyCastRouting(); 
+                    applyCastRouting(); // Automatically sends it to wherever the toggle is set
                 });
             });
+
             call.on('close', () => { stopAllFeeds(); });
         });
 
@@ -281,7 +300,9 @@
         }
 
         DOM.vr.controls.btnExt.addEventListener('click', function() {
-            if (state.ext.active) { stopAllFeeds(); } else { 
+            if (state.ext.active) { 
+                stopAllFeeds(); 
+            } else { 
                 DOM.vr.controls.txtExt.setAttribute('value', 'USE PIN TO LINK'); 
                 setTimeout(() => { if(!state.ext.active) DOM.vr.controls.txtExt.setAttribute('value', 'AWAITING LINK'); }, 2000); 
             }
@@ -310,7 +331,7 @@
             flash(this);
         });
 
-        // --- SMART DEPTH ENGINE (SMART MIRROR FIX) ---
+        // --- SMART DEPTH ENGINE ---
         function configureStereoLayers() {
             const setLayer = (el, layerIndex) => {
                 if(!el) return;
@@ -331,44 +352,28 @@
             const setLeft = (el) => {
                 const mesh = el.getObject3D('mesh');
                 if (!mesh || !mesh.material || !mesh.material.map) return;
-                const isSphere = el.tagName.toLowerCase() === 'a-videosphere';
-                if (state.isDepthMode) { 
-                    mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); 
-                    mesh.material.map.offset.set(isSphere ? 0 : 1, 0); 
-                } else { 
-                    mesh.material.map.repeat.set(isSphere ? 0.5 : -0.5, 1); 
-                    mesh.material.map.offset.set(isSphere ? 0 : 0.5, 0); 
-                }
+                if (state.isDepthMode) { mesh.material.map.repeat.set(1, 1); mesh.material.map.offset.set(0, 0); } 
+                else { mesh.material.map.repeat.set(0.5, 1); mesh.material.map.offset.set(0, 0); }
                 mesh.material.map.needsUpdate = true;
             };
             const setRight = (el) => {
                 const mesh = el.getObject3D('mesh');
                 if (!mesh || !mesh.material || !mesh.material.map) return;
                 if (!mesh.material.map.isClonedForStereo) { mesh.material.map = mesh.material.map.clone(); mesh.material.map.needsUpdate = true; mesh.material.map.isClonedForStereo = true; }
-                const isSphere = el.tagName.toLowerCase() === 'a-videosphere';
-                if (state.isDepthMode) { 
-                    mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); 
-                    mesh.material.map.offset.set(isSphere ? 0.005 : 1, 0); 
-                } else { 
-                    mesh.material.map.repeat.set(isSphere ? 0.5 : -0.5, 1); 
-                    mesh.material.map.offset.set(isSphere ? 0.5 : 1, 0); 
-                }
-                mesh.material.map.needsUpdate = true;
+                if (state.isDepthMode) { mesh.material.map.repeat.set(1, 1); mesh.material.map.offset.set(0.005, 0); } 
+                else { mesh.material.map.repeat.set(0.5, 1); mesh.material.map.offset.set(0.5, 0); }
             };
             [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL].forEach(setLeft);
             [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(setRight);
         }
 
         function resetStereoMapping() {
-            Object.values(DOM.vr.screens).forEach(el => {
-                if (!el) return;
+            const reset = (el) => {
                 const mesh = el.getObject3D('mesh');
                 if (!mesh || !mesh.material || !mesh.material.map) return;
-                const isSphere = el.tagName.toLowerCase() === 'a-videosphere';
-                mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); 
-                mesh.material.map.offset.set(isSphere ? 0 : 1, 0); 
-                mesh.material.map.needsUpdate = true;
-            });
+                mesh.material.map.repeat.set(1, 1); mesh.material.map.offset.set(0, 0); mesh.material.map.needsUpdate = true;
+            };
+            Object.values(DOM.vr.screens).forEach(reset);
         }
 
         function updateVisibility() {
@@ -405,7 +410,7 @@
         DOM.vr.controls.btnDepth.addEventListener('click', function() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; state.isDepthMode = !state.isDepthMode; if(state.isDepthMode) state.is3D = false; updateVisibility(); flash(this); });
 
         // ==========================================
-        // MEDIA HANDLING
+        // MEDIA HANDLING & NAN ARMOR
         // ==========================================
         function handleFiles(files) {
             if (files.length > 0) {
@@ -485,8 +490,12 @@
             }
         }
 
+        // Modified updateTexture to respect Cast Router
         function updateTexture(sourceId) { 
-            if (state.ext.active && state.ext.castToMain && sourceId !== '#remote-video') return; 
+            // If we are currently casting PC to Main, override attempts to change it to local media
+            if (state.ext.active && state.ext.castToMain && sourceId !== '#remote-video') {
+                return; 
+            }
             Object.values(DOM.vr.screens).forEach(s => { 
                 if(s) { 
                     if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId); 
@@ -522,6 +531,7 @@
         document.getElementById('curve-more').addEventListener('click', function() { if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }});
         document.getElementById('curve-less').addEventListener('click', function() { if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }});
 
+        // THE NAN ARMOR LOOP
         setInterval(() => {
             const currentItem = state.playlist[state.currentTrack]; const v = DOM.media.video;
             if(currentItem && currentItem.type === 'video' && !v.paused) {
