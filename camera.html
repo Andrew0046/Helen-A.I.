@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Drone Cam & Portable Server</title>
+    <title>Drone Cam & Portable Server v2.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #050505; color: white; font-family: 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
@@ -21,22 +21,13 @@
     </style>
 </head>
 <body>
-    
     <video id="cam-preview" autoplay playsinline muted></video>
-
-    <div id="telemetry-hud">
-        SYS.TELEMETRY<br>
-        PITCH: <span id="val-p">0.00</span>&deg;<br>
-        YAW&nbsp;&nbsp;: <span id="val-y">0.00</span>&deg;
-    </div>
-
+    <div id="telemetry-hud">SYS.TELEMETRY<br>PITCH: <span id="val-p">0.00</span>&deg;<br>YAW&nbsp;&nbsp;: <span id="val-y">0.00</span>&deg;</div>
     <div class="ui-card" id="ui">
         <h1>PORTA-LINK</h1>
         <p>Stream Camera or Local File</p>
-        
         <input type="file" id="file-input" accept="video/*" style="display:none">
         <button id="btn-file" class="btn-alt">STREAM LOCAL VIDEO</button>
-        
         <input type="text" id="pin" placeholder="----" maxlength="4" autocomplete="off">
         <button id="btn-connect">ENGAGE UPLINK</button>
         <div id="status">Warming up optics...</div>
@@ -82,7 +73,7 @@
                 dom.video.src = url;
                 dom.video.loop = true;
                 
-                // THE AUDIO FIX: Unmute the source player so the stream grabs the audio!
+                // THE FIX: UNMUTE THE SENDER SO AUDIO CAN ENTER THE PIPE
                 dom.video.muted = false; 
                 
                 dom.video.play().then(() => {
@@ -99,7 +90,6 @@
             const pin = dom.pin.value.trim();
             if(pin.length !== 4) { dom.status.innerText = "INVALID PIN"; return; }
             const hubId = 'juncos-hub-' + pin;
-
             dom.status.innerText = "PUNCHING THROUGH...";
 
             const call = peer.call(hubId, localStream, { metadata: { device: 'drone' } });
