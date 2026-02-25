@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.14: The Permanent Mirror</title>
+    <title>The Hub v36.15: The Self-Healing Engine</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     
     <script>
@@ -53,9 +53,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.14</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.15</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">The Permanent Mirror</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">The Self-Healing Mirror</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -86,7 +86,7 @@
         <a-light id="ambi-light" type="ambient" color="#222" intensity="0.2"></a-light>
         <a-light id="screen-glow" type="point" position="0 4 -4" distance="20" decay="2" intensity="0.5" color="#fff"></a-light>
 
-         <a-curvedimage id="screen-cinema" src="#video-src" height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="true"></a-curvedimage>
+        <a-curvedimage id="screen-cinema" src="#video-src" height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="true"></a-curvedimage>
         <a-curvedimage id="screen-cinema-left" src="#video-src" height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"></a-curvedimage>
         <a-curvedimage id="screen-cinema-right" src="#video-src" height="12" radius="14" theta-length="90" rotation="0 135 0" position="0 5 0" side="double" visible="false"></a-curvedimage>
         
@@ -163,7 +163,6 @@
         const pdfjsLib = window.pdfjsLib;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        // STATE MANAGER
         const state = {
             playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isDepthMode: false, isVoid: false, curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
@@ -219,7 +218,6 @@
             if (state.playlist.length === 0) { updateTexture('#video-src'); return; }
             const item = state.playlist[state.currentTrack];
             if (item.type === 'pdf') updateTexture('#pdf-canvas'); else if (item.type === 'image') updateTexture('#img-src'); else updateTexture('#video-src');
-            if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
         }
 
         DOM.vr.controls.btnCast.addEventListener('click', function() {
@@ -334,86 +332,49 @@
         if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
 
         // ==========================================
-        // THE EXPLICIT SMART MIRROR LOGIC
+        // THE BULLETPROOF UV MAPPING HELPER
         // ==========================================
+        function applyUV(el, repeatX, offsetX) {
+            if(!el) return;
+            const mesh = el.getObject3D('mesh');
+            if (!mesh || !mesh.material || !mesh.material.map) return;
+            
+            // Only force an update if the engine has drifted or loaded incorrectly
+            if (mesh.material.map.repeat.x !== repeatX || mesh.material.map.offset.x !== offsetX) {
+                mesh.material.map.repeat.set(repeatX, 1);
+                mesh.material.map.offset.set(offsetX, 0);
+                mesh.material.map.needsUpdate = true;
+            }
+        }
+
         function enforceStereoMapping() {
-            const setLeft = (el) => {
+            // Left Eye
+            [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL].forEach(el => {
+                const isSphere = el.tagName.toLowerCase() === 'a-videosphere';
+                const rep = isSphere ? (state.isDepthMode ? 1 : 0.5) : (state.isDepthMode ? -1 : -0.5);
+                const off = isSphere ? 0 : (state.isDepthMode ? 1 : 0.5);
+                applyUV(el, rep, off);
+            });
+
+            // Right Eye
+            [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(el => {
                 const mesh = el.getObject3D('mesh');
-                if (!mesh || !mesh.material || !mesh.material.map) return;
-                
-                if (el.tagName.toLowerCase() === 'a-videosphere') {
-                    // DON'T CHANGE THE ONE FROM THE 360, IT'S FINE
-                    if (state.isDepthMode) { 
-                        mesh.material.map.repeat.set(1, 1); 
-                        mesh.material.map.offset.set(0, 0); 
-                    } else { 
-                        mesh.material.map.repeat.set(0.5, 1); 
-                        mesh.material.map.offset.set(0, 0); 
-                    }
-                } else {
-                    // THE NEW CODE: REVERSE TEXT FOR CINEMA AND 180 SCREENS
-                    if (state.isDepthMode) { 
-                        mesh.material.map.repeat.set(-1, 1); 
-                        mesh.material.map.offset.set(1, 0); 
-                    } else { 
-                        mesh.material.map.repeat.set(-0.5, 1); 
-                        mesh.material.map.offset.set(0.5, 0); 
-                    }
+                if (mesh && mesh.material && mesh.material.map && !mesh.material.map.isClonedForStereo) {
+                    mesh.material.map = mesh.material.map.clone();
+                    mesh.material.map.isClonedForStereo = true;
+                    mesh.material.map.needsUpdate = true;
                 }
-                mesh.material.map.needsUpdate = true;
-            };
-
-            const setRight = (el) => {
-                const mesh = el.getObject3D('mesh');
-                if (!mesh || !mesh.material || !mesh.material.map) return;
-                if (!mesh.material.map.isClonedForStereo) { 
-                    mesh.material.map = mesh.material.map.clone(); 
-                    mesh.material.map.needsUpdate = true; 
-                    mesh.material.map.isClonedForStereo = true; 
-                }
-
-                if (el.tagName.toLowerCase() === 'a-videosphere') {
-                    // DON'T CHANGE THE ONE FROM THE 360, IT'S FINE
-                    if (state.isDepthMode) { 
-                        mesh.material.map.repeat.set(1, 1); 
-                        mesh.material.map.offset.set(0.005, 0); 
-                    } else { 
-                        mesh.material.map.repeat.set(0.5, 1); 
-                        mesh.material.map.offset.set(0.5, 0); 
-                    }
-                } else {
-                    // THE NEW CODE: REVERSE TEXT FOR CINEMA AND 180 SCREENS
-                    if (state.isDepthMode) { 
-                        mesh.material.map.repeat.set(-1, 1); 
-                        mesh.material.map.offset.set(1, 0); 
-                    } else { 
-                        mesh.material.map.repeat.set(-0.5, 1); 
-                        mesh.material.map.offset.set(1, 0); 
-                    }
-                }
-                mesh.material.map.needsUpdate = true;
-            };
-
-            [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL].forEach(setLeft);
-            [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(setRight);
+                const isSphere = el.tagName.toLowerCase() === 'a-videosphere';
+                const rep = isSphere ? (state.isDepthMode ? 1 : 0.5) : (state.isDepthMode ? -1 : -0.5);
+                const off = isSphere ? (state.isDepthMode ? 0.005 : 0.5) : (state.isDepthMode ? 1.005 : 1);
+                applyUV(el, rep, off);
+            });
         }
 
         function resetStereoMapping() {
             Object.values(DOM.vr.screens).forEach(el => {
-                if (!el) return;
-                const mesh = el.getObject3D('mesh');
-                if (!mesh || !mesh.material || !mesh.material.map) return;
-
-                if (el.tagName.toLowerCase() === 'a-videosphere') {
-                    // DON'T CHANGE THE ONE FROM THE 360, IT'S FINE
-                    mesh.material.map.repeat.set(1, 1); 
-                    mesh.material.map.offset.set(0, 0); 
-                } else {
-                    // THE NEW CODE: REVERSE TEXT FOR CINEMA AND 180 SCREENS
-                    mesh.material.map.repeat.set(-1, 1); 
-                    mesh.material.map.offset.set(1, 0); 
-                }
-                mesh.material.map.needsUpdate = true;
+                const isSphere = el.tagName.toLowerCase() === 'a-videosphere';
+                applyUV(el, isSphere ? 1 : -1, isSphere ? 0 : 1);
             });
         }
         // ==========================================
@@ -435,12 +396,13 @@
                 DOM.vr.controls.modeBtn.querySelector('a-text').setAttribute('value', '360 FULL'); DOM.vr.scene.removeAttribute('fog');
             }
 
-            if (state.isDepthMode || state.is3D) { targetL.setAttribute('visible', true); targetR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
-            else { targetSingle.setAttribute('visible', true); resetStereoMapping(); }
+            if (state.isDepthMode || state.is3D) { targetL.setAttribute('visible', true); targetR.setAttribute('visible', true); configureStereoLayers(); } 
+            else { targetSingle.setAttribute('visible', true); }
 
             DOM.vr.controls.txt3d.setAttribute('value', state.is3D ? "3D SBS" : "3D OFF");
             DOM.vr.controls.txtDepth.setAttribute('value', state.isDepthMode ? "DEPTH ON" : "DEPTH OFF");
         }
+        
         function force2DMode() { state.viewMode = 0; state.is3D = false; state.isDepthMode = false; updateVisibility(); }
 
         DOM.vr.controls.modeBtn.addEventListener('click', function() { state.viewMode = (state.viewMode + 1) % 3; updateVisibility(); flash(this); });
@@ -505,18 +467,18 @@
                     }).catch(error => { DOM.vr.controls.playText.setAttribute('value', 'ERROR'); });
                 } else if (item.type === 'image') {
                     DOM.media.video.pause(); DOM.vr.controls.videoGroup.setAttribute('visible', false); updateTexture('#img-src'); 
-                    DOM.media.img.onload = function() { refreshTextureMesh(); drawAmbilight(DOM.media.img); if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); }; 
+                    DOM.media.img.onload = function() { refreshTextureMesh(); drawAmbilight(DOM.media.img); }; 
                     DOM.media.img.src = src;
                 } else {
                     if (src.includes('.m3u8') && Hls.isSupported()) {
                         const hls = new Hls(); hls.loadSource(src); hls.attachMedia(DOM.media.video);
                         hls.on(Hls.Events.MANIFEST_PARSED, function() {
                             updateTexture('#video-src'); initAudio();
-                            DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); setTimeout(() => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); }, 200); }); requestAnimationFrame(updateAmbilight);
+                            DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }); requestAnimationFrame(updateAmbilight);
                         });
                     } else {
                         DOM.media.video.src = src; updateTexture('#video-src'); initAudio();
-                        DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); setTimeout(() => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); }, 200); }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY')); requestAnimationFrame(updateAmbilight);
+                        DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY')); requestAnimationFrame(updateAmbilight);
                     }
                 }
             }
@@ -559,6 +521,9 @@
         document.getElementById('curve-more').addEventListener('click', function() { if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }});
         document.getElementById('curve-less').addEventListener('click', function() { if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }});
 
+        // ==========================================
+        // THE MASTER LOOP (PROGRESS + UV HEALING)
+        // ==========================================
         setInterval(() => {
             const currentItem = state.playlist[state.currentTrack]; const v = DOM.media.video;
             if(currentItem && currentItem.type === 'video' && !v.paused) {
@@ -575,6 +540,10 @@
                     DOM.vr.controls.timeText.setAttribute('value', `LIVE STREAM | ${m}:${sec<10?'0'+sec:sec}`);
                 }
             }
+
+            // THE SELF-HEALING ENGINE FIRES EVERY 500MS
+            if (state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
+            
         }, 500);
 
         const ctx = DOM.media.lightCanvas.getContext('2d');
