@@ -7,24 +7,35 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        
         .uplink-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 40px; border-radius: 16px; width: 400px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); position: absolute; z-index: 10; transition: opacity 0.5s; }
         h1 { font-weight: 200; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 10px; color: #00d2ff; }
         p { color: #888; font-size: 0.9rem; margin-bottom: 30px; }
+        
         input[type="text"] { background: rgba(0,0,0,0.3); border: 1px solid #333; padding: 15px; color: #00ff00; border-radius: 8px; font-size: 24px; text-align: center; width: 80%; letter-spacing: 5px; margin-bottom: 20px; font-weight: bold; }
-        .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px; cursor: pointer; width: 100%; transition: transform 0.2s; }
+        .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px; cursor: pointer; width: 100%; transition: transform 0.2s; margin-bottom: 15px; }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
+        .btn-alt { background: transparent; border: 1px solid #00d2ff; color: #00d2ff; }
         #status { margin-top: 20px; font-size: 0.85rem; color: #ff9d00; text-transform: uppercase; letter-spacing: 1px; }
         
+        /* BACKGROUND PREVIEWS */
         #preview-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; opacity: 0.15; display: none; }
         video { width: 100%; height: 100%; object-fit: contain; }
-        
+        #cinema-player { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; }
+
         /* THE DWELL DASHBOARD */
-        #dashboard { position: absolute; z-index: 5; display: none; flex-direction: row; gap: 40px; }
-        .hitbox { width: 300px; height: 150px; background: rgba(0, 210, 255, 0.1); border: 2px solid #00d2ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; transition: background 0.3s, transform 0.1s; }
+        #dashboard { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; width: 80%; }
+        #library-grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; margin-top: 40px; }
         
+        .hitbox { width: 280px; height: 120px; background: rgba(0, 210, 255, 0.1); border: 2px solid #00d2ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; text-align: center; padding: 10px; cursor: pointer; transition: background 0.3s; box-sizing: border-box; }
+        .movie-box { border-color: #ff9d00; color: #ff9d00; background: rgba(255, 157, 0, 0.1); }
+        
+        /* THE ESCAPE HATCH (Top of screen) */
+        #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 150px; background: linear-gradient(to bottom, rgba(255,0,0,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 20px; color: #ff4444; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; border: none; }
+
         /* THE LASER POINTER & DWELL RING */
-        #laser-pointer { position: absolute; width: 10px; height: 10px; background: #ff0000; border-radius: 50%; box-shadow: 0 0 15px #ff0000; z-index: 9999; display: none; pointer-events: none; transform: translate(-50%, -50%); }
-        #dwell-ring { position: absolute; top: -15px; left: -15px; width: 40px; height: 40px; border: 3px solid rgba(255,0,0,0.5); border-radius: 50%; box-sizing: border-box; transform: scale(0); transform-origin: center; transition: transform 0.05s linear; pointer-events: none; }
+        #laser-pointer { position: absolute; width: 12px; height: 12px; background: #ff0000; border-radius: 50%; box-shadow: 0 0 15px #ff0000; z-index: 9999; display: none; pointer-events: none; transform: translate(-50%, -50%); }
+        #dwell-ring { position: absolute; top: -14px; left: -14px; width: 40px; height: 40px; border: 4px solid rgba(255,0,0,0.5); border-radius: 50%; box-sizing: border-box; transform: scale(0); transform-origin: center; transition: transform 0.05s linear; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -33,40 +44,112 @@
         <div id="dwell-ring"></div>
     </div>
 
+    <div class="hitbox" id="escape-hatch">HOLD GAZE TO STOP MOVIE</div>
+
     <div id="preview-container"><video id="local-video" autoplay playsinline muted></video></div>
+    
+    <video id="cinema-player" controls></video>
 
     <div id="dashboard">
-        <div class="hitbox" id="test-btn-1">SYSTEM TEST A</div>
-        <div class="hitbox" id="test-btn-2">SYSTEM TEST B</div>
+        <h2 style="color: #666; font-weight: 300; letter-spacing: 4px; margin: 0;">THE GRAND LIBRARY</h2>
+        <div id="library-grid">
+            <div class="hitbox" id="btn-desktop">RESYNC DESKTOP</div>
+            </div>
     </div>
 
     <div class="uplink-card" id="ui-card">
         <h1>PC Uplink</h1>
-        <p>Enter the 4-digit PIN from your VR Hub</p>
-        <input type="text" id="pin-input" placeholder="----" maxlength="4" autocomplete="off">
+        <p>1. Load local media to the server.<br>2. Link the Hub.</p>
+        
+        <input type="file" id="media-input" accept="video/*" multiple style="display:none">
+        <button class="btn-main btn-alt" onclick="document.getElementById('media-input').click()">+ ADD MOVIES TO LIBRARY</button>
+        
+        <input type="text" id="pin-input" placeholder="PIN" maxlength="4" autocomplete="off">
         <button class="btn-main" id="btn-connect">INITIATE UPLINK</button>
-        <div id="status">Awaiting Connection...</div>
+        <div id="status">Awaiting Setup...</div>
     </div>
 
     <script>
         const peer = new Peer(null, { debug: 2 });
         const dom = {
             pin: document.getElementById('pin-input'), btn: document.getElementById('btn-connect'), status: document.getElementById('status'),
-            video: document.getElementById('local-video'), preview: document.getElementById('preview-container'), card: document.getElementById('ui-card'),
-            laser: document.getElementById('laser-pointer'), ring: document.getElementById('dwell-ring'), dashboard: document.getElementById('dashboard')
+            video: document.getElementById('local-video'), cinema: document.getElementById('cinema-player'), preview: document.getElementById('preview-container'), 
+            card: document.getElementById('ui-card'), laser: document.getElementById('laser-pointer'), ring: document.getElementById('dwell-ring'), 
+            dashboard: document.getElementById('dashboard'), grid: document.getElementById('library-grid'), escapeHatch: document.getElementById('escape-hatch'),
+            mediaInput: document.getElementById('media-input')
         };
 
-        let localStream = null; let mediaConn = null; let dataConn = null;
+        let localStream = null; 
+        let mediaConn = null; 
+        let dataConn = null;
+        let libraryFiles = [];
         
-        // DWELL ENGINE STATE
-        let hoverStartTime = null;
-        let isClicked = false;
-        const DWELL_DURATION = 1500; // 1.5 seconds to click
-        const SENSITIVITY = 30; // Speed of the laser pointer
+        // --- STEP 1: LOAD FILES INTO THE DASHBOARD ---
+        dom.mediaInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            files.forEach(f => {
+                const box = document.createElement('div');
+                box.className = 'hitbox movie-box';
+                box.innerText = f.name.substring(0, 20) + '...';
+                
+                // Click logic for the movie box
+                box.addEventListener('click', () => {
+                    playMovie(f);
+                });
+                dom.grid.appendChild(box);
+            });
+            dom.status.innerText = `${files.length} MOVIES LOADED.`;
+        });
 
+        // --- STEP 2: WEBRTC SWAP ENGINE ---
+        function swapToStream(newStream) {
+            if (!mediaConn || !mediaConn.peerConnection) return;
+            const senders = mediaConn.peerConnection.getSenders();
+            
+            const videoTrack = newStream.getVideoTracks()[0];
+            const audioTrack = newStream.getAudioTracks().length > 0 ? newStream.getAudioTracks()[0] : null;
+
+            if (videoTrack) {
+                const vSender = senders.find(s => s.track && s.track.kind === 'video');
+                if (vSender) vSender.replaceTrack(videoTrack);
+            }
+        }
+
+        // --- STEP 3: PLAYBACK LOGIC ---
+        function playMovie(file) {
+            dom.status.innerText = "SWAPPING PIPELINE...";
+            const fileURL = URL.createObjectURL(file);
+            dom.cinema.src = fileURL;
+            dom.cinema.style.display = 'block';
+            
+            dom.cinema.play().then(() => {
+                // Grab the feed from the PC player
+                const stream = dom.cinema.captureStream ? dom.cinema.captureStream() : dom.cinema.mozCaptureStream();
+                swapToStream(stream); // Inject it into the VR Hub!
+                
+                dom.dashboard.style.display = 'none';
+                dom.escapeHatch.style.display = 'flex'; // Turn on the ceiling escape hatch
+            });
+        }
+
+        // Escape Hatch Logic (Look up to go back to dashboard)
+        dom.escapeHatch.addEventListener('click', () => {
+            dom.cinema.pause();
+            dom.cinema.style.display = 'none';
+            swapToStream(localStream); // Put the desktop screen back into the pipe
+            dom.escapeHatch.style.display = 'none';
+            dom.dashboard.style.display = 'flex';
+        });
+
+        // Manual Desktop Resync
+        document.getElementById('btn-desktop').addEventListener('click', () => {
+            swapToStream(localStream);
+        });
+
+        // --- STEP 4: INITIATE CONNECTION ---
         dom.btn.addEventListener('click', async () => {
             const pin = dom.pin.value.trim();
-            if (pin.length !== 4) { dom.status.innerText = "INVALID PIN"; return; }
+            if (pin.length !== 4) return;
             const hubId = 'juncos-hub-' + pin;
 
             try {
@@ -84,6 +167,13 @@
                     dom.laser.style.display = 'block';
                 });
 
+                // --- DWELL ENGINE ---
+                let hoverTarget = null;
+                let hoverStartTime = null;
+                let isClicked = false;
+                const DWELL_DURATION = 1500;
+                const SENSITIVITY = 30;
+
                 dataConn.on('data', (data) => {
                     if (data && typeof data.y === 'number' && typeof data.p === 'number') {
                         const centerX = window.innerWidth / 2; const centerY = window.innerHeight / 2;
@@ -96,29 +186,32 @@
                         dom.laser.style.left = targetX + 'px';
                         dom.laser.style.top = targetY + 'px';
 
-                        // --- THE DWELL ENGINE ---
-                        // 1. Hide the laser physically from the document so it doesn't block the raycast
+                        // Raycast logic
                         dom.laser.style.display = 'none';
                         const elementBelow = document.elementFromPoint(targetX, targetY);
                         dom.laser.style.display = 'block';
 
-                        // 2. Check if we are staring at a button
                         if (elementBelow && elementBelow.classList.contains('hitbox')) {
-                            if (!hoverStartTime) hoverStartTime = performance.now();
+                            if (hoverTarget !== elementBelow) {
+                                hoverTarget = elementBelow;
+                                hoverStartTime = performance.now();
+                                isClicked = false;
+                            }
                             
                             let elapsed = performance.now() - hoverStartTime;
                             let progress = Math.min(elapsed / DWELL_DURATION, 1);
                             
                             dom.ring.style.transform = `scale(${progress})`;
 
-                            // 3. Trigger the click!
                             if (progress === 1 && !isClicked) {
                                 isClicked = true;
                                 dom.ring.style.borderColor = '#00ff00';
-                                elementBelow.click(); // Fire the physical HTML click
+                                elementBelow.style.background = 'rgba(0, 255, 0, 0.3)'; // Visual flash
+                                setTimeout(() => elementBelow.style.background = '', 500);
+                                elementBelow.click(); // FIRE THE MOVIE
                             }
                         } else {
-                            // Cancel hover if you look away
+                            hoverTarget = null;
                             hoverStartTime = null;
                             isClicked = false;
                             dom.ring.style.transform = `scale(0)`;
@@ -128,19 +221,6 @@
                 });
 
             } catch (err) { dom.status.innerText = "CAPTURE CANCELED."; }
-        });
-
-        // TEST BUTTON LOGIC
-        document.getElementById('test-btn-1').addEventListener('click', function() {
-            this.style.background = 'rgba(0, 255, 0, 0.3)';
-            this.innerText = "CLICKED!";
-            setTimeout(() => { this.style.background = 'rgba(0, 210, 255, 0.1)'; this.innerText = "SYSTEM TEST A"; }, 2000);
-        });
-
-        document.getElementById('test-btn-2').addEventListener('click', function() {
-            this.style.background = 'rgba(0, 255, 0, 0.3)';
-            this.innerText = "CLICKED!";
-            setTimeout(() => { this.style.background = 'rgba(0, 210, 255, 0.1)'; this.innerText = "SYSTEM TEST B"; }, 2000);
         });
     </script>
 </body>
