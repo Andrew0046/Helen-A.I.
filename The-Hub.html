@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.18: The Depth Restoration</title>
+    <title>The Hub v36.19: The Pseudoscopic Fix</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -38,9 +38,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.18</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.19</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">The Depth Restoration</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">The Pseudoscopic Fix</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -311,7 +311,7 @@
         if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
 
         // ==========================================
-        // THE CLONE PATCH + PARALLAX SHIFT RESTORED
+        // THE CLONE PATCH + PSEUDOSCOPIC FIX
         // ==========================================
         function ensureIndependentTexture(mesh) {
             if (!mesh || !mesh.material || !mesh.material.map) return;
@@ -347,8 +347,8 @@
                 const isSphere = el.tagName.toLowerCase() === 'a-videosphere';
                 if (state.isDepthMode) { 
                     mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); 
-                    // FIXED: Re-added the 0.005 parallax shift to the reversed 1.0 offset!
-                    mesh.material.map.offset.set(isSphere ? 0.005 : 1.005, 0); 
+                    // THE FIX: Subtract 0.005 from the reversed 1.0 anchor to shift the image the correct visual direction!
+                    mesh.material.map.offset.set(isSphere ? 0.005 : 0.995, 0); 
                 } else { 
                     mesh.material.map.repeat.set(isSphere ? 0.5 : -0.5, 1); 
                     mesh.material.map.offset.set(isSphere ? 0.5 : 1, 0); 
@@ -392,8 +392,12 @@
                 DOM.vr.controls.modeBtn.querySelector('a-text').setAttribute('value', '360 FULL'); DOM.vr.scene.removeAttribute('fog');
             }
 
-            if (state.isDepthMode || state.is3D) { targetL.setAttribute('visible', true); targetR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } 
-            else { targetSingle.setAttribute('visible', true); resetStereoMapping(); }
+            if (state.isDepthMode || state.is3D) {
+                targetL.setAttribute('visible', true); targetR.setAttribute('visible', true);
+                configureStereoLayers(); enforceStereoMapping();
+            } else {
+                targetSingle.setAttribute('visible', true); resetStereoMapping();
+            }
 
             DOM.vr.controls.txt3d.setAttribute('value', state.is3D ? "3D SBS" : "3D OFF");
             DOM.vr.controls.txtDepth.setAttribute('value', state.isDepthMode ? "DEPTH ON" : "DEPTH OFF");
@@ -462,7 +466,7 @@
                     }).catch(error => { DOM.vr.controls.playText.setAttribute('value', 'ERROR'); });
                 } else if (item.type === 'image') {
                     DOM.media.video.pause(); DOM.vr.controls.videoGroup.setAttribute('visible', false); updateTexture('#img-src'); 
-                    DOM.media.img.onload = function() { refreshTextureMesh(); drawAmbilight(DOM.media.img); if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); }; 
+                    DOM.media.img.onload = function() { refreshTextureMesh(); drawAmbilight(DOM.media.img); }; 
                     DOM.media.img.src = src;
                 } else {
                     if (src.includes('.m3u8') && Hls.isSupported()) {
