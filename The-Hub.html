@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.20: Telemetry Re-Engaged</title>
+    <title>The Hub v36.21: Audio Un-Gagged</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     
     <script>
         AFRAME.registerComponent('telemetry-smuggler', {
             init: function() { this.lastTime = 0; },
             tick: function(time) {
-                if (time - this.lastTime < 33) return; // 30 FPS throttle
+                if (time - this.lastTime < 33) return; 
                 if (window.hubState && window.hubState.ext.dataConn && window.hubState.ext.dataConn.open) {
                     const rot = this.el.getAttribute('rotation');
                     window.hubState.ext.dataConn.send({ p: rot.x, y: rot.y });
@@ -53,9 +53,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.20</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.21</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Command Center</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Audio Un-Gagged</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -170,7 +170,7 @@
             ext: { active: false, type: null, conn: null, dataConn: null, castToMain: false }, 
             localCam: { active: false, stream: null } 
         };
-        window.hubState = state; // EXPOSE STATE FOR TELEMETRY
+        window.hubState = state; 
 
         const DOM = {
             ui: { layer: document.getElementById('ui-layer'), fileInput: document.getElementById('file-input'), urlInput: document.getElementById('url-input'), playlist: document.getElementById('playlist-ui'), list: document.getElementById('playlist-list'), btnStart: document.getElementById('btn-start'), dropOverlay: document.getElementById('drop-overlay') },
@@ -231,7 +231,7 @@
         function stopAllFeeds(except) {
             if(except !== 'ext' && state.ext.active) {
                 if(state.ext.conn) state.ext.conn.close(); 
-                if(state.ext.dataConn) { state.ext.dataConn.close(); state.ext.dataConn = null; } // KILL DATA CHANNEL
+                if(state.ext.dataConn) { state.ext.dataConn.close(); state.ext.dataConn = null; }
                 state.ext.active = false; state.ext.type = null;
                 DOM.vr.controls.txtExt.setAttribute('value', 'AWAITING LINK'); 
                 DOM.vr.controls.btnExt.setAttribute('color', '#ffffff');
@@ -254,7 +254,6 @@
         
         state.peer = new Peer(hubId, { debug: 2 });
         
-        // --- DATA CHANNEL LISTENER ---
         state.peer.on('connection', (conn) => {
             state.ext.dataConn = conn;
             conn.on('close', () => { state.ext.dataConn = null; });
@@ -274,6 +273,11 @@
                 DOM.vr.controls.btnExt.setAttribute('color', '#00d2ff');
                 const vid = DOM.media.remoteVideo; 
                 vid.srcObject = remoteStream;
+                
+                // THE RECEIVER UNGAG: Force the Hub to play the incoming audio!
+                vid.muted = false; 
+                vid.volume = 1.0; 
+
                 vid.play().then(() => { state.ext.active = true; applyCastRouting(); });
             });
             call.on('close', () => { stopAllFeeds(); });
