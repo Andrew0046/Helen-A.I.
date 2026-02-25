@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.16: Surgical Video Patch</title>
+    <title>The Hub v36.17: The Clone Patch</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -38,9 +38,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.16</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.17</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Surgical Video Patch</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">The Clone Patch</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -194,16 +194,9 @@
 
         function applyCastRouting() {
             if (state.ext.active) {
-                if (state.ext.castToMain) {
-                    updateTexture('#remote-video');
-                    DOM.vr.arHud.setAttribute('visible', false);
-                } else {
-                    restoreMainScreenTexture();
-                    paintVideoTextureToAR(DOM.media.remoteVideo);
-                }
-            } else {
-                restoreMainScreenTexture();
-            }
+                if (state.ext.castToMain) { updateTexture('#remote-video'); DOM.vr.arHud.setAttribute('visible', false); } 
+                else { restoreMainScreenTexture(); paintVideoTextureToAR(DOM.media.remoteVideo); }
+            } else { restoreMainScreenTexture(); }
         }
 
         function restoreMainScreenTexture() {
@@ -263,10 +256,7 @@
                 DOM.vr.controls.btnExt.setAttribute('color', '#00d2ff');
                 const vid = DOM.media.remoteVideo; 
                 vid.srcObject = remoteStream;
-                vid.play().then(() => { 
-                    state.ext.active = true;
-                    applyCastRouting(); 
-                });
+                vid.play().then(() => { state.ext.active = true; applyCastRouting(); });
             });
             call.on('close', () => { stopAllFeeds(); });
         });
@@ -309,7 +299,6 @@
             flash(this);
         });
 
-        // --- SMART DEPTH ENGINE (THE SMART MIRROR) ---
         function configureStereoLayers() {
             const setLayer = (el, layerIndex) => {
                 if(!el) return;
@@ -326,10 +315,24 @@
         }
         if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
 
+        // ==========================================
+        // THE CLONE PATCH (Fully Isolated Textures)
+        // ==========================================
+        function ensureIndependentTexture(mesh) {
+            if (!mesh || !mesh.material || !mesh.material.map) return;
+            if (!mesh.material.map.isIndependent) {
+                mesh.material.map = mesh.material.map.clone();
+                mesh.material.map.needsUpdate = true;
+                mesh.material.map.isIndependent = true;
+            }
+        }
+
         function enforceStereoMapping() {
             const setLeft = (el) => {
                 const mesh = el.getObject3D('mesh');
-                if (!mesh || !mesh.material || !mesh.material.map) return;
+                if (!mesh) return;
+                ensureIndependentTexture(mesh); // Force isolation!
+                
                 const isSphere = el.tagName.toLowerCase() === 'a-videosphere';
                 if (state.isDepthMode) { 
                     mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); 
@@ -340,10 +343,12 @@
                 }
                 mesh.material.map.needsUpdate = true;
             };
+
             const setRight = (el) => {
                 const mesh = el.getObject3D('mesh');
-                if (!mesh || !mesh.material || !mesh.material.map) return;
-                if (!mesh.material.map.isClonedForStereo) { mesh.material.map = mesh.material.map.clone(); mesh.material.map.needsUpdate = true; mesh.material.map.isClonedForStereo = true; }
+                if (!mesh) return;
+                ensureIndependentTexture(mesh); // Force isolation!
+                
                 const isSphere = el.tagName.toLowerCase() === 'a-videosphere';
                 if (state.isDepthMode) { 
                     mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); 
@@ -354,6 +359,7 @@
                 }
                 mesh.material.map.needsUpdate = true;
             };
+
             [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL].forEach(setLeft);
             [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(setRight);
         }
@@ -362,13 +368,16 @@
             Object.values(DOM.vr.screens).forEach(el => {
                 if (!el) return;
                 const mesh = el.getObject3D('mesh');
-                if (!mesh || !mesh.material || !mesh.material.map) return;
+                if (!mesh) return;
+                ensureIndependentTexture(mesh); // Force isolation!
+                
                 const isSphere = el.tagName.toLowerCase() === 'a-videosphere';
                 mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); 
                 mesh.material.map.offset.set(isSphere ? 0 : 1, 0); 
                 mesh.material.map.needsUpdate = true;
             });
         }
+        // ==========================================
 
         function updateVisibility() {
             Object.values(DOM.vr.screens).forEach(s => { if (s) s.setAttribute('visible', false); });
@@ -403,9 +412,6 @@
         DOM.vr.controls.btn3d.addEventListener('click', function() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; state.is3D = !state.is3D; if(state.is3D) state.isDepthMode = false; updateVisibility(); flash(this); });
         DOM.vr.controls.btnDepth.addEventListener('click', function() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; state.isDepthMode = !state.isDepthMode; if(state.isDepthMode) state.is3D = false; updateVisibility(); flash(this); });
 
-        // ==========================================
-        // MEDIA HANDLING
-        // ==========================================
         function handleFiles(files) {
             if (files.length > 0) {
                 const newItems = Array.from(files).map(f => {
@@ -443,7 +449,6 @@
 
         DOM.ui.btnStart.addEventListener('click', () => { if(state.playlist.length > 0) { DOM.ui.layer.classList.add('hidden'); loadTrack(state.currentTrack); if(DOM.vr.scene.enterVR) DOM.vr.scene.enterVR(); } });
 
-        // --- THE CLEANED UP VIDEO LOAD LOGIC ---
         function loadTrack(index) {
             if (index >= 0 && index < state.playlist.length) {
                 if (state.currentObjectURL) { URL.revokeObjectURL(state.currentObjectURL); state.currentObjectURL = null; }
@@ -474,12 +479,10 @@
                         hls.on(Hls.Events.MANIFEST_PARSED, function() {
                             updateTexture('#video-src'); initAudio();
                             DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }); 
-                            requestAnimationFrame(updateAmbilight);
                         });
                     } else {
                         DOM.media.video.src = src; updateTexture('#video-src'); initAudio();
                         DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY'));
-                        requestAnimationFrame(updateAmbilight);
                     }
                 }
             }
@@ -556,12 +559,10 @@
         // ==========================================
         // THE SURGICAL VIDEO PATCH (EVENT LISTENERS)
         // ==========================================
-        DOM.media.video.addEventListener('ended', () => { if (state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); });
-        
         DOM.media.video.addEventListener('playing', () => {
             if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
+            requestAnimationFrame(updateAmbilight);
         });
-
         DOM.media.video.addEventListener('loadeddata', () => {
             if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
         });
