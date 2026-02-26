@@ -3,20 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Uplink: The Grand Library</title>
+    <title>PC Uplink: The Persistent Vault</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Roboto, sans-serif; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; }
         
-        .uplink-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 40px; border-radius: 16px; width: 400px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); position: absolute; z-index: 10; transition: opacity 0.5s; }
-        h1 { font-weight: 200; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 10px; color: #00d2ff; }
-        p { color: #888; font-size: 0.9rem; margin-bottom: 30px; }
+        .uplink-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 40px; border-radius: 16px; width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); position: absolute; z-index: 10; transition: opacity 0.5s; }
+        h1 { font-weight: 200; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 5px; color: #00d2ff; }
+        p { color: #888; font-size: 0.9rem; margin-bottom: 25px; }
         
-        input[type="text"] { background: rgba(0,0,0,0.3); border: 1px solid #333; padding: 15px; color: #00ff00; border-radius: 8px; font-size: 24px; text-align: center; width: 80%; letter-spacing: 5px; margin-bottom: 20px; font-weight: bold; }
-        .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px; cursor: pointer; width: 100%; transition: transform 0.2s; margin-bottom: 15px; }
+        .vault-section { background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px dashed #444; }
+        
+        input[type="text"] { background: rgba(0,0,0,0.4); border: 1px solid #333; padding: 15px; color: #00ff00; border-radius: 8px; font-size: 24px; text-align: center; width: 70%; letter-spacing: 5px; margin-bottom: 20px; font-weight: bold; }
+        
+        .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 14px; letter-spacing: 1px; border-radius: 30px; cursor: pointer; width: 100%; transition: transform 0.2s; margin-bottom: 10px; text-transform: uppercase; }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
-        .btn-alt { background: transparent; border: 1px solid #00d2ff; color: #00d2ff; }
-        #status { margin-top: 20px; font-size: 0.85rem; color: #ff9d00; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-alt { background: transparent; border: 1px solid #ff9d00; color: #ff9d00; }
+        .btn-alt:hover { box-shadow: 0 10px 20px rgba(255, 157, 0, 0.2); }
+        
+        #status { margin-top: 15px; font-size: 0.85rem; color: #ff9d00; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
         
         /* BACKGROUND PREVIEWS */
         #preview-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; opacity: 0.15; display: none; }
@@ -24,10 +30,10 @@
         #cinema-player { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; }
 
         /* THE DWELL DASHBOARD */
-        #dashboard { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; width: 80%; }
-        #library-grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; margin-top: 40px; }
+        #dashboard { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; width: 90%; max-height: 80vh; overflow-y: auto; padding-top: 50px; }
+        #library-grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; margin-top: 20px; }
         
-        .hitbox { width: 280px; height: 120px; background: rgba(0, 210, 255, 0.1); border: 2px solid #00d2ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; text-align: center; padding: 10px; cursor: pointer; transition: background 0.3s; box-sizing: border-box; }
+        .hitbox { width: 280px; height: 120px; background: rgba(0, 210, 255, 0.1); border: 2px solid #00d2ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; text-align: center; padding: 15px; cursor: pointer; transition: background 0.3s; box-sizing: border-box; color: #fff; word-break: break-word; }
         .movie-box { border-color: #ff9d00; color: #ff9d00; background: rgba(255, 157, 0, 0.1); }
         
         /* THE ESCAPE HATCH (Top of screen) */
@@ -40,9 +46,7 @@
 </head>
 <body>
 
-    <div id="laser-pointer">
-        <div id="dwell-ring"></div>
-    </div>
+    <div id="laser-pointer"><div id="dwell-ring"></div></div>
 
     <div class="hitbox" id="escape-hatch">HOLD GAZE TO STOP MOVIE</div>
 
@@ -51,64 +55,118 @@
     <video id="cinema-player" controls></video>
 
     <div id="dashboard">
-        <h2 style="color: #666; font-weight: 300; letter-spacing: 4px; margin: 0;">THE GRAND LIBRARY</h2>
+        <h2 style="color: #666; font-weight: 300; letter-spacing: 8px; margin: 0;">THE GRAND LIBRARY</h2>
         <div id="library-grid">
             <div class="hitbox" id="btn-desktop">RESYNC DESKTOP</div>
             </div>
     </div>
 
     <div class="uplink-card" id="ui-card">
-        <h1>PC Uplink</h1>
-        <p>1. Load local media to the server.<br>2. Link the Hub.</p>
+        <h1>PC Uplink v4.0</h1>
+        <p>The Persistent Vault</p>
         
-        <input type="file" id="media-input" accept="video/*" multiple style="display:none">
-        <button class="btn-main btn-alt" onclick="document.getElementById('media-input').click()">+ ADD MOVIES TO LIBRARY</button>
+        <div class="vault-section">
+            <div id="vault-status" style="color:#aaa; margin-bottom: 10px; font-size: 0.9rem;">Vault Locked</div>
+            <button class="btn-main btn-alt" id="btn-vault">1. UNLOCK FOLDER</button>
+            <button class="btn-main btn-alt" id="btn-relink" style="display:none; border-color:#00d2ff; color:#00d2ff;">1. SCAN SAVED FOLDER</button>
+        </div>
         
         <input type="text" id="pin-input" placeholder="PIN" maxlength="4" autocomplete="off">
-        <button class="btn-main" id="btn-connect">INITIATE UPLINK</button>
+        <button class="btn-main" id="btn-connect">2. INITIATE UPLINK</button>
         <div id="status">Awaiting Setup...</div>
     </div>
 
     <script>
         const peer = new Peer(null, { debug: 2 });
         const dom = {
-            pin: document.getElementById('pin-input'), btn: document.getElementById('btn-connect'), status: document.getElementById('status'),
+            pin: document.getElementById('pin-input'), btnConnect: document.getElementById('btn-connect'), status: document.getElementById('status'),
             video: document.getElementById('local-video'), cinema: document.getElementById('cinema-player'), preview: document.getElementById('preview-container'), 
             card: document.getElementById('ui-card'), laser: document.getElementById('laser-pointer'), ring: document.getElementById('dwell-ring'), 
             dashboard: document.getElementById('dashboard'), grid: document.getElementById('library-grid'), escapeHatch: document.getElementById('escape-hatch'),
-            mediaInput: document.getElementById('media-input')
+            btnVault: document.getElementById('btn-vault'), btnRelink: document.getElementById('btn-relink'), vaultStatus: document.getElementById('vault-status')
         };
 
         let localStream = null; 
         let mediaConn = null; 
         let dataConn = null;
-        let libraryFiles = [];
+        let directoryHandle = null;
+
+        // --- STEP 1: THE PERSISTENT VAULT (File System Access API) ---
         
-        // --- STEP 1: LOAD FILES INTO THE DASHBOARD ---
-        dom.mediaInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            files.forEach(f => {
-                const box = document.createElement('div');
-                box.className = 'hitbox movie-box';
-                box.innerText = f.name.substring(0, 20) + '...';
-                
-                // Click logic for the movie box
-                box.addEventListener('click', () => {
-                    playMovie(f);
-                });
-                dom.grid.appendChild(box);
-            });
-            dom.status.innerText = `${files.length} MOVIES LOADED.`;
+        // Check if we already have a saved folder from yesterday!
+        async function checkSavedVault() {
+            try {
+                const savedHandle = await idbKeyval.get('vault-dir');
+                if (savedHandle) {
+                    directoryHandle = savedHandle;
+                    dom.btnVault.style.display = 'none';
+                    dom.btnRelink.style.display = 'block';
+                    dom.vaultStatus.innerText = `Saved Vault Detected. Ready to Scan.`;
+                    dom.vaultStatus.style.color = '#00d2ff';
+                }
+            } catch (err) { console.error('No saved vault found.'); }
+        }
+        checkSavedVault();
+
+        // Fresh Folder Selection
+        dom.btnVault.addEventListener('click', async () => {
+            try {
+                // Ask Windows for a folder
+                directoryHandle = await window.showDirectoryPicker();
+                // Save it secretly into IndexedDB
+                await idbKeyval.set('vault-dir', directoryHandle);
+                scanVault(directoryHandle);
+            } catch (err) { dom.status.innerText = "FOLDER SELECTION CANCELLED"; }
         });
+
+        // Relink Saved Folder (Requires a physical click to verify user intent)
+        dom.btnRelink.addEventListener('click', async () => {
+            try {
+                // Ask permission to read the saved folder
+                const permission = await directoryHandle.verifyPermission({ mode: 'read' });
+                if (permission !== 'granted') {
+                    const newPermission = await directoryHandle.requestPermission({ mode: 'read' });
+                    if (newPermission !== 'granted') return;
+                }
+                scanVault(directoryHandle);
+            } catch (err) { console.error(err); dom.status.innerText = "PERMISSION DENIED"; }
+        });
+
+        // Scan the folder and build the UI
+        async function scanVault(dirHandle) {
+            dom.status.innerText = "SCANNING VAULT...";
+            // Clear old hitboxes (keep the resync button)
+            Array.from(dom.grid.children).forEach(child => { if(child.id !== 'btn-desktop') child.remove(); });
+            
+            let count = 0;
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file' && (entry.name.endsWith('.mp4') || entry.name.endsWith('.mkv') || entry.name.endsWith('.webm'))) {
+                    count++;
+                    const box = document.createElement('div');
+                    box.className = 'hitbox movie-box';
+                    box.innerText = entry.name.length > 25 ? entry.name.substring(0, 22) + '...' : entry.name;
+                    
+                    // Wire the click to grab the ACTUAL file using the handle
+                    box.addEventListener('click', async () => {
+                        dom.status.innerText = "LOADING CORE FILE...";
+                        const file = await entry.getFile(); 
+                        playMovie(file);
+                    });
+                    dom.grid.appendChild(box);
+                }
+            }
+            dom.vaultStatus.innerText = `Vault Unlocked: ${count} Movies Found`;
+            dom.vaultStatus.style.color = '#00ff00';
+            dom.btnVault.style.display = 'none';
+            dom.btnRelink.style.display = 'none';
+            dom.status.innerText = "READY FOR UPLINK.";
+        }
 
         // --- STEP 2: WEBRTC SWAP ENGINE ---
         function swapToStream(newStream) {
             if (!mediaConn || !mediaConn.peerConnection) return;
             const senders = mediaConn.peerConnection.getSenders();
-            
             const videoTrack = newStream.getVideoTracks()[0];
-            const audioTrack = newStream.getAudioTracks().length > 0 ? newStream.getAudioTracks()[0] : null;
-
             if (videoTrack) {
                 const vSender = senders.find(s => s.track && s.track.kind === 'video');
                 if (vSender) vSender.replaceTrack(videoTrack);
@@ -117,37 +175,33 @@
 
         // --- STEP 3: PLAYBACK LOGIC ---
         function playMovie(file) {
-            dom.status.innerText = "SWAPPING PIPELINE...";
             const fileURL = URL.createObjectURL(file);
             dom.cinema.src = fileURL;
             dom.cinema.style.display = 'block';
             
             dom.cinema.play().then(() => {
-                // Grab the feed from the PC player
                 const stream = dom.cinema.captureStream ? dom.cinema.captureStream() : dom.cinema.mozCaptureStream();
-                swapToStream(stream); // Inject it into the VR Hub!
+                swapToStream(stream); 
                 
                 dom.dashboard.style.display = 'none';
-                dom.escapeHatch.style.display = 'flex'; // Turn on the ceiling escape hatch
+                dom.escapeHatch.style.display = 'flex'; 
             });
         }
 
-        // Escape Hatch Logic (Look up to go back to dashboard)
         dom.escapeHatch.addEventListener('click', () => {
             dom.cinema.pause();
             dom.cinema.style.display = 'none';
-            swapToStream(localStream); // Put the desktop screen back into the pipe
+            swapToStream(localStream); 
             dom.escapeHatch.style.display = 'none';
             dom.dashboard.style.display = 'flex';
         });
 
-        // Manual Desktop Resync
         document.getElementById('btn-desktop').addEventListener('click', () => {
             swapToStream(localStream);
         });
 
         // --- STEP 4: INITIATE CONNECTION ---
-        dom.btn.addEventListener('click', async () => {
+        dom.btnConnect.addEventListener('click', async () => {
             const pin = dom.pin.value.trim();
             if (pin.length !== 4) return;
             const hubId = 'juncos-hub-' + pin;
@@ -186,7 +240,6 @@
                         dom.laser.style.left = targetX + 'px';
                         dom.laser.style.top = targetY + 'px';
 
-                        // Raycast logic
                         dom.laser.style.display = 'none';
                         const elementBelow = document.elementFromPoint(targetX, targetY);
                         dom.laser.style.display = 'block';
@@ -206,9 +259,9 @@
                             if (progress === 1 && !isClicked) {
                                 isClicked = true;
                                 dom.ring.style.borderColor = '#00ff00';
-                                elementBelow.style.background = 'rgba(0, 255, 0, 0.3)'; // Visual flash
+                                elementBelow.style.background = 'rgba(0, 255, 0, 0.3)'; 
                                 setTimeout(() => elementBelow.style.background = '', 500);
-                                elementBelow.click(); // FIRE THE MOVIE
+                                elementBelow.click(); 
                             }
                         } else {
                             hoverTarget = null;
