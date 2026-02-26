@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Uplink: The Persistent Vault</title>
+    <title>PC Uplink: The Persistent Vault v4.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <style>
@@ -24,22 +24,18 @@
         
         #status { margin-top: 15px; font-size: 0.85rem; color: #ff9d00; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
         
-        /* BACKGROUND PREVIEWS */
         #preview-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; opacity: 0.15; display: none; }
         video { width: 100%; height: 100%; object-fit: contain; }
         #cinema-player { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; }
 
-        /* THE DWELL DASHBOARD */
         #dashboard { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; width: 90%; max-height: 80vh; overflow-y: auto; padding-top: 50px; }
         #library-grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; margin-top: 20px; }
         
         .hitbox { width: 280px; height: 120px; background: rgba(0, 210, 255, 0.1); border: 2px solid #00d2ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; text-align: center; padding: 15px; cursor: pointer; transition: background 0.3s; box-sizing: border-box; color: #fff; word-break: break-word; }
         .movie-box { border-color: #ff9d00; color: #ff9d00; background: rgba(255, 157, 0, 0.1); }
         
-        /* THE ESCAPE HATCH (Top of screen) */
         #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 150px; background: linear-gradient(to bottom, rgba(255,0,0,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 20px; color: #ff4444; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; border: none; }
 
-        /* THE LASER POINTER & DWELL RING */
         #laser-pointer { position: absolute; width: 12px; height: 12px; background: #ff0000; border-radius: 50%; box-shadow: 0 0 15px #ff0000; z-index: 9999; display: none; pointer-events: none; transform: translate(-50%, -50%); }
         #dwell-ring { position: absolute; top: -14px; left: -14px; width: 40px; height: 40px; border: 4px solid rgba(255,0,0,0.5); border-radius: 50%; box-sizing: border-box; transform: scale(0); transform-origin: center; transition: transform 0.05s linear; pointer-events: none; }
     </style>
@@ -58,11 +54,11 @@
         <h2 style="color: #666; font-weight: 300; letter-spacing: 8px; margin: 0;">THE GRAND LIBRARY</h2>
         <div id="library-grid">
             <div class="hitbox" id="btn-desktop">RESYNC DESKTOP</div>
-            </div>
+        </div>
     </div>
 
     <div class="uplink-card" id="ui-card">
-        <h1>PC Uplink v4.0</h1>
+        <h1>PC Uplink v4.1</h1>
         <p>The Persistent Vault</p>
         
         <div class="vault-section">
@@ -93,7 +89,6 @@
 
         // --- STEP 1: THE PERSISTENT VAULT (File System Access API) ---
         
-        // Check if we already have a saved folder from yesterday!
         async function checkSavedVault() {
             try {
                 const savedHandle = await idbKeyval.get('vault-dir');
@@ -108,34 +103,34 @@
         }
         checkSavedVault();
 
-        // Fresh Folder Selection
         dom.btnVault.addEventListener('click', async () => {
             try {
-                // Ask Windows for a folder
                 directoryHandle = await window.showDirectoryPicker();
-                // Save it secretly into IndexedDB
                 await idbKeyval.set('vault-dir', directoryHandle);
                 scanVault(directoryHandle);
             } catch (err) { dom.status.innerText = "FOLDER SELECTION CANCELLED"; }
         });
 
-        // Relink Saved Folder (Requires a physical click to verify user intent)
+        // THE FIX: Correctly querying browser permissions instead of verifying
         dom.btnRelink.addEventListener('click', async () => {
             try {
-                // Ask permission to read the saved folder
-                const permission = await directoryHandle.verifyPermission({ mode: 'read' });
+                const permission = await directoryHandle.queryPermission({ mode: 'read' });
                 if (permission !== 'granted') {
                     const newPermission = await directoryHandle.requestPermission({ mode: 'read' });
-                    if (newPermission !== 'granted') return;
+                    if (newPermission !== 'granted') {
+                        dom.status.innerText = "PERMISSION DENIED BY USER";
+                        return;
+                    }
                 }
                 scanVault(directoryHandle);
-            } catch (err) { console.error(err); dom.status.innerText = "PERMISSION DENIED"; }
+            } catch (err) { 
+                console.error(err); 
+                dom.status.innerText = "PERMISSION ERROR"; 
+            }
         });
 
-        // Scan the folder and build the UI
         async function scanVault(dirHandle) {
             dom.status.innerText = "SCANNING VAULT...";
-            // Clear old hitboxes (keep the resync button)
             Array.from(dom.grid.children).forEach(child => { if(child.id !== 'btn-desktop') child.remove(); });
             
             let count = 0;
@@ -146,7 +141,6 @@
                     box.className = 'hitbox movie-box';
                     box.innerText = entry.name.length > 25 ? entry.name.substring(0, 22) + '...' : entry.name;
                     
-                    // Wire the click to grab the ACTUAL file using the handle
                     box.addEventListener('click', async () => {
                         dom.status.innerText = "LOADING CORE FILE...";
                         const file = await entry.getFile(); 
@@ -221,7 +215,6 @@
                     dom.laser.style.display = 'block';
                 });
 
-                // --- DWELL ENGINE ---
                 let hoverTarget = null;
                 let hoverStartTime = null;
                 let isClicked = false;
