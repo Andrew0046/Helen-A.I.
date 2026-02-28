@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Uplink: The Grand Gallery v4.2</title>
+    <title>PC Uplink: The Spatial Slideshow v4.3</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <style>
@@ -18,9 +18,7 @@
         input[type="text"] { background: rgba(0,0,0,0.4); border: 1px solid #333; padding: 15px; color: #00ff00; border-radius: 8px; font-size: 24px; text-align: center; width: 70%; letter-spacing: 5px; margin-bottom: 20px; font-weight: bold; }
         
         .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 14px; letter-spacing: 1px; border-radius: 30px; cursor: pointer; width: 100%; transition: transform 0.2s; margin-bottom: 10px; text-transform: uppercase; }
-        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
         .btn-alt { background: transparent; border: 1px solid #ff9d00; color: #ff9d00; }
-        .btn-alt:hover { box-shadow: 0 10px 20px rgba(255, 157, 0, 0.2); }
         
         #status { margin-top: 15px; font-size: 0.85rem; color: #ff9d00; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
         
@@ -40,6 +38,12 @@
         
         #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 150px; background: linear-gradient(to bottom, rgba(255,0,0,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 20px; color: #ff4444; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; border: none; }
 
+        /* --- THE SLIDESHOW NAVIGATION HITBOXES --- */
+        .nav-hatch { position: absolute; top: 150px; height: calc(100vh - 150px); width: 250px; z-index: 9997; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: #d200ff; opacity: 0.3; transition: opacity 0.3s; cursor: pointer; border: none; border-radius: 0; }
+        #nav-left { left: 0; background: linear-gradient(to right, rgba(210,0,255,0.2) 0%, transparent 100%); border-right: 2px dashed #d200ff; }
+        #nav-right { right: 0; background: linear-gradient(to left, rgba(210,0,255,0.2) 0%, transparent 100%); border-left: 2px dashed #d200ff; }
+
+        /* THE LASER POINTER & DWELL RING */
         #laser-pointer { position: absolute; width: 12px; height: 12px; background: #ff0000; border-radius: 50%; box-shadow: 0 0 15px #ff0000; z-index: 9999; display: none; pointer-events: none; transform: translate(-50%, -50%); }
         #dwell-ring { position: absolute; top: -14px; left: -14px; width: 40px; height: 40px; border: 4px solid rgba(255,0,0,0.5); border-radius: 50%; box-sizing: border-box; transform: scale(0); transform-origin: center; transition: transform 0.05s linear; pointer-events: none; }
     </style>
@@ -47,7 +51,11 @@
 <body>
 
     <div id="laser-pointer"><div id="dwell-ring"></div></div>
+    
     <div class="hitbox" id="escape-hatch">HOLD GAZE TO CLOSE MEDIA</div>
+    
+    <div class="hitbox nav-hatch" id="nav-left">&lt; PREV</div>
+    <div class="hitbox nav-hatch" id="nav-right">NEXT &gt;</div>
 
     <div id="preview-container"><video id="local-video" autoplay playsinline muted></video></div>
     
@@ -62,8 +70,8 @@
     </div>
 
     <div class="uplink-card" id="ui-card">
-        <h1>PC Uplink v4.2</h1>
-        <p>The Grand Gallery</p>
+        <h1>PC Uplink v4.3</h1>
+        <p>The Spatial Slideshow</p>
         
         <div class="vault-section">
             <div id="vault-status" style="color:#aaa; margin-bottom: 10px; font-size: 0.9rem;">Vault Locked</div>
@@ -84,15 +92,19 @@
             preview: document.getElementById('preview-container'), card: document.getElementById('ui-card'), laser: document.getElementById('laser-pointer'), 
             ring: document.getElementById('dwell-ring'), dashboard: document.getElementById('dashboard'), grid: document.getElementById('library-grid'), 
             escapeHatch: document.getElementById('escape-hatch'), btnVault: document.getElementById('btn-vault'), btnRelink: document.getElementById('btn-relink'), 
-            vaultStatus: document.getElementById('vault-status')
+            vaultStatus: document.getElementById('vault-status'), navLeft: document.getElementById('nav-left'), navRight: document.getElementById('nav-right')
         };
 
         let localStream = null; 
         let mediaConn = null; 
         let dataConn = null;
         let directoryHandle = null;
+        
+        // --- NEW: Slideshow State ---
+        let photoPlaylist = [];
+        let currentPhotoIndex = 0;
+        let galleryStreamActive = false;
 
-        // --- THE PERSISTENT VAULT ---
         async function checkSavedVault() {
             try {
                 const savedHandle = await idbKeyval.get('vault-dir');
@@ -129,6 +141,7 @@
         async function scanVault(dirHandle) {
             dom.status.innerText = "SCANNING VAULT...";
             Array.from(dom.grid.children).forEach(child => { if(child.id !== 'btn-desktop') child.remove(); });
+            photoPlaylist = []; // Clear playlist on rescan
             
             let count = 0;
             for await (const entry of dirHandle.values()) {
@@ -142,12 +155,24 @@
                         box.className = isVideo ? 'hitbox movie-box' : 'hitbox photo-box';
                         box.innerText = entry.name.length > 25 ? entry.name.substring(0, 22) + '...' : entry.name;
                         
-                        box.addEventListener('click', async () => {
-                            dom.status.innerText = "LOADING MEDIA...";
-                            const file = await entry.getFile(); 
-                            if (isVideo) playMovie(file);
-                            if (isPhoto) viewPhoto(file);
-                        });
+                        if (isPhoto) {
+                            // Save file handle to our playlist array
+                            photoPlaylist.push(entry);
+                            const assignedIndex = photoPlaylist.length - 1;
+                            
+                            box.addEventListener('click', () => {
+                                dom.status.innerText = "LOADING GALLERY...";
+                                currentPhotoIndex = assignedIndex;
+                                viewPhoto(currentPhotoIndex);
+                            });
+                        } else if (isVideo) {
+                            box.addEventListener('click', async () => {
+                                dom.status.innerText = "LOADING CORE FILE...";
+                                const file = await entry.getFile(); 
+                                playMovie(file);
+                            });
+                        }
+                        
                         dom.grid.appendChild(box);
                     }
                 }
@@ -159,7 +184,6 @@
             dom.status.innerText = "READY FOR UPLINK.";
         }
 
-        // --- WEBRTC SWAP ENGINE ---
         function swapToStream(newStream) {
             if (!mediaConn || !mediaConn.peerConnection) return;
             const senders = mediaConn.peerConnection.getSenders();
@@ -170,7 +194,6 @@
             }
         }
 
-        // --- PLAYBACK: VIDEO ---
         function playMovie(file) {
             const fileURL = URL.createObjectURL(file);
             dom.cinema.src = fileURL;
@@ -184,18 +207,18 @@
             });
         }
 
-        // --- PLAYBACK: PHOTO (THE CANVAS HIJACK) ---
-        function viewPhoto(file) {
+        // --- NEW: Spatial Slideshow Engine ---
+        async function viewPhoto(index) {
+            const entry = photoPlaylist[index];
+            const file = await entry.getFile();
             const fileURL = URL.createObjectURL(file);
             const ctx = dom.photoCanvas.getContext('2d');
             const img = new Image();
             
             img.onload = () => {
-                // Clear the canvas to black
                 ctx.fillStyle = 'black';
                 ctx.fillRect(0, 0, dom.photoCanvas.width, dom.photoCanvas.height);
                 
-                // Draw the image scaled to fit perfectly in 1920x1080
                 const hRatio = dom.photoCanvas.width / img.width;
                 const vRatio = dom.photoCanvas.height / img.height;
                 const ratio  = Math.min(hRatio, vRatio);
@@ -205,21 +228,54 @@
                 
                 dom.photoCanvas.style.display = 'block';
                 
-                // Blast the canvas down the video pipe at 30fps
-                const stream = dom.photoCanvas.captureStream(30); 
-                swapToStream(stream);
+                // Only hijack the stream once. Next photos will just paint over the live canvas!
+                if (!galleryStreamActive) {
+                    const stream = dom.photoCanvas.captureStream(30); 
+                    swapToStream(stream);
+                    galleryStreamActive = true;
+                }
                 
                 dom.dashboard.style.display = 'none';
                 dom.escapeHatch.style.display = 'flex'; 
+                
+                // Turn on the Slideshow Nav arrows
+                if (photoPlaylist.length > 1) {
+                    dom.navLeft.style.display = 'flex';
+                    dom.navRight.style.display = 'flex';
+                }
             };
             img.src = fileURL;
         }
 
-        // THE ESCAPE HATCH
+        // Slideshow Navigation Click Handlers
+        dom.navLeft.addEventListener('click', () => {
+            currentPhotoIndex = (currentPhotoIndex - 1 + photoPlaylist.length) % photoPlaylist.length;
+            viewPhoto(currentPhotoIndex);
+            flashHitbox(dom.navLeft);
+        });
+
+        dom.navRight.addEventListener('click', () => {
+            currentPhotoIndex = (currentPhotoIndex + 1) % photoPlaylist.length;
+            viewPhoto(currentPhotoIndex);
+            flashHitbox(dom.navRight);
+        });
+
+        function flashHitbox(el) {
+            el.style.background = 'rgba(210,0,255,0.5)';
+            setTimeout(() => el.style.background = '', 300);
+        }
+
+        // Escape Hatch cleanup
         dom.escapeHatch.addEventListener('click', () => {
             dom.cinema.pause();
             dom.cinema.style.display = 'none';
-            dom.photoCanvas.style.display = 'none'; // Hide the canvas too
+            dom.photoCanvas.style.display = 'none'; 
+            
+            // Hide slideshow nav
+            dom.navLeft.style.display = 'none';
+            dom.navRight.style.display = 'none';
+            galleryStreamActive = false;
+
             swapToStream(localStream); 
             dom.escapeHatch.style.display = 'none';
             dom.dashboard.style.display = 'flex';
@@ -229,7 +285,6 @@
             swapToStream(localStream);
         });
 
-        // --- INITIATE CONNECTION ---
         dom.btnConnect.addEventListener('click', async () => {
             const pin = dom.pin.value.trim();
             if (pin.length !== 4) return;
