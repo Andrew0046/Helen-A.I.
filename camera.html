@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Drone Porta-Link v3.2</title>
+    <title>Drone Porta-Link v3.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #050505; color: white; font-family: 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
@@ -14,17 +14,16 @@
         #cinema-player { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; object-fit: contain; }
         #photo-canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; }
 
-        .ui-card { position: relative; z-index: 10; background: rgba(20, 20, 20, 0.9); padding: 30px; border-radius: 16px; border: 1px solid rgba(0, 210, 255, 0.3); text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.8); width: 320px; transition: opacity 0.5s; }
-        h1 { color: #00d2ff; letter-spacing: 4px; margin-top: 0; font-weight: 300; font-size: 1.5rem; }
-        p { color: #888; font-size: 0.85rem; margin-bottom: 20px; }
+        .ui-card { position: relative; z-index: 10; background: rgba(20, 20, 20, 0.85); padding: 40px; border-radius: 16px; border: 1px solid rgba(0, 210, 255, 0.3); text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.8); width: 300px; transition: opacity 0.5s; }
+        h1 { color: #00d2ff; letter-spacing: 4px; margin-top: 0; font-weight: 300; }
+        p { color: #888; font-size: 0.9rem; margin-bottom: 20px; }
         
-        input[type="text"] { font-size: 24px; text-align: center; padding: 12px; width: 60%; background: rgba(0,0,0,0.5); color: #00ff00; border: 1px solid #333; border-radius: 8px; letter-spacing: 8px; font-weight: bold; margin-bottom: 20px; outline: none; }
+        input[type="text"] { font-size: 28px; text-align: center; padding: 15px; width: 60%; background: rgba(0,0,0,0.5); color: #00ff00; border: 1px solid #333; border-radius: 8px; letter-spacing: 8px; font-weight: bold; margin-bottom: 20px; outline: none; }
         
-        button { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); color: white; border: none; padding: 12px 20px; font-size: 14px; font-weight: bold; border-radius: 30px; cursor: pointer; text-transform: uppercase; width: 100%; letter-spacing: 1px; transition: transform 0.2s; margin-bottom: 10px;}
+        button { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); color: white; border: none; padding: 15px 30px; font-size: 16px; font-weight: bold; border-radius: 30px; cursor: pointer; text-transform: uppercase; width: 100%; letter-spacing: 1px; transition: transform 0.2s; margin-bottom: 10px;}
         .btn-alt { background: transparent; border: 1px solid #ff9d00; color: #ff9d00; }
-        .btn-screen { background: transparent; border: 1px solid #d200ff; color: #d200ff; }
         
-        #status { margin-top: 15px; color: #ff9d00; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; }
+        #status { margin-top: 20px; color: #ff9d00; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; }
         
         #dashboard { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; width: 90%; max-height: 80vh; overflow-y: auto; padding-top: 20px; }
         #library-grid { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; width: 100%; margin-top: 20px; }
@@ -45,6 +44,7 @@
     <div class="hitbox" id="escape-hatch">HOLD GAZE TO CLOSE</div>
 
     <div id="preview-container"><video id="cam-preview" autoplay playsinline muted></video></div>
+
     <video id="cinema-player" controls playsinline></video>
     <canvas id="photo-canvas" width="1920" height="1080"></canvas>
 
@@ -57,15 +57,13 @@
 
     <div class="ui-card" id="ui">
         <h1>PORTA-LINK</h1>
-        <p>Server & Screen Mirror</p>
-        
-        <button id="btn-screen" class="btn-screen">MIRROR PHONE SCREEN</button>
+        <p>Gaze-Controlled Server v3.1</p>
         
         <input type="file" id="batch-input" accept="video/*, image/*" multiple style="display:none">
-        <button id="btn-batch" class="btn-alt">LOAD MEDIA BATCH</button>
+        <button id="btn-batch" class="btn-alt">1. LOAD MEDIA BATCH</button>
         
         <input type="text" id="pin" placeholder="----" maxlength="4" autocomplete="off">
-        <button id="btn-connect">ENGAGE UPLINK</button>
+        <button id="btn-connect">2. ENGAGE UPLINK</button>
         <div id="status">Warming up optics...</div>
     </div>
 
@@ -75,7 +73,6 @@
             status: document.getElementById('status'), video: document.getElementById('cam-preview'),
             cinema: document.getElementById('cinema-player'), photoCanvas: document.getElementById('photo-canvas'),
             ui: document.getElementById('ui'), batchInput: document.getElementById('batch-input'), btnBatch: document.getElementById('btn-batch'),
-            btnScreen: document.getElementById('btn-screen'),
             laser: document.getElementById('laser-pointer'), ring: document.getElementById('dwell-ring'),
             dashboard: document.getElementById('dashboard'), grid: document.getElementById('library-grid'),
             escapeHatch: document.getElementById('escape-hatch')
@@ -85,65 +82,40 @@
         let localStream;
         let mediaConn = null;
 
-        // Default to rear camera
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true })
             .then(stream => {
                 localStream = stream; dom.video.srcObject = stream; dom.status.innerText = "OPTICS ONLINE. STANDBY.";
             })
             .catch(err => { dom.status.innerText = "CAMERA ACCESS DENIED."; dom.status.style.color = "#ff4444"; });
 
-        // --- THE SCREEN MIRROR ENGINE ---
-        dom.btnScreen.addEventListener('click', async () => {
-            try {
-                dom.status.innerText = "REQUESTING OS PERMISSION...";
-                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-                
-                // Kill the physical camera to save battery
-                if (localStream) localStream.getTracks().forEach(track => track.stop());
-                
-                localStream = screenStream;
-                dom.video.srcObject = screenStream;
-                
-                dom.btnScreen.innerText = "SCREEN MIRROR ACTIVE";
-                dom.btnScreen.style.background = "rgba(210, 0, 255, 0.2)";
-                dom.status.innerText = "READY TO CAST SCREEN.";
-                
-                // If the user stops sharing via the native OS prompt
-                screenStream.getVideoTracks()[0].onended = () => {
-                    dom.status.innerText = "SCREEN SHARE SEVERED.";
-                    dom.btnScreen.innerText = "MIRROR PHONE SCREEN";
-                    dom.btnScreen.style.background = "transparent";
-                };
-
-            } catch (err) {
-                console.error(err);
-                dom.status.innerText = "OS BLOCKED SCREEN SHARE.";
-                dom.status.style.color = "#ff4444";
-            }
-        });
-
-        // Batch Loading Logic (Remains unchanged for fallback)
         dom.btnBatch.addEventListener('click', () => { dom.batchInput.click(); });
         
         dom.batchInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
 
+            // --- THE MOBILE AUDIO UNLOCKER HACK ---
+            // We use the trusted file-picker event to briefly play and pause the player, unlocking its audio engine!
             const firstVideo = files.find(f => f.type.startsWith('video/'));
             if (firstVideo) {
                 dom.cinema.src = URL.createObjectURL(firstVideo);
                 dom.cinema.muted = false;
                 let playPromise = dom.cinema.play();
                 if (playPromise !== undefined) {
-                    playPromise.then(() => { dom.cinema.pause(); dom.cinema.currentTime = 0; }).catch(e => {});
+                    playPromise.then(() => {
+                        dom.cinema.pause(); // Instantly pause it
+                        dom.cinema.currentTime = 0; // Reset it back to the start
+                    }).catch(error => { console.log("Audio unlock failed: ", error); });
                 }
             }
+            // --------------------------------------
 
             Array.from(dom.grid.children).forEach(child => { if(child.id !== 'btn-camera') child.remove(); });
 
             files.forEach(f => {
                 const isVideo = f.type.startsWith('video/');
                 const isPhoto = f.type.startsWith('image/');
+                
                 const box = document.createElement('div');
                 box.className = isVideo ? 'hitbox movie-box' : 'hitbox photo-box';
                 box.innerText = f.name.length > 20 ? f.name.substring(0, 17) + '...' : f.name;
@@ -166,7 +138,7 @@
             if (!mediaConn || !mediaConn.peerConnection) return;
             const senders = mediaConn.peerConnection.getSenders();
             const videoTrack = newStream.getVideoTracks()[0];
-            const audioTrack = newStream.getAudioTracks()[0]; 
+            const audioTrack = newStream.getAudioTracks()[0]; // Grab the audio track too!
 
             if (videoTrack) {
                 const vSender = senders.find(s => s.track && s.track.kind === 'video');
@@ -180,10 +152,15 @@
 
         function playMovie(file) {
             const fileURL = URL.createObjectURL(file);
-            dom.cinema.src = fileURL; dom.cinema.style.display = 'block'; dom.cinema.muted = false; 
+            dom.cinema.src = fileURL;
+            dom.cinema.style.display = 'block';
+            dom.cinema.muted = false; // Ensure it stays un-gagged
+            
             dom.cinema.play().then(() => {
                 const stream = dom.cinema.captureStream ? dom.cinema.captureStream() : dom.cinema.mozCaptureStream();
-                swapToStream(stream); dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; 
+                swapToStream(stream); 
+                dom.dashboard.style.display = 'none';
+                dom.escapeHatch.style.display = 'flex'; 
             });
         }
 
@@ -191,22 +168,27 @@
             const fileURL = URL.createObjectURL(file);
             const ctx = dom.photoCanvas.getContext('2d');
             const img = new Image();
+            
             img.onload = () => {
                 ctx.fillStyle = 'black'; ctx.fillRect(0, 0, dom.photoCanvas.width, dom.photoCanvas.height);
                 const ratio = Math.min(dom.photoCanvas.width / img.width, dom.photoCanvas.height / img.height);
                 const cx = (dom.photoCanvas.width - img.width * ratio) / 2;
                 const cy = (dom.photoCanvas.height - img.height * ratio) / 2;  
                 ctx.drawImage(img, 0, 0, img.width, img.height, cx, cy, img.width * ratio, img.height * ratio);  
+                
                 dom.photoCanvas.style.display = 'block';
-                const stream = dom.photoCanvas.captureStream(30); swapToStream(stream);
-                dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; 
+                const stream = dom.photoCanvas.captureStream(30); 
+                swapToStream(stream);
+                dom.dashboard.style.display = 'none';
+                dom.escapeHatch.style.display = 'flex'; 
             };
             img.src = fileURL;
         }
 
         dom.escapeHatch.addEventListener('click', () => {
             dom.cinema.pause(); dom.cinema.style.display = 'none'; dom.photoCanvas.style.display = 'none';
-            swapToStream(localStream); dom.escapeHatch.style.display = 'none'; dom.dashboard.style.display = 'flex';
+            swapToStream(localStream); 
+            dom.escapeHatch.style.display = 'none'; dom.dashboard.style.display = 'flex';
         });
 
         document.getElementById('btn-camera').addEventListener('click', () => { swapToStream(localStream); });
@@ -223,28 +205,40 @@
 
             dataConn.on('open', () => {
                 dom.ui.style.opacity = '0'; setTimeout(() => dom.ui.style.display = 'none', 500);
-                dom.dashboard.style.display = 'flex'; dom.laser.style.display = 'block';
+                dom.dashboard.style.display = 'flex';
+                dom.laser.style.display = 'block';
             });
 
-            let hoverTarget = null; let hoverStartTime = null; let isClicked = false;
-            const DWELL_DURATION = 1500; const SENSITIVITY = 40; 
+            let hoverTarget = null;
+            let hoverStartTime = null;
+            let isClicked = false;
+            const DWELL_DURATION = 1500;
+            const SENSITIVITY = 40; 
 
             dataConn.on('data', (data) => {
                 if(data && typeof data.p === 'number' && typeof data.y === 'number') {
                     const centerX = window.innerWidth / 2; const centerY = window.innerHeight / 2;
-                    let targetX = centerX - (data.y * SENSITIVITY); let targetY = centerY - (data.p * SENSITIVITY);
-                    targetX = Math.max(0, Math.min(window.innerWidth, targetX)); targetY = Math.max(0, Math.min(window.innerHeight, targetY));
+                    let targetX = centerX - (data.y * SENSITIVITY);
+                    let targetY = centerY - (data.p * SENSITIVITY);
+
+                    targetX = Math.max(0, Math.min(window.innerWidth, targetX));
+                    targetY = Math.max(0, Math.min(window.innerHeight, targetY));
+
                     dom.laser.style.left = targetX + 'px'; dom.laser.style.top = targetY + 'px';
 
-                    dom.laser.style.display = 'none'; const elementBelow = document.elementFromPoint(targetX, targetY); dom.laser.style.display = 'block';
+                    dom.laser.style.display = 'none';
+                    const elementBelow = document.elementFromPoint(targetX, targetY);
+                    dom.laser.style.display = 'block';
 
                     if (elementBelow && elementBelow.classList.contains('hitbox')) {
                         if (hoverTarget !== elementBelow) { hoverTarget = elementBelow; hoverStartTime = performance.now(); isClicked = false; }
                         let progress = Math.min((performance.now() - hoverStartTime) / DWELL_DURATION, 1);
                         dom.ring.style.transform = `scale(${progress})`;
+
                         if (progress === 1 && !isClicked) {
                             isClicked = true; dom.ring.style.borderColor = '#00ff00';
-                            elementBelow.style.background = 'rgba(0, 255, 0, 0.3)'; setTimeout(() => elementBelow.style.background = '', 500);
+                            elementBelow.style.background = 'rgba(0, 255, 0, 0.3)'; 
+                            setTimeout(() => elementBelow.style.background = '', 500);
                             elementBelow.click(); 
                         }
                     } else {
