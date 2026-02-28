@@ -3,20 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Drone Porta-Link v3.0</title>
+    <title>Drone Porta-Link v3.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #050505; color: white; font-family: 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
         
-        /* The background feed */
         #preview-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; opacity: 0.3; }
         video { width: 100%; height: 100%; object-fit: cover; }
         
-        /* THE PLAYERS */
         #cinema-player { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; object-fit: contain; }
         #photo-canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; }
 
-        /* THE UI DASHBOARD */
         .ui-card { position: relative; z-index: 10; background: rgba(20, 20, 20, 0.85); padding: 40px; border-radius: 16px; border: 1px solid rgba(0, 210, 255, 0.3); text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.8); width: 300px; transition: opacity 0.5s; }
         h1 { color: #00d2ff; letter-spacing: 4px; margin-top: 0; font-weight: 300; }
         p { color: #888; font-size: 0.9rem; margin-bottom: 20px; }
@@ -28,7 +25,6 @@
         
         #status { margin-top: 20px; color: #ff9d00; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; }
         
-        /* THE DWELL DASHBOARD */
         #dashboard { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; width: 90%; max-height: 80vh; overflow-y: auto; padding-top: 20px; }
         #library-grid { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; width: 100%; margin-top: 20px; }
         
@@ -38,7 +34,6 @@
         
         #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 120px; background: linear-gradient(to bottom, rgba(255,0,0,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 20px; color: #ff4444; font-size: 1.2rem; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; border: none; }
 
-        /* DWELL LASER */
         #laser-pointer { position: absolute; width: 12px; height: 12px; background: #ff0000; border-radius: 50%; box-shadow: 0 0 15px #ff0000; z-index: 9999; display: none; pointer-events: none; transform: translate(-50%, -50%); }
         #dwell-ring { position: absolute; top: -14px; left: -14px; width: 40px; height: 40px; border: 4px solid rgba(255,0,0,0.5); border-radius: 50%; box-sizing: border-box; transform: scale(0); transform-origin: center; transition: transform 0.05s linear; pointer-events: none; }
     </style>
@@ -62,7 +57,7 @@
 
     <div class="ui-card" id="ui">
         <h1>PORTA-LINK</h1>
-        <p>Gaze-Controlled Server</p>
+        <p>Gaze-Controlled Server v3.1</p>
         
         <input type="file" id="batch-input" accept="video/*, image/*" multiple style="display:none">
         <button id="btn-batch" class="btn-alt">1. LOAD MEDIA BATCH</button>
@@ -87,23 +82,34 @@
         let localStream;
         let mediaConn = null;
 
-        // 1. Init Camera
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true })
             .then(stream => {
-                localStream = stream;
-                dom.video.srcObject = stream;
-                dom.status.innerText = "OPTICS ONLINE. STANDBY.";
+                localStream = stream; dom.video.srcObject = stream; dom.status.innerText = "OPTICS ONLINE. STANDBY.";
             })
             .catch(err => { dom.status.innerText = "CAMERA ACCESS DENIED."; dom.status.style.color = "#ff4444"; });
 
-        // 2. Load Batch Media
         dom.btnBatch.addEventListener('click', () => { dom.batchInput.click(); });
         
         dom.batchInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
 
-            // Clear old hitboxes
+            // --- THE MOBILE AUDIO UNLOCKER HACK ---
+            // We use the trusted file-picker event to briefly play and pause the player, unlocking its audio engine!
+            const firstVideo = files.find(f => f.type.startsWith('video/'));
+            if (firstVideo) {
+                dom.cinema.src = URL.createObjectURL(firstVideo);
+                dom.cinema.muted = false;
+                let playPromise = dom.cinema.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        dom.cinema.pause(); // Instantly pause it
+                        dom.cinema.currentTime = 0; // Reset it back to the start
+                    }).catch(error => { console.log("Audio unlock failed: ", error); });
+                }
+            }
+            // --------------------------------------
+
             Array.from(dom.grid.children).forEach(child => { if(child.id !== 'btn-camera') child.remove(); });
 
             files.forEach(f => {
@@ -128,23 +134,27 @@
             dom.status.innerText = "READY FOR UPLINK.";
         });
 
-        // 3. WebRTC Swap Engine
         function swapToStream(newStream) {
             if (!mediaConn || !mediaConn.peerConnection) return;
             const senders = mediaConn.peerConnection.getSenders();
             const videoTrack = newStream.getVideoTracks()[0];
+            const audioTrack = newStream.getAudioTracks()[0]; // Grab the audio track too!
+
             if (videoTrack) {
                 const vSender = senders.find(s => s.track && s.track.kind === 'video');
                 if (vSender) vSender.replaceTrack(videoTrack);
             }
+            if (audioTrack) {
+                const aSender = senders.find(s => s.track && s.track.kind === 'audio');
+                if (aSender) aSender.replaceTrack(audioTrack);
+            }
         }
 
-        // 4. Playback Logic
         function playMovie(file) {
             const fileURL = URL.createObjectURL(file);
             dom.cinema.src = fileURL;
             dom.cinema.style.display = 'block';
-            dom.cinema.muted = false; // UNGAG SENDER AUDIO
+            dom.cinema.muted = false; // Ensure it stays un-gagged
             
             dom.cinema.play().then(() => {
                 const stream = dom.cinema.captureStream ? dom.cinema.captureStream() : dom.cinema.mozCaptureStream();
@@ -177,13 +187,12 @@
 
         dom.escapeHatch.addEventListener('click', () => {
             dom.cinema.pause(); dom.cinema.style.display = 'none'; dom.photoCanvas.style.display = 'none';
-            swapToStream(localStream); // Back to camera
+            swapToStream(localStream); 
             dom.escapeHatch.style.display = 'none'; dom.dashboard.style.display = 'flex';
         });
 
         document.getElementById('btn-camera').addEventListener('click', () => { swapToStream(localStream); });
 
-        // 5. Connect and Route Dwell
         dom.btnConnect.addEventListener('click', () => {
             const pin = dom.pin.value.trim();
             if(pin.length !== 4) return;
@@ -200,12 +209,11 @@
                 dom.laser.style.display = 'block';
             });
 
-            // THE DWELL ENGINE (Routed from Hub Telemetry)
             let hoverTarget = null;
             let hoverStartTime = null;
             let isClicked = false;
             const DWELL_DURATION = 1500;
-            const SENSITIVITY = 40; // Slightly higher for mobile screens
+            const SENSITIVITY = 40; 
 
             dataConn.on('data', (data) => {
                 if(data && typeof data.p === 'number' && typeof data.y === 'number') {
