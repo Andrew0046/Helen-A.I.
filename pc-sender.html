@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Uplink: The Spatial Slideshow v4.3</title>
+    <title>PC Uplink: The Control Deck v4.4</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <style>
@@ -36,14 +36,25 @@
         .movie-box { border-color: #ff9d00; color: #ff9d00; background: rgba(255, 157, 0, 0.1); }
         .photo-box { border-color: #d200ff; color: #d200ff; background: rgba(210, 0, 255, 0.1); }
         
-        #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 150px; background: linear-gradient(to bottom, rgba(255,0,0,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 20px; color: #ff4444; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; border: none; }
+        #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 120px; background: linear-gradient(to bottom, rgba(255,0,0,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 20px; color: #ff4444; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; border: none; }
 
-        /* --- THE SLIDESHOW NAVIGATION HITBOXES --- */
-        .nav-hatch { position: absolute; top: 150px; height: calc(100vh - 150px); width: 250px; z-index: 9997; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: #d200ff; opacity: 0.3; transition: opacity 0.3s; cursor: pointer; border: none; border-radius: 0; }
+        /* SLIDESHOW HITBOXES */
+        .nav-hatch { position: absolute; top: 120px; height: calc(100vh - 120px); width: 250px; z-index: 9997; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: #d200ff; opacity: 0.3; transition: opacity 0.3s; cursor: pointer; border: none; border-radius: 0; }
         #nav-left { left: 0; background: linear-gradient(to right, rgba(210,0,255,0.2) 0%, transparent 100%); border-right: 2px dashed #d200ff; }
         #nav-right { right: 0; background: linear-gradient(to left, rgba(210,0,255,0.2) 0%, transparent 100%); border-left: 2px dashed #d200ff; }
 
-        /* THE LASER POINTER & DWELL RING */
+        /* --- THE HOLOGRAPHIC CONTROL DECK --- */
+        #control-deck { position: absolute; bottom: -250px; left: 0; width: 100vw; height: 200px; background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 60%, transparent 100%); z-index: 9998; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 30px; transition: bottom 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .deck-row { display: flex; gap: 20px; margin-bottom: 20px; align-items: center; }
+        .deck-btn { width: 120px; height: 60px; font-size: 1.2rem; border-color: #00ff00; color: #00ff00; background: rgba(0,255,0,0.1); }
+        .deck-btn-main { width: 160px; height: 70px; font-size: 1.5rem; border-color: #00d2ff; color: #00d2ff; background: rgba(0,210,255,0.1); }
+        
+        #scrub-hitbox { width: 60%; height: 60px; display: flex; align-items: center; position: relative; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; background: rgba(0,0,0,0.5); }
+        #scrub-track { width: 96%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; position: absolute; left: 2%; }
+        #scrub-fill { width: 0%; height: 100%; background: #00d2ff; border-radius: 4px; box-shadow: 0 0 10px #00d2ff; pointer-events: none; }
+        #time-display { position: absolute; right: 20px; color: #aaa; font-family: monospace; font-size: 1.2rem; pointer-events: none; }
+
+        /* THE LASER POINTER */
         #laser-pointer { position: absolute; width: 12px; height: 12px; background: #ff0000; border-radius: 50%; box-shadow: 0 0 15px #ff0000; z-index: 9999; display: none; pointer-events: none; transform: translate(-50%, -50%); }
         #dwell-ring { position: absolute; top: -14px; left: -14px; width: 40px; height: 40px; border: 4px solid rgba(255,0,0,0.5); border-radius: 50%; box-sizing: border-box; transform: scale(0); transform-origin: center; transition: transform 0.05s linear; pointer-events: none; }
     </style>
@@ -52,10 +63,22 @@
 
     <div id="laser-pointer"><div id="dwell-ring"></div></div>
     
-    <div class="hitbox" id="escape-hatch">HOLD GAZE TO CLOSE MEDIA</div>
+    <div class="hitbox" id="escape-hatch">HOLD GAZE TO CLOSE</div>
     
     <div class="hitbox nav-hatch" id="nav-left">&lt; PREV</div>
     <div class="hitbox nav-hatch" id="nav-right">NEXT &gt;</div>
+
+    <div id="control-deck">
+        <div class="deck-row">
+            <div class="hitbox deck-btn" id="btn-seek-back">-15s</div>
+            <div class="hitbox deck-btn-main" id="btn-play-pause">PAUSE</div>
+            <div class="hitbox deck-btn" id="btn-seek-fwd">+15s</div>
+        </div>
+        <div class="hitbox" id="scrub-hitbox">
+            <div id="scrub-track"><div id="scrub-fill"></div></div>
+            <div id="time-display">00:00</div>
+        </div>
+    </div>
 
     <div id="preview-container"><video id="local-video" autoplay playsinline muted></video></div>
     
@@ -70,8 +93,8 @@
     </div>
 
     <div class="uplink-card" id="ui-card">
-        <h1>PC Uplink v4.3</h1>
-        <p>The Spatial Slideshow</p>
+        <h1>PC Uplink v4.4</h1>
+        <p>The Control Deck</p>
         
         <div class="vault-section">
             <div id="vault-status" style="color:#aaa; margin-bottom: 10px; font-size: 0.9rem;">Vault Locked</div>
@@ -92,39 +115,30 @@
             preview: document.getElementById('preview-container'), card: document.getElementById('ui-card'), laser: document.getElementById('laser-pointer'), 
             ring: document.getElementById('dwell-ring'), dashboard: document.getElementById('dashboard'), grid: document.getElementById('library-grid'), 
             escapeHatch: document.getElementById('escape-hatch'), btnVault: document.getElementById('btn-vault'), btnRelink: document.getElementById('btn-relink'), 
-            vaultStatus: document.getElementById('vault-status'), navLeft: document.getElementById('nav-left'), navRight: document.getElementById('nav-right')
+            vaultStatus: document.getElementById('vault-status'), navLeft: document.getElementById('nav-left'), navRight: document.getElementById('nav-right'),
+            controlDeck: document.getElementById('control-deck'), btnPlay: document.getElementById('btn-play-pause'), btnSeekBack: document.getElementById('btn-seek-back'), 
+            btnSeekFwd: document.getElementById('btn-seek-fwd'), scrubHitbox: document.getElementById('scrub-hitbox'), scrubFill: document.getElementById('scrub-fill'), timeDisplay: document.getElementById('time-display')
         };
 
-        let localStream = null; 
-        let mediaConn = null; 
-        let dataConn = null;
-        let directoryHandle = null;
+        let localStream = null; let mediaConn = null; let dataConn = null; let directoryHandle = null;
+        let photoPlaylist = []; let currentPhotoIndex = 0; let galleryStreamActive = false;
         
-        // --- NEW: Slideshow State ---
-        let photoPlaylist = [];
-        let currentPhotoIndex = 0;
-        let galleryStreamActive = false;
+        // Global tracker for laser X coordinate to calculate timeline scrubbing
+        let currentLaserX = 0;
 
         async function checkSavedVault() {
             try {
                 const savedHandle = await idbKeyval.get('vault-dir');
                 if (savedHandle) {
-                    directoryHandle = savedHandle;
-                    dom.btnVault.style.display = 'none';
-                    dom.btnRelink.style.display = 'block';
-                    dom.vaultStatus.innerText = `Saved Vault Detected. Ready to Scan.`;
-                    dom.vaultStatus.style.color = '#00d2ff';
+                    directoryHandle = savedHandle; dom.btnVault.style.display = 'none'; dom.btnRelink.style.display = 'block';
+                    dom.vaultStatus.innerText = `Saved Vault Detected. Ready to Scan.`; dom.vaultStatus.style.color = '#00d2ff';
                 }
-            } catch (err) { console.error('No saved vault found.'); }
+            } catch (err) {}
         }
         checkSavedVault();
 
         dom.btnVault.addEventListener('click', async () => {
-            try {
-                directoryHandle = await window.showDirectoryPicker();
-                await idbKeyval.set('vault-dir', directoryHandle);
-                scanVault(directoryHandle);
-            } catch (err) { dom.status.innerText = "FOLDER SELECTION CANCELLED"; }
+            try { directoryHandle = await window.showDirectoryPicker(); await idbKeyval.set('vault-dir', directoryHandle); scanVault(directoryHandle); } catch (err) {}
         });
 
         dom.btnRelink.addEventListener('click', async () => {
@@ -132,16 +146,16 @@
                 const permission = await directoryHandle.queryPermission({ mode: 'read' });
                 if (permission !== 'granted') {
                     const newPermission = await directoryHandle.requestPermission({ mode: 'read' });
-                    if (newPermission !== 'granted') { dom.status.innerText = "PERMISSION DENIED"; return; }
+                    if (newPermission !== 'granted') return;
                 }
                 scanVault(directoryHandle);
-            } catch (err) { console.error(err); dom.status.innerText = "PERMISSION ERROR"; }
+            } catch (err) {}
         });
 
         async function scanVault(dirHandle) {
             dom.status.innerText = "SCANNING VAULT...";
             Array.from(dom.grid.children).forEach(child => { if(child.id !== 'btn-desktop') child.remove(); });
-            photoPlaylist = []; // Clear playlist on rescan
+            photoPlaylist = []; 
             
             let count = 0;
             for await (const entry of dirHandle.values()) {
@@ -156,32 +170,17 @@
                         box.innerText = entry.name.length > 25 ? entry.name.substring(0, 22) + '...' : entry.name;
                         
                         if (isPhoto) {
-                            // Save file handle to our playlist array
-                            photoPlaylist.push(entry);
-                            const assignedIndex = photoPlaylist.length - 1;
-                            
-                            box.addEventListener('click', () => {
-                                dom.status.innerText = "LOADING GALLERY...";
-                                currentPhotoIndex = assignedIndex;
-                                viewPhoto(currentPhotoIndex);
-                            });
+                            photoPlaylist.push(entry); const assignedIndex = photoPlaylist.length - 1;
+                            box.addEventListener('click', () => { currentPhotoIndex = assignedIndex; viewPhoto(currentPhotoIndex); });
                         } else if (isVideo) {
-                            box.addEventListener('click', async () => {
-                                dom.status.innerText = "LOADING CORE FILE...";
-                                const file = await entry.getFile(); 
-                                playMovie(file);
-                            });
+                            box.addEventListener('click', async () => { const file = await entry.getFile(); playMovie(file); });
                         }
-                        
                         dom.grid.appendChild(box);
                     }
                 }
             }
-            dom.vaultStatus.innerText = `Vault Unlocked: ${count} Files Found`;
-            dom.vaultStatus.style.color = '#00ff00';
-            dom.btnVault.style.display = 'none';
-            dom.btnRelink.style.display = 'none';
-            dom.status.innerText = "READY FOR UPLINK.";
+            dom.vaultStatus.innerText = `Vault Unlocked: ${count} Files`; dom.vaultStatus.style.color = '#00ff00';
+            dom.btnVault.style.display = 'none'; dom.btnRelink.style.display = 'none'; dom.status.innerText = "READY FOR UPLINK.";
         }
 
         function swapToStream(newStream) {
@@ -196,167 +195,136 @@
 
         function playMovie(file) {
             const fileURL = URL.createObjectURL(file);
-            dom.cinema.src = fileURL;
-            dom.cinema.style.display = 'block';
+            dom.cinema.src = fileURL; dom.cinema.style.display = 'block';
             
             dom.cinema.play().then(() => {
                 const stream = dom.cinema.captureStream ? dom.cinema.captureStream() : dom.cinema.mozCaptureStream();
                 swapToStream(stream); 
-                dom.dashboard.style.display = 'none';
-                dom.escapeHatch.style.display = 'flex'; 
+                dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; 
+                dom.btnPlay.innerText = "PAUSE";
             });
         }
 
-        // --- NEW: Spatial Slideshow Engine ---
+        // --- NEW: Control Deck Logic ---
+        dom.cinema.addEventListener('timeupdate', () => {
+            if (dom.cinema.duration) {
+                const pct = (dom.cinema.currentTime / dom.cinema.duration) * 100;
+                dom.scrubFill.style.width = pct + '%';
+                
+                const m = Math.floor(dom.cinema.currentTime / 60);
+                const s = Math.floor(dom.cinema.currentTime % 60);
+                dom.timeDisplay.innerText = `${m}:${s < 10 ? '0'+s : s}`;
+            }
+        });
+
+        dom.btnPlay.addEventListener('click', () => {
+            if (dom.cinema.paused) { dom.cinema.play(); dom.btnPlay.innerText = "PAUSE"; } 
+            else { dom.cinema.pause(); dom.btnPlay.innerText = "PLAY"; }
+            flashHitbox(dom.btnPlay);
+        });
+
+        dom.btnSeekBack.addEventListener('click', () => { dom.cinema.currentTime = Math.max(0, dom.cinema.currentTime - 15); flashHitbox(dom.btnSeekBack); });
+        dom.btnSeekFwd.addEventListener('click', () => { dom.cinema.currentTime = Math.min(dom.cinema.duration, dom.cinema.currentTime + 15); flashHitbox(dom.btnSeekFwd); });
+
+        // The Spatial Scrubber Math
+        dom.scrubHitbox.addEventListener('click', () => {
+            const rect = dom.scrubHitbox.getBoundingClientRect();
+            const clickX = currentLaserX - rect.left;
+            const percent = Math.max(0, Math.min(1, clickX / rect.width));
+            if (dom.cinema.duration) { dom.cinema.currentTime = dom.cinema.duration * percent; }
+            flashHitbox(dom.scrubHitbox);
+        });
+
+        // Slideshow Logic (Preserved)
         async function viewPhoto(index) {
-            const entry = photoPlaylist[index];
-            const file = await entry.getFile();
-            const fileURL = URL.createObjectURL(file);
-            const ctx = dom.photoCanvas.getContext('2d');
-            const img = new Image();
-            
+            const file = await photoPlaylist[index].getFile(); const fileURL = URL.createObjectURL(file);
+            const ctx = dom.photoCanvas.getContext('2d'); const img = new Image();
             img.onload = () => {
-                ctx.fillStyle = 'black';
-                ctx.fillRect(0, 0, dom.photoCanvas.width, dom.photoCanvas.height);
-                
-                const hRatio = dom.photoCanvas.width / img.width;
-                const vRatio = dom.photoCanvas.height / img.height;
-                const ratio  = Math.min(hRatio, vRatio);
-                const centerShift_x = (dom.photoCanvas.width - img.width * ratio) / 2;
-                const centerShift_y = (dom.photoCanvas.height - img.height * ratio) / 2;  
-                ctx.drawImage(img, 0, 0, img.width, img.height, centerShift_x, centerShift_y, img.width * ratio, img.height * ratio);  
-                
+                ctx.fillStyle = 'black'; ctx.fillRect(0, 0, dom.photoCanvas.width, dom.photoCanvas.height);
+                const ratio = Math.min(dom.photoCanvas.width / img.width, dom.photoCanvas.height / img.height);
+                ctx.drawImage(img, 0, 0, img.width, img.height, (dom.photoCanvas.width - img.width * ratio) / 2, (dom.photoCanvas.height - img.height * ratio) / 2, img.width * ratio, img.height * ratio);  
                 dom.photoCanvas.style.display = 'block';
-                
-                // Only hijack the stream once. Next photos will just paint over the live canvas!
-                if (!galleryStreamActive) {
-                    const stream = dom.photoCanvas.captureStream(30); 
-                    swapToStream(stream);
-                    galleryStreamActive = true;
-                }
-                
-                dom.dashboard.style.display = 'none';
-                dom.escapeHatch.style.display = 'flex'; 
-                
-                // Turn on the Slideshow Nav arrows
-                if (photoPlaylist.length > 1) {
-                    dom.navLeft.style.display = 'flex';
-                    dom.navRight.style.display = 'flex';
-                }
-            };
-            img.src = fileURL;
+                if (!galleryStreamActive) { swapToStream(dom.photoCanvas.captureStream(30)); galleryStreamActive = true; }
+                dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; 
+                if (photoPlaylist.length > 1) { dom.navLeft.style.display = 'flex'; dom.navRight.style.display = 'flex'; }
+            }; img.src = fileURL;
         }
 
-        // Slideshow Navigation Click Handlers
-        dom.navLeft.addEventListener('click', () => {
-            currentPhotoIndex = (currentPhotoIndex - 1 + photoPlaylist.length) % photoPlaylist.length;
-            viewPhoto(currentPhotoIndex);
-            flashHitbox(dom.navLeft);
-        });
-
-        dom.navRight.addEventListener('click', () => {
-            currentPhotoIndex = (currentPhotoIndex + 1) % photoPlaylist.length;
-            viewPhoto(currentPhotoIndex);
-            flashHitbox(dom.navRight);
-        });
+        dom.navLeft.addEventListener('click', () => { currentPhotoIndex = (currentPhotoIndex - 1 + photoPlaylist.length) % photoPlaylist.length; viewPhoto(currentPhotoIndex); flashHitbox(dom.navLeft); });
+        dom.navRight.addEventListener('click', () => { currentPhotoIndex = (currentPhotoIndex + 1) % photoPlaylist.length; viewPhoto(currentPhotoIndex); flashHitbox(dom.navRight); });
 
         function flashHitbox(el) {
-            el.style.background = 'rgba(210,0,255,0.5)';
-            setTimeout(() => el.style.background = '', 300);
+            const oldBg = el.style.background;
+            el.style.background = 'rgba(255, 255, 255, 0.4)';
+            setTimeout(() => el.style.background = oldBg, 300);
         }
 
-        // Escape Hatch cleanup
         dom.escapeHatch.addEventListener('click', () => {
-            dom.cinema.pause();
-            dom.cinema.style.display = 'none';
-            dom.photoCanvas.style.display = 'none'; 
-            
-            // Hide slideshow nav
-            dom.navLeft.style.display = 'none';
-            dom.navRight.style.display = 'none';
-            galleryStreamActive = false;
-
-            swapToStream(localStream); 
-            dom.escapeHatch.style.display = 'none';
-            dom.dashboard.style.display = 'flex';
+            dom.cinema.pause(); dom.cinema.style.display = 'none'; dom.photoCanvas.style.display = 'none'; 
+            dom.navLeft.style.display = 'none'; dom.navRight.style.display = 'none'; galleryStreamActive = false;
+            dom.controlDeck.style.bottom = '-250px'; // Hide deck
+            swapToStream(localStream); dom.escapeHatch.style.display = 'none'; dom.dashboard.style.display = 'flex';
         });
 
-        document.getElementById('btn-desktop').addEventListener('click', () => {
-            swapToStream(localStream);
-        });
+        document.getElementById('btn-desktop').addEventListener('click', () => { swapToStream(localStream); });
 
         dom.btnConnect.addEventListener('click', async () => {
-            const pin = dom.pin.value.trim();
-            if (pin.length !== 4) return;
-            const hubId = 'juncos-hub-' + pin;
-
+            const pin = dom.pin.value.trim(); if (pin.length !== 4) return; const hubId = 'juncos-hub-' + pin;
             try {
-                dom.status.innerText = "SELECTING SCREEN...";
                 localStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always", frameRate: 60 }, audio: true });
                 dom.video.srcObject = localStream; dom.preview.style.display = 'block';
-
-                dom.status.innerText = "PUNCHING THROUGH NETWORK...";
                 mediaConn = peer.call(hubId, localStream, { metadata: { device: 'pc' } });
                 dataConn = peer.connect(hubId);
 
                 dataConn.on('open', () => {
                     dom.card.style.opacity = '0'; setTimeout(() => dom.card.style.display = 'none', 500);
-                    dom.dashboard.style.display = 'flex';
-                    dom.laser.style.display = 'block';
+                    dom.dashboard.style.display = 'flex'; dom.laser.style.display = 'block';
                 });
 
-                let hoverTarget = null;
-                let hoverStartTime = null;
-                let isClicked = false;
-                const DWELL_DURATION = 1500;
-                const SENSITIVITY = 30;
+                let hoverTarget = null; let hoverStartTime = null; let isClicked = false;
+                const DWELL_DURATION = 1500; const SENSITIVITY = 30;
 
                 dataConn.on('data', (data) => {
                     if (data && typeof data.y === 'number' && typeof data.p === 'number') {
                         const centerX = window.innerWidth / 2; const centerY = window.innerHeight / 2;
-                        let targetX = centerX - (data.y * SENSITIVITY);
-                        let targetY = centerY - (data.p * SENSITIVITY);
+                        let targetX = centerX - (data.y * SENSITIVITY); let targetY = centerY - (data.p * SENSITIVITY);
 
-                        targetX = Math.max(0, Math.min(window.innerWidth, targetX));
-                        targetY = Math.max(0, Math.min(window.innerHeight, targetY));
+                        targetX = Math.max(0, Math.min(window.innerWidth, targetX)); targetY = Math.max(0, Math.min(window.innerHeight, targetY));
 
-                        dom.laser.style.left = targetX + 'px';
-                        dom.laser.style.top = targetY + 'px';
+                        // Store global X for the scrubber math
+                        currentLaserX = targetX;
+
+                        dom.laser.style.left = targetX + 'px'; dom.laser.style.top = targetY + 'px';
+
+                        // --- THE PROXIMITY TRIGGER (Show Control Deck if looking down) ---
+                        if (dom.cinema.style.display === 'block') {
+                            if (targetY > window.innerHeight - 250) {
+                                dom.controlDeck.style.bottom = '0px';
+                            } else {
+                                dom.controlDeck.style.bottom = '-250px';
+                            }
+                        }
 
                         dom.laser.style.display = 'none';
                         const elementBelow = document.elementFromPoint(targetX, targetY);
                         dom.laser.style.display = 'block';
 
                         if (elementBelow && elementBelow.classList.contains('hitbox')) {
-                            if (hoverTarget !== elementBelow) {
-                                hoverTarget = elementBelow;
-                                hoverStartTime = performance.now();
-                                isClicked = false;
-                            }
-                            
-                            let elapsed = performance.now() - hoverStartTime;
-                            let progress = Math.min(elapsed / DWELL_DURATION, 1);
-                            
+                            if (hoverTarget !== elementBelow) { hoverTarget = elementBelow; hoverStartTime = performance.now(); isClicked = false; }
+                            let progress = Math.min((performance.now() - hoverStartTime) / DWELL_DURATION, 1);
                             dom.ring.style.transform = `scale(${progress})`;
 
                             if (progress === 1 && !isClicked) {
-                                isClicked = true;
-                                dom.ring.style.borderColor = '#00ff00';
-                                elementBelow.style.background = 'rgba(0, 255, 0, 0.3)'; 
-                                setTimeout(() => elementBelow.style.background = '', 500);
+                                isClicked = true; dom.ring.style.borderColor = '#00ff00';
                                 elementBelow.click(); 
                             }
                         } else {
-                            hoverTarget = null;
-                            hoverStartTime = null;
-                            isClicked = false;
-                            dom.ring.style.transform = `scale(0)`;
-                            dom.ring.style.borderColor = 'rgba(255,0,0,0.5)';
+                            hoverTarget = null; hoverStartTime = null; isClicked = false;
+                            dom.ring.style.transform = `scale(0)`; dom.ring.style.borderColor = 'rgba(255,0,0,0.5)';
                         }
                     }
                 });
-
-            } catch (err) { dom.status.innerText = "CAPTURE CANCELED."; }
+            } catch (err) {}
         });
     </script>
 </body>
