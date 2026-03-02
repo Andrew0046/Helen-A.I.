@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Uplink: The Omni-Vault v5.0</title>
+    <title>PC Uplink: The Omni-Vault v5.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -28,17 +28,21 @@
         #cinema-player { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; }
         #photo-canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; object-fit: contain; }
         #model-3d { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: #111; }
+        /* NEW: The HTML Iframe */
+        #html-viewer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: white; border: none; }
 
         #dashboard { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; width: 90%; max-height: 80vh; overflow-y: auto; padding-top: 50px; }
         #library-grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; margin-top: 20px; }
         
-        /* NEW: Expanded Hitbox Colors */
+        /* HITBOX COLORS */
         .hitbox { width: 280px; height: 120px; background: rgba(0, 210, 255, 0.1); border: 2px solid #00d2ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; text-align: center; padding: 15px; cursor: pointer; transition: background 0.3s; box-sizing: border-box; color: #fff; word-break: break-word; }
         .movie-box { border-color: #ff9d00; color: #ff9d00; background: rgba(255, 157, 0, 0.1); }
         .photo-box { border-color: #d200ff; color: #d200ff; background: rgba(210, 0, 255, 0.1); }
         .audio-box { border-color: #00ff00; color: #00ff00; background: rgba(0, 255, 0, 0.1); }
         .pdf-box { border-color: #ff4444; color: #ff4444; background: rgba(255, 68, 68, 0.1); }
         .model-box { border-color: #ffff00; color: #ffff00; background: rgba(255, 255, 0, 0.1); }
+        /* NEW: HTML Hitbox */
+        .html-box { border-color: #00ffff; color: #00ffff; background: rgba(0, 255, 255, 0.1); }
         
         #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 150px; background: linear-gradient(to bottom, rgba(255,0,0,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 20px; color: #ff4444; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; border: none; }
 
@@ -64,6 +68,7 @@
     <video id="cinema-player" controls></video>
     <canvas id="photo-canvas" width="1920" height="1080"></canvas>
     <model-viewer id="model-3d" camera-controls auto-rotate shadow-intensity="1" alt="A 3D model"></model-viewer>
+    <iframe id="html-viewer" sandbox="allow-scripts allow-same-origin"></iframe>
 
     <div id="dashboard">
         <h2 style="color: #666; font-weight: 300; letter-spacing: 8px; margin: 0;">THE OMNI-VAULT</h2>
@@ -73,8 +78,8 @@
     </div>
 
     <div class="uplink-card" id="ui-card">
-        <h1>PC Uplink v5.0</h1>
-        <p>The Omni-Vault</p>
+        <h1>PC Uplink v5.1</h1>
+        <p>The Inception Engine</p>
         
         <div class="vault-section">
             <div id="vault-status" style="color:#aaa; margin-bottom: 10px; font-size: 0.9rem;">Vault Locked</div>
@@ -88,18 +93,17 @@
     </div>
 
     <script>
-        // Initialize PDF.js worker
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         const peer = new Peer(null, { debug: 2 });
         const dom = {
             pin: document.getElementById('pin-input'), btnConnect: document.getElementById('btn-connect'), status: document.getElementById('status'),
             video: document.getElementById('local-video'), cinema: document.getElementById('cinema-player'), photoCanvas: document.getElementById('photo-canvas'),
-            model3d: document.getElementById('model-3d'), preview: document.getElementById('preview-container'), card: document.getElementById('ui-card'), 
-            laser: document.getElementById('laser-pointer'), ring: document.getElementById('dwell-ring'), dashboard: document.getElementById('dashboard'), 
-            grid: document.getElementById('library-grid'), escapeHatch: document.getElementById('escape-hatch'), btnVault: document.getElementById('btn-vault'), 
-            btnRelink: document.getElementById('btn-relink'), vaultStatus: document.getElementById('vault-status'), navLeft: document.getElementById('nav-left'), 
-            navRight: document.getElementById('nav-right')
+            model3d: document.getElementById('model-3d'), htmlViewer: document.getElementById('html-viewer'), preview: document.getElementById('preview-container'), 
+            card: document.getElementById('ui-card'), laser: document.getElementById('laser-pointer'), ring: document.getElementById('dwell-ring'), 
+            dashboard: document.getElementById('dashboard'), grid: document.getElementById('library-grid'), escapeHatch: document.getElementById('escape-hatch'), 
+            btnVault: document.getElementById('btn-vault'), btnRelink: document.getElementById('btn-relink'), vaultStatus: document.getElementById('vault-status'), 
+            navLeft: document.getElementById('nav-left'), navRight: document.getElementById('nav-right')
         };
 
         let localStream = null; 
@@ -107,12 +111,10 @@
         let dataConn = null;
         let directoryHandle = null;
         
-        // State Managers
         let photoPlaylist = [];
         let currentPhotoIndex = 0;
         let galleryStreamActive = false;
-        
-        let galleryMode = 'photo'; // Tracks if arrows should flip photos or PDF pages
+        let galleryMode = 'photo'; 
         let currentPdfDoc = null;
         let currentPdfPage = 1;
 
@@ -153,23 +155,23 @@
             let count = 0;
             for await (const entry of dirHandle.values()) {
                 if (entry.kind === 'file') {
-                    // NEW: The Omni-Scanner Regex
                     const isVideo = entry.name.match(/\.(mp4|mkv|webm)$/i);
                     const isPhoto = entry.name.match(/\.(jpg|jpeg|png|webp)$/i);
                     const isAudio = entry.name.match(/\.(mp3|wav|flac)$/i);
                     const isPDF = entry.name.match(/\.(pdf)$/i);
                     const isModel = entry.name.match(/\.(glb|gltf)$/i);
+                    const isHTML = entry.name.match(/\.(html|htm)$/i); // NEW: HTML regex
                     
-                    if (isVideo || isPhoto || isAudio || isPDF || isModel) {
+                    if (isVideo || isPhoto || isAudio || isPDF || isModel || isHTML) {
                         count++;
                         const box = document.createElement('div');
                         
-                        // Assign colors based on media type
                         if (isVideo) box.className = 'hitbox movie-box';
                         else if (isPhoto) box.className = 'hitbox photo-box';
                         else if (isAudio) box.className = 'hitbox audio-box';
                         else if (isPDF) box.className = 'hitbox pdf-box';
                         else if (isModel) box.className = 'hitbox model-box';
+                        else if (isHTML) box.className = 'hitbox html-box';
 
                         box.innerText = entry.name.length > 25 ? entry.name.substring(0, 22) + '...' : entry.name;
                         
@@ -187,6 +189,7 @@
                                 if (isAudio) playAudio(file);
                                 if (isPDF) { galleryMode = 'pdf'; readPDF(file); }
                                 if (isModel) view3DModel(file);
+                                if (isHTML) viewHTML(file); // Trigger the HTML viewer
                             }
                         });
                         dom.grid.appendChild(box);
@@ -200,7 +203,6 @@
             dom.status.innerText = "READY FOR UPLINK.";
         }
 
-        // SWAP ENGINE (Now handles audio merging)
         function swapToStream(newStream) {
             if (!mediaConn || !mediaConn.peerConnection) return;
             const senders = mediaConn.peerConnection.getSenders();
@@ -218,8 +220,6 @@
             }
         }
 
-        // --- MEDIA MODULES ---
-
         function playMovie(file) {
             dom.cinema.src = URL.createObjectURL(file);
             dom.cinema.style.display = 'block';
@@ -232,7 +232,6 @@
         function playAudio(file) {
             dom.cinema.src = URL.createObjectURL(file);
             dom.cinema.play().then(() => {
-                // Paint the Canvas UI for the audio
                 const ctx = dom.photoCanvas.getContext('2d');
                 ctx.fillStyle = '#050505'; ctx.fillRect(0,0,1920,1080);
                 ctx.fillStyle = '#00ff00'; ctx.font = '60px Arial'; ctx.textAlign = 'center';
@@ -243,7 +242,6 @@
                 const canvasStream = dom.photoCanvas.captureStream(30);
                 const audioStream = dom.cinema.captureStream ? dom.cinema.captureStream() : dom.cinema.mozCaptureStream();
                 
-                // Merge Tracks!
                 const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
                 swapToStream(combinedStream);
                 dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex';
@@ -279,13 +277,11 @@
             const page = await currentPdfDoc.getPage(currentPdfPage);
             const viewport = page.getViewport({scale: 2.0});
             
-            // Render to a temp canvas first
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = viewport.width; tempCanvas.height = viewport.height;
             await page.render({canvasContext: tempCtx, viewport: viewport}).promise;
             
-            // Draw to our main 1080p WebRTC pipe
             const ctx = dom.photoCanvas.getContext('2d');
             ctx.fillStyle = '#222'; ctx.fillRect(0, 0, dom.photoCanvas.width, dom.photoCanvas.height);
             const ratio  = Math.min(dom.photoCanvas.width / tempCanvas.width, dom.photoCanvas.height / tempCanvas.height);
@@ -301,12 +297,20 @@
         function view3DModel(file) {
             dom.model3d.src = URL.createObjectURL(file);
             dom.model3d.style.display = 'block';
-            // Sleight of hand: Swap back to raw desktop capture to show the WebGL canvas smoothly!
             swapToStream(localStream);
             dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex';
         }
 
-        // --- NAVIGATION HANDLERS ---
+        // NEW: HTML Viewer Execution
+        function viewHTML(file) {
+            const fileURL = URL.createObjectURL(file);
+            dom.htmlViewer.src = fileURL;
+            dom.htmlViewer.style.display = 'block';
+            // Swap back to local stream so the WebRTC pipe broadcasts the iframe!
+            swapToStream(localStream);
+            dom.dashboard.style.display = 'none'; 
+            dom.escapeHatch.style.display = 'flex';
+        }
 
         dom.navLeft.addEventListener('click', () => {
             flashHitbox(dom.navLeft);
@@ -324,7 +328,12 @@
 
         dom.escapeHatch.addEventListener('click', () => {
             dom.cinema.pause(); dom.cinema.style.display = 'none';
-            dom.photoCanvas.style.display = 'none'; dom.model3d.style.display = 'none';
+            dom.photoCanvas.style.display = 'none'; 
+            dom.model3d.style.display = 'none';
+            // Shut down the HTML viewer
+            dom.htmlViewer.style.display = 'none';
+            dom.htmlViewer.src = ''; 
+            
             dom.navLeft.style.display = 'none'; dom.navRight.style.display = 'none';
             galleryStreamActive = false;
             swapToStream(localStream); 
@@ -333,7 +342,6 @@
 
         document.getElementById('btn-desktop').addEventListener('click', () => { swapToStream(localStream); });
 
-        // --- WEBRTC CONNECTION ---
         dom.btnConnect.addEventListener('click', async () => {
             const pin = dom.pin.value.trim(); if (pin.length !== 4) return;
             const hubId = 'juncos-hub-' + pin;
