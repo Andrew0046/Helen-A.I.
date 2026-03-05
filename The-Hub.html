@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.22: Audio Un-Gagged + CPU Shield</title>
+    <title>The Hub v36.23: Spatial Audio + CPU Shield</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     
     <script>
@@ -53,9 +53,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.22</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.23</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Audio Un-Gagged + CPU Shield</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Spatial Audio + CPU Shield</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams)</p>
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
             <button class="btn-main" onclick="document.getElementById('file-input').click()">LOAD FILES</button>
@@ -104,7 +104,7 @@
         </a-sphere>
 
         <a-entity id="hub-wrapper" position="0 0.8 -1.8" rotation="-25 0 0" visible="true">
-            <a-box depth="0.01" height="1.0" width="2.8" color="#ffffff" opacity="0.1" class="clickable"></a-box>
+            <a-box position="0 -0.1 0" depth="0.01" height="1.2" width="2.8" color="#ffffff" opacity="0.1" class="clickable"></a-box>
             <a-box position="0 0.49 0" depth="0.015" height="0.02" width="2.8" color="#ffffff" opacity="0.8"></a-box>
             
             <a-text id="txt-pin" value="PIN: ----" position="-1.2 0.42 0.03" align="left" width="2.5" color="#00ff00" font-weight="bold"></a-text>
@@ -145,6 +145,17 @@
             <a-text value="CURVE:" position="0.3 -0.38 0.03" align="center" color="#666" width="1.5"></a-text>
             <a-plane id="curve-less" position="0.6 -0.38 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="-" align="center" width="1.5" scale="1.5 1.5 1" color="#fff"></a-text></a-plane>
             <a-plane id="curve-more" position="0.85 -0.38 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="+" align="center" width="1.5" scale="1.5 1.5 1" color="#fff"></a-text></a-plane>
+
+            <a-text value="VOL:" position="-1.1 -0.55 0.03" align="center" color="#666" width="1.5"></a-text>
+            <a-plane id="btn-vol-down" position="-0.85 -0.55 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="-" align="center" width="2" color="#fff"></a-text></a-plane>
+            <a-text id="txt-vol" value="3.0x" position="-0.6 -0.55 0.03" align="center" color="#00d2ff" width="1.5"></a-text>
+            <a-plane id="btn-vol-up" position="-0.35 -0.55 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="+" align="center" width="2" color="#fff"></a-text></a-plane>
+
+            <a-text value="DIST:" position="0.3 -0.55 0.03" align="center" color="#666" width="1.5"></a-text>
+            <a-plane id="btn-dist-closer" position="0.6 -0.55 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value="<" align="center" width="1.5" color="#fff"></a-text></a-plane>
+            <a-text id="txt-dist" value="-5.0m" position="0.85 -0.55 0.03" align="center" color="#ff9d00" width="1.5"></a-text>
+            <a-plane id="btn-dist-further" position="1.1 -0.55 0.03" width="0.2" height="0.1" color="#ffffff" opacity="0.15" class="clickable btn-hover"><a-text value=">" align="center" width="1.5" color="#fff"></a-text></a-plane>
+
         </a-entity>
 
         <a-entity id="rig" position="0 1.6 0">
@@ -166,7 +177,7 @@
         const state = {
             playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isDepthMode: false, isVoid: false, curve: 90, currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
-            audio: { ctx: null, source: null, panner: null },
+            audio: { ctx: null, source: null, panner: null, gainNode: null, vol: 3.0, dist: -5.0 },
             ext: { active: false, type: null, conn: null, dataConn: null, castToMain: false }, 
             localCam: { active: false, stream: null } 
         };
@@ -408,12 +419,35 @@
         function onPrevPage() { if (state.pdf.pageNum <= 1) return; state.pdf.pageNum--; queueRenderPage(state.pdf.pageNum); }
         function onNextPage() { if (state.pdf.pageNum >= state.pdf.doc.numPages) return; state.pdf.pageNum++; queueRenderPage(state.pdf.pageNum); }
         function toggleMenu(show) { DOM.vr.controls.wrapper.setAttribute('visible', show); if(show) { DOM.vr.controls.wrapper.setAttribute('scale', '1 1 1'); DOM.vr.controls.orb.setAttribute('visible', false); } else { DOM.vr.controls.wrapper.setAttribute('scale', '0 0 0'); DOM.vr.controls.orb.setAttribute('visible', true); } }
+        
         function togglePlay() { if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); if(DOM.media.video.paused) { DOM.media.video.play(); DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); } else { DOM.media.video.pause(); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); } }
-        function initAudio() { if(!state.audio.ctx) { state.audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); } if (!state.audio.source) { state.audio.source = state.audio.ctx.createMediaElementSource(DOM.media.video); const gainNode = state.audio.ctx.createGain(); gainNode.gain.value = 3.0; state.audio.panner = state.audio.ctx.createPanner(); state.audio.panner.panningModel = 'HRTF'; state.audio.panner.distanceModel = 'inverse'; state.audio.panner.setPosition(0, 4.5, -5); state.audio.source.connect(gainNode); gainNode.connect(state.audio.panner); state.audio.panner.connect(state.audio.ctx.destination); } if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); }
+        
+        function initAudio() { 
+            if(!state.audio.ctx) { state.audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); } 
+            if (!state.audio.source) { 
+                state.audio.source = state.audio.ctx.createMediaElementSource(DOM.media.video); 
+                state.audio.gainNode = state.audio.ctx.createGain(); 
+                state.audio.gainNode.gain.value = state.audio.vol; 
+                state.audio.panner = state.audio.ctx.createPanner(); 
+                state.audio.panner.panningModel = 'HRTF'; 
+                state.audio.panner.distanceModel = 'inverse'; 
+                state.audio.panner.setPosition(0, 4.5, state.audio.dist); 
+                state.audio.source.connect(state.audio.gainNode); 
+                state.audio.gainNode.connect(state.audio.panner); 
+                state.audio.panner.connect(state.audio.ctx.destination); 
+            } 
+            if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); 
+        }
 
         // EVENT LISTENERS
         DOM.media.video.addEventListener('playing', () => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); requestAnimationFrame(updateAmbilight); });
         DOM.media.video.addEventListener('loadeddata', () => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); });
+
+        // SPATIAL AUDIO CONTROLS
+        document.getElementById('btn-vol-down').addEventListener('click', function() { if(state.audio.vol > 0.5) { state.audio.vol -= 0.5; if(state.audio.gainNode) state.audio.gainNode.gain.value = state.audio.vol; document.getElementById('txt-vol').setAttribute('value', state.audio.vol.toFixed(1) + 'x'); } flash(this); });
+        document.getElementById('btn-vol-up').addEventListener('click', function() { if(state.audio.vol < 10.0) { state.audio.vol += 0.5; if(state.audio.gainNode) state.audio.gainNode.gain.value = state.audio.vol; document.getElementById('txt-vol').setAttribute('value', state.audio.vol.toFixed(1) + 'x'); } flash(this); });
+        document.getElementById('btn-dist-closer').addEventListener('click', function() { if(state.audio.dist < -1.0) { state.audio.dist += 1.0; if(state.audio.panner) state.audio.panner.setPosition(0, 4.5, state.audio.dist); document.getElementById('txt-dist').setAttribute('value', state.audio.dist.toFixed(1) + 'm'); } flash(this); });
+        document.getElementById('btn-dist-further').addEventListener('click', function() { if(state.audio.dist > -20.0) { state.audio.dist -= 1.0; if(state.audio.panner) state.audio.panner.setPosition(0, 4.5, state.audio.dist); document.getElementById('txt-dist').setAttribute('value', state.audio.dist.toFixed(1) + 'm'); } flash(this); });
 
     </script>
 </body>
