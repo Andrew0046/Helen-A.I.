@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Uplink: The Omni-Vault v5.1</title>
+    <title>PC Uplink: The Omni-Vault v5.2</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -28,7 +28,6 @@
         #cinema-player { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; }
         #photo-canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; object-fit: contain; }
         #model-3d { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: #111; }
-        /* NEW: The HTML Iframe */
         #html-viewer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: white; border: none; }
 
         #dashboard { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; width: 90%; max-height: 80vh; overflow-y: auto; padding-top: 50px; }
@@ -41,12 +40,13 @@
         .audio-box { border-color: #00ff00; color: #00ff00; background: rgba(0, 255, 0, 0.1); }
         .pdf-box { border-color: #ff4444; color: #ff4444; background: rgba(255, 68, 68, 0.1); }
         .model-box { border-color: #ffff00; color: #ffff00; background: rgba(255, 255, 0, 0.1); }
-        /* NEW: HTML Hitbox */
         .html-box { border-color: #00ffff; color: #00ffff; background: rgba(0, 255, 255, 0.1); }
         
+        /* THE DUAL-HATCH NAVIGATION ZONE */
         #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 150px; background: linear-gradient(to bottom, rgba(255,0,0,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 20px; color: #ff4444; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; border: none; }
+        #menu-hatch { position: absolute; bottom: 0; left: 0; width: 100vw; height: 150px; background: linear-gradient(to top, rgba(0,210,255,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-end; justify-content: center; padding-bottom: 20px; color: #00d2ff; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; cursor: pointer; border: none; }
 
-        .nav-hatch { position: absolute; top: 150px; height: calc(100vh - 150px); width: 250px; z-index: 9997; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: #d200ff; opacity: 0.3; transition: opacity 0.3s; cursor: pointer; border: none; border-radius: 0; }
+        .nav-hatch { position: absolute; top: 150px; height: calc(100vh - 300px); width: 250px; z-index: 9997; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: #d200ff; opacity: 0.3; transition: opacity 0.3s; cursor: pointer; border: none; border-radius: 0; }
         #nav-left { left: 0; background: linear-gradient(to right, rgba(210,0,255,0.2) 0%, transparent 100%); border-right: 2px dashed #d200ff; }
         #nav-right { right: 0; background: linear-gradient(to left, rgba(210,0,255,0.2) 0%, transparent 100%); border-left: 2px dashed #d200ff; }
 
@@ -59,6 +59,7 @@
     <div id="laser-pointer"><div id="dwell-ring"></div></div>
     
     <div class="hitbox" id="escape-hatch">HOLD GAZE TO CLOSE MEDIA</div>
+    <div class="hitbox" id="menu-hatch">HOLD GAZE FOR PLAYLIST MENU</div>
     
     <div class="hitbox nav-hatch" id="nav-left">&lt; PREV</div>
     <div class="hitbox nav-hatch" id="nav-right">NEXT &gt;</div>
@@ -78,7 +79,7 @@
     </div>
 
     <div class="uplink-card" id="ui-card">
-        <h1>PC Uplink v5.1</h1>
+        <h1>PC Uplink v5.2</h1>
         <p>The Inception Engine</p>
         
         <div class="vault-section">
@@ -102,8 +103,8 @@
             model3d: document.getElementById('model-3d'), htmlViewer: document.getElementById('html-viewer'), preview: document.getElementById('preview-container'), 
             card: document.getElementById('ui-card'), laser: document.getElementById('laser-pointer'), ring: document.getElementById('dwell-ring'), 
             dashboard: document.getElementById('dashboard'), grid: document.getElementById('library-grid'), escapeHatch: document.getElementById('escape-hatch'), 
-            btnVault: document.getElementById('btn-vault'), btnRelink: document.getElementById('btn-relink'), vaultStatus: document.getElementById('vault-status'), 
-            navLeft: document.getElementById('nav-left'), navRight: document.getElementById('nav-right')
+            menuHatch: document.getElementById('menu-hatch'), btnVault: document.getElementById('btn-vault'), btnRelink: document.getElementById('btn-relink'), 
+            vaultStatus: document.getElementById('vault-status'), navLeft: document.getElementById('nav-left'), navRight: document.getElementById('nav-right')
         };
 
         let localStream = null; 
@@ -160,7 +161,7 @@
                     const isAudio = entry.name.match(/\.(mp3|wav|flac)$/i);
                     const isPDF = entry.name.match(/\.(pdf)$/i);
                     const isModel = entry.name.match(/\.(glb|gltf)$/i);
-                    const isHTML = entry.name.match(/\.(html|htm)$/i); // NEW: HTML regex
+                    const isHTML = entry.name.match(/\.(html|htm)$/i); 
                     
                     if (isVideo || isPhoto || isAudio || isPDF || isModel || isHTML) {
                         count++;
@@ -189,7 +190,7 @@
                                 if (isAudio) playAudio(file);
                                 if (isPDF) { galleryMode = 'pdf'; readPDF(file); }
                                 if (isModel) view3DModel(file);
-                                if (isHTML) viewHTML(file); // Trigger the HTML viewer
+                                if (isHTML) viewHTML(file);
                             }
                         });
                         dom.grid.appendChild(box);
@@ -301,15 +302,16 @@
             dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex';
         }
 
-        // NEW: HTML Viewer Execution
         function viewHTML(file) {
             const fileURL = URL.createObjectURL(file);
             dom.htmlViewer.src = fileURL;
             dom.htmlViewer.style.display = 'block';
-            // Swap back to local stream so the WebRTC pipe broadcasts the iframe!
             swapToStream(localStream);
             dom.dashboard.style.display = 'none'; 
+            
+            // Activate both the ceiling and floor hatches
             dom.escapeHatch.style.display = 'flex';
+            dom.menuHatch.style.display = 'flex'; 
         }
 
         dom.navLeft.addEventListener('click', () => {
@@ -326,18 +328,31 @@
 
         function flashHitbox(el) { el.style.background = 'rgba(210,0,255,0.5)'; setTimeout(() => el.style.background = '', 300); }
 
+        // RED CEILING HATCH (Total Exit)
         dom.escapeHatch.addEventListener('click', () => {
             dom.cinema.pause(); dom.cinema.style.display = 'none';
             dom.photoCanvas.style.display = 'none'; 
             dom.model3d.style.display = 'none';
-            // Shut down the HTML viewer
             dom.htmlViewer.style.display = 'none';
             dom.htmlViewer.src = ''; 
             
             dom.navLeft.style.display = 'none'; dom.navRight.style.display = 'none';
+            dom.menuHatch.style.display = 'none'; 
+            
             galleryStreamActive = false;
             swapToStream(localStream); 
             dom.escapeHatch.style.display = 'none'; dom.dashboard.style.display = 'flex';
+        });
+
+        // BLUE FLOOR HATCH (Back to Playlist)
+        dom.menuHatch.addEventListener('click', () => {
+            if (dom.htmlViewer.style.display === 'block') {
+                dom.htmlViewer.contentWindow.postMessage({cmd: 'exitTheater'}, '*');
+                
+                // Flash the blue bar for visual feedback
+                dom.menuHatch.style.background = 'rgba(0,210,255,0.6)';
+                setTimeout(() => dom.menuHatch.style.background = '', 300);
+            }
         });
 
         document.getElementById('btn-desktop').addEventListener('click', () => { swapToStream(localStream); });
@@ -361,25 +376,20 @@
                 let hoverTarget = null; let hoverStartTime = null; let isClicked = false; const DWELL_DURATION = 1500; const SENSITIVITY = 30;
 
                 dataConn.on('data', (data) => {
-				
-				
-				// THE SIGNAL ROUTER
-                if (data && data.cmd) {
-                    // Route to the HTML proxy
-                    if (dom.htmlViewer.style.display === 'block') {
-                        dom.htmlViewer.contentWindow.postMessage(data, '*');
-                    } 
-                    // Route to the native PC cinema player (if playing local files)
-                    else if (dom.cinema.style.display === 'block') {
-                        if (data.cmd === 'playpause') dom.cinema.paused ? dom.cinema.play() : dom.cinema.pause();
-                        if (data.cmd === 'seekFwd') dom.cinema.currentTime += 15;
-                        if (data.cmd === 'seekBack') dom.cinema.currentTime -= 15;
+                    // THE SIGNAL ROUTER (Remote Control for VR Hub)
+                    if (data && data.cmd) {
+                        if (dom.htmlViewer.style.display === 'block') {
+                            dom.htmlViewer.contentWindow.postMessage(data, '*');
+                        } 
+                        else if (dom.cinema.style.display === 'block') {
+                            if (data.cmd === 'playpause') dom.cinema.paused ? dom.cinema.play() : dom.cinema.pause();
+                            if (data.cmd === 'seekFwd') dom.cinema.currentTime += 15;
+                            if (data.cmd === 'seekBack') dom.cinema.currentTime -= 15;
+                        }
+                        return; // Stop processing, this is a command, not a laser movement
                     }
-                    return; // Stop processing, this was a command, not a laser movement
-                }
-				
-				
-				
+
+                    // THE LASER TRACKER
                     if (data && typeof data.y === 'number' && typeof data.p === 'number') {
                         const centerX = window.innerWidth / 2; const centerY = window.innerHeight / 2;
                         let targetX = Math.max(0, Math.min(window.innerWidth, centerX - (data.y * SENSITIVITY)));
