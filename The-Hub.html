@@ -373,11 +373,21 @@
 
         document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
         document.getElementById('menu-orb').addEventListener('click', function() { toggleMenu(true); flash(this); });
-        document.getElementById('btn-play').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'video') togglePlay(); flash(this); });
+       document.getElementById('btn-play').addEventListener('click', function() { 
+            if(state.ext.active && state.ext.dataConn) { state.ext.dataConn.send({cmd: 'playpause'}); flash(this); return; }
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video') togglePlay(); flash(this); 
+        });
         document.getElementById('btn-prev').addEventListener('click', function() { if(state.currentTrack > 0) loadTrack(state.currentTrack - 1); flash(this); });
         document.getElementById('btn-next').addEventListener('click', function() { if(state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); flash(this); });
-        document.getElementById('btn-seek-back').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onPrevPage(); else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); flash(this); });
-        document.getElementById('btn-seek-fwd').addEventListener('click', function() { if(state.playlist[state.currentTrack].type === 'pdf') onNextPage(); else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); flash(this); });
+       document.getElementById('btn-seek-back').addEventListener('click', function() { 
+            if(state.ext.active && state.ext.dataConn) { state.ext.dataConn.send({cmd: 'seekBack'}); flash(this); return; }
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') onPrevPage(); else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); flash(this); 
+        });
+        
+        document.getElementById('btn-seek-fwd').addEventListener('click', function() { 
+            if(state.ext.active && state.ext.dataConn) { state.ext.dataConn.send({cmd: 'seekFwd'}); flash(this); return; }
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') onNextPage(); else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); flash(this); 
+        });
         document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
         document.getElementById('btn-speed').addEventListener('click', function() { const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; const v = DOM.media.video; v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length]; DOM.vr.controls.speedText.setAttribute('value', v.playbackRate + 'x'); flash(this); });
         document.getElementById('btn-rot-left').addEventListener('click', function() { DOM.vr.env.rig.object3D.rotation.y += (Math.PI / 12); flash(this); });
