@@ -42,11 +42,12 @@
         .model-box { border-color: #ffff00; color: #ffff00; background: rgba(255, 255, 0, 0.1); }
         .html-box { border-color: #00ffff; color: #00ffff; background: rgba(0, 255, 255, 0.1); }
         
-        /* THE DUAL-HATCH NAVIGATION ZONE */
-        #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 150px; background: linear-gradient(to bottom, rgba(255,0,0,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 20px; color: #ff4444; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; border: none; }
-        #menu-hatch { position: absolute; bottom: 0; left: 0; width: 100vw; height: 150px; background: linear-gradient(to top, rgba(0,210,255,0.3) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-end; justify-content: center; padding-bottom: 20px; color: #00d2ff; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; cursor: pointer; border: none; }
+        /* THE DUAL-HATCH NAVIGATION ZONE (Minimized) */
+        #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 75px; background: linear-gradient(to bottom, rgba(255,0,0,0.5) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 15px; color: #ff4444; font-size: 1.1rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; border: none; }
+        
+        #menu-hatch { position: absolute; bottom: 0; left: 0; width: 100vw; height: 75px; background: linear-gradient(to top, rgba(0,210,255,0.5) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-end; justify-content: center; padding-bottom: 15px; color: #00d2ff; font-size: 1.1rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; cursor: pointer; border: none; }
 
-        .nav-hatch { position: absolute; top: 150px; height: calc(100vh - 300px); width: 250px; z-index: 9997; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: #d200ff; opacity: 0.3; transition: opacity 0.3s; cursor: pointer; border: none; border-radius: 0; }
+        .nav-hatch { position: absolute; top: 75px; height: calc(100vh - 150px); width: 200px; z-index: 9997; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: #d200ff; opacity: 0.3; transition: opacity 0.3s; cursor: pointer; border: none; border-radius: 0; }
         #nav-left { left: 0; background: linear-gradient(to right, rgba(210,0,255,0.2) 0%, transparent 100%); border-right: 2px dashed #d200ff; }
         #nav-right { right: 0; background: linear-gradient(to left, rgba(210,0,255,0.2) 0%, transparent 100%); border-left: 2px dashed #d200ff; }
 
@@ -398,7 +399,6 @@
                             try {
                                 const innerDoc = dom.htmlViewer.contentDocument || dom.htmlViewer.contentWindow.document;
                                 const innerElement = innerDoc.elementFromPoint(targetX, targetY);
-                                // Only lock onto the inner element if it actually has the hitbox class
                                 if (innerElement && innerElement.classList.contains('hitbox')) {
                                     elementBelow = innerElement; 
                                 }
