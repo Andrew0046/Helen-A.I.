@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Uplink: The Omni-Vault v5.2</title>
+    <title>PC Uplink: The Omni-Vault v5.3</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -79,7 +79,7 @@
     </div>
 
     <div class="uplink-card" id="ui-card">
-        <h1>PC Uplink v5.2</h1>
+        <h1>PC Uplink v5.3</h1>
         <p>The Inception Engine</p>
         
         <div class="vault-section">
@@ -309,7 +309,6 @@
             swapToStream(localStream);
             dom.dashboard.style.display = 'none'; 
             
-            // Activate both the ceiling and floor hatches
             dom.escapeHatch.style.display = 'flex';
             dom.menuHatch.style.display = 'flex'; 
         }
@@ -328,7 +327,6 @@
 
         function flashHitbox(el) { el.style.background = 'rgba(210,0,255,0.5)'; setTimeout(() => el.style.background = '', 300); }
 
-        // RED CEILING HATCH (Total Exit)
         dom.escapeHatch.addEventListener('click', () => {
             dom.cinema.pause(); dom.cinema.style.display = 'none';
             dom.photoCanvas.style.display = 'none'; 
@@ -344,12 +342,9 @@
             dom.escapeHatch.style.display = 'none'; dom.dashboard.style.display = 'flex';
         });
 
-        // BLUE FLOOR HATCH (Back to Playlist)
         dom.menuHatch.addEventListener('click', () => {
             if (dom.htmlViewer.style.display === 'block') {
                 dom.htmlViewer.contentWindow.postMessage({cmd: 'exitTheater'}, '*');
-                
-                // Flash the blue bar for visual feedback
                 dom.menuHatch.style.background = 'rgba(0,210,255,0.6)';
                 setTimeout(() => dom.menuHatch.style.background = '', 300);
             }
@@ -376,7 +371,6 @@
                 let hoverTarget = null; let hoverStartTime = null; let isClicked = false; const DWELL_DURATION = 1500; const SENSITIVITY = 30;
 
                 dataConn.on('data', (data) => {
-                    // THE SIGNAL ROUTER (Remote Control for VR Hub)
                     if (data && data.cmd) {
                         if (dom.htmlViewer.style.display === 'block') {
                             dom.htmlViewer.contentWindow.postMessage(data, '*');
@@ -386,10 +380,9 @@
                             if (data.cmd === 'seekFwd') dom.cinema.currentTime += 15;
                             if (data.cmd === 'seekBack') dom.cinema.currentTime -= 15;
                         }
-                        return; // Stop processing, this is a command, not a laser movement
+                        return; 
                     }
 
-                    // THE LASER TRACKER
                     if (data && typeof data.y === 'number' && typeof data.p === 'number') {
                         const centerX = window.innerWidth / 2; const centerY = window.innerHeight / 2;
                         let targetX = Math.max(0, Math.min(window.innerWidth, centerX - (data.y * SENSITIVITY)));
@@ -398,7 +391,20 @@
                         dom.laser.style.left = targetX + 'px'; dom.laser.style.top = targetY + 'px';
 
                         dom.laser.style.display = 'none';
-                        const elementBelow = document.elementFromPoint(targetX, targetY);
+                        let elementBelow = document.elementFromPoint(targetX, targetY);
+                        
+                        // THE X-RAY PROTOCOL (Iframe Piercing)
+                        if (elementBelow && elementBelow.id === 'html-viewer') {
+                            try {
+                                const innerDoc = dom.htmlViewer.contentDocument || dom.htmlViewer.contentWindow.document;
+                                const innerElement = innerDoc.elementFromPoint(targetX, targetY);
+                                // Only lock onto the inner element if it actually has the hitbox class
+                                if (innerElement && innerElement.classList.contains('hitbox')) {
+                                    elementBelow = innerElement; 
+                                }
+                            } catch(err) {}
+                        }
+                        
                         dom.laser.style.display = 'block';
 
                         if (elementBelow && elementBelow.classList.contains('hitbox')) {
