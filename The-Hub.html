@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.25: 8D Audio + Washout Patch + TXT Import (True Photo Fix)</title>
+    <title>The Hub v36.26: 8D Audio + Washout Patch + TXT Import + ThreeJS Image Engine</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     
     <script>
@@ -31,7 +31,7 @@
         h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 30px; }
         h1 span { font-weight: 700; color: #00d2ff; text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
         .hub-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 40px; border-radius: 16px; width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px; cursor: margin-top: 20px; width: 100%; transition: transform 0.2s; }
+        .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px; cursor: pointer; margin-top: 20px; width: 100%; transition: transform 0.2s; }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
         .btn-import { background: transparent; border: 1px dashed #d200ff; color: #d200ff; margin-top: 10px; }
         .btn-import:hover { background: rgba(210, 0, 255, 0.1); transform: none; box-shadow: 0 0 15px rgba(210, 0, 255, 0.2); }
@@ -55,7 +55,7 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.25</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.26</span></h1>
         <div class="hub-card">
             <h3 style="margin: 0 0 10px; font-weight: 400;">Spatial Audio, 8D Orbit & UI Shield</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams, TXT)</p>
@@ -282,23 +282,51 @@
             }, 150); 
         }
 
-        // --- THE FULLY REPAIRED RESTORE FUNCTION ---
+        // --- THE PURE THREE.JS IMAGE RENDERER ---
+        // This function completely bypasses A-Frame's faulty texture caching
+        // and physically builds a new WebGL texture every time a photo loads.
+        function paintImageToScreens() {
+            const newTex = new THREE.Texture(DOM.media.img);
+            newTex.colorSpace = THREE.SRGBColorSpace;
+            newTex.generateMipmaps = false; // Fixes the NPOT dimension crash
+            newTex.minFilter = THREE.LinearFilter;
+            newTex.magFilter = THREE.LinearFilter;
+            newTex.needsUpdate = true;
+            
+            Object.values(DOM.vr.screens).forEach(el => {
+                if(el) {
+                    const mesh = el.getObject3D('mesh');
+                    if(mesh && mesh.material) {
+                        mesh.material.map = newTex.clone();
+                        mesh.material.map.needsUpdate = true;
+                        mesh.material.map.isIndependent = true;
+                        mesh.material.needsUpdate = true;
+                    }
+                }
+            });
+            
+            drawAmbilight(DOM.media.img);
+            
+            setTimeout(() => {
+                if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
+            }, 50);
+        }
+
+        // --- REPAIRED RESTORE FUNCTION ---
         function restoreMainScreenTexture() {
             if (state.playlist.length === 0) { updateTexture('#video-src'); return; }
             const item = state.playlist[state.currentTrack];
             
             if (item.type === 'pdf') { 
                 updateTexture('#pdf-canvas'); 
+                setTimeout(() => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); }, 150);
             } else if (item.type === 'image') {
                 updateTexture('#img-src'); 
+                paintImageToScreens(); // Triggers the safe ThreeJS build
             } else { 
                 updateTexture('#video-src'); 
+                setTimeout(() => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); }, 150);
             }
-            
-            setTimeout(() => {
-                if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
-                refreshTextureMesh(); // Ensure the 3D Engine paints the screen
-            }, 150);
         }
 
         function applyCastRouting() {
@@ -433,24 +461,14 @@
                     DOM.media.video.pause(); force2DMode(); DOM.vr.controls.seekBack.setAttribute('value', 'PREV PG'); DOM.vr.controls.seekFwd.setAttribute('value', 'NEXT PG'); DOM.vr.controls.playText.setAttribute('value', 'LOADING..');
                     const loadingTask = pdfjsLib.getDocument(src); loadingTask.promise.then(pdf => { state.pdf.doc = pdf; state.pdf.pageNum = 1; DOM.vr.controls.playText.setAttribute('value', 'PDF VIEW'); renderPDFPage(state.pdf.pageNum); }).catch(error => { DOM.vr.controls.playText.setAttribute('value', 'ERROR'); });
                 
-                // --- THE FULLY REPAIRED IMAGE LOADER ---
                 } else if (item.type === 'image') {
                     DOM.media.video.pause(); 
                     DOM.vr.controls.videoGroup.setAttribute('visible', false); 
                     
                     updateTexture('#img-src'); 
                     
-                    DOM.media.img.onload = function() { 
-                        refreshTextureMesh(); // THIS is what tells WebGL to turn the screen back on
-                        drawAmbilight(DOM.media.img); 
-                        setTimeout(() => {
-                            if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
-                        }, 150);
-                    }; 
-                    
-                    // The cache flush: empties memory briefly so WebGL correctly sizes the new photo
-                    DOM.media.img.src = ''; 
-                    setTimeout(() => { DOM.media.img.src = src; }, 50);
+                    DOM.media.img.onload = paintImageToScreens;
+                    DOM.media.img.src = src;
 
                 } else {
                     if (src.includes('.m3u8') && Hls.isSupported()) { const hls = new Hls(); hls.loadSource(src); hls.attachMedia(DOM.media.video); hls.on(Hls.Events.MANIFEST_PARSED, function() { updateTexture('#video-src'); initAudio(); DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }); });
@@ -461,8 +479,6 @@
 
         function updateTexture(sourceId) { if (state.ext.active && state.ext.castToMain && sourceId !== '#remote-video') return; Object.values(DOM.vr.screens).forEach(s => { if(s) { if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId); else s.setAttribute('material', 'src', sourceId); } }); configureStereoLayers(); }
         
-        function refreshTextureMesh() { Object.values(DOM.vr.screens).forEach(el => { if(el){ const mesh = el.getObject3D('mesh'); if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true; }}); }
-
         document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
         document.getElementById('menu-orb').addEventListener('click', function() { toggleMenu(true); flash(this); });
        document.getElementById('btn-play').addEventListener('click', function() { 
@@ -511,13 +527,12 @@
             }
         }, 500);
 
-        // --- AMBILIGHT SHIELD + 8D AUDIO MATH V36.25 ---
+        // --- AMBILIGHT SHIELD + 8D AUDIO MATH V36.26 ---
         const ctx = DOM.media.lightCanvas.getContext('2d');
         let lastAmbiTime = 0;
         function updateAmbilight(now) { 
             if(!state.playlist[state.currentTrack] || state.playlist[state.currentTrack].type !== 'video' || DOM.media.video.paused) return; 
             
-            // The 8D Engine (Runs smoothly at 60fps)
             if (state.audio.is8D && state.audio.panner) {
                 state.audio.angle8D += 0.015;
                 const r = Math.abs(state.audio.dist);
@@ -531,10 +546,9 @@
             requestAnimationFrame(updateAmbilight); 
         }
         function drawAmbilight(source) { try { ctx.drawImage(source, 0, 0, 32, 32); const p = ctx.getImageData(16,16,1,1).data; const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1); if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex); DOM.vr.env.glow.setAttribute('color', hex); } catch(e) { } }
-        // -----------------------------------------------
         
         window.addEventListener('keydown', (e) => { if(DOM.ui.layer.classList.contains('hidden')) { const isPdf = state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf'; switch(e.code) { case 'Space': e.preventDefault(); if(!isPdf) togglePlay(); break; case 'ArrowRight': if(isPdf) onNextPage(); else DOM.media.video.currentTime += 15; break; case 'ArrowLeft': if(isPdf) onPrevPage(); else DOM.media.video.currentTime -= 15; break; } } });
-        function renderPDFPage(num) { state.pdf.rendering = true; state.pdf.doc.getPage(num).then(page => { const viewport = page.getViewport({scale: 2.0}); const canvas = DOM.media.pdfCanvas; const ctx = canvas.getContext('2d'); canvas.height = viewport.height; canvas.width = viewport.width; const renderContext = { canvasContext: ctx, viewport: viewport }; page.render(renderContext).promise.then(() => { state.pdf.rendering = false; updateTexture('#pdf-canvas'); refreshTextureMesh(); drawAmbilight(canvas); const pct = num / state.pdf.doc.numPages; DOM.vr.controls.progress.object3D.scale.set(pct, 1, 1); DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2); DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`); if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; } }); }); }
+        function renderPDFPage(num) { state.pdf.rendering = true; state.pdf.doc.getPage(num).then(page => { const viewport = page.getViewport({scale: 2.0}); const canvas = DOM.media.pdfCanvas; const ctx = canvas.getContext('2d'); canvas.height = viewport.height; canvas.width = viewport.width; const renderContext = { canvasContext: ctx, viewport: viewport }; page.render(renderContext).promise.then(() => { state.pdf.rendering = false; updateTexture('#pdf-canvas'); drawAmbilight(canvas); const pct = num / state.pdf.doc.numPages; DOM.vr.controls.progress.object3D.scale.set(pct, 1, 1); DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2); DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`); if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; } }); }); }
         function queueRenderPage(num) { if (state.pdf.rendering) state.pdf.pending = num; else renderPDFPage(num); }
         function onPrevPage() { if (state.pdf.pageNum <= 1) return; state.pdf.pageNum--; queueRenderPage(state.pdf.pageNum); }
         function onNextPage() { if (state.pdf.pageNum >= state.pdf.doc.numPages) return; state.pdf.pageNum++; queueRenderPage(state.pdf.pageNum); }
@@ -559,11 +573,9 @@
             if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); 
         }
 
-        // EVENT LISTENERS
         DOM.media.video.addEventListener('playing', () => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); requestAnimationFrame(updateAmbilight); });
         DOM.media.video.addEventListener('loadeddata', () => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); });
 
-        // SPATIAL AUDIO & 8D CONTROLS
         document.getElementById('btn-vol-down').addEventListener('click', function() { if(state.audio.vol > 0.5) { state.audio.vol -= 0.5; if(state.audio.gainNode) state.audio.gainNode.gain.value = state.audio.vol; document.getElementById('txt-vol').setAttribute('value', state.audio.vol.toFixed(1) + 'x'); } flash(this); });
         document.getElementById('btn-vol-up').addEventListener('click', function() { if(state.audio.vol < 10.0) { state.audio.vol += 0.5; if(state.audio.gainNode) state.audio.gainNode.gain.value = state.audio.vol; document.getElementById('txt-vol').setAttribute('value', state.audio.vol.toFixed(1) + 'x'); } flash(this); });
         document.getElementById('btn-dist-closer').addEventListener('click', function() { if(state.audio.dist < -1.0) { state.audio.dist += 1.0; if(state.audio.panner && !state.audio.is8D) state.audio.panner.setPosition(0, 4.5, state.audio.dist); document.getElementById('txt-dist').setAttribute('value', state.audio.dist.toFixed(1) + 'm'); } flash(this); });
