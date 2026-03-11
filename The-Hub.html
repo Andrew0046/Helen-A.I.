@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.25: 8D Audio + Washout Patch + TXT Import</title>
+    <title>The Hub v36.25: 8D Audio + Washout Patch + TXT Import (Photo Fix)</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     
     <script>
@@ -284,18 +284,30 @@
             }, 150); 
         }
 
+        // --- PATCH 2: FIXING THE CASTING ROUTER FOR IMAGES ---
+        function restoreMainScreenTexture() {
+            if (state.playlist.length === 0) { updateTexture('#video-src'); return; }
+            const item = state.playlist[state.currentTrack];
+            
+            if (item.type === 'pdf') { 
+                updateTexture('#pdf-canvas'); 
+            } else if (item.type === 'image') {
+                let rawSrc = state.currentObjectURL ? state.currentObjectURL : item.src;
+                updateTexture(rawSrc);
+            } else { 
+                updateTexture('#video-src'); 
+            }
+            
+            setTimeout(() => {
+                if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
+            }, 150);
+        }
+
         function applyCastRouting() {
             if (state.ext.active) {
                 if (state.ext.castToMain) { updateTexture('#remote-video'); DOM.vr.arHud.setAttribute('visible', false); } 
                 else { restoreMainScreenTexture(); paintVideoTextureToAR(DOM.media.remoteVideo); }
             } else { restoreMainScreenTexture(); }
-        }
-
-        function restoreMainScreenTexture() {
-            if (state.playlist.length === 0) { updateTexture('#video-src'); return; }
-            const item = state.playlist[state.currentTrack];
-            if (item.type === 'pdf') updateTexture('#pdf-canvas'); else if (item.type === 'image') updateTexture('#img-src'); else updateTexture('#video-src');
-            if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
         }
 
         DOM.vr.controls.btnCast.addEventListener('click', function() {
@@ -418,11 +430,27 @@
                 let displayName = item.name.length > 25 ? item.name.substring(0, 22) + "..." : item.name;
                 DOM.vr.controls.title.setAttribute('value', `${state.currentTrack + 1}/${state.playlist.length}: ${displayName}`);
                 DOM.vr.controls.seekBack.setAttribute('value', '-15s'); DOM.vr.controls.seekFwd.setAttribute('value', '+15s'); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); DOM.vr.controls.videoGroup.setAttribute('visible', true);
+                
                 if (item.type === 'pdf') {
                     DOM.media.video.pause(); force2DMode(); DOM.vr.controls.seekBack.setAttribute('value', 'PREV PG'); DOM.vr.controls.seekFwd.setAttribute('value', 'NEXT PG'); DOM.vr.controls.playText.setAttribute('value', 'LOADING..');
                     const loadingTask = pdfjsLib.getDocument(src); loadingTask.promise.then(pdf => { state.pdf.doc = pdf; state.pdf.pageNum = 1; DOM.vr.controls.playText.setAttribute('value', 'PDF VIEW'); renderPDFPage(state.pdf.pageNum); }).catch(error => { DOM.vr.controls.playText.setAttribute('value', 'ERROR'); });
+                
+                // --- PATCH 1: THE IMAGE TEXTURE BYPASS ---
                 } else if (item.type === 'image') {
-                    DOM.media.video.pause(); DOM.vr.controls.videoGroup.setAttribute('visible', false); updateTexture('#img-src'); DOM.media.img.onload = function() { refreshTextureMesh(); drawAmbilight(DOM.media.img); }; DOM.media.img.src = src;
+                    DOM.media.video.pause(); 
+                    DOM.vr.controls.videoGroup.setAttribute('visible', false); 
+                    
+                    updateTexture(src); 
+                    
+                    DOM.media.img.onload = function() { 
+                        drawAmbilight(DOM.media.img); 
+                        setTimeout(() => {
+                            if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
+                        }, 150);
+                    }; 
+                    DOM.media.img.src = src;
+                // ------------------------------------------
+
                 } else {
                     if (src.includes('.m3u8') && Hls.isSupported()) { const hls = new Hls(); hls.loadSource(src); hls.attachMedia(DOM.media.video); hls.on(Hls.Events.MANIFEST_PARSED, function() { updateTexture('#video-src'); initAudio(); DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }); });
                     } else { DOM.media.video.src = src; updateTexture('#video-src'); initAudio(); DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY')); }
