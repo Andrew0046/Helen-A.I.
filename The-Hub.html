@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.26: 8D Audio + Washout Patch + TXT Import + ThreeJS Image Engine</title>
+    <title>The Hub v36.27: Anti-Jitter Stabilization</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     
     <script>
@@ -55,9 +55,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.26</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.27</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Spatial Audio, 8D Orbit & UI Shield</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Anti-Jitter Stabilization Active</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams, TXT)</p>
             
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
@@ -81,7 +81,7 @@
 
     <canvas id="light-canvas" width="32" height="32"></canvas>
 
-    <a-scene background="color: #000" fog="type: exponential; color: #000; density: 0.015">
+    <a-scene background="color: #000" fog="type: exponential; color: #000; density: 0.015" renderer="antialias: true; colorManagement: true; foveationLevel: 1; highRefreshRate: true;">
         <a-assets>
             <video id="video-src" src="" playsinline webkit-playsinline loop="false" crossorigin="anonymous"></video>
             <img id="img-src" src="" crossorigin="anonymous">
@@ -282,13 +282,10 @@
             }, 150); 
         }
 
-        // --- THE PURE THREE.JS IMAGE RENDERER ---
-        // This function completely bypasses A-Frame's faulty texture caching
-        // and physically builds a new WebGL texture every time a photo loads.
         function paintImageToScreens() {
             const newTex = new THREE.Texture(DOM.media.img);
             newTex.colorSpace = THREE.SRGBColorSpace;
-            newTex.generateMipmaps = false; // Fixes the NPOT dimension crash
+            newTex.generateMipmaps = false; 
             newTex.minFilter = THREE.LinearFilter;
             newTex.magFilter = THREE.LinearFilter;
             newTex.needsUpdate = true;
@@ -312,7 +309,6 @@
             }, 50);
         }
 
-        // --- REPAIRED RESTORE FUNCTION ---
         function restoreMainScreenTexture() {
             if (state.playlist.length === 0) { updateTexture('#video-src'); return; }
             const item = state.playlist[state.currentTrack];
@@ -322,7 +318,7 @@
                 setTimeout(() => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); }, 150);
             } else if (item.type === 'image') {
                 updateTexture('#img-src'); 
-                paintImageToScreens(); // Triggers the safe ThreeJS build
+                paintImageToScreens(); 
             } else { 
                 updateTexture('#video-src'); 
                 setTimeout(() => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); }, 150);
@@ -527,7 +523,7 @@
             }
         }, 500);
 
-        // --- AMBILIGHT SHIELD + 8D AUDIO MATH V36.26 ---
+        // --- PATCH 2: AMBILIGHT THROTTLE TO STOP CPU JITTER ---
         const ctx = DOM.media.lightCanvas.getContext('2d');
         let lastAmbiTime = 0;
         function updateAmbilight(now) { 
@@ -542,7 +538,9 @@
             }
 
             if(DOM.media.video.seeking) { requestAnimationFrame(updateAmbilight); return; }
-            if(now - lastAmbiTime > 100) { drawAmbilight(DOM.media.video); lastAmbiTime = now; }
+            
+            // INCREASED THROTTLE TO 300ms TO FREE UP THE VR RENDER PIPELINE
+            if(now - lastAmbiTime > 300) { drawAmbilight(DOM.media.video); lastAmbiTime = now; }
             requestAnimationFrame(updateAmbilight); 
         }
         function drawAmbilight(source) { try { ctx.drawImage(source, 0, 0, 32, 32); const p = ctx.getImageData(16,16,1,1).data; const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1); if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex); DOM.vr.env.glow.setAttribute('color', hex); } catch(e) { } }
