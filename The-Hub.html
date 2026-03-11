@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.25: 8D Audio + Washout Patch + TXT Import (Photo Fix)</title>
+    <title>The Hub v36.25: 8D Audio + Washout Patch + TXT Import (True Photo Fix)</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     
     <script>
@@ -31,7 +31,7 @@
         h1 { font-weight: 200; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 30px; }
         h1 span { font-weight: 700; color: #00d2ff; text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
         .hub-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 40px; border-radius: 16px; width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px; cursor: pointer; margin-top: 20px; width: 100%; transition: transform 0.2s; }
+        .btn-main { background: linear-gradient(135deg, #00d2ff 0%, #0078ff 100%); border: none; padding: 15px 30px; color: white; font-weight: bold; font-size: 16px; letter-spacing: 1px; border-radius: 30px; cursor: margin-top: 20px; width: 100%; transition: transform 0.2s; }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 120, 255, 0.4); }
         .btn-import { background: transparent; border: 1px dashed #d200ff; color: #d200ff; margin-top: 10px; }
         .btn-import:hover { background: rgba(210, 0, 255, 0.1); transform: none; box-shadow: 0 0 15px rgba(210, 0, 255, 0.2); }
@@ -217,7 +217,6 @@
             }
         };
 
-        // BATCH TXT PARSER SYSTEM 
         const hubFileInput = document.getElementById('hub-txt-upload');
         const btnHubImport = document.getElementById('btn-hub-import');
 
@@ -271,7 +270,6 @@
             hubFileInput.value = ''; 
         });
 
-        // UI WASHOUT SHIELD
         DOM.vr.scene.addEventListener('loaded', () => { document.querySelectorAll('#hub-wrapper a-plane, #hub-wrapper a-box, #hub-wrapper a-circle').forEach(el => el.setAttribute('material', 'shader', 'flat')); });
 
         function flash(el) { 
@@ -284,7 +282,7 @@
             }, 150); 
         }
 
-        // --- PATCH 2: FIXING THE CASTING ROUTER FOR IMAGES ---
+        // --- THE FULLY REPAIRED RESTORE FUNCTION ---
         function restoreMainScreenTexture() {
             if (state.playlist.length === 0) { updateTexture('#video-src'); return; }
             const item = state.playlist[state.currentTrack];
@@ -292,14 +290,14 @@
             if (item.type === 'pdf') { 
                 updateTexture('#pdf-canvas'); 
             } else if (item.type === 'image') {
-                let rawSrc = state.currentObjectURL ? state.currentObjectURL : item.src;
-                updateTexture(rawSrc);
+                updateTexture('#img-src'); 
             } else { 
                 updateTexture('#video-src'); 
             }
             
             setTimeout(() => {
                 if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
+                refreshTextureMesh(); // Ensure the 3D Engine paints the screen
             }, 150);
         }
 
@@ -435,21 +433,24 @@
                     DOM.media.video.pause(); force2DMode(); DOM.vr.controls.seekBack.setAttribute('value', 'PREV PG'); DOM.vr.controls.seekFwd.setAttribute('value', 'NEXT PG'); DOM.vr.controls.playText.setAttribute('value', 'LOADING..');
                     const loadingTask = pdfjsLib.getDocument(src); loadingTask.promise.then(pdf => { state.pdf.doc = pdf; state.pdf.pageNum = 1; DOM.vr.controls.playText.setAttribute('value', 'PDF VIEW'); renderPDFPage(state.pdf.pageNum); }).catch(error => { DOM.vr.controls.playText.setAttribute('value', 'ERROR'); });
                 
-                // --- PATCH 1: THE IMAGE TEXTURE BYPASS ---
+                // --- THE FULLY REPAIRED IMAGE LOADER ---
                 } else if (item.type === 'image') {
                     DOM.media.video.pause(); 
                     DOM.vr.controls.videoGroup.setAttribute('visible', false); 
                     
-                    updateTexture(src); 
+                    updateTexture('#img-src'); 
                     
                     DOM.media.img.onload = function() { 
+                        refreshTextureMesh(); // THIS is what tells WebGL to turn the screen back on
                         drawAmbilight(DOM.media.img); 
                         setTimeout(() => {
                             if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
                         }, 150);
                     }; 
-                    DOM.media.img.src = src;
-                // ------------------------------------------
+                    
+                    // The cache flush: empties memory briefly so WebGL correctly sizes the new photo
+                    DOM.media.img.src = ''; 
+                    setTimeout(() => { DOM.media.img.src = src; }, 50);
 
                 } else {
                     if (src.includes('.m3u8') && Hls.isSupported()) { const hls = new Hls(); hls.loadSource(src); hls.attachMedia(DOM.media.video); hls.on(Hls.Events.MANIFEST_PARSED, function() { updateTexture('#video-src'); initAudio(); DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }); });
@@ -459,6 +460,7 @@
         }
 
         function updateTexture(sourceId) { if (state.ext.active && state.ext.castToMain && sourceId !== '#remote-video') return; Object.values(DOM.vr.screens).forEach(s => { if(s) { if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId); else s.setAttribute('material', 'src', sourceId); } }); configureStereoLayers(); }
+        
         function refreshTextureMesh() { Object.values(DOM.vr.screens).forEach(el => { if(el){ const mesh = el.getObject3D('mesh'); if (mesh && mesh.material.map) mesh.material.map.needsUpdate = true; }}); }
 
         document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
