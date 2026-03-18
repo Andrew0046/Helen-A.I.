@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Hub v36.27: Anti-Jitter Stabilization</title>
+    <title>The Hub v36.28: Two-Way Reconnect Radio</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     
     <script>
@@ -55,9 +55,9 @@
     <video id="local-cam-video" autoplay playsinline muted></video>
 
     <div id="ui-layer">
-        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.27</span></h1>
+        <h1>The <span style="color: #ff9d00">Hub</span> <span style="font-size: 0.5em; vertical-align: super; color: #666">v36.28</span></h1>
         <div class="hub-card">
-            <h3 style="margin: 0 0 10px; font-weight: 400;">Anti-Jitter Stabilization Active</h3>
+            <h3 style="margin: 0 0 10px; font-weight: 400;">Anti-Jitter & Two-Way Reconnect</h3>
             <p style="color: #888; font-size: 0.9rem;">Select media (Video, Image, PDF, HLS Streams, TXT)</p>
             
             <input type="file" id="file-input" accept="video/*, image/*, .pdf" multiple style="display:none">
@@ -185,33 +185,82 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
         const state = {
-            playlist: [], currentTrack: 0, viewMode: 0, is3D: false, isDepthMode: false, isVoid: false, curve: 90, currentObjectURL: null,
+            playlist: [], 
+            currentTrack: 0, 
+            viewMode: 0, 
+            is3D: false, 
+            isDepthMode: false, 
+            isVoid: false, 
+            curve: 90, 
+            currentObjectURL: null,
             pdf: { doc: null, pageNum: 1, rendering: false, pending: null },
             audio: { ctx: null, source: null, panner: null, gainNode: null, vol: 3.0, dist: -5.0, is8D: false, angle8D: 0 },
-            ext: { active: false, type: null, conn: null, dataConn: null, castToMain: false }, 
+            ext: { active: false, type: null, conn: null, dataConn: null, castToMain: false, pcPeerId: null }, 
             localCam: { active: false, stream: null } 
         };
         window.hubState = state; 
 
         const DOM = {
-            ui: { layer: document.getElementById('ui-layer'), fileInput: document.getElementById('file-input'), urlInput: document.getElementById('url-input'), playlist: document.getElementById('playlist-ui'), list: document.getElementById('playlist-list'), btnStart: document.getElementById('btn-start'), dropOverlay: document.getElementById('drop-overlay') },
-            media: { video: document.getElementById('video-src'), img: document.getElementById('img-src'), pdfCanvas: document.getElementById('pdf-canvas'), lightCanvas: document.getElementById('light-canvas'), remoteVideo: document.getElementById('remote-video'), localVideo: document.getElementById('local-cam-video') },
+            ui: { 
+                layer: document.getElementById('ui-layer'), 
+                fileInput: document.getElementById('file-input'), 
+                urlInput: document.getElementById('url-input'), 
+                playlist: document.getElementById('playlist-ui'), 
+                list: document.getElementById('playlist-list'), 
+                btnStart: document.getElementById('btn-start'), 
+                dropOverlay: document.getElementById('drop-overlay') 
+            },
+            media: { 
+                video: document.getElementById('video-src'), 
+                img: document.getElementById('img-src'), 
+                pdfCanvas: document.getElementById('pdf-canvas'), 
+                lightCanvas: document.getElementById('light-canvas'), 
+                remoteVideo: document.getElementById('remote-video'), 
+                localVideo: document.getElementById('local-cam-video') 
+            },
             vr: {
-                scene: document.querySelector('a-scene'), arHud: document.getElementById('ar-hud'),
-                env: { sky: document.getElementById('env-sky'), floor: document.getElementById('env-floor'), ambi: document.getElementById('ambi-light'), glow: document.getElementById('screen-glow'), rig: document.getElementById('rig') },
+                scene: document.querySelector('a-scene'), 
+                arHud: document.getElementById('ar-hud'),
+                env: { 
+                    sky: document.getElementById('env-sky'), 
+                    floor: document.getElementById('env-floor'), 
+                    ambi: document.getElementById('ambi-light'), 
+                    glow: document.getElementById('screen-glow'), 
+                    rig: document.getElementById('rig') 
+                },
                 screens: { 
-                    cinema: document.getElementById('screen-cinema'), cyl: document.getElementById('screen-180'), sphere: document.getElementById('screen-360'),
-                    cinemaL: document.getElementById('screen-cinema-left'), cylL: document.getElementById('screen-180-left'), sphereL: document.getElementById('screen-360-left'),
-                    cinemaR: document.getElementById('screen-cinema-right'), cylR: document.getElementById('screen-180-right'), sphereR: document.getElementById('screen-360-right')
+                    cinema: document.getElementById('screen-cinema'), 
+                    cyl: document.getElementById('screen-180'), 
+                    sphere: document.getElementById('screen-360'),
+                    cinemaL: document.getElementById('screen-cinema-left'), 
+                    cylL: document.getElementById('screen-180-left'), 
+                    sphereL: document.getElementById('screen-360-left'),
+                    cinemaR: document.getElementById('screen-cinema-right'), 
+                    cylR: document.getElementById('screen-180-right'), 
+                    sphereR: document.getElementById('screen-360-right')
                 },
                 controls: { 
-                    wrapper: document.getElementById('hub-wrapper'), videoGroup: document.getElementById('video-controls'), orb: document.getElementById('menu-orb'),
-                    playText: document.getElementById('txt-play'), timeText: document.getElementById('time-display'), progress: document.getElementById('progress-fill'), title: document.getElementById('txt-title'),
-                    seekBack: document.getElementById('txt-seek-back'), seekFwd: document.getElementById('txt-seek-fwd'), modeBtn: document.getElementById('btn-mode'), btn3d: document.getElementById('btn-3d'), txt3d: document.getElementById('txt-3d'), speedText: document.getElementById('txt-speed'),
-                    btnExt: document.getElementById('btn-ext'), txtExt: document.getElementById('txt-ext'),
-                    btnCast: document.getElementById('btn-cast'), txtCast: document.getElementById('txt-cast'), 
-                    btnLocal: document.getElementById('btn-local'), txtLocal: document.getElementById('txt-local'),
-                    btnDepth: document.getElementById('btn-depth'), txtDepth: document.getElementById('txt-depth'),
+                    wrapper: document.getElementById('hub-wrapper'), 
+                    videoGroup: document.getElementById('video-controls'), 
+                    orb: document.getElementById('menu-orb'),
+                    playText: document.getElementById('txt-play'), 
+                    timeText: document.getElementById('time-display'), 
+                    progress: document.getElementById('progress-fill'), 
+                    title: document.getElementById('txt-title'),
+                    seekBack: document.getElementById('txt-seek-back'), 
+                    seekFwd: document.getElementById('txt-seek-fwd'), 
+                    modeBtn: document.getElementById('btn-mode'), 
+                    btn3d: document.getElementById('btn-3d'), 
+                    txt3d: document.getElementById('txt-3d'), 
+                    speedText: document.getElementById('txt-speed'),
+                    btnExt: document.getElementById('btn-ext'), 
+                    txtExt: document.getElementById('txt-ext'),
+                    btnCast: document.getElementById('btn-cast'), 
+                    txtCast: document.getElementById('txt-cast'), 
+                    btnLocal: document.getElementById('btn-local'), 
+                    txtLocal: document.getElementById('txt-local'),
+                    btnDepth: document.getElementById('btn-depth'), 
+                    txtDepth: document.getElementById('txt-depth'),
                     txtPin: document.getElementById('txt-pin')
                 }
             }
@@ -256,9 +305,7 @@
                     btnHubImport.style.borderColor = '#00ff00';
                     btnHubImport.style.color = '#00ff00';
                     btnHubImport.innerText = `✅ IMPORTED ${addedCount} STREAMS`;
-                    
                     updatePlaylistUI(); 
-                    
                     setTimeout(() => {
                         btnHubImport.style.borderColor = '#d200ff';
                         btnHubImport.style.color = '#d200ff';
@@ -270,14 +317,20 @@
             hubFileInput.value = ''; 
         });
 
-        DOM.vr.scene.addEventListener('loaded', () => { document.querySelectorAll('#hub-wrapper a-plane, #hub-wrapper a-box, #hub-wrapper a-circle').forEach(el => el.setAttribute('material', 'shader', 'flat')); });
+        DOM.vr.scene.addEventListener('loaded', () => { 
+            document.querySelectorAll('#hub-wrapper a-plane, #hub-wrapper a-box, #hub-wrapper a-circle').forEach(el => el.setAttribute('material', 'shader', 'flat')); 
+        });
 
         function flash(el) { 
-            const oldColor = el.getAttribute('color'); el.setAttribute('color', '#00d2ff'); 
+            const oldColor = el.getAttribute('color'); 
+            el.setAttribute('color', '#00d2ff'); 
             setTimeout(() => { 
                 if (el.getAttribute('id') === 'btn-ext' && state.ext.active) return; 
                 if (el.getAttribute('id') === 'btn-local' && state.localCam.active) return;
-                if (el.getAttribute('id') === 'btn-cast' && state.ext.castToMain) { el.setAttribute('color', '#ff9d00'); return; }
+                if (el.getAttribute('id') === 'btn-cast' && state.ext.castToMain) { 
+                    el.setAttribute('color', '#ff9d00'); 
+                    return; 
+                }
                 el.setAttribute('color', oldColor || '#ffffff'); 
             }, 150); 
         }
@@ -303,55 +356,95 @@
             });
             
             drawAmbilight(DOM.media.img);
-            
-            setTimeout(() => {
-                if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping();
+            setTimeout(() => { 
+                if(state.is3D || state.isDepthMode) enforceStereoMapping(); 
+                else resetStereoMapping(); 
             }, 50);
         }
 
         function restoreMainScreenTexture() {
-            if (state.playlist.length === 0) { updateTexture('#video-src'); return; }
+            if (state.playlist.length === 0) { 
+                updateTexture('#video-src'); 
+                return; 
+            }
             const item = state.playlist[state.currentTrack];
             
             if (item.type === 'pdf') { 
                 updateTexture('#pdf-canvas'); 
-                setTimeout(() => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); }, 150);
+                setTimeout(() => { 
+                    if(state.is3D || state.isDepthMode) enforceStereoMapping(); 
+                    else resetStereoMapping(); 
+                }, 150);
             } else if (item.type === 'image') {
                 updateTexture('#img-src'); 
                 paintImageToScreens(); 
             } else { 
                 updateTexture('#video-src'); 
-                setTimeout(() => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); }, 150);
+                setTimeout(() => { 
+                    if(state.is3D || state.isDepthMode) enforceStereoMapping(); 
+                    else resetStereoMapping(); 
+                }, 150);
             }
         }
 
         function applyCastRouting() {
             if (state.ext.active) {
-                if (state.ext.castToMain) { updateTexture('#remote-video'); DOM.vr.arHud.setAttribute('visible', false); } 
-                else { restoreMainScreenTexture(); paintVideoTextureToAR(DOM.media.remoteVideo); }
-            } else { restoreMainScreenTexture(); }
+                if (state.ext.castToMain) { 
+                    updateTexture('#remote-video'); 
+                    DOM.vr.arHud.setAttribute('visible', false); 
+                } else { 
+                    restoreMainScreenTexture(); 
+                    paintVideoTextureToAR(DOM.media.remoteVideo); 
+                }
+            } else { 
+                restoreMainScreenTexture(); 
+            }
         }
 
         DOM.vr.controls.btnCast.addEventListener('click', function() {
             state.ext.castToMain = !state.ext.castToMain;
             DOM.vr.controls.txtCast.setAttribute('value', state.ext.castToMain ? 'CAST: MAIN' : 'CAST: AR');
             DOM.vr.controls.txtCast.setAttribute('color', state.ext.castToMain ? '#ff9d00' : '#00d2ff');
-            applyCastRouting(); flash(this);
+            applyCastRouting(); 
+            flash(this);
         });
 
+        // THE TWO-WAY RADIO PRESERVATION PROTOCOL
         function stopAllFeeds(except) {
             if(except !== 'ext' && state.ext.active) {
                 if(state.ext.conn) state.ext.conn.close(); 
-                if(state.ext.dataConn) { state.ext.dataConn.close(); state.ext.dataConn = null; }
-                state.ext.active = false; state.ext.type = null;
-                DOM.vr.controls.txtExt.setAttribute('value', 'AWAITING LINK'); DOM.vr.controls.btnExt.setAttribute('color', '#ffffff');
-                DOM.media.remoteVideo.srcObject = null; DOM.vr.arHud.setAttribute('visible', false); restoreMainScreenTexture();
+                if(state.ext.dataConn) { 
+                    state.ext.dataConn.close(); 
+                    state.ext.dataConn = null; 
+                }
+                state.ext.active = false; 
+                state.ext.type = null;
+                
+                if (state.ext.pcPeerId) {
+                    DOM.vr.controls.txtExt.setAttribute('value', 'RECONNECT PC'); 
+                    DOM.vr.controls.btnExt.setAttribute('color', '#ff9d00');
+                } else {
+                    DOM.vr.controls.txtExt.setAttribute('value', 'AWAITING LINK'); 
+                    DOM.vr.controls.btnExt.setAttribute('color', '#ffffff');
+                }
+                
+                DOM.media.remoteVideo.srcObject = null; 
+                DOM.vr.arHud.setAttribute('visible', false); 
+                restoreMainScreenTexture();
             }
             if(except !== 'local' && state.localCam.active) {
-                if (state.localCam.stream) { state.localCam.stream.getTracks().forEach(t => t.stop()); DOM.media.localVideo.srcObject = null; state.localCam.stream = null; }
-                state.localCam.active = false; DOM.vr.controls.txtLocal.setAttribute('value', 'LOCAL AR'); DOM.vr.controls.btnLocal.setAttribute('color', '#ffffff');
+                if (state.localCam.stream) { 
+                    state.localCam.stream.getTracks().forEach(t => t.stop()); 
+                    DOM.media.localVideo.srcObject = null; 
+                    state.localCam.stream = null; 
+                }
+                state.localCam.active = false; 
+                DOM.vr.controls.txtLocal.setAttribute('value', 'LOCAL AR'); 
+                DOM.vr.controls.btnLocal.setAttribute('color', '#ffffff');
             }
-            if(!state.ext.active && !state.localCam.active) { DOM.vr.arHud.setAttribute('visible', false); }
+            if(!state.ext.active && !state.localCam.active) { 
+                DOM.vr.arHud.setAttribute('visible', false); 
+            }
         }
 
         const hubPin = Math.floor(1000 + Math.random() * 9000);
@@ -359,173 +452,554 @@
         DOM.vr.controls.txtPin.setAttribute('value', 'PIN: ' + hubPin);
         
         state.peer = new Peer(hubId, { debug: 2 });
-        state.peer.on('connection', (conn) => { state.ext.dataConn = conn; conn.on('close', () => { state.ext.dataConn = null; }); });
+        
+        state.peer.on('connection', (conn) => { 
+            state.ext.dataConn = conn; 
+            conn.on('close', () => { state.ext.dataConn = null; }); 
+        });
+        
         state.peer.on('call', (call) => {
             const deviceType = (call.metadata && call.metadata.device) ? call.metadata.device : 'pc';
-            stopAllFeeds('ext'); DOM.vr.controls.txtExt.setAttribute('value', 'CONNECTING...'); call.answer(); 
-            state.ext.conn = call; state.ext.type = deviceType;
+            
+            // SAVING THE PC CALLER ID
+            state.ext.pcPeerId = call.peer;
+            
+            stopAllFeeds('ext'); 
+            DOM.vr.controls.txtExt.setAttribute('value', 'CONNECTING...'); 
+            call.answer(); 
+            
+            state.ext.conn = call; 
+            state.ext.type = deviceType;
+            
             call.on('stream', remoteStream => {
                 DOM.vr.controls.txtExt.setAttribute('value', deviceType === 'drone' ? 'CLOSE DRONE' : 'CLOSE PC');
                 DOM.vr.controls.btnExt.setAttribute('color', '#00d2ff');
-                const vid = DOM.media.remoteVideo; vid.srcObject = remoteStream;
-                vid.muted = false; vid.volume = 1.0; 
-                vid.play().then(() => { state.ext.active = true; applyCastRouting(); });
+                
+                const vid = DOM.media.remoteVideo; 
+                vid.srcObject = remoteStream;
+                vid.muted = false; 
+                vid.volume = 1.0; 
+                
+                vid.play().then(() => { 
+                    state.ext.active = true; 
+                    applyCastRouting(); 
+                });
             });
+            
             call.on('close', () => { stopAllFeeds(); });
         });
 
         function paintVideoTextureToAR(vid) {
-            const texture = new THREE.VideoTexture(vid); texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter; texture.colorSpace = THREE.SRGBColorSpace;
+            const texture = new THREE.VideoTexture(vid); 
+            texture.minFilter = THREE.LinearFilter; 
+            texture.magFilter = THREE.LinearFilter; 
+            texture.colorSpace = THREE.SRGBColorSpace;
+            
             const mesh = DOM.vr.arHud.getObject3D('mesh');
-            if (mesh) { mesh.material.map = texture; mesh.material.color.setHex(0xffffff); mesh.material.needsUpdate = true; }
+            if (mesh) { 
+                mesh.material.map = texture; 
+                mesh.material.color.setHex(0xffffff); 
+                mesh.material.needsUpdate = true; 
+            }
             DOM.vr.arHud.setAttribute('visible', true);
         }
 
         DOM.vr.controls.btnExt.addEventListener('click', function() {
-            if (state.ext.active) { stopAllFeeds(); } else { DOM.vr.controls.txtExt.setAttribute('value', 'USE PIN TO LINK'); setTimeout(() => { if(!state.ext.active) DOM.vr.controls.txtExt.setAttribute('value', 'AWAITING LINK'); }, 2000); } flash(this);
+            if (state.ext.active) { 
+                stopAllFeeds(); 
+            } else if (state.ext.pcPeerId) {
+                // FIRE THE HOT MIC PING
+                DOM.vr.controls.txtExt.setAttribute('value', 'PINGING PC...');
+                const tempConn = state.peer.connect(state.ext.pcPeerId);
+                tempConn.on('open', () => {
+                    tempConn.send({cmd: 'reconnect'});
+                    setTimeout(() => tempConn.close(), 1000);
+                });
+            } else { 
+                DOM.vr.controls.txtExt.setAttribute('value', 'USE PIN TO LINK'); 
+                setTimeout(() => { 
+                    if(!state.ext.active) DOM.vr.controls.txtExt.setAttribute('value', 'AWAITING LINK'); 
+                }, 2000); 
+            } 
+            flash(this);
         });
 
         DOM.vr.controls.btnLocal.addEventListener('click', async function() {
             if (!state.localCam.active) {
-                stopAllFeeds('local'); DOM.vr.controls.txtLocal.setAttribute('value', 'LOADING...');
+                stopAllFeeds('local'); 
+                DOM.vr.controls.txtLocal.setAttribute('value', 'LOADING...');
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                    state.localCam.stream = stream; DOM.media.localVideo.srcObject = stream; await DOM.media.localVideo.play();
-                    const vidTex = new THREE.VideoTexture(DOM.media.localVideo); vidTex.colorSpace = THREE.SRGBColorSpace; vidTex.generateMipmaps = false;
+                    state.localCam.stream = stream; 
+                    DOM.media.localVideo.srcObject = stream; 
+                    await DOM.media.localVideo.play();
+                    
+                    const vidTex = new THREE.VideoTexture(DOM.media.localVideo); 
+                    vidTex.colorSpace = THREE.SRGBColorSpace; 
+                    vidTex.generateMipmaps = false;
+                    
                     const mesh = DOM.vr.arHud.getObject3D('mesh');
-                    if (mesh) { mesh.material.map = vidTex; mesh.material.color.setHex(0xffffff); mesh.material.needsUpdate = true; }
-                    DOM.vr.arHud.setAttribute('visible', true); DOM.vr.controls.txtLocal.setAttribute('value', 'CLOSE AR'); this.setAttribute('color', '#00d2ff'); state.localCam.active = true;
-                } catch (e) { DOM.vr.controls.txtLocal.setAttribute('value', 'CAM ERR'); }
-            } else { stopAllFeeds(); } flash(this);
+                    if (mesh) { 
+                        mesh.material.map = vidTex; 
+                        mesh.material.color.setHex(0xffffff); 
+                        mesh.material.needsUpdate = true; 
+                    }
+                    DOM.vr.arHud.setAttribute('visible', true); 
+                    DOM.vr.controls.txtLocal.setAttribute('value', 'CLOSE AR'); 
+                    this.setAttribute('color', '#00d2ff'); 
+                    state.localCam.active = true;
+                } catch (e) { 
+                    DOM.vr.controls.txtLocal.setAttribute('value', 'CAM ERR'); 
+                }
+            } else { 
+                stopAllFeeds(); 
+            } 
+            flash(this);
         });
 
         function configureStereoLayers() {
-            const setLayer = (el, layerIndex) => { if(!el) return; const mesh = el.getObject3D('mesh'); if(mesh) { mesh.layers.set(layerIndex); } else { el.addEventListener('model-loaded', () => { el.getObject3D('mesh').layers.set(layerIndex); }); el.addEventListener('loaded', () => { if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); }); } };
+            const setLayer = (el, layerIndex) => { 
+                if(!el) return; 
+                const mesh = el.getObject3D('mesh'); 
+                if(mesh) { 
+                    mesh.layers.set(layerIndex); 
+                } else { 
+                    el.addEventListener('model-loaded', () => { el.getObject3D('mesh').layers.set(layerIndex); }); 
+                    el.addEventListener('loaded', () => { if(el.getObject3D('mesh')) el.getObject3D('mesh').layers.set(layerIndex); }); 
+                } 
+            };
             setLayer(DOM.vr.screens.cinemaL, 1); setLayer(DOM.vr.screens.cylL, 1); setLayer(DOM.vr.screens.sphereL, 1);
             setLayer(DOM.vr.screens.cinemaR, 2); setLayer(DOM.vr.screens.cylR, 2); setLayer(DOM.vr.screens.sphereR, 2);
             setLayer(DOM.vr.screens.cinema, 0); setLayer(DOM.vr.screens.cyl, 0); setLayer(DOM.vr.screens.sphere, 0);
         }
         if (DOM.vr.scene.hasLoaded) { configureStereoLayers(); } else { DOM.vr.scene.addEventListener('loaded', configureStereoLayers); }
 
-        function ensureIndependentTexture(mesh) { if (!mesh || !mesh.material || !mesh.material.map) return; if (!mesh.material.map.isIndependent) { mesh.material.map = mesh.material.map.clone(); mesh.material.map.needsUpdate = true; mesh.material.map.isIndependent = true; } }
+        function ensureIndependentTexture(mesh) { 
+            if (!mesh || !mesh.material || !mesh.material.map) return; 
+            if (!mesh.material.map.isIndependent) { 
+                mesh.material.map = mesh.material.map.clone(); 
+                mesh.material.map.needsUpdate = true; 
+                mesh.material.map.isIndependent = true; 
+            } 
+        }
 
         function enforceStereoMapping() {
-            const setLeft = (el) => { const mesh = el.getObject3D('mesh'); if (!mesh) return; ensureIndependentTexture(mesh); const isSphere = el.tagName.toLowerCase() === 'a-videosphere'; if (state.isDepthMode) { mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); mesh.material.map.offset.set(isSphere ? 0 : 1, 0); } else { mesh.material.map.repeat.set(isSphere ? 0.5 : -0.5, 1); mesh.material.map.offset.set(isSphere ? 0 : 0.5, 0); } mesh.material.map.needsUpdate = true; };
-            const setRight = (el) => { const mesh = el.getObject3D('mesh'); if (!mesh) return; ensureIndependentTexture(mesh); const isSphere = el.tagName.toLowerCase() === 'a-videosphere'; if (state.isDepthMode) { mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); mesh.material.map.offset.set(isSphere ? 0.005 : 0.995, 0); } else { mesh.material.map.repeat.set(isSphere ? 0.5 : -0.5, 1); mesh.material.map.offset.set(isSphere ? 0.5 : 1, 0); } mesh.material.map.needsUpdate = true; };
-            [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL].forEach(setLeft); [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(setRight);
+            const setLeft = (el) => { 
+                const mesh = el.getObject3D('mesh'); 
+                if (!mesh) return; 
+                ensureIndependentTexture(mesh); 
+                const isSphere = el.tagName.toLowerCase() === 'a-videosphere'; 
+                if (state.isDepthMode) { 
+                    mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); 
+                    mesh.material.map.offset.set(isSphere ? 0 : 1, 0); 
+                } else { 
+                    mesh.material.map.repeat.set(isSphere ? 0.5 : -0.5, 1); 
+                    mesh.material.map.offset.set(isSphere ? 0 : 0.5, 0); 
+                } 
+                mesh.material.map.needsUpdate = true; 
+            };
+            const setRight = (el) => { 
+                const mesh = el.getObject3D('mesh'); 
+                if (!mesh) return; 
+                ensureIndependentTexture(mesh); 
+                const isSphere = el.tagName.toLowerCase() === 'a-videosphere'; 
+                if (state.isDepthMode) { 
+                    mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); 
+                    mesh.material.map.offset.set(isSphere ? 0.005 : 0.995, 0); 
+                } else { 
+                    mesh.material.map.repeat.set(isSphere ? 0.5 : -0.5, 1); 
+                    mesh.material.map.offset.set(isSphere ? 0.5 : 1, 0); 
+                } 
+                mesh.material.map.needsUpdate = true; 
+            };
+            [DOM.vr.screens.cinemaL, DOM.vr.screens.cylL, DOM.vr.screens.sphereL].forEach(setLeft); 
+            [DOM.vr.screens.cinemaR, DOM.vr.screens.cylR, DOM.vr.screens.sphereR].forEach(setRight);
         }
 
-        function resetStereoMapping() { Object.values(DOM.vr.screens).forEach(el => { if (!el) return; const mesh = el.getObject3D('mesh'); if (!mesh) return; ensureIndependentTexture(mesh); const isSphere = el.tagName.toLowerCase() === 'a-videosphere'; mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); mesh.material.map.offset.set(isSphere ? 0 : 1, 0); mesh.material.map.needsUpdate = true; }); }
+        function resetStereoMapping() { 
+            Object.values(DOM.vr.screens).forEach(el => { 
+                if (!el) return; 
+                const mesh = el.getObject3D('mesh'); 
+                if (!mesh) return; 
+                ensureIndependentTexture(mesh); 
+                const isSphere = el.tagName.toLowerCase() === 'a-videosphere'; 
+                mesh.material.map.repeat.set(isSphere ? 1 : -1, 1); 
+                mesh.material.map.offset.set(isSphere ? 0 : 1, 0); 
+                mesh.material.map.needsUpdate = true; 
+            }); 
+        }
 
         function updateVisibility() {
-            Object.values(DOM.vr.screens).forEach(s => { if (s) s.setAttribute('visible', false); }); DOM.vr.env.floor.setAttribute('visible', !state.isVoid); let targetL, targetR, targetSingle;
-            if (state.viewMode === 0) { targetL = DOM.vr.screens.cinemaL; targetR = DOM.vr.screens.cinemaR; targetSingle = DOM.vr.screens.cinema; DOM.vr.controls.modeBtn.querySelector('a-text').setAttribute('value', '2D VIEW'); if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015'); else DOM.vr.scene.removeAttribute('fog'); } 
-            else if (state.viewMode === 1) { targetL = DOM.vr.screens.cylL; targetR = DOM.vr.screens.cylR; targetSingle = DOM.vr.screens.cyl; DOM.vr.controls.modeBtn.querySelector('a-text').setAttribute('value', '180 IMAX'); DOM.vr.scene.removeAttribute('fog'); } 
-            else { targetL = DOM.vr.screens.sphereL; targetR = DOM.vr.screens.sphereR; targetSingle = DOM.vr.screens.sphere; DOM.vr.controls.modeBtn.querySelector('a-text').setAttribute('value', '360 FULL'); DOM.vr.scene.removeAttribute('fog'); }
-            if (state.isDepthMode || state.is3D) { targetL.setAttribute('visible', true); targetR.setAttribute('visible', true); configureStereoLayers(); enforceStereoMapping(); } else { targetSingle.setAttribute('visible', true); resetStereoMapping(); }
-            DOM.vr.controls.txt3d.setAttribute('value', state.is3D ? "3D SBS" : "3D OFF"); DOM.vr.controls.txtDepth.setAttribute('value', state.isDepthMode ? "DEPTH ON" : "DEPTH OFF");
+            Object.values(DOM.vr.screens).forEach(s => { if (s) s.setAttribute('visible', false); }); 
+            DOM.vr.env.floor.setAttribute('visible', !state.isVoid); 
+            let targetL, targetR, targetSingle;
+            
+            if (state.viewMode === 0) { 
+                targetL = DOM.vr.screens.cinemaL; 
+                targetR = DOM.vr.screens.cinemaR; 
+                targetSingle = DOM.vr.screens.cinema; 
+                DOM.vr.controls.modeBtn.querySelector('a-text').setAttribute('value', '2D VIEW'); 
+                if(!state.isVoid) DOM.vr.scene.setAttribute('fog', 'type: exponential; color: #000; density: 0.015'); 
+                else DOM.vr.scene.removeAttribute('fog'); 
+            } 
+            else if (state.viewMode === 1) { 
+                targetL = DOM.vr.screens.cylL; 
+                targetR = DOM.vr.screens.cylR; 
+                targetSingle = DOM.vr.screens.cyl; 
+                DOM.vr.controls.modeBtn.querySelector('a-text').setAttribute('value', '180 IMAX'); 
+                DOM.vr.scene.removeAttribute('fog'); 
+            } 
+            else { 
+                targetL = DOM.vr.screens.sphereL; 
+                targetR = DOM.vr.screens.sphereR; 
+                targetSingle = DOM.vr.screens.sphere; 
+                DOM.vr.controls.modeBtn.querySelector('a-text').setAttribute('value', '360 FULL'); 
+                DOM.vr.scene.removeAttribute('fog'); 
+            }
+            
+            if (state.isDepthMode || state.is3D) { 
+                targetL.setAttribute('visible', true); 
+                targetR.setAttribute('visible', true); 
+                configureStereoLayers(); 
+                enforceStereoMapping(); 
+            } else { 
+                targetSingle.setAttribute('visible', true); 
+                resetStereoMapping(); 
+            }
+            DOM.vr.controls.txt3d.setAttribute('value', state.is3D ? "3D SBS" : "3D OFF"); 
+            DOM.vr.controls.txtDepth.setAttribute('value', state.isDepthMode ? "DEPTH ON" : "DEPTH OFF");
         }
-        function force2DMode() { state.viewMode = 0; state.is3D = false; state.isDepthMode = false; updateVisibility(); }
+        
+        function force2DMode() { 
+            state.viewMode = 0; 
+            state.is3D = false; 
+            state.isDepthMode = false; 
+            updateVisibility(); 
+        }
 
-        DOM.vr.controls.modeBtn.addEventListener('click', function() { state.viewMode = (state.viewMode + 1) % 3; updateVisibility(); flash(this); });
-        DOM.vr.controls.btn3d.addEventListener('click', function() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; state.is3D = !state.is3D; if(state.is3D) state.isDepthMode = false; updateVisibility(); flash(this); });
-        DOM.vr.controls.btnDepth.addEventListener('click', function() { if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; state.isDepthMode = !state.isDepthMode; if(state.isDepthMode) state.is3D = false; updateVisibility(); flash(this); });
+        DOM.vr.controls.modeBtn.addEventListener('click', function() { 
+            state.viewMode = (state.viewMode + 1) % 3; 
+            updateVisibility(); 
+            flash(this); 
+        });
+        
+        DOM.vr.controls.btn3d.addEventListener('click', function() { 
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; 
+            state.is3D = !state.is3D; 
+            if(state.is3D) state.isDepthMode = false; 
+            updateVisibility(); 
+            flash(this); 
+        });
+        
+        DOM.vr.controls.btnDepth.addEventListener('click', function() { 
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') return; 
+            state.isDepthMode = !state.isDepthMode; 
+            if(state.isDepthMode) state.is3D = false; 
+            updateVisibility(); 
+            flash(this); 
+        });
 
-        function handleFiles(files) { if (files.length > 0) { const newItems = Array.from(files).map(f => { let type = 'video'; const ext = f.name.split('.').pop().toLowerCase(); if (f.type.startsWith('image/') || ['jpg','jpeg','png','gif','webp'].includes(ext)) { type = 'image'; } else if (f.type === 'application/pdf' || ext === 'pdf') { type = 'pdf'; } return { type: type, src: f, name: f.name }; }); state.playlist = state.playlist.concat(newItems); updatePlaylistUI(); } }
+        function handleFiles(files) { 
+            if (files.length > 0) { 
+                const newItems = Array.from(files).map(f => { 
+                    let type = 'video'; 
+                    const ext = f.name.split('.').pop().toLowerCase(); 
+                    if (f.type.startsWith('image/') || ['jpg','jpeg','png','gif','webp'].includes(ext)) { 
+                        type = 'image'; 
+                    } else if (f.type === 'application/pdf' || ext === 'pdf') { 
+                        type = 'pdf'; 
+                    } 
+                    return { type: type, src: f, name: f.name }; 
+                }); 
+                state.playlist = state.playlist.concat(newItems); 
+                updatePlaylistUI(); 
+            } 
+        }
+        
         DOM.ui.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
         document.body.addEventListener('dragover', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'flex'; });
         document.body.addEventListener('dragleave', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'none'; });
         document.body.addEventListener('drop', (e) => { e.preventDefault(); DOM.ui.dropOverlay.style.display = 'none'; handleFiles(e.dataTransfer.files); });
 
-        document.getElementById('btn-url').addEventListener('click', () => { const url = DOM.ui.urlInput.value.trim(); if(url) { const ext = url.split('.').pop().toLowerCase(); let type = 'video'; if(['jpg','jpeg','png','gif'].includes(ext)) type = 'image'; if(ext === 'pdf') type = 'pdf'; state.playlist.push({ type: type, src: url, name: "Web Stream" }); DOM.ui.urlInput.value = ""; updatePlaylistUI(); } });
+        document.getElementById('btn-url').addEventListener('click', () => { 
+            const url = DOM.ui.urlInput.value.trim(); 
+            if(url) { 
+                const ext = url.split('.').pop().toLowerCase(); 
+                let type = 'video'; 
+                if(['jpg','jpeg','png','gif'].includes(ext)) type = 'image'; 
+                if(ext === 'pdf') type = 'pdf'; 
+                state.playlist.push({ type: type, src: url, name: "Web Stream" }); 
+                DOM.ui.urlInput.value = ""; 
+                updatePlaylistUI(); 
+            } 
+        });
 
-        function updatePlaylistUI() { DOM.ui.playlist.style.display = 'block'; DOM.ui.btnStart.style.display = 'block'; DOM.ui.list.innerHTML = ''; state.playlist.forEach((item, index) => { const div = document.createElement('div'); div.className = 'playlist-item'; if(index === state.currentTrack && DOM.ui.layer.classList.contains('hidden')) div.classList.add('playlist-active'); div.innerText = `${index + 1}. [${item.type.toUpperCase()}] ${item.name}`; div.onclick = () => { loadTrack(index); highlightActive(); }; DOM.ui.list.appendChild(div); }); }
-        function highlightActive() { Array.from(DOM.ui.list.children).forEach((child, i) => { child.classList.toggle('playlist-active', i === state.currentTrack); }); }
+        function updatePlaylistUI() { 
+            DOM.ui.playlist.style.display = 'block'; 
+            DOM.ui.btnStart.style.display = 'block'; 
+            DOM.ui.list.innerHTML = ''; 
+            state.playlist.forEach((item, index) => { 
+                const div = document.createElement('div'); 
+                div.className = 'playlist-item'; 
+                if(index === state.currentTrack && DOM.ui.layer.classList.contains('hidden')) div.classList.add('playlist-active'); 
+                div.innerText = `${index + 1}. [${item.type.toUpperCase()}] ${item.name}`; 
+                div.onclick = () => { loadTrack(index); highlightActive(); }; 
+                DOM.ui.list.appendChild(div); 
+            }); 
+        }
+        
+        function highlightActive() { 
+            Array.from(DOM.ui.list.children).forEach((child, i) => { 
+                child.classList.toggle('playlist-active', i === state.currentTrack); 
+            }); 
+        }
 
-        DOM.ui.btnStart.addEventListener('click', () => { if(state.playlist.length > 0) { DOM.ui.layer.classList.add('hidden'); loadTrack(state.currentTrack); if(DOM.vr.scene.enterVR) DOM.vr.scene.enterVR(); } });
+        DOM.ui.btnStart.addEventListener('click', () => { 
+            if(state.playlist.length > 0) { 
+                DOM.ui.layer.classList.add('hidden'); 
+                loadTrack(state.currentTrack); 
+                if(DOM.vr.scene.enterVR) DOM.vr.scene.enterVR(); 
+            } 
+        });
 
         function loadTrack(index) {
             if (index >= 0 && index < state.playlist.length) {
                 if (state.currentObjectURL) { URL.revokeObjectURL(state.currentObjectURL); state.currentObjectURL = null; }
-                state.currentTrack = index; const item = state.playlist[state.currentTrack];
-                let src = ""; if(item.src instanceof File) { src = URL.createObjectURL(item.src); state.currentObjectURL = src; } else { src = item.src; }
+                state.currentTrack = index; 
+                const item = state.playlist[state.currentTrack];
+                
+                let src = ""; 
+                if(item.src instanceof File) { 
+                    src = URL.createObjectURL(item.src); 
+                    state.currentObjectURL = src; 
+                } else { 
+                    src = item.src; 
+                }
+                
                 let displayName = item.name.length > 25 ? item.name.substring(0, 22) + "..." : item.name;
                 DOM.vr.controls.title.setAttribute('value', `${state.currentTrack + 1}/${state.playlist.length}: ${displayName}`);
-                DOM.vr.controls.seekBack.setAttribute('value', '-15s'); DOM.vr.controls.seekFwd.setAttribute('value', '+15s'); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); DOM.vr.controls.videoGroup.setAttribute('visible', true);
+                DOM.vr.controls.seekBack.setAttribute('value', '-15s'); 
+                DOM.vr.controls.seekFwd.setAttribute('value', '+15s'); 
+                DOM.vr.controls.playText.setAttribute('value', 'PLAY'); 
+                DOM.vr.controls.videoGroup.setAttribute('visible', true);
                 
                 if (item.type === 'pdf') {
-                    DOM.media.video.pause(); force2DMode(); DOM.vr.controls.seekBack.setAttribute('value', 'PREV PG'); DOM.vr.controls.seekFwd.setAttribute('value', 'NEXT PG'); DOM.vr.controls.playText.setAttribute('value', 'LOADING..');
-                    const loadingTask = pdfjsLib.getDocument(src); loadingTask.promise.then(pdf => { state.pdf.doc = pdf; state.pdf.pageNum = 1; DOM.vr.controls.playText.setAttribute('value', 'PDF VIEW'); renderPDFPage(state.pdf.pageNum); }).catch(error => { DOM.vr.controls.playText.setAttribute('value', 'ERROR'); });
+                    DOM.media.video.pause(); 
+                    force2DMode(); 
+                    DOM.vr.controls.seekBack.setAttribute('value', 'PREV PG'); 
+                    DOM.vr.controls.seekFwd.setAttribute('value', 'NEXT PG'); 
+                    DOM.vr.controls.playText.setAttribute('value', 'LOADING..');
+                    
+                    const loadingTask = pdfjsLib.getDocument(src); 
+                    loadingTask.promise.then(pdf => { 
+                        state.pdf.doc = pdf; 
+                        state.pdf.pageNum = 1; 
+                        DOM.vr.controls.playText.setAttribute('value', 'PDF VIEW'); 
+                        renderPDFPage(state.pdf.pageNum); 
+                    }).catch(error => { 
+                        DOM.vr.controls.playText.setAttribute('value', 'ERROR'); 
+                    });
                 
                 } else if (item.type === 'image') {
                     DOM.media.video.pause(); 
                     DOM.vr.controls.videoGroup.setAttribute('visible', false); 
-                    
                     updateTexture('#img-src'); 
-                    
                     DOM.media.img.onload = paintImageToScreens;
                     DOM.media.img.src = src;
 
                 } else {
-                    if (src.includes('.m3u8') && Hls.isSupported()) { const hls = new Hls(); hls.loadSource(src); hls.attachMedia(DOM.media.video); hls.on(Hls.Events.MANIFEST_PARSED, function() { updateTexture('#video-src'); initAudio(); DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }); });
-                    } else { DOM.media.video.src = src; updateTexture('#video-src'); initAudio(); DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY')); }
+                    if (src.includes('.m3u8') && Hls.isSupported()) { 
+                        const hls = new Hls(); 
+                        hls.loadSource(src); 
+                        hls.attachMedia(DOM.media.video); 
+                        hls.on(Hls.Events.MANIFEST_PARSED, function() { 
+                            updateTexture('#video-src'); 
+                            initAudio(); 
+                            DOM.media.video.play().then(() => { DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); }); 
+                        });
+                    } else { 
+                        DOM.media.video.src = src; 
+                        updateTexture('#video-src'); 
+                        initAudio(); 
+                        DOM.media.video.play().then(() => { 
+                            DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); 
+                        }).catch(e => DOM.vr.controls.playText.setAttribute('value', 'PLAY')); 
+                    }
                 }
             }
         }
 
-        function updateTexture(sourceId) { if (state.ext.active && state.ext.castToMain && sourceId !== '#remote-video') return; Object.values(DOM.vr.screens).forEach(s => { if(s) { if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') s.setAttribute('src', sourceId); else s.setAttribute('material', 'src', sourceId); } }); configureStereoLayers(); }
+        function updateTexture(sourceId) { 
+            if (state.ext.active && state.ext.castToMain && sourceId !== '#remote-video') return; 
+            Object.values(DOM.vr.screens).forEach(s => { 
+                if(s) { 
+                    if(s.tagName.toLowerCase() === 'a-curvedimage' || s.tagName.toLowerCase() === 'a-videosphere') {
+                        s.setAttribute('src', sourceId); 
+                    } else {
+                        s.setAttribute('material', 'src', sourceId); 
+                    }
+                } 
+            }); 
+            configureStereoLayers(); 
+        }
         
         document.getElementById('btn-close').addEventListener('click', function() { toggleMenu(false); flash(this); });
         document.getElementById('menu-orb').addEventListener('click', function() { toggleMenu(true); flash(this); });
-       document.getElementById('btn-play').addEventListener('click', function() { 
-            if(state.ext.active && state.ext.dataConn) { state.ext.dataConn.send({cmd: 'playpause'}); flash(this); return; }
-            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video') togglePlay(); flash(this); 
+        
+        document.getElementById('btn-play').addEventListener('click', function() { 
+            if(state.ext.active && state.ext.dataConn) { 
+                state.ext.dataConn.send({cmd: 'playpause'}); 
+                flash(this); 
+                return; 
+            }
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video') togglePlay(); 
+            flash(this); 
         });
-        document.getElementById('btn-prev').addEventListener('click', function() { if(state.currentTrack > 0) loadTrack(state.currentTrack - 1); flash(this); });
-        document.getElementById('btn-next').addEventListener('click', function() { if(state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); flash(this); });
-       document.getElementById('btn-seek-back').addEventListener('click', function() { 
-            if(state.ext.active && state.ext.dataConn) { state.ext.dataConn.send({cmd: 'seekBack'}); flash(this); return; }
-            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') onPrevPage(); else DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); flash(this); 
+        
+        document.getElementById('btn-prev').addEventListener('click', function() { 
+            if(state.currentTrack > 0) loadTrack(state.currentTrack - 1); 
+            flash(this); 
+        });
+        
+        document.getElementById('btn-next').addEventListener('click', function() { 
+            if(state.currentTrack < state.playlist.length - 1) loadTrack(state.currentTrack + 1); 
+            flash(this); 
+        });
+        
+        document.getElementById('btn-seek-back').addEventListener('click', function() { 
+            if(state.ext.active && state.ext.dataConn) { 
+                state.ext.dataConn.send({cmd: 'seekBack'}); 
+                flash(this); 
+                return; 
+            }
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') {
+                onPrevPage(); 
+            } else {
+                DOM.media.video.currentTime = Math.max(0, DOM.media.video.currentTime - 15); 
+            }
+            flash(this); 
         });
         
         document.getElementById('btn-seek-fwd').addEventListener('click', function() { 
-            if(state.ext.active && state.ext.dataConn) { state.ext.dataConn.send({cmd: 'seekFwd'}); flash(this); return; }
-            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') onNextPage(); else DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); flash(this); 
+            if(state.ext.active && state.ext.dataConn) { 
+                state.ext.dataConn.send({cmd: 'seekFwd'}); 
+                flash(this); 
+                return; 
+            }
+            if(state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf') {
+                onNextPage(); 
+            } else {
+                DOM.media.video.currentTime = Math.min(DOM.media.video.duration, DOM.media.video.currentTime + 15); 
+            }
+            flash(this); 
         });
-        document.getElementById('btn-void').addEventListener('click', function() { state.isVoid = !state.isVoid; updateVisibility(); flash(this); });
-        document.getElementById('btn-speed').addEventListener('click', function() { const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; const v = DOM.media.video; v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length]; DOM.vr.controls.speedText.setAttribute('value', v.playbackRate + 'x'); flash(this); });
-        document.getElementById('btn-rot-left').addEventListener('click', function() { DOM.vr.env.rig.object3D.rotation.y += (Math.PI / 12); flash(this); });
-        document.getElementById('btn-rot-right').addEventListener('click', function() { DOM.vr.env.rig.object3D.rotation.y -= (Math.PI / 12); flash(this); });
-        document.getElementById('btn-reset').addEventListener('click', function() { const rig = DOM.vr.env.rig.object3D; const cam = document.querySelector('[camera]').object3D; rig.rotation.y += cam.rotation.y; rig.rotation.x = 0; rig.rotation.z = 0; rig.position.set(0, 1.6, 0); DOM.vr.controls.wrapper.setAttribute('rotation', '-25 0 0'); flash(this); });
+        
+        document.getElementById('btn-void').addEventListener('click', function() { 
+            state.isVoid = !state.isVoid; 
+            updateVisibility(); 
+            flash(this); 
+        });
+        
+        document.getElementById('btn-speed').addEventListener('click', function() { 
+            const speeds = [1, 1.25, 1.5, 2, 0.5, 0.75]; 
+            const v = DOM.media.video; 
+            v.playbackRate = speeds[(speeds.indexOf(v.playbackRate) + 1) % speeds.length]; 
+            DOM.vr.controls.speedText.setAttribute('value', v.playbackRate + 'x'); 
+            flash(this); 
+        });
+        
+        document.getElementById('btn-rot-left').addEventListener('click', function() { 
+            DOM.vr.env.rig.object3D.rotation.y += (Math.PI / 12); 
+            flash(this); 
+        });
+        
+        document.getElementById('btn-rot-right').addEventListener('click', function() { 
+            DOM.vr.env.rig.object3D.rotation.y -= (Math.PI / 12); 
+            flash(this); 
+        });
+        
+        document.getElementById('btn-reset').addEventListener('click', function() { 
+            const rig = DOM.vr.env.rig.object3D; 
+            const cam = document.querySelector('[camera]').object3D; 
+            rig.rotation.y += cam.rotation.y; 
+            rig.rotation.x = 0; 
+            rig.rotation.z = 0; 
+            rig.position.set(0, 1.6, 0); 
+            DOM.vr.controls.wrapper.setAttribute('rotation', '-25 0 0'); 
+            flash(this); 
+        });
 
-        // CLICKABLE SEEK BAR MATH
-        document.getElementById('bar-bg').addEventListener('click', function(e) { if(e.detail.intersection && e.detail.intersection.uv && state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video') { const uvX = e.detail.intersection.uv.x; const v = DOM.media.video; if(isFinite(v.duration) && v.duration > 0) { v.currentTime = uvX * v.duration; } } flash(this); });
+        document.getElementById('bar-bg').addEventListener('click', function(e) { 
+            if(e.detail.intersection && e.detail.intersection.uv && state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'video') { 
+                const uvX = e.detail.intersection.uv.x; 
+                const v = DOM.media.video; 
+                if(isFinite(v.duration) && v.duration > 0) { 
+                    v.currentTime = uvX * v.duration; 
+                } 
+            } 
+            flash(this); 
+        });
 
-        function animateSeat(targetPos, targetRot) { DOM.vr.env.rig.removeAttribute('animation'); DOM.vr.env.rig.setAttribute('animation', { property: 'position', to: targetPos, dur: 1000, easing: 'easeInOutQuad' }); DOM.vr.controls.wrapper.setAttribute('rotation', targetRot); }
-        const seats = { front: { pos: "0 1.6 -1", rot: "-25 0 0" }, back: { pos: "0 2.5 2", rot: "-25 0 0" }, recline: { pos: "0 0.5 0", rot: "-45 0 0" } };
+        function animateSeat(targetPos, targetRot) { 
+            DOM.vr.env.rig.removeAttribute('animation'); 
+            DOM.vr.env.rig.setAttribute('animation', { property: 'position', to: targetPos, dur: 1000, easing: 'easeInOutQuad' }); 
+            DOM.vr.controls.wrapper.setAttribute('rotation', targetRot); 
+        }
+        
+        const seats = { 
+            front: { pos: "0 1.6 -1", rot: "-25 0 0" }, 
+            back: { pos: "0 2.5 2", rot: "-25 0 0" }, 
+            recline: { pos: "0 0.5 0", rot: "-45 0 0" } 
+        };
+        
         document.getElementById('seat-front').addEventListener('click', function() { animateSeat(seats.front.pos, seats.front.rot); flash(this); });
         document.getElementById('seat-back').addEventListener('click', function() { animateSeat(seats.back.pos, seats.back.rot); flash(this); });
         document.getElementById('seat-lay').addEventListener('click', function() { animateSeat(seats.recline.pos, seats.recline.rot); flash(this); });
 
-        function updateScreenCurve() { const screens = [DOM.vr.screens.cinema, DOM.vr.screens.cinemaL, DOM.vr.screens.cinemaR]; const rot = 180 - (state.curve / 2); screens.forEach(s => { s.setAttribute('theta-length', state.curve); s.setAttribute('rotation', `0 ${rot} 0`); }); }
-        document.getElementById('curve-more').addEventListener('click', function() { if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }});
-        document.getElementById('curve-less').addEventListener('click', function() { if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }});
+        function updateScreenCurve() { 
+            const screens = [DOM.vr.screens.cinema, DOM.vr.screens.cinemaL, DOM.vr.screens.cinemaR]; 
+            const rot = 180 - (state.curve / 2); 
+            screens.forEach(s => { 
+                s.setAttribute('theta-length', state.curve); 
+                s.setAttribute('rotation', `0 ${rot} 0`); 
+            }); 
+        }
+        
+        document.getElementById('curve-more').addEventListener('click', function() { 
+            if(state.curve < 160) { state.curve += 10; updateScreenCurve(); flash(this); }
+        });
+        
+        document.getElementById('curve-less').addEventListener('click', function() { 
+            if(state.curve > 30) { state.curve -= 10; updateScreenCurve(); flash(this); }
+        });
 
         setInterval(() => {
-            const currentItem = state.playlist[state.currentTrack]; const v = DOM.media.video;
+            const currentItem = state.playlist[state.currentTrack]; 
+            const v = DOM.media.video;
             if(currentItem && currentItem.type === 'video' && !v.paused) {
                 if(isFinite(v.duration) && v.duration > 0) {
-                    const pct = Math.max(0.001, v.currentTime / v.duration); DOM.vr.controls.progress.object3D.scale.set(pct, 1, 1); DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
-                    const m = Math.floor(v.currentTime/60); const sec = Math.floor(v.currentTime%60); const dm = Math.floor(v.duration/60); const dsec = Math.floor(v.duration%60); DOM.vr.controls.timeText.setAttribute('value', `${m}:${sec<10?'0'+sec:sec} / ${dm}:${dsec<10?'0'+dsec:dsec}`);
+                    const pct = Math.max(0.001, v.currentTime / v.duration); 
+                    DOM.vr.controls.progress.object3D.scale.set(pct, 1, 1); 
+                    DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2);
+                    
+                    const m = Math.floor(v.currentTime/60); 
+                    const sec = Math.floor(v.currentTime%60); 
+                    const dm = Math.floor(v.duration/60); 
+                    const dsec = Math.floor(v.duration%60); 
+                    DOM.vr.controls.timeText.setAttribute('value', `${m}:${sec<10?'0'+sec:sec} / ${dm}:${dsec<10?'0'+dsec:dsec}`);
                 } else {
-                    DOM.vr.controls.progress.object3D.scale.set(1, 1, 1); DOM.vr.controls.progress.object3D.position.x = 0; const m = Math.floor(v.currentTime/60); const sec = Math.floor(v.currentTime%60); DOM.vr.controls.timeText.setAttribute('value', `LIVE STREAM | ${m}:${sec<10?'0'+sec:sec}`);
+                    DOM.vr.controls.progress.object3D.scale.set(1, 1, 1); 
+                    DOM.vr.controls.progress.object3D.position.x = 0; 
+                    const m = Math.floor(v.currentTime/60); 
+                    const sec = Math.floor(v.currentTime%60); 
+                    DOM.vr.controls.timeText.setAttribute('value', `LIVE STREAM | ${m}:${sec<10?'0'+sec:sec}`);
                 }
             }
         }, 500);
 
-        // --- PATCH 2: AMBILIGHT THROTTLE TO STOP CPU JITTER ---
         const ctx = DOM.media.lightCanvas.getContext('2d');
         let lastAmbiTime = 0;
+        
         function updateAmbilight(now) { 
             if(!state.playlist[state.currentTrack] || state.playlist[state.currentTrack].type !== 'video' || DOM.media.video.paused) return; 
             
@@ -537,33 +1011,124 @@
                 state.audio.panner.setPosition(x, 1.6, z);
             }
 
-            if(DOM.media.video.seeking) { requestAnimationFrame(updateAmbilight); return; }
+            if(DOM.media.video.seeking) { 
+                requestAnimationFrame(updateAmbilight); 
+                return; 
+            }
             
-            // INCREASED THROTTLE TO 300ms TO FREE UP THE VR RENDER PIPELINE
-            if(now - lastAmbiTime > 300) { drawAmbilight(DOM.media.video); lastAmbiTime = now; }
+            if(now - lastAmbiTime > 300) { 
+                drawAmbilight(DOM.media.video); 
+                lastAmbiTime = now; 
+            }
             requestAnimationFrame(updateAmbilight); 
         }
-        function drawAmbilight(source) { try { ctx.drawImage(source, 0, 0, 32, 32); const p = ctx.getImageData(16,16,1,1).data; const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1); if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex); DOM.vr.env.glow.setAttribute('color', hex); } catch(e) { } }
         
-        window.addEventListener('keydown', (e) => { if(DOM.ui.layer.classList.contains('hidden')) { const isPdf = state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf'; switch(e.code) { case 'Space': e.preventDefault(); if(!isPdf) togglePlay(); break; case 'ArrowRight': if(isPdf) onNextPage(); else DOM.media.video.currentTime += 15; break; case 'ArrowLeft': if(isPdf) onPrevPage(); else DOM.media.video.currentTime -= 15; break; } } });
-        function renderPDFPage(num) { state.pdf.rendering = true; state.pdf.doc.getPage(num).then(page => { const viewport = page.getViewport({scale: 2.0}); const canvas = DOM.media.pdfCanvas; const ctx = canvas.getContext('2d'); canvas.height = viewport.height; canvas.width = viewport.width; const renderContext = { canvasContext: ctx, viewport: viewport }; page.render(renderContext).promise.then(() => { state.pdf.rendering = false; updateTexture('#pdf-canvas'); drawAmbilight(canvas); const pct = num / state.pdf.doc.numPages; DOM.vr.controls.progress.object3D.scale.set(pct, 1, 1); DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2); DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`); if (state.pdf.pending !== null) { renderPDFPage(state.pdf.pending); state.pdf.pending = null; } }); }); }
-        function queueRenderPage(num) { if (state.pdf.rendering) state.pdf.pending = num; else renderPDFPage(num); }
-        function onPrevPage() { if (state.pdf.pageNum <= 1) return; state.pdf.pageNum--; queueRenderPage(state.pdf.pageNum); }
-        function onNextPage() { if (state.pdf.pageNum >= state.pdf.doc.numPages) return; state.pdf.pageNum++; queueRenderPage(state.pdf.pageNum); }
-        function toggleMenu(show) { DOM.vr.controls.wrapper.setAttribute('visible', show); if(show) { DOM.vr.controls.wrapper.setAttribute('scale', '1 1 1'); DOM.vr.controls.orb.setAttribute('visible', false); } else { DOM.vr.controls.wrapper.setAttribute('scale', '0 0 0'); DOM.vr.controls.orb.setAttribute('visible', true); } }
+        function drawAmbilight(source) { 
+            try { 
+                ctx.drawImage(source, 0, 0, 32, 32); 
+                const p = ctx.getImageData(16,16,1,1).data; 
+                const hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1); 
+                if(state.viewMode === 0 && !state.isVoid) DOM.vr.env.ambi.setAttribute('color', hex); 
+                DOM.vr.env.glow.setAttribute('color', hex); 
+            } catch(e) { } 
+        }
         
-        function togglePlay() { if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); if(DOM.media.video.paused) { DOM.media.video.play(); DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); } else { DOM.media.video.pause(); DOM.vr.controls.playText.setAttribute('value', 'PLAY'); } }
+        window.addEventListener('keydown', (e) => { 
+            if(DOM.ui.layer.classList.contains('hidden')) { 
+                const isPdf = state.playlist[state.currentTrack] && state.playlist[state.currentTrack].type === 'pdf'; 
+                switch(e.code) { 
+                    case 'Space': 
+                        e.preventDefault(); 
+                        if(!isPdf) togglePlay(); 
+                        break; 
+                    case 'ArrowRight': 
+                        if(isPdf) onNextPage(); else DOM.media.video.currentTime += 15; 
+                        break; 
+                    case 'ArrowLeft': 
+                        if(isPdf) onPrevPage(); else DOM.media.video.currentTime -= 15; 
+                        break; 
+                } 
+            } 
+        });
+        
+        function renderPDFPage(num) { 
+            state.pdf.rendering = true; 
+            state.pdf.doc.getPage(num).then(page => { 
+                const viewport = page.getViewport({scale: 2.0}); 
+                const canvas = DOM.media.pdfCanvas; 
+                const ctx = canvas.getContext('2d'); 
+                canvas.height = viewport.height; 
+                canvas.width = viewport.width; 
+                const renderContext = { canvasContext: ctx, viewport: viewport }; 
+                page.render(renderContext).promise.then(() => { 
+                    state.pdf.rendering = false; 
+                    updateTexture('#pdf-canvas'); 
+                    drawAmbilight(canvas); 
+                    const pct = num / state.pdf.doc.numPages; 
+                    DOM.vr.controls.progress.object3D.scale.set(pct, 1, 1); 
+                    DOM.vr.controls.progress.object3D.position.x = -1.2 + (2.4 * pct / 2); 
+                    DOM.vr.controls.timeText.setAttribute('value', `Page ${num} / ${state.pdf.doc.numPages}`); 
+                    if (state.pdf.pending !== null) { 
+                        renderPDFPage(state.pdf.pending); 
+                        state.pdf.pending = null; 
+                    } 
+                }); 
+            }); 
+        }
+        
+        function queueRenderPage(num) { 
+            if (state.pdf.rendering) state.pdf.pending = num; 
+            else renderPDFPage(num); 
+        }
+        
+        function onPrevPage() { 
+            if (state.pdf.pageNum <= 1) return; 
+            state.pdf.pageNum--; 
+            queueRenderPage(state.pdf.pageNum); 
+        }
+        
+        function onNextPage() { 
+            if (state.pdf.pageNum >= state.pdf.doc.numPages) return; 
+            state.pdf.pageNum++; 
+            queueRenderPage(state.pdf.pageNum); 
+        }
+        
+        function toggleMenu(show) { 
+            DOM.vr.controls.wrapper.setAttribute('visible', show); 
+            if(show) { 
+                DOM.vr.controls.wrapper.setAttribute('scale', '1 1 1'); 
+                DOM.vr.controls.orb.setAttribute('visible', false); 
+            } else { 
+                DOM.vr.controls.wrapper.setAttribute('scale', '0 0 0'); 
+                DOM.vr.controls.orb.setAttribute('visible', true); 
+            } 
+        }
+        
+        function togglePlay() { 
+            if(state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); 
+            if(DOM.media.video.paused) { 
+                DOM.media.video.play(); 
+                DOM.vr.controls.playText.setAttribute('value', 'PAUSE'); 
+            } else { 
+                DOM.media.video.pause(); 
+                DOM.vr.controls.playText.setAttribute('value', 'PLAY'); 
+            } 
+        }
         
         function initAudio() { 
-            if(!state.audio.ctx) { state.audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); } 
+            if(!state.audio.ctx) { 
+                state.audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+            } 
             if (!state.audio.source) { 
                 state.audio.source = state.audio.ctx.createMediaElementSource(DOM.media.video); 
                 state.audio.gainNode = state.audio.ctx.createGain(); 
                 state.audio.gainNode.gain.value = state.audio.vol; 
+                
                 state.audio.panner = state.audio.ctx.createPanner(); 
                 state.audio.panner.panningModel = 'HRTF'; 
                 state.audio.panner.distanceModel = 'inverse'; 
                 state.audio.panner.setPosition(0, 4.5, state.audio.dist); 
+                
                 state.audio.source.connect(state.audio.gainNode); 
                 state.audio.gainNode.connect(state.audio.panner); 
                 state.audio.panner.connect(state.audio.ctx.destination); 
@@ -571,19 +1136,60 @@
             if(state.audio.ctx.state === 'suspended') state.audio.ctx.resume(); 
         }
 
-        DOM.media.video.addEventListener('playing', () => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); requestAnimationFrame(updateAmbilight); });
-        DOM.media.video.addEventListener('loadeddata', () => { if(state.is3D || state.isDepthMode) enforceStereoMapping(); else resetStereoMapping(); });
+        DOM.media.video.addEventListener('playing', () => { 
+            if(state.is3D || state.isDepthMode) enforceStereoMapping(); 
+            else resetStereoMapping(); 
+            requestAnimationFrame(updateAmbilight); 
+        });
+        
+        DOM.media.video.addEventListener('loadeddata', () => { 
+            if(state.is3D || state.isDepthMode) enforceStereoMapping(); 
+            else resetStereoMapping(); 
+        });
 
-        document.getElementById('btn-vol-down').addEventListener('click', function() { if(state.audio.vol > 0.5) { state.audio.vol -= 0.5; if(state.audio.gainNode) state.audio.gainNode.gain.value = state.audio.vol; document.getElementById('txt-vol').setAttribute('value', state.audio.vol.toFixed(1) + 'x'); } flash(this); });
-        document.getElementById('btn-vol-up').addEventListener('click', function() { if(state.audio.vol < 10.0) { state.audio.vol += 0.5; if(state.audio.gainNode) state.audio.gainNode.gain.value = state.audio.vol; document.getElementById('txt-vol').setAttribute('value', state.audio.vol.toFixed(1) + 'x'); } flash(this); });
-        document.getElementById('btn-dist-closer').addEventListener('click', function() { if(state.audio.dist < -1.0) { state.audio.dist += 1.0; if(state.audio.panner && !state.audio.is8D) state.audio.panner.setPosition(0, 4.5, state.audio.dist); document.getElementById('txt-dist').setAttribute('value', state.audio.dist.toFixed(1) + 'm'); } flash(this); });
-        document.getElementById('btn-dist-further').addEventListener('click', function() { if(state.audio.dist > -20.0) { state.audio.dist -= 1.0; if(state.audio.panner && !state.audio.is8D) state.audio.panner.setPosition(0, 4.5, state.audio.dist); document.getElementById('txt-dist').setAttribute('value', state.audio.dist.toFixed(1) + 'm'); } flash(this); });
+        document.getElementById('btn-vol-down').addEventListener('click', function() { 
+            if(state.audio.vol > 0.5) { 
+                state.audio.vol -= 0.5; 
+                if(state.audio.gainNode) state.audio.gainNode.gain.value = state.audio.vol; 
+                document.getElementById('txt-vol').setAttribute('value', state.audio.vol.toFixed(1) + 'x'); 
+            } 
+            flash(this); 
+        });
+        
+        document.getElementById('btn-vol-up').addEventListener('click', function() { 
+            if(state.audio.vol < 10.0) { 
+                state.audio.vol += 0.5; 
+                if(state.audio.gainNode) state.audio.gainNode.gain.value = state.audio.vol; 
+                document.getElementById('txt-vol').setAttribute('value', state.audio.vol.toFixed(1) + 'x'); 
+            } 
+            flash(this); 
+        });
+        
+        document.getElementById('btn-dist-closer').addEventListener('click', function() { 
+            if(state.audio.dist < -1.0) { 
+                state.audio.dist += 1.0; 
+                if(state.audio.panner && !state.audio.is8D) state.audio.panner.setPosition(0, 4.5, state.audio.dist); 
+                document.getElementById('txt-dist').setAttribute('value', state.audio.dist.toFixed(1) + 'm'); 
+            } 
+            flash(this); 
+        });
+        
+        document.getElementById('btn-dist-further').addEventListener('click', function() { 
+            if(state.audio.dist > -20.0) { 
+                state.audio.dist -= 1.0; 
+                if(state.audio.panner && !state.audio.is8D) state.audio.panner.setPosition(0, 4.5, state.audio.dist); 
+                document.getElementById('txt-dist').setAttribute('value', state.audio.dist.toFixed(1) + 'm'); 
+            } 
+            flash(this); 
+        });
         
         document.getElementById('btn-8d').addEventListener('click', function() { 
             state.audio.is8D = !state.audio.is8D; 
             document.getElementById('txt-8d').setAttribute('value', state.audio.is8D ? '8D: ON' : '8D: OFF'); 
             document.getElementById('txt-8d').setAttribute('color', state.audio.is8D ? '#ff9d00' : '#aaa'); 
-            if(!state.audio.is8D && state.audio.panner) { state.audio.panner.setPosition(0, 4.5, state.audio.dist); } 
+            if(!state.audio.is8D && state.audio.panner) { 
+                state.audio.panner.setPosition(0, 4.5, state.audio.dist); 
+            } 
             flash(this); 
         });
 
