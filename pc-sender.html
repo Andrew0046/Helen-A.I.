@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Uplink: The Omni-Vault v5.3</title>
+    <title>PC Uplink: The Omni-Vault v5.4</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -80,7 +80,7 @@
     </div>
 
     <div class="uplink-card" id="ui-card">
-        <h1>PC Uplink v5.3</h1>
+        <h1>PC Uplink v5.4</h1>
         <p>The Inception Engine</p>
         
         <div class="vault-section">
@@ -91,6 +91,9 @@
         
         <input type="text" id="pin-input" placeholder="PIN" maxlength="4" autocomplete="off">
         <button class="btn-main" id="btn-connect">2. INITIATE UPLINK</button>
+        
+        <button class="btn-main btn-alt" id="btn-reconnect" style="display:none; border-color:#00ff00; color:#00ff00;">⚡ QUICK RECONNECT</button>
+        
         <div id="status">Awaiting Setup...</div>
     </div>
 
@@ -99,7 +102,8 @@
 
         const peer = new Peer(null, { debug: 2 });
         const dom = {
-            pin: document.getElementById('pin-input'), btnConnect: document.getElementById('btn-connect'), status: document.getElementById('status'),
+            pin: document.getElementById('pin-input'), btnConnect: document.getElementById('btn-connect'), 
+            btnReconnect: document.getElementById('btn-reconnect'), status: document.getElementById('status'),
             video: document.getElementById('local-video'), cinema: document.getElementById('cinema-player'), photoCanvas: document.getElementById('photo-canvas'),
             model3d: document.getElementById('model-3d'), htmlViewer: document.getElementById('html-viewer'), preview: document.getElementById('preview-container'), 
             card: document.getElementById('ui-card'), laser: document.getElementById('laser-pointer'), ring: document.getElementById('dwell-ring'), 
@@ -119,6 +123,19 @@
         let galleryMode = 'photo'; 
         let currentPdfDoc = null;
         let currentPdfPage = 1;
+
+        // --- PERSISTENT MEMORY CACHE LOGIC ---
+        const savedPin = localStorage.getItem('omni-vault-pin');
+        if (savedPin && savedPin.length === 4) {
+            dom.pin.value = savedPin;
+            dom.btnReconnect.style.display = 'block';
+            dom.btnReconnect.innerText = '⚡ QUICK RECONNECT: ' + savedPin;
+        }
+
+        dom.btnReconnect.addEventListener('click', () => {
+            dom.btnConnect.click(); // Fires the main connect function automatically
+        });
+        // -------------------------------------
 
         async function checkSavedVault() {
             try {
@@ -356,6 +373,11 @@
         dom.btnConnect.addEventListener('click', async () => {
             const pin = dom.pin.value.trim(); if (pin.length !== 4) return;
             const hubId = 'juncos-hub-' + pin;
+
+            // Save the PIN for the Quick Reconnect feature
+            localStorage.setItem('omni-vault-pin', pin);
+            dom.btnReconnect.style.display = 'block';
+            dom.btnReconnect.innerText = '⚡ QUICK RECONNECT: ' + pin;
 
             try {
                 localStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always", frameRate: 60 }, audio: true });
