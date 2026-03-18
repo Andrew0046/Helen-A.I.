@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Uplink: The Omni-Vault v5.4</title>
+    <title>PC Uplink: The Omni-Vault v5.5 (Two-Way Radio)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -24,7 +24,6 @@
         #preview-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; opacity: 0.15; display: none; }
         video { width: 100%; height: 100%; object-fit: contain; }
         
-        /* MULTIMEDIA PLAYERS */
         #cinema-player { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; }
         #photo-canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: black; object-fit: contain; }
         #model-3d { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; display: none; background: #111; }
@@ -33,7 +32,6 @@
         #dashboard { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; width: 90%; max-height: 80vh; overflow-y: auto; padding-top: 50px; }
         #library-grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; margin-top: 20px; }
         
-        /* HITBOX COLORS */
         .hitbox { width: 280px; height: 120px; background: rgba(0, 210, 255, 0.1); border: 2px solid #00d2ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; text-align: center; padding: 15px; cursor: pointer; transition: background 0.3s; box-sizing: border-box; color: #fff; word-break: break-word; }
         .movie-box { border-color: #ff9d00; color: #ff9d00; background: rgba(255, 157, 0, 0.1); }
         .photo-box { border-color: #d200ff; color: #d200ff; background: rgba(210, 0, 255, 0.1); }
@@ -42,9 +40,7 @@
         .model-box { border-color: #ffff00; color: #ffff00; background: rgba(255, 255, 0, 0.1); }
         .html-box { border-color: #00ffff; color: #00ffff; background: rgba(0, 255, 255, 0.1); }
         
-        /* THE DUAL-HATCH NAVIGATION ZONE (Minimized) */
         #escape-hatch { position: absolute; top: 0; left: 0; width: 100vw; height: 75px; background: linear-gradient(to bottom, rgba(255,0,0,0.5) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-start; justify-content: center; padding-top: 15px; color: #ff4444; font-size: 1.1rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; border: none; }
-        
         #menu-hatch { position: absolute; bottom: 0; left: 0; width: 100vw; height: 75px; background: linear-gradient(to top, rgba(0,210,255,0.5) 0%, transparent 100%); z-index: 9998; display: none; align-items: flex-end; justify-content: center; padding-bottom: 15px; color: #00d2ff; font-size: 1.1rem; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; cursor: pointer; border: none; }
 
         .nav-hatch { position: absolute; top: 75px; height: calc(100vh - 150px); width: 200px; z-index: 9997; display: none; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: #d200ff; opacity: 0.3; transition: opacity 0.3s; cursor: pointer; border: none; border-radius: 0; }
@@ -56,12 +52,9 @@
     </style>
 </head>
 <body>
-
     <div id="laser-pointer"><div id="dwell-ring"></div></div>
-    
     <div class="hitbox" id="escape-hatch">HOLD GAZE TO CLOSE MEDIA</div>
     <div class="hitbox" id="menu-hatch">HOLD GAZE FOR PLAYLIST MENU</div>
-    
     <div class="hitbox nav-hatch" id="nav-left">&lt; PREV</div>
     <div class="hitbox nav-hatch" id="nav-right">NEXT &gt;</div>
 
@@ -80,8 +73,8 @@
     </div>
 
     <div class="uplink-card" id="ui-card">
-        <h1>PC Uplink v5.4</h1>
-        <p>The Inception Engine</p>
+        <h1>PC Uplink v5.5</h1>
+        <p>Two-Way Radio Engine</p>
         
         <div class="vault-section">
             <div id="vault-status" style="color:#aaa; margin-bottom: 10px; font-size: 0.9rem;">Vault Locked</div>
@@ -91,9 +84,7 @@
         
         <input type="text" id="pin-input" placeholder="PIN" maxlength="4" autocomplete="off">
         <button class="btn-main" id="btn-connect">2. INITIATE UPLINK</button>
-        
         <button class="btn-main btn-alt" id="btn-reconnect" style="display:none; border-color:#00ff00; color:#00ff00;">⚡ QUICK RECONNECT</button>
-        
         <div id="status">Awaiting Setup...</div>
     </div>
 
@@ -112,19 +103,22 @@
             vaultStatus: document.getElementById('vault-status'), navLeft: document.getElementById('nav-left'), navRight: document.getElementById('nav-right')
         };
 
-        let localStream = null; 
-        let mediaConn = null; 
-        let dataConn = null;
-        let directoryHandle = null;
-        
-        let photoPlaylist = [];
-        let currentPhotoIndex = 0;
-        let galleryStreamActive = false;
-        let galleryMode = 'photo'; 
-        let currentPdfDoc = null;
-        let currentPdfPage = 1;
+        let localStream = null; let mediaConn = null; let dataConn = null; let directoryHandle = null;
+        let photoPlaylist = []; let currentPhotoIndex = 0; let galleryStreamActive = false; let galleryMode = 'photo'; 
+        let currentPdfDoc = null; let currentPdfPage = 1;
 
-        // --- PERSISTENT MEMORY CACHE LOGIC ---
+        // THE SECRET PING LISTENER: Auto-answers calls from the phone
+        peer.on('connection', (conn) => {
+            conn.on('data', (data) => {
+                if (data && data.cmd === 'reconnect') {
+                    if (localStream) {
+                        dom.status.innerText = "PING RECEIVED. AUTO-DIALING...";
+                        dom.btnConnect.click(); // Fires the connection instantly
+                    }
+                }
+            });
+        });
+
         const savedPin = localStorage.getItem('omni-vault-pin');
         if (savedPin && savedPin.length === 4) {
             dom.pin.value = savedPin;
@@ -132,272 +126,135 @@
             dom.btnReconnect.innerText = '⚡ QUICK RECONNECT: ' + savedPin;
         }
 
-        dom.btnReconnect.addEventListener('click', () => {
-            dom.btnConnect.click(); // Fires the main connect function automatically
-        });
-        // -------------------------------------
+        dom.btnReconnect.addEventListener('click', () => { dom.btnConnect.click(); });
 
         async function checkSavedVault() {
             try {
                 const savedHandle = await idbKeyval.get('vault-dir');
                 if (savedHandle) {
-                    directoryHandle = savedHandle;
-                    dom.btnVault.style.display = 'none';
-                    dom.btnRelink.style.display = 'block';
-                    dom.vaultStatus.innerText = `Saved Vault Detected. Ready.`;
-                    dom.vaultStatus.style.color = '#00d2ff';
+                    directoryHandle = savedHandle; dom.btnVault.style.display = 'none'; dom.btnRelink.style.display = 'block';
+                    dom.vaultStatus.innerText = `Saved Vault Detected. Ready.`; dom.vaultStatus.style.color = '#00d2ff';
                 }
             } catch (err) {}
         }
         checkSavedVault();
 
-        dom.btnVault.addEventListener('click', async () => {
-            try { directoryHandle = await window.showDirectoryPicker(); await idbKeyval.set('vault-dir', directoryHandle); scanVault(directoryHandle); } catch (err) {}
-        });
-
-        dom.btnRelink.addEventListener('click', async () => {
-            try {
-                const permission = await directoryHandle.queryPermission({ mode: 'read' });
-                if (permission !== 'granted') {
-                    const newPerm = await directoryHandle.requestPermission({ mode: 'read' });
-                    if (newPerm !== 'granted') return;
-                }
-                scanVault(directoryHandle);
-            } catch (err) {}
-        });
+        dom.btnVault.addEventListener('click', async () => { try { directoryHandle = await window.showDirectoryPicker(); await idbKeyval.set('vault-dir', directoryHandle); scanVault(directoryHandle); } catch (err) {} });
+        dom.btnRelink.addEventListener('click', async () => { try { const permission = await directoryHandle.queryPermission({ mode: 'read' }); if (permission !== 'granted') { const newPerm = await directoryHandle.requestPermission({ mode: 'read' }); if (newPerm !== 'granted') return; } scanVault(directoryHandle); } catch (err) {} });
 
         async function scanVault(dirHandle) {
             dom.status.innerText = "SCANNING OMNI-VAULT...";
             Array.from(dom.grid.children).forEach(child => { if(child.id !== 'btn-desktop') child.remove(); });
-            photoPlaylist = []; 
-            
-            let count = 0;
+            photoPlaylist = []; let count = 0;
             for await (const entry of dirHandle.values()) {
                 if (entry.kind === 'file') {
-                    const isVideo = entry.name.match(/\.(mp4|mkv|webm)$/i);
-                    const isPhoto = entry.name.match(/\.(jpg|jpeg|png|webp)$/i);
-                    const isAudio = entry.name.match(/\.(mp3|wav|flac)$/i);
-                    const isPDF = entry.name.match(/\.(pdf)$/i);
-                    const isModel = entry.name.match(/\.(glb|gltf)$/i);
-                    const isHTML = entry.name.match(/\.(html|htm)$/i); 
+                    const isVideo = entry.name.match(/\.(mp4|mkv|webm)$/i); const isPhoto = entry.name.match(/\.(jpg|jpeg|png|webp)$/i);
+                    const isAudio = entry.name.match(/\.(mp3|wav|flac)$/i); const isPDF = entry.name.match(/\.(pdf)$/i);
+                    const isModel = entry.name.match(/\.(glb|gltf)$/i); const isHTML = entry.name.match(/\.(html|htm)$/i); 
                     
                     if (isVideo || isPhoto || isAudio || isPDF || isModel || isHTML) {
-                        count++;
-                        const box = document.createElement('div');
-                        
-                        if (isVideo) box.className = 'hitbox movie-box';
-                        else if (isPhoto) box.className = 'hitbox photo-box';
-                        else if (isAudio) box.className = 'hitbox audio-box';
-                        else if (isPDF) box.className = 'hitbox pdf-box';
-                        else if (isModel) box.className = 'hitbox model-box';
-                        else if (isHTML) box.className = 'hitbox html-box';
-
+                        count++; const box = document.createElement('div');
+                        if (isVideo) box.className = 'hitbox movie-box'; else if (isPhoto) box.className = 'hitbox photo-box'; else if (isAudio) box.className = 'hitbox audio-box'; else if (isPDF) box.className = 'hitbox pdf-box'; else if (isModel) box.className = 'hitbox model-box'; else if (isHTML) box.className = 'hitbox html-box';
                         box.innerText = entry.name.length > 25 ? entry.name.substring(0, 22) + '...' : entry.name;
-                        
                         box.addEventListener('click', async () => {
                             dom.status.innerText = "LOADING CORE FILE...";
-                            
-                            if (isPhoto) {
-                                if (!photoPlaylist.includes(entry)) photoPlaylist.push(entry);
-                                currentPhotoIndex = photoPlaylist.indexOf(entry);
-                                galleryMode = 'photo';
-                                viewPhoto(currentPhotoIndex);
-                            } else {
-                                const file = await entry.getFile(); 
-                                if (isVideo) playMovie(file);
-                                if (isAudio) playAudio(file);
-                                if (isPDF) { galleryMode = 'pdf'; readPDF(file); }
-                                if (isModel) view3DModel(file);
-                                if (isHTML) viewHTML(file);
-                            }
+                            if (isPhoto) { if (!photoPlaylist.includes(entry)) photoPlaylist.push(entry); currentPhotoIndex = photoPlaylist.indexOf(entry); galleryMode = 'photo'; viewPhoto(currentPhotoIndex); } 
+                            else { const file = await entry.getFile(); if (isVideo) playMovie(file); if (isAudio) playAudio(file); if (isPDF) { galleryMode = 'pdf'; readPDF(file); } if (isModel) view3DModel(file); if (isHTML) viewHTML(file); }
                         });
                         dom.grid.appendChild(box);
                     }
                 }
             }
-            dom.vaultStatus.innerText = `Vault Unlocked: ${count} Files Found`;
-            dom.vaultStatus.style.color = '#00ff00';
-            dom.btnVault.style.display = 'none';
-            dom.btnRelink.style.display = 'none';
-            dom.status.innerText = "READY FOR UPLINK.";
+            dom.vaultStatus.innerText = `Vault Unlocked: ${count} Files Found`; dom.vaultStatus.style.color = '#00ff00';
+            dom.btnVault.style.display = 'none'; dom.btnRelink.style.display = 'none'; dom.status.innerText = "READY FOR UPLINK.";
         }
 
         function swapToStream(newStream) {
             if (!mediaConn || !mediaConn.peerConnection) return;
             const senders = mediaConn.peerConnection.getSenders();
-            
-            const videoTrack = newStream.getVideoTracks()[0];
-            const audioTrack = newStream.getAudioTracks()[0];
-            
-            if (videoTrack) {
-                const vSender = senders.find(s => s.track && s.track.kind === 'video');
-                if (vSender) vSender.replaceTrack(videoTrack);
-            }
-            if (audioTrack) {
-                const aSender = senders.find(s => s.track && s.track.kind === 'audio');
-                if (aSender) aSender.replaceTrack(audioTrack);
-            }
+            const videoTrack = newStream.getVideoTracks()[0]; const audioTrack = newStream.getAudioTracks()[0];
+            if (videoTrack) { const vSender = senders.find(s => s.track && s.track.kind === 'video'); if (vSender) vSender.replaceTrack(videoTrack); }
+            if (audioTrack) { const aSender = senders.find(s => s.track && s.track.kind === 'audio'); if (aSender) aSender.replaceTrack(audioTrack); }
         }
 
-        function playMovie(file) {
-            dom.cinema.src = URL.createObjectURL(file);
-            dom.cinema.style.display = 'block';
-            dom.cinema.play().then(() => {
-                swapToStream(dom.cinema.captureStream ? dom.cinema.captureStream() : dom.cinema.mozCaptureStream()); 
-                dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; 
-            });
-        }
+        function playMovie(file) { dom.cinema.src = URL.createObjectURL(file); dom.cinema.style.display = 'block'; dom.cinema.play().then(() => { swapToStream(dom.cinema.captureStream ? dom.cinema.captureStream() : dom.cinema.mozCaptureStream()); dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; }); }
 
         function playAudio(file) {
             dom.cinema.src = URL.createObjectURL(file);
             dom.cinema.play().then(() => {
                 const ctx = dom.photoCanvas.getContext('2d');
-                ctx.fillStyle = '#050505'; ctx.fillRect(0,0,1920,1080);
-                ctx.fillStyle = '#00ff00'; ctx.font = '60px Arial'; ctx.textAlign = 'center';
-                ctx.fillText('AUDIO UPLINK ACTIVE', 960, 500);
-                ctx.fillStyle = '#aaa'; ctx.font = '40px Arial'; ctx.fillText(file.name, 960, 600);
-                dom.photoCanvas.style.display = 'block';
-
-                const canvasStream = dom.photoCanvas.captureStream(30);
-                const audioStream = dom.cinema.captureStream ? dom.cinema.captureStream() : dom.cinema.mozCaptureStream();
-                
-                const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
-                swapToStream(combinedStream);
-                dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex';
+                ctx.fillStyle = '#050505'; ctx.fillRect(0,0,1920,1080); ctx.fillStyle = '#00ff00'; ctx.font = '60px Arial'; ctx.textAlign = 'center'; ctx.fillText('AUDIO UPLINK ACTIVE', 960, 500); ctx.fillStyle = '#aaa'; ctx.font = '40px Arial'; ctx.fillText(file.name, 960, 600);
+                dom.photoCanvas.style.display = 'block'; const canvasStream = dom.photoCanvas.captureStream(30); const audioStream = dom.cinema.captureStream ? dom.cinema.captureStream() : dom.cinema.mozCaptureStream();
+                const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]); swapToStream(combinedStream); dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex';
             });
         }
 
         async function viewPhoto(index) {
-            const entry = photoPlaylist[index]; const file = await entry.getFile();
-            const img = new Image();
+            const entry = photoPlaylist[index]; const file = await entry.getFile(); const img = new Image();
             img.onload = () => {
-                const ctx = dom.photoCanvas.getContext('2d');
-                ctx.fillStyle = 'black'; ctx.fillRect(0, 0, dom.photoCanvas.width, dom.photoCanvas.height);
-                const ratio  = Math.min(dom.photoCanvas.width / img.width, dom.photoCanvas.height / img.height);
-                const cx = (dom.photoCanvas.width - img.width * ratio) / 2; const cy = (dom.photoCanvas.height - img.height * ratio) / 2;  
+                const ctx = dom.photoCanvas.getContext('2d'); ctx.fillStyle = 'black'; ctx.fillRect(0, 0, dom.photoCanvas.width, dom.photoCanvas.height);
+                const ratio = Math.min(dom.photoCanvas.width / img.width, dom.photoCanvas.height / img.height); const cx = (dom.photoCanvas.width - img.width * ratio) / 2; const cy = (dom.photoCanvas.height - img.height * ratio) / 2;  
                 ctx.drawImage(img, 0, 0, img.width, img.height, cx, cy, img.width * ratio, img.height * ratio);  
-                
-                dom.photoCanvas.style.display = 'block';
-                if (!galleryStreamActive) { swapToStream(dom.photoCanvas.captureStream(30)); galleryStreamActive = true; }
-                dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; 
-                if (photoPlaylist.length > 1) { dom.navLeft.style.display = 'flex'; dom.navRight.style.display = 'flex'; }
-            };
-            img.src = URL.createObjectURL(file);
+                dom.photoCanvas.style.display = 'block'; if (!galleryStreamActive) { swapToStream(dom.photoCanvas.captureStream(30)); galleryStreamActive = true; }
+                dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; if (photoPlaylist.length > 1) { dom.navLeft.style.display = 'flex'; dom.navRight.style.display = 'flex'; }
+            }; img.src = URL.createObjectURL(file);
         }
 
-        async function readPDF(file) {
-            const arrayBuffer = await file.arrayBuffer();
-            currentPdfDoc = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-            currentPdfPage = 1;
-            renderPdfPage();
-        }
+        async function readPDF(file) { const arrayBuffer = await file.arrayBuffer(); currentPdfDoc = await pdfjsLib.getDocument({data: arrayBuffer}).promise; currentPdfPage = 1; renderPdfPage(); }
 
         async function renderPdfPage() {
-            const page = await currentPdfDoc.getPage(currentPdfPage);
-            const viewport = page.getViewport({scale: 2.0});
-            
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = viewport.width; tempCanvas.height = viewport.height;
-            await page.render({canvasContext: tempCtx, viewport: viewport}).promise;
-            
-            const ctx = dom.photoCanvas.getContext('2d');
-            ctx.fillStyle = '#222'; ctx.fillRect(0, 0, dom.photoCanvas.width, dom.photoCanvas.height);
-            const ratio  = Math.min(dom.photoCanvas.width / tempCanvas.width, dom.photoCanvas.height / tempCanvas.height);
-            const cx = (dom.photoCanvas.width - tempCanvas.width * ratio) / 2; const cy = (dom.photoCanvas.height - tempCanvas.height * ratio) / 2;  
+            const page = await currentPdfDoc.getPage(currentPdfPage); const viewport = page.getViewport({scale: 2.0}); const tempCanvas = document.createElement('canvas'); const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = viewport.width; tempCanvas.height = viewport.height; await page.render({canvasContext: tempCtx, viewport: viewport}).promise;
+            const ctx = dom.photoCanvas.getContext('2d'); ctx.fillStyle = '#222'; ctx.fillRect(0, 0, dom.photoCanvas.width, dom.photoCanvas.height);
+            const ratio = Math.min(dom.photoCanvas.width / tempCanvas.width, dom.photoCanvas.height / tempCanvas.height); const cx = (dom.photoCanvas.width - tempCanvas.width * ratio) / 2; const cy = (dom.photoCanvas.height - tempCanvas.height * ratio) / 2;  
             ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, cx, cy, tempCanvas.width * ratio, tempCanvas.height * ratio);
-
-            dom.photoCanvas.style.display = 'block';
-            if (!galleryStreamActive) { swapToStream(dom.photoCanvas.captureStream(30)); galleryStreamActive = true; }
-            dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex';
-            dom.navLeft.style.display = 'flex'; dom.navRight.style.display = 'flex';
+            dom.photoCanvas.style.display = 'block'; if (!galleryStreamActive) { swapToStream(dom.photoCanvas.captureStream(30)); galleryStreamActive = true; }
+            dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; dom.navLeft.style.display = 'flex'; dom.navRight.style.display = 'flex';
         }
 
-        function view3DModel(file) {
-            dom.model3d.src = URL.createObjectURL(file);
-            dom.model3d.style.display = 'block';
-            swapToStream(localStream);
-            dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex';
-        }
+        function view3DModel(file) { dom.model3d.src = URL.createObjectURL(file); dom.model3d.style.display = 'block'; swapToStream(localStream); dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; }
+        function viewHTML(file) { const fileURL = URL.createObjectURL(file); dom.htmlViewer.src = fileURL; dom.htmlViewer.style.display = 'block'; swapToStream(localStream); dom.dashboard.style.display = 'none'; dom.escapeHatch.style.display = 'flex'; dom.menuHatch.style.display = 'flex'; }
 
-        function viewHTML(file) {
-            const fileURL = URL.createObjectURL(file);
-            dom.htmlViewer.src = fileURL;
-            dom.htmlViewer.style.display = 'block';
-            swapToStream(localStream);
-            dom.dashboard.style.display = 'none'; 
-            
-            dom.escapeHatch.style.display = 'flex';
-            dom.menuHatch.style.display = 'flex'; 
-        }
-
-        dom.navLeft.addEventListener('click', () => {
-            flashHitbox(dom.navLeft);
-            if (galleryMode === 'photo') { currentPhotoIndex = (currentPhotoIndex - 1 + photoPlaylist.length) % photoPlaylist.length; viewPhoto(currentPhotoIndex); }
-            else if (galleryMode === 'pdf' && currentPdfPage > 1) { currentPdfPage--; renderPdfPage(); }
-        });
-
-        dom.navRight.addEventListener('click', () => {
-            flashHitbox(dom.navRight);
-            if (galleryMode === 'photo') { currentPhotoIndex = (currentPhotoIndex + 1) % photoPlaylist.length; viewPhoto(currentPhotoIndex); }
-            else if (galleryMode === 'pdf' && currentPdfPage < currentPdfDoc.numPages) { currentPdfPage++; renderPdfPage(); }
-        });
+        dom.navLeft.addEventListener('click', () => { flashHitbox(dom.navLeft); if (galleryMode === 'photo') { currentPhotoIndex = (currentPhotoIndex - 1 + photoPlaylist.length) % photoPlaylist.length; viewPhoto(currentPhotoIndex); } else if (galleryMode === 'pdf' && currentPdfPage > 1) { currentPdfPage--; renderPdfPage(); } });
+        dom.navRight.addEventListener('click', () => { flashHitbox(dom.navRight); if (galleryMode === 'photo') { currentPhotoIndex = (currentPhotoIndex + 1) % photoPlaylist.length; viewPhoto(currentPhotoIndex); } else if (galleryMode === 'pdf' && currentPdfPage < currentPdfDoc.numPages) { currentPdfPage++; renderPdfPage(); } });
 
         function flashHitbox(el) { el.style.background = 'rgba(210,0,255,0.5)'; setTimeout(() => el.style.background = '', 300); }
 
         dom.escapeHatch.addEventListener('click', () => {
-            dom.cinema.pause(); dom.cinema.style.display = 'none';
-            dom.photoCanvas.style.display = 'none'; 
-            dom.model3d.style.display = 'none';
-            dom.htmlViewer.style.display = 'none';
-            dom.htmlViewer.src = ''; 
-            
-            dom.navLeft.style.display = 'none'; dom.navRight.style.display = 'none';
-            dom.menuHatch.style.display = 'none'; 
-            
-            galleryStreamActive = false;
-            swapToStream(localStream); 
-            dom.escapeHatch.style.display = 'none'; dom.dashboard.style.display = 'flex';
+            dom.cinema.pause(); dom.cinema.style.display = 'none'; dom.photoCanvas.style.display = 'none'; dom.model3d.style.display = 'none'; dom.htmlViewer.style.display = 'none'; dom.htmlViewer.src = ''; 
+            dom.navLeft.style.display = 'none'; dom.navRight.style.display = 'none'; dom.menuHatch.style.display = 'none'; 
+            galleryStreamActive = false; swapToStream(localStream); dom.escapeHatch.style.display = 'none'; dom.dashboard.style.display = 'flex';
         });
 
-        dom.menuHatch.addEventListener('click', () => {
-            if (dom.htmlViewer.style.display === 'block') {
-                dom.htmlViewer.contentWindow.postMessage({cmd: 'exitTheater'}, '*');
-                dom.menuHatch.style.background = 'rgba(0,210,255,0.6)';
-                setTimeout(() => dom.menuHatch.style.background = '', 300);
-            }
-        });
-
+        dom.menuHatch.addEventListener('click', () => { if (dom.htmlViewer.style.display === 'block') { dom.htmlViewer.contentWindow.postMessage({cmd: 'exitTheater'}, '*'); dom.menuHatch.style.background = 'rgba(0,210,255,0.6)'; setTimeout(() => dom.menuHatch.style.background = '', 300); } });
         document.getElementById('btn-desktop').addEventListener('click', () => { swapToStream(localStream); });
 
         dom.btnConnect.addEventListener('click', async () => {
             const pin = dom.pin.value.trim(); if (pin.length !== 4) return;
             const hubId = 'juncos-hub-' + pin;
 
-            // Save the PIN for the Quick Reconnect feature
             localStorage.setItem('omni-vault-pin', pin);
-            dom.btnReconnect.style.display = 'block';
-            dom.btnReconnect.innerText = '⚡ QUICK RECONNECT: ' + pin;
+            dom.btnReconnect.style.display = 'block'; dom.btnReconnect.innerText = '⚡ QUICK RECONNECT: ' + pin;
 
             try {
-                localStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always", frameRate: 60 }, audio: true });
-                dom.video.srcObject = localStream; dom.preview.style.display = 'block';
+                if (!localStream) {
+                    localStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always", frameRate: 60 }, audio: true });
+                    dom.video.srcObject = localStream; dom.preview.style.display = 'block';
+                }
 
                 mediaConn = peer.call(hubId, localStream, { metadata: { device: 'pc' } });
                 dataConn = peer.connect(hubId);
 
                 dataConn.on('open', () => {
                     dom.card.style.opacity = '0'; setTimeout(() => dom.card.style.display = 'none', 500);
-                    dom.dashboard.style.display = 'flex'; dom.laser.style.display = 'block';
+                    dom.dashboard.style.display = 'flex'; dom.laser.style.display = 'block'; dom.status.innerText = "UPLINK ESTABLISHED.";
                 });
 
                 let hoverTarget = null; let hoverStartTime = null; let isClicked = false; const DWELL_DURATION = 1500; const SENSITIVITY = 30;
 
                 dataConn.on('data', (data) => {
                     if (data && data.cmd) {
-                        if (dom.htmlViewer.style.display === 'block') {
-                            dom.htmlViewer.contentWindow.postMessage(data, '*');
-                        } 
+                        if (dom.htmlViewer.style.display === 'block') { dom.htmlViewer.contentWindow.postMessage(data, '*'); } 
                         else if (dom.cinema.style.display === 'block') {
                             if (data.cmd === 'playpause') dom.cinema.paused ? dom.cinema.play() : dom.cinema.pause();
                             if (data.cmd === 'seekFwd') dom.cinema.currentTime += 15;
@@ -412,19 +269,10 @@
                         let targetY = Math.max(0, Math.min(window.innerHeight, centerY - (data.p * SENSITIVITY)));
 
                         dom.laser.style.left = targetX + 'px'; dom.laser.style.top = targetY + 'px';
-
-                        dom.laser.style.display = 'none';
-                        let elementBelow = document.elementFromPoint(targetX, targetY);
+                        dom.laser.style.display = 'none'; let elementBelow = document.elementFromPoint(targetX, targetY);
                         
-                        // THE X-RAY PROTOCOL (Iframe Piercing)
                         if (elementBelow && elementBelow.id === 'html-viewer') {
-                            try {
-                                const innerDoc = dom.htmlViewer.contentDocument || dom.htmlViewer.contentWindow.document;
-                                const innerElement = innerDoc.elementFromPoint(targetX, targetY);
-                                if (innerElement && innerElement.classList.contains('hitbox')) {
-                                    elementBelow = innerElement; 
-                                }
-                            } catch(err) {}
+                            try { const innerDoc = dom.htmlViewer.contentDocument || dom.htmlViewer.contentWindow.document; const innerElement = innerDoc.elementFromPoint(targetX, targetY); if (innerElement && innerElement.classList.contains('hitbox')) { elementBelow = innerElement; } } catch(err) {}
                         }
                         
                         dom.laser.style.display = 'block';
