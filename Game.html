@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Custom Character Game</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #222; }
+        canvas { width: 100vw; height: 100vh; touch-action: none; display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+
+        // 3. Notice the "async" keyword here. This allows us to wait for the file to load.
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color3(0.6, 0.8, 1.0); 
+
+            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 0.7;
+
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 50, height: 50}, scene);
+            const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.5, 0.3);
+            ground.material = groundMat;
+
+            // 4. Load your custom .glb model instead of creating a capsule
+            // This looks in the current folder ("./") for "Helen1.glb"
+            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "./", "Helen1.glb", scene);
+            
+            // result.meshes[0] is the root node (the master container) for your 3D model
+            const hero = result.meshes[0]; 
+            
+            // Set the camera to follow your new imported character
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, hero, scene);
+            camera.attachControl(canvas, true); 
+
+            // Track Keyboard Inputs
+            const inputMap = {};
+            scene.actionManager = new BABYLON.ActionManager(scene);
+            
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, function (evt) {
+                inputMap[evt.sourceEvent.key.toLowerCase()] = true;
+            }));
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, function (evt) {
+                inputMap[evt.sourceEvent.key.toLowerCase()] = false;
+            }));
+
+            // The Game Loop (Movement Logic)
+            const speed = 0.15;
+            
+            scene.onBeforeRenderObservable.add(() => {
+                // We apply movement to the root node of your custom model
+                if (inputMap["w"]) { hero.position.z += speed; }
+                if (inputMap["s"]) { hero.position.z -= speed; }
+                if (inputMap["a"]) { hero.position.x -= speed; }
+                if (inputMap["d"]) { hero.position.x += speed; }
+            });
+
+            return scene;
+        };
+
+        // 5. Because createScene is now async, we wait for it to finish before starting the loop
+        createScene().then(scene => {
+            engine.runRenderLoop(function () {
+                scene.render();
+            });
+        });
+
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
