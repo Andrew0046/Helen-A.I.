@@ -20,6 +20,7 @@
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color3(0.6, 0.8, 1.0); 
 
+            // Lighting and Ground
             const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
             light.intensity = 0.9; 
 
@@ -28,7 +29,7 @@
             groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.5, 0.3);
             ground.material = groundMat;
 
-            // 1. Load Helen
+            // 1. Load Helen from your GitHub raw link
             const result = await BABYLON.SceneLoader.ImportMeshAsync(
                 "", 
                 "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", 
@@ -38,16 +39,14 @@
             
             const hero = result.meshes[0]; 
             
-            // 2. Setup Animations
+            // 2. Setup Animations (if any exist in the file)
             const animGroups = result.animationGroups;
             let walkAnim = null;
             let idleAnim = null;
 
-            // Look through the file's animations to find "walk" and "idle"
             animGroups.forEach(anim => {
-                anim.stop(); // Stop all animations from playing at once
-                console.log("Found animation in file: ", anim.name); // Logs the name to your F12 Console
-                
+                anim.stop(); 
+                console.log("Found animation: ", anim.name);
                 let name = anim.name.toLowerCase();
                 if (name.includes("walk") || name.includes("run")) {
                     walkAnim = anim;
@@ -56,7 +55,6 @@
                 }
             });
 
-            // Start the idle animation by default if we found one
             if (idleAnim) idleAnim.start(true, 1.0, idleAnim.from, idleAnim.to, false);
 
             // 3. Camera Setup
@@ -65,7 +63,7 @@
             camera.lowerRadiusLimit = 2;
             camera.upperBetaLimit = Math.PI / 2.2; 
 
-            // 4. Input Setup (Keyboard & Gamepad)
+            // 4. Setup Inputs (Keyboard)
             const inputMap = {};
             scene.actionManager = new BABYLON.ActionManager(scene);
             
@@ -76,53 +74,63 @@
                 inputMap[evt.sourceEvent.key.toLowerCase()] = false;
             }));
 
-            const dsm = new BABYLON.DeviceSourceManager(engine);
+            // 5. Setup Inputs (PS5 Controller Gamepad Manager)
+            const gamepadManager = new BABYLON.GamepadManager();
+            let myController = null;
 
-            // 5. The Game Loop
+            // Listens for the controller to connect
+            gamepadManager.onGamepadConnectedObservable.add((gamepad, state) => {
+                console.log("🎮 Controller successfully connected: ", gamepad.id); 
+                myController = gamepad;
+            });
+
+            gamepadManager.onGamepadDisconnectedObservable.add((gamepad, state) => {
+                console.log("Controller disconnected.");
+                myController = null;
+            });
+
+            // 6. The Game Loop
             const speed = 0.05; 
             
             scene.onBeforeRenderObservable.add(() => {
                 let moveX = 0;
                 let moveZ = 0;
 
-                // Check Keyboard
+                // A. Check Keyboard
                 if (inputMap["w"]) { moveZ -= speed; }
                 if (inputMap["s"]) { moveZ += speed; }
                 if (inputMap["a"]) { moveX += speed; }
                 if (inputMap["d"]) { moveX -= speed; }
 
-                // Check PS5 Controller
-                const gamepad = dsm.getDeviceSource(BABYLON.DeviceType.DualShock) || 
-                                dsm.getDeviceSource(BABYLON.DeviceType.Xbox) || 
-                                dsm.getDeviceSource(BABYLON.DeviceType.Generic);
-                
-                if (gamepad) {
-                    const leftStickX = gamepad.getInput(BABYLON.DeviceInputType.LeftStickX);
-                    const leftStickY = gamepad.getInput(BABYLON.DeviceInputType.LeftStickY);
+                // B. Check PS5 Controller
+                if (myController && myController.leftStick) {
+                    const leftStickX = myController.leftStick.x;
+                    const leftStickY = myController.leftStick.y;
                     
-                    if (leftStickX && Math.abs(leftStickX) > 0.1) { moveX -= leftStickX * speed; } 
-                    if (leftStickY && Math.abs(leftStickY) > 0.1) { moveZ += leftStickY * speed; }
+                    // The 0.1 deadzone prevents accidental drift
+                    if (Math.abs(leftStickX) > 0.1) { moveX -= leftStickX * speed; } 
+                    if (Math.abs(leftStickY) > 0.1) { moveZ -= leftStickY * speed; } // Y-axis on the stick maps to Z-axis in the 3D world
                 }
 
-                // Apply Movement and Animation
+                // C. Apply Movement, Rotation, and Animation
                 let isMoving = (moveX !== 0 || moveZ !== 0);
 
                 if (isMoving) {
-                    // Move and Rotate
                     hero.position.x += moveX;
                     hero.position.z += moveZ;
 
+                    // Rotate character to face movement direction
                     let targetAngle = Math.atan2(moveX, moveZ);
                     hero.rotationQuaternion = null; 
                     hero.rotation.y = targetAngle + Math.PI; 
 
-                    // Play Walk Animation
+                    // Play walk animation
                     if (walkAnim && !walkAnim.isPlaying) {
                         if (idleAnim) idleAnim.stop();
                         walkAnim.start(true, 1.0, walkAnim.from, walkAnim.to, false);
                     }
                 } else {
-                    // Play Idle Animation when stopped
+                    // Play idle animation when stopped
                     if (walkAnim && walkAnim.isPlaying) {
                         walkAnim.stop();
                         if (idleAnim && !idleAnim.isPlaying) {
@@ -135,12 +143,14 @@
             return scene;
         };
 
+        // Initialize and Run
         createScene().then(scene => {
             engine.runRenderLoop(function () {
                 scene.render();
             });
         });
 
+        // Handle window resizing
         window.addEventListener("resize", function () {
             engine.resize();
         });
