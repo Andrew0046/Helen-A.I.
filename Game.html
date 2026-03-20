@@ -21,16 +21,14 @@
             scene.clearColor = new BABYLON.Color3(0.6, 0.8, 1.0); 
 
             const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
-            light.intensity = 0.9; // Slightly brighter so we can see Helen clearly
+            light.intensity = 0.9; 
 
-            // Create the Ground
             const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 50, height: 50}, scene);
             const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
             groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.5, 0.3);
             ground.material = groundMat;
 
-            // Load Helen directly from your GitHub Raw link!
-            // Notice how the URL is split: the folder path is first, the file name is second.
+            // 1. Load Helen
             const result = await BABYLON.SceneLoader.ImportMeshAsync(
                 "", 
                 "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", 
@@ -38,17 +36,36 @@
                 scene
             );
             
-            // Get the root node of Helen
             const hero = result.meshes[0]; 
             
-            // Set the camera to follow Helen
+            // 2. Setup Animations
+            const animGroups = result.animationGroups;
+            let walkAnim = null;
+            let idleAnim = null;
+
+            // Look through the file's animations to find "walk" and "idle"
+            animGroups.forEach(anim => {
+                anim.stop(); // Stop all animations from playing at once
+                console.log("Found animation in file: ", anim.name); // Logs the name to your F12 Console
+                
+                let name = anim.name.toLowerCase();
+                if (name.includes("walk") || name.includes("run")) {
+                    walkAnim = anim;
+                } else if (name.includes("idle")) {
+                    idleAnim = anim;
+                }
+            });
+
+            // Start the idle animation by default if we found one
+            if (idleAnim) idleAnim.start(true, 1.0, idleAnim.from, idleAnim.to, false);
+
+            // 3. Camera Setup
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, hero, scene);
             camera.attachControl(canvas, true); 
-            // Prevent the camera from going under the ground
             camera.lowerRadiusLimit = 2;
             camera.upperBetaLimit = Math.PI / 2.2; 
 
-            // Track Keyboard Inputs
+            // 4. Input Setup (Keyboard & Gamepad)
             const inputMap = {};
             scene.actionManager = new BABYLON.ActionManager(scene);
             
@@ -59,20 +76,65 @@
                 inputMap[evt.sourceEvent.key.toLowerCase()] = false;
             }));
 
-            // The Game Loop (Movement Logic)
-            const speed = 0.05; // Adjusted speed for a human-sized model
+            const dsm = new BABYLON.DeviceSourceManager(engine);
+
+            // 5. The Game Loop
+            const speed = 0.05; 
             
             scene.onBeforeRenderObservable.add(() => {
-                if (inputMap["w"]) { hero.position.z -= speed; }
-                if (inputMap["s"]) { hero.position.z += speed; }
-                if (inputMap["a"]) { hero.position.x += speed; }
-                if (inputMap["d"]) { hero.position.x -= speed; }
+                let moveX = 0;
+                let moveZ = 0;
+
+                // Check Keyboard
+                if (inputMap["w"]) { moveZ -= speed; }
+                if (inputMap["s"]) { moveZ += speed; }
+                if (inputMap["a"]) { moveX += speed; }
+                if (inputMap["d"]) { moveX -= speed; }
+
+                // Check PS5 Controller
+                const gamepad = dsm.getDeviceSource(BABYLON.DeviceType.DualShock) || 
+                                dsm.getDeviceSource(BABYLON.DeviceType.Xbox) || 
+                                dsm.getDeviceSource(BABYLON.DeviceType.Generic);
+                
+                if (gamepad) {
+                    const leftStickX = gamepad.getInput(BABYLON.DeviceInputType.LeftStickX);
+                    const leftStickY = gamepad.getInput(BABYLON.DeviceInputType.LeftStickY);
+                    
+                    if (leftStickX && Math.abs(leftStickX) > 0.1) { moveX -= leftStickX * speed; } 
+                    if (leftStickY && Math.abs(leftStickY) > 0.1) { moveZ += leftStickY * speed; }
+                }
+
+                // Apply Movement and Animation
+                let isMoving = (moveX !== 0 || moveZ !== 0);
+
+                if (isMoving) {
+                    // Move and Rotate
+                    hero.position.x += moveX;
+                    hero.position.z += moveZ;
+
+                    let targetAngle = Math.atan2(moveX, moveZ);
+                    hero.rotationQuaternion = null; 
+                    hero.rotation.y = targetAngle + Math.PI; 
+
+                    // Play Walk Animation
+                    if (walkAnim && !walkAnim.isPlaying) {
+                        if (idleAnim) idleAnim.stop();
+                        walkAnim.start(true, 1.0, walkAnim.from, walkAnim.to, false);
+                    }
+                } else {
+                    // Play Idle Animation when stopped
+                    if (walkAnim && walkAnim.isPlaying) {
+                        walkAnim.stop();
+                        if (idleAnim && !idleAnim.isPlaying) {
+                            idleAnim.start(true, 1.0, idleAnim.from, idleAnim.to, false);
+                        }
+                    }
+                }
             });
 
             return scene;
         };
 
-        // Start the game
         createScene().then(scene => {
             engine.runRenderLoop(function () {
                 scene.render();
