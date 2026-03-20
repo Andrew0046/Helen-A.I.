@@ -1,50 +1,119 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Helen's Epic Adventure: Hybrid Engine</title>
+    <title>Helen's Epic Adventure</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; }
-        canvas { width: 100vw; height: 100vh; touch-action: none; display: block; }
-        #ui { position: absolute; bottom: 20px; width: 100%; text-align: center; color: #ff0055; font-family: monospace; }
+        body { margin: 0; overflow: hidden; background-color: #050505; touch-action: none; }
+        canvas { width: 100vw; height: 100vh; touch-action: none; display: block; outline: none; }
+        #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #ff0055; font-family: monospace; pointer-events: none; }
+        
+        /* --- MOBILE UI STYLES --- */
+        #mobile-ui { display: none; }
+        
+        /* Only show the mobile controls if the device has a touch screen */
+        @media (pointer: coarse) {
+            #mobile-ui { display: block; }
+        }
+
+        #joy-zone {
+            position: absolute; bottom: 50px; left: 40px;
+            width: 140px; height: 140px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255,255,255,0.3);
+            touch-action: none; z-index: 10;
+        }
+
+        #joy-knob {
+            position: absolute; top: 40px; left: 40px;
+            width: 60px; height: 60px; border-radius: 50%;
+            background: rgba(255, 0, 85, 0.8); pointer-events: none;
+            box-shadow: 0 0 15px rgba(255,0,85,0.5);
+            transform: translate(0px, 0px);
+        }
+
+        #run-btn {
+            position: absolute; bottom: 60px; right: 40px;
+            width: 80px; height: 80px; border-radius: 50%;
+            background: rgba(255, 0, 85, 0.4); border: 2px solid rgba(255, 0, 85, 0.8);
+            color: white; font-family: sans-serif; font-weight: bold; font-size: 16px;
+            touch-action: none; z-index: 10; user-select: none;
+        }
+        #run-btn:active { background: rgba(255, 0, 85, 0.9); transform: scale(0.95); }
     </style>
 </head>
 <body>
-    <div id="ui">WASD or PS5 Controller to Move | Hybrid Procedural Animation Active</div>
+    <div id="ui">Hybrid Procedural Animation Active</div>
     <canvas id="renderCanvas"></canvas>
+
+    <div id="mobile-ui">
+        <div id="joy-zone"><div id="joy-knob"></div></div>
+        <button id="run-btn">RUN</button>
+    </div>
 
     <script>
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
 
+        // --- Touch Control Logic ---
+        let touchX = 0, touchY = 0, isTouching = false, touchRun = false;
+        const joyZone = document.getElementById('joy-zone');
+        const joyKnob = document.getElementById('joy-knob');
+        const runBtn = document.getElementById('run-btn');
+
+        runBtn.addEventListener('pointerdown', () => touchRun = true);
+        runBtn.addEventListener('pointerup', () => touchRun = false);
+        runBtn.addEventListener('pointerout', () => touchRun = false);
+
+        joyZone.addEventListener('pointerdown', (e) => { isTouching = true; updateJoy(e); });
+        joyZone.addEventListener('pointermove', (e) => { if(isTouching) updateJoy(e); });
+        window.addEventListener('pointerup', () => { 
+            isTouching = false; touchX = 0; touchY = 0;
+            joyKnob.style.transform = `translate(0px, 0px)`; // Reset knob to center
+        });
+
+        function updateJoy(e) {
+            const rect = joyZone.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            let dx = e.clientX - centerX;
+            let dy = e.clientY - centerY;
+            
+            const maxDist = 40; // How far the knob can travel
+            const dist = Math.min(maxDist, Math.hypot(dx, dy));
+            const angle = Math.atan2(dy, dx);
+            
+            const knobX = dist * Math.cos(angle);
+            const knobY = dist * Math.sin(angle);
+            joyKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+            
+            touchX = knobX / maxDist; // Normalizes output between -1 and 1
+            touchY = knobY / maxDist; 
+        }
+
         const createScene = async function () {
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color3(0.02, 0.02, 0.02);
-            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-            scene.fogDensity = 0.02;
-            scene.fogColor = new BABYLON.Color3(0.02, 0.02, 0.02);
 
-            // Dramatic Fantasy Lighting
             const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
             dirLight.intensity = 1.5;
             const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(5, 5, -5), new BABYLON.Vector3(-1, -1, 1), Math.PI / 3, 2, scene);
-            rimLight.diffuse = new BABYLON.Color3(1, 0, 0.3); // Pinkish rim light for style
+            rimLight.diffuse = new BABYLON.Color3(1, 0, 0.3);
 
-            // The Ground
             const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
             const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
             groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
             ground.material = groundMat;
 
-            // --- 1. Load Helen ---
+            // Load Helen
             const result = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "Helen1.glb", scene);
             const hero = result.meshes[0]; 
             
-            // --- 2. Map the Bones (Translating your Three.js logic to Babylon) ---
+            // Stop hidden animations that cause the T-Pose lock!
+            result.animationGroups.forEach(anim => anim.stop());
+
             const bones = { leftArm:null, rightArm:null, leftLeg:null, rightLeg:null, spine:null };
             
-            // Babylon loads GLB bones as TransformNodes
             result.transformNodes.forEach(node => {
                 let n = node.name.toLowerCase();
                 if (n.includes('spine')) bones.spine = node;
@@ -54,21 +123,23 @@
                 if (n.includes('upperleg') && (n.includes('_r_') || n.includes('right'))) bones.rightLeg = node;
             });
 
-            // Crucial: GLB files lock bones with Quaternions. We must clear them to use standard Euler math (rotation.x)
+            console.log("🎮 Successfully Linked Bones: ", bones);
+
             for (let key in bones) {
-                if (bones[key]) bones[key].rotationQuaternion = null;
+                if (bones[key]) {
+                    bones[key].rotationQuaternion = null;
+                    if (!bones[key].rotation) bones[key].rotation = new BABYLON.Vector3(0, 0, 0);
+                }
             }
 
-            // --- 3. Camera with Dynamic FOV Setup ---
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, hero, scene);
             camera.attachControl(canvas, true); 
             camera.lowerRadiusLimit = 2;
             camera.upperBetaLimit = Math.PI / 2.1; 
-            const baseFov = 0.8; // Babylon uses Radians for FOV
+            const baseFov = 0.8; 
             const runFov = 1.1;
             camera.fov = baseFov;
 
-            // --- 4. Inputs (Keyboard + Gamepad Manager) ---
             const inputMap = {};
             scene.actionManager = new BABYLON.ActionManager(scene);
             scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = true));
@@ -79,30 +150,36 @@
             gamepadManager.onGamepadConnectedObservable.add(gamepad => myController = gamepad);
             gamepadManager.onGamepadDisconnectedObservable.add(() => myController = null);
 
-            // --- 5. The Hybrid Game Loop ---
             const speed = 0.08; 
-            let walkAccumulator = 0; // Tracks time for the Sine waves
+            let walkAccumulator = 0; 
             let smoothSpeed = 0;
 
             scene.onBeforeRenderObservable.add(() => {
                 let moveX = 0; let moveZ = 0;
-                let isRunning = inputMap["shift"] || (myController && myController.browserGamepad.buttons[10]?.pressed); // Shift or L3 to run
+                
+                // Check if user is sprinting via Keyboard, PS5, OR Touch Screen
+                let isRunning = inputMap["shift"] || touchRun || (myController && myController.browserGamepad.buttons[10]?.pressed); 
 
-                // Inputs
+                // 1. Keyboard Inputs
                 if (inputMap["w"]) moveZ -= speed;
                 if (inputMap["s"]) moveZ += speed;
                 if (inputMap["a"]) moveX += speed;
                 if (inputMap["d"]) moveX -= speed;
 
+                // 2. PS5 Controller Inputs
                 if (myController && myController.leftStick) {
                     if (Math.abs(myController.leftStick.x) > 0.1) moveX -= myController.leftStick.x * speed; 
                     if (Math.abs(myController.leftStick.y) > 0.1) moveZ -= myController.leftStick.y * speed; 
                 }
 
-                // Apply Sprint Multiplier
+                // 3. Mobile Touch Joystick Inputs
+                if (touchX !== 0 || touchY !== 0) {
+                    moveX -= touchX * speed; 
+                    moveZ += touchY * speed; 
+                }
+
                 if (isRunning) { moveX *= 1.8; moveZ *= 1.8; }
 
-                // Movement Logic
                 let currentSpeed = Math.sqrt(moveX*moveX + moveZ*moveZ);
                 smoothSpeed = BABYLON.Scalar.Lerp(smoothSpeed, currentSpeed, 0.1);
 
@@ -115,7 +192,7 @@
                     hero.rotation.y = targetAngle + Math.PI; 
                 }
 
-                // --- PROCEDURAL ANIMATION (Your Math injected into Babylon) ---
+                // Procedural Animation
                 const delta = engine.getDeltaTime() / 1000;
                 const time = Date.now() * 0.001;
                 
@@ -125,14 +202,12 @@
                     const legAmp = isRunning ? 0.7 : 0.4;
                     const armAmp = isRunning ? 0.5 : 0.2;
 
-                    // Walk/Run Cycle
                     if (bones.leftLeg) bones.leftLeg.rotation.x = Math.sin(wc) * legAmp;
                     if (bones.rightLeg) bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * legAmp;
                     if (bones.leftArm) bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp;
                     if (bones.rightArm) bones.rightArm.rotation.x = Math.sin(wc) * armAmp;
                     if (bones.spine) bones.spine.rotation.y = Math.cos(wc) * 0.1;
                 } else {
-                    // Idle Breathing Cycle
                     walkAccumulator = 0;
                     const breath = Math.sin(time * 2.5) * 0.03;
                     if (bones.leftLeg) bones.leftLeg.rotation.x = BABYLON.Scalar.Lerp(bones.leftLeg.rotation.x, 0, 0.1);
@@ -142,10 +217,11 @@
                     if (bones.spine) bones.spine.rotation.x = breath;
                 }
 
-                // --- GAME JUICE (Dynamic FOV) ---
-                const targetFov = isRunning && smoothSpeed > 0.05 ? runFov : baseFov;
-                camera.fov = BABYLON.Scalar.Lerp(camera.fov, targetFov, 0.05);
+                camera.fov = BABYLON.Scalar.Lerp(camera.fov, isRunning && smoothSpeed > 0.05 ? runFov : baseFov, 0.05);
             });
+
+            // Open the visual Inspector to help debug the T-pose
+            scene.debugLayer.show();
 
             return scene;
         };
