@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My Custom Character Game</title>
+    <title>Helen's Adventure</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <style>
@@ -16,29 +16,37 @@
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
 
-        // 3. Notice the "async" keyword here. This allows us to wait for the file to load.
         const createScene = async function () {
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color3(0.6, 0.8, 1.0); 
 
             const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
-            light.intensity = 0.7;
+            light.intensity = 0.9; // Slightly brighter so we can see Helen clearly
 
+            // Create the Ground
             const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 50, height: 50}, scene);
             const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
             groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.5, 0.3);
             ground.material = groundMat;
 
-            // 4. Load your custom .glb model instead of creating a capsule
-            // This looks in the current folder ("./") for "Helen1.glb"
-            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "./", "Helen1.glb", scene);
+            // Load Helen directly from your GitHub Raw link!
+            // Notice how the URL is split: the folder path is first, the file name is second.
+            const result = await BABYLON.SceneLoader.ImportMeshAsync(
+                "", 
+                "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", 
+                "Helen1.glb", 
+                scene
+            );
             
-            // result.meshes[0] is the root node (the master container) for your 3D model
+            // Get the root node of Helen
             const hero = result.meshes[0]; 
             
-            // Set the camera to follow your new imported character
+            // Set the camera to follow Helen
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, hero, scene);
             camera.attachControl(canvas, true); 
+            // Prevent the camera from going under the ground
+            camera.lowerRadiusLimit = 2;
+            camera.upperBetaLimit = Math.PI / 2.2; 
 
             // Track Keyboard Inputs
             const inputMap = {};
@@ -52,20 +60,19 @@
             }));
 
             // The Game Loop (Movement Logic)
-            const speed = 0.15;
+            const speed = 0.05; // Adjusted speed for a human-sized model
             
             scene.onBeforeRenderObservable.add(() => {
-                // We apply movement to the root node of your custom model
-                if (inputMap["w"]) { hero.position.z += speed; }
-                if (inputMap["s"]) { hero.position.z -= speed; }
-                if (inputMap["a"]) { hero.position.x -= speed; }
-                if (inputMap["d"]) { hero.position.x += speed; }
+                if (inputMap["w"]) { hero.position.z -= speed; }
+                if (inputMap["s"]) { hero.position.z += speed; }
+                if (inputMap["a"]) { hero.position.x += speed; }
+                if (inputMap["d"]) { hero.position.x -= speed; }
             });
 
             return scene;
         };
 
-        // 5. Because createScene is now async, we wait for it to finish before starting the loop
+        // Start the game
         createScene().then(scene => {
             engine.runRenderLoop(function () {
                 scene.render();
