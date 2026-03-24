@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Helen's Epic Adventure: The Crystal Moors</title>
+    <title>Helen's Epic Adventure: Universal Pro</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     
@@ -10,7 +10,6 @@
         canvas { width: 100vw; height: 100vh; touch-action: none; display: block; outline: none; }
         #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #00e5ff; font-family: monospace; font-size: 1.2rem; z-index: 10; pointer-events: none; text-shadow: 0px 2px 4px rgba(0,0,0,0.8);}
         
-        /* NEW: The magical interaction prompt */
         #interaction-prompt {
             position: absolute; top: 60px; width: 100%; text-align: center; 
             color: #ff00ff; font-family: monospace; font-size: 1.5rem; font-weight: bold;
@@ -18,6 +17,7 @@
             opacity: 0; transition: opacity 0.3s ease-in-out;
         }
 
+        /* --- MOBILE UI --- */
         #mobile-controls { display: none; }
         #joystick-base {
             position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px;
@@ -29,22 +29,25 @@
             background: rgba(0, 229, 255, 0.5); border-radius: 50%; pointer-events: none; 
             box-shadow: 0px 4px 10px rgba(0,0,0,0.5); transition: transform 0.05s ease-out;
         }
-        #run-button {
-            position: absolute; bottom: 50px; right: 40px; width: 80px; height: 80px;
-            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
+        
+        .action-button {
+            position: absolute; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%; z-index: 100; color: white; font-family: monospace; font-weight: bold;
-            display: flex; justify-content: center; align-items: center; touch-action: none; user-select: none; -webkit-user-select: none;
+            display: flex; justify-content: center; align-items: center; touch-action: none; user-select: none;
         }
+        #run-button { bottom: 40px; right: 120px; width: 70px; height: 70px; }
+        #jump-button { bottom: 100px; right: 40px; width: 80px; height: 80px; font-size: 18px; background: rgba(0, 229, 255, 0.2); }
     </style>
 </head>
 <body>
-    <div id="ui">Explore the Crystal Moors</div>
+    <div id="ui">Universal Controls Active</div>
     <div id="interaction-prompt">The Crystal Resonates...</div>
     <canvas id="renderCanvas"></canvas>
 
     <div id="mobile-controls">
         <div id="joystick-base"><div id="joystick-stick"></div></div>
-        <div id="run-button">SPRINT</div>
+        <div id="run-button" class="action-button">SPRINT</div>
+        <div id="jump-button" class="action-button">JUMP</div>
     </div>
 
     <script>
@@ -54,18 +57,17 @@
         const engine = new BABYLON.Engine(canvas, true);
         const promptUI = document.getElementById("interaction-prompt");
 
-        // --- SPLIT-SCREEN TOUCH CONTROLS ---
+        // --- 1. TOUCH CONTROLS SETUP ---
         const joyBase = document.getElementById("joystick-base");
         const joyStick = document.getElementById("joystick-stick");
         const runBtn = document.getElementById("run-button");
+        const jumpBtn = document.getElementById("jump-button");
         const mobileControls = document.getElementById("mobile-controls");
         
-        let touchMoveX = 0, touchMoveZ = 0, isTouchRunning = false;
+        let touchMoveX = 0, touchMoveZ = 0, isTouchRunning = false, isTouchJumping = false;
         let joyCenterX = 0, joyCenterY = 0;
 
-        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-            mobileControls.style.display = "block";
-        }
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) mobileControls.style.display = "block";
 
         function updateJoystick(clientX, clientY) {
             let dx = clientX - joyCenterX; let dy = clientY - joyCenterY;
@@ -75,26 +77,26 @@
             touchMoveX = dx / maxDist; touchMoveZ = dy / maxDist;
         }
 
+        // Touch Buttons
         runBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); isTouchRunning = true; runBtn.style.background = "rgba(0, 229, 255, 0.7)"; });
         runBtn.addEventListener("pointerup", (e) => { e.preventDefault(); isTouchRunning = false; runBtn.style.background = "rgba(255, 255, 255, 0.1)"; });
         runBtn.addEventListener("pointerleave", (e) => { isTouchRunning = false; runBtn.style.background = "rgba(255, 255, 255, 0.1)"; });
+
+        jumpBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); isTouchJumping = true; jumpBtn.style.background = "rgba(0, 229, 255, 0.9)"; });
+        jumpBtn.addEventListener("pointerup", (e) => { e.preventDefault(); isTouchJumping = false; jumpBtn.style.background = "rgba(0, 229, 255, 0.2)"; });
+        jumpBtn.addEventListener("pointerleave", (e) => { isTouchJumping = false; jumpBtn.style.background = "rgba(0, 229, 255, 0.2)"; });
 
         // --- CORE GAME SETUP ---
         const createScene = async function () {
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color3(0.01, 0.02, 0.04); 
-            
-            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-            scene.fogDensity = 0.008; 
-            scene.fogColor = scene.clearColor;
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2; scene.fogDensity = 0.008; scene.fogColor = scene.clearColor;
 
-            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-0.5, -1, -0.5), scene);
-            dirLight.intensity = 0.5; 
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-0.5, -1, -0.5), scene); dirLight.intensity = 0.5; 
             const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(5, 5, -5), new BABYLON.Vector3(-1, -1, 1), Math.PI / 3, 2, scene);
-            rimLight.diffuse = new BABYLON.Color3(0.8, 0.2, 1); 
-            rimLight.intensity = 2.0;
+            rimLight.diffuse = new BABYLON.Color3(0.8, 0.2, 1); rimLight.intensity = 2.0;
 
-            // PROCEDURAL TERRAIN
+            // Terrain
             const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 200, height: 200, subdivisions: 80, updatable: true}, scene);
             const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
             for (let i = 0; i < positions.length; i += 3) {
@@ -105,46 +107,35 @@
             BABYLON.VertexData.ComputeNormals(positions, ground.getIndices(), ground.getVerticesData(BABYLON.VertexBuffer.NormalKind)); 
 
             const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-            groundMat.diffuseColor = new BABYLON.Color3(0.05, 0.1, 0.08); 
-            groundMat.specularColor = new BABYLON.Color3(0, 0, 0); 
+            groundMat.diffuseColor = new BABYLON.Color3(0.05, 0.1, 0.08); groundMat.specularColor = new BABYLON.Color3(0, 0, 0); 
             ground.material = groundMat;
 
-            // THE MAGICAL CRYSTAL
+            // Crystal
             const crystalX = 15; const crystalZ = 20;
             const crystalY = ground.getHeightAtCoordinates(crystalX, crystalZ) + 6;
-            
             const crystal = BABYLON.MeshBuilder.CreateCylinder("crystal", {height: 12, diameterTop: 0.1, diameterBottom: 3, tessellation: 6}, scene);
             crystal.position.set(crystalX, crystalY, crystalZ);
-            
             const crystalMat = new BABYLON.StandardMaterial("crystalMat", scene);
-            crystalMat.emissiveColor = new BABYLON.Color3(0, 0.8, 1); // Base Cyan
-            crystalMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
+            crystalMat.emissiveColor = new BABYLON.Color3(0, 0.8, 1); crystalMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
             crystal.material = crystalMat;
 
             const crystalLight = new BABYLON.PointLight("crystalLight", crystal.position, scene);
-            crystalLight.diffuse = new BABYLON.Color3(0, 0.8, 1);
-            crystalLight.intensity = 2.5; crystalLight.range = 30;
+            crystalLight.diffuse = new BABYLON.Color3(0, 0.8, 1); crystalLight.intensity = 2.5; crystalLight.range = 30;
 
             const particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
             particleSystem.particleTexture = new BABYLON.Texture("https://textures.babylonjs.com/flare.png", scene);
             particleSystem.emitter = crystal;
-            particleSystem.minEmitBox = new BABYLON.Vector3(-1.5, -6, -1.5); 
-            particleSystem.maxEmitBox = new BABYLON.Vector3(1.5, -6, 1.5);
-            particleSystem.color1 = new BABYLON.Color4(0, 0.8, 1, 1); // Base Cyan Particles
-            particleSystem.color2 = new BABYLON.Color4(0, 0.5, 1, 1);
+            particleSystem.minEmitBox = new BABYLON.Vector3(-1.5, -6, -1.5); particleSystem.maxEmitBox = new BABYLON.Vector3(1.5, -6, 1.5);
+            particleSystem.color1 = new BABYLON.Color4(0, 0.8, 1, 1); particleSystem.color2 = new BABYLON.Color4(0, 0.5, 1, 1);
             particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0);
             particleSystem.minSize = 0.1; particleSystem.maxSize = 0.4;
-            particleSystem.minLifeTime = 1.0; particleSystem.maxLifeTime = 4.0;
-            particleSystem.emitRate = 80;
-            particleSystem.direction1 = new BABYLON.Vector3(-0.5, 1, -0.5);
-            particleSystem.direction2 = new BABYLON.Vector3(0.5, 2, 0.5);
-            particleSystem.gravity = new BABYLON.Vector3(0, 0.5, 0); 
-            particleSystem.start();
+            particleSystem.minLifeTime = 1.0; particleSystem.maxLifeTime = 4.0; particleSystem.emitRate = 80;
+            particleSystem.direction1 = new BABYLON.Vector3(-0.5, 1, -0.5); particleSystem.direction2 = new BABYLON.Vector3(0.5, 2, 0.5);
+            particleSystem.gravity = new BABYLON.Vector3(0, 0.5, 0); particleSystem.start();
 
-            // LOAD HELEN
+            // Load Helen
             const result = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "Helen1.glb", scene);
-            const hero = result.meshes[0]; 
-            result.animationGroups.forEach(anim => anim.stop());
+            const hero = result.meshes[0]; result.animationGroups.forEach(anim => anim.stop());
 
             const bones = { leftArm:null, rightArm:null, leftLeg:null, rightLeg:null, spine:null };
             let hairBones = []; 
@@ -155,7 +146,6 @@
                 if (node.name === 'J_Bip_R_UpperArm') bones.rightArm = node;
                 if (node.name === 'J_Bip_L_UpperLeg') bones.leftLeg = node;
                 if (node.name === 'J_Bip_R_UpperLeg') bones.rightLeg = node;
-                
                 if (node.name.includes('J_Sec_Hair')) {
                     if (node.rotationQuaternion) { node.rotation = node.rotationQuaternion.toEulerAngles(); node.rotationQuaternion = null; }
                     hairBones.push({ bone: node, baseRot: node.rotation.clone() });
@@ -163,9 +153,7 @@
             });
 
             for (let key in bones) {
-                if (bones[key]) {
-                    if (bones[key].rotationQuaternion) { bones[key].rotation = bones[key].rotationQuaternion.toEulerAngles(); bones[key].rotationQuaternion = null; }
-                }
+                if (bones[key] && bones[key].rotationQuaternion) { bones[key].rotation = bones[key].rotationQuaternion.toEulerAngles(); bones[key].rotationQuaternion = null; }
             }
 
             let blinkTarget = null;
@@ -178,11 +166,9 @@
             });
             let blinkState = { isBlinking: false, value: 0, nextTime: Date.now() + 3000 };
 
-            // CAMERA SETUP
+            // Camera
             const camAnchor = new BABYLON.TransformNode("camAnchor", scene);
-            camAnchor.parent = hero; 
-            camAnchor.position.y = 1.3; 
-
+            camAnchor.parent = hero; camAnchor.position.y = 1.3; 
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, camAnchor, scene);
             camera.lowerRadiusLimit = 2; camera.upperBetaLimit = Math.PI / 2.0; 
             const baseFov = 0.8; const runFov = 1.1; camera.fov = baseFov;
@@ -190,20 +176,15 @@
             const pipeline = new BABYLON.DefaultRenderingPipeline("default", true, scene, [camera]);
             pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.7; pipeline.bloomWeight = 0.5;
 
-            // DUAL-ZONE TOUCH
-            let joystickPointerId = null; let cameraPointerId = null;
-            let lastCamX = 0, lastCamY = 0;
-
+            // Touch Screen Swiping
+            let joystickPointerId = null; let cameraPointerId = null; let lastCamX = 0, lastCamY = 0;
             scene.onPointerObservable.add((pointerInfo) => {
-                const e = pointerInfo.event;
-                const halfWidth = engine.getRenderWidth() / 2;
-
+                const e = pointerInfo.event; const halfWidth = engine.getRenderWidth() / 2;
                 switch (pointerInfo.type) {
                     case BABYLON.PointerEventTypes.POINTERDOWN:
-                        if (e.target === runBtn) return; 
+                        if (e.target === runBtn || e.target === jumpBtn) return; 
                         if (e.clientX < halfWidth && joystickPointerId === null) {
-                            joystickPointerId = e.pointerId;
-                            joyCenterX = e.clientX; joyCenterY = e.clientY;
+                            joystickPointerId = e.pointerId; joyCenterX = e.clientX; joyCenterY = e.clientY;
                             joyBase.style.left = `${joyCenterX - 60}px`; joyBase.style.top = `${joyCenterY - 60}px`;
                             joyBase.style.display = "block"; updateJoystick(e.clientX, e.clientY);
                         } else if (e.clientX >= halfWidth && cameraPointerId === null) {
@@ -213,8 +194,7 @@
                     case BABYLON.PointerEventTypes.POINTERMOVE:
                         if (e.pointerId === joystickPointerId) { updateJoystick(e.clientX, e.clientY); } 
                         else if (e.pointerId === cameraPointerId) {
-                            camera.inertialAlphaOffset -= (e.clientX - lastCamX) * 0.005; 
-                            camera.inertialBetaOffset -= (e.clientY - lastCamY) * 0.005; 
+                            camera.inertialAlphaOffset -= (e.clientX - lastCamX) * 0.005; camera.inertialBetaOffset -= (e.clientY - lastCamY) * 0.005; 
                             lastCamX = e.clientX; lastCamY = e.clientY;
                         }
                         break;
@@ -225,7 +205,7 @@
                 }
             });
 
-            // INPUTS
+            // --- 2. KEYBOARD & GAMEPAD SETUP ---
             const inputMap = {};
             scene.actionManager = new BABYLON.ActionManager(scene);
             scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = true));
@@ -236,36 +216,58 @@
             gamepadManager.onGamepadConnectedObservable.add(gamepad => myController = gamepad);
             gamepadManager.onGamepadDisconnectedObservable.add(() => myController = null);
 
-            // --- THE GAME LOOP ---
+
+            // --- 3. THE UNIVERSAL GAME LOOP ---
             const speed = 0.08; 
             let walkAccumulator = 0; let smoothSpeed = 0;
+            
+            // JUMP VARIABLES
+            let velocityY = 0; 
+            const gravity = -0.015; // How fast she falls back down
+            const jumpPower = 0.3;  // How high she leaps
 
-            // Target colors for the magical reaction
             const colorCyan = new BABYLON.Color3(0, 0.8, 1);
             const colorMagenta = new BABYLON.Color3(1, 0, 1);
 
             scene.onBeforeRenderObservable.add(() => {
                 let moveX = 0; let moveZ = 0;
+                
+                // A. SPRINT CHECK 
                 let isRunning = inputMap["shift"] || (myController && myController.browserGamepad.buttons[10]?.pressed) || isTouchRunning; 
 
+                // B. JUMP CHECK 
+                let isJumpingPressed = inputMap[" "] || (myController && myController.browserGamepad.buttons[0]?.pressed) || isTouchJumping;
+
+                // C. MOVEMENT CHECK (Keyboard WASD)
                 if (inputMap["w"]) moveZ -= speed;
                 if (inputMap["s"]) moveZ += speed;
                 if (inputMap["a"]) moveX += speed;
                 if (inputMap["d"]) moveX -= speed;
 
+                // D. MOVEMENT CHECK (Gamepad Left Stick)
                 if (myController && myController.leftStick) {
                     if (Math.abs(myController.leftStick.x) > 0.1) moveX -= myController.leftStick.x * speed; 
                     if (Math.abs(myController.leftStick.y) > 0.1) moveZ -= myController.leftStick.y * speed; 
                 }
 
+                // NEW: E. CAMERA CHECK (Gamepad Right Stick)
+                if (myController && myController.rightStick) {
+                    // Inject the right stick movements directly into the camera's inertia
+                    if (Math.abs(myController.rightStick.x) > 0.1) camera.inertialAlphaOffset += myController.rightStick.x * 0.04; 
+                    if (Math.abs(myController.rightStick.y) > 0.1) camera.inertialBetaOffset += myController.rightStick.y * 0.04; 
+                }
+
+                // F. MOVEMENT CHECK (Touch Virtual Joystick)
                 if (touchMoveX !== 0) moveX -= touchMoveX * speed;
                 if (touchMoveZ !== 0) moveZ += touchMoveZ * speed; 
 
+                // Apply Sprint Multiplier
                 if (isRunning) { moveX *= 1.8; moveZ *= 1.8; }
 
                 let currentSpeed = Math.sqrt(moveX*moveX + moveZ*moveZ);
                 smoothSpeed = BABYLON.Scalar.Lerp(smoothSpeed, currentSpeed, 0.1);
 
+                // Apply Forward/Directional Movement (Camera Relative)
                 if (currentSpeed > 0) {
                     const forward = camera.getFrontPosition(1).subtract(camera.position);
                     forward.y = 0; forward.normalize();
@@ -277,31 +279,38 @@
                     hero.rotation.y = Math.atan2(direction.x, direction.z) + Math.PI; 
                 }
 
-                // HELEN TERRAIN TRACKING
-                hero.position.y = ground.getHeightAtCoordinates(hero.position.x, hero.position.z);
+                // THE JUMPING & GRAVITY LOGIC 
+                let groundHeight = ground.getHeightAtCoordinates(hero.position.x, hero.position.z);
+                let isGrounded = (hero.position.y <= groundHeight + 0.05); 
 
-                // CAMERA TERRAIN TRACKING
+                if (isGrounded) {
+                    if (isJumpingPressed) {
+                        velocityY = jumpPower; 
+                    } else {
+                        hero.position.y = groundHeight; 
+                        velocityY = 0;
+                    }
+                } else {
+                    velocityY += gravity; 
+                }
+                hero.position.y += velocityY; 
+
+                // Camera Terrain Tracking (Spring Arm)
                 const normalRadius = 5; 
                 let camGroundHeight = ground.getHeightAtCoordinates(camera.position.x, camera.position.z);
-                
                 if (camera.position.y < camGroundHeight + 0.5) {
                     camera.radius = BABYLON.Scalar.Lerp(camera.radius, camera.radius - 1.0, 0.2);
                 } else {
                     if (camera.radius < normalRadius) { camera.radius = BABYLON.Scalar.Lerp(camera.radius, normalRadius, 0.05); }
                 }
 
-                // --- NEW: CRYSTAL PROXIMITY TRIGGER ---
-                // Calculate how close Helen is to the crystal
-                const distanceToCrystal = BABYLON.Vector3.Distance(hero.position, crystal.position);
-                
-                if (distanceToCrystal < 6.0) {
-                    // She is close! Show the text and shift the colors to Magenta
+                // Crystal Proximity
+                if (BABYLON.Vector3.Distance(hero.position, crystal.position) < 6.0) {
                     promptUI.style.opacity = "1";
                     crystalMat.emissiveColor = BABYLON.Color3.Lerp(crystalMat.emissiveColor, colorMagenta, 0.05);
                     crystalLight.diffuse = BABYLON.Color3.Lerp(crystalLight.diffuse, colorMagenta, 0.05);
                     particleSystem.color1 = new BABYLON.Color4(1, 0, 1, 1);
                 } else {
-                    // She walked away. Hide the text and return the colors to Cyan
                     promptUI.style.opacity = "0";
                     crystalMat.emissiveColor = BABYLON.Color3.Lerp(crystalMat.emissiveColor, colorCyan, 0.05);
                     crystalLight.diffuse = BABYLON.Color3.Lerp(crystalLight.diffuse, colorCyan, 0.05);
@@ -311,8 +320,8 @@
                 const delta = engine.getDeltaTime() / 1000;
                 const time = Date.now() * 0.001;
                 
-                // Procedural Animations
-                if (smoothSpeed > 0.01) {
+                // Procedural Animations 
+                if (smoothSpeed > 0.01 && isGrounded) {
                     walkAccumulator += (smoothSpeed * 150) * delta;
                     const wc = walkAccumulator;
                     const legAmp = isRunning ? 0.7 : 0.4;
@@ -325,7 +334,7 @@
                     if (bones.spine) bones.spine.rotation.y = Math.cos(wc) * 0.1;
                 } else {
                     walkAccumulator = 0;
-                    const breath = Math.sin(time * 2.5) * 0.03;
+                    const breath = isGrounded ? Math.sin(time * 2.5) * 0.03 : 0;
                     if (bones.leftLeg) bones.leftLeg.rotation.x = BABYLON.Scalar.Lerp(bones.leftLeg.rotation.x, 0, 0.1);
                     if (bones.rightLeg) bones.rightLeg.rotation.x = BABYLON.Scalar.Lerp(bones.rightLeg.rotation.x, 0, 0.1);
                     if (bones.leftArm) { bones.leftArm.rotation.z = BABYLON.Scalar.Lerp(bones.leftArm.rotation.z, -1.2, 0.1); bones.leftArm.rotation.x = BABYLON.Scalar.Lerp(bones.leftArm.rotation.x, 0, 0.1); }
@@ -336,7 +345,7 @@
                 // Hair Physics
                 const wind = Math.sin(time * 2) * 0.03;
                 hairBones.forEach(h => {
-                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 0.5); 
+                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 0.5) - (velocityY * 1.5); 
                     h.bone.rotation.x = BABYLON.Scalar.Lerp(h.bone.rotation.x, targetRotX, 0.1);
                 });
 
