@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Helen's Epic Adventure: Universal Pro</title>
+    <title>Helen's Epic Adventure: Universal Pro HD</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     
@@ -54,7 +54,12 @@
         window.addEventListener("contextmenu", e => e.preventDefault());
 
         const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, true);
+        
+        // --- HD MOBILE FIX ---
+        // Tell the engine to adapt to the phone's high-density pixels so it isn't blurry
+        const engine = new BABYLON.Engine(canvas, true, { adaptToDeviceRatio: true });
+        engine.setHardwareScalingLevel(1 / window.devicePixelRatio);
+
         const promptUI = document.getElementById("interaction-prompt");
 
         // --- 1. TOUCH CONTROLS SETUP ---
@@ -252,7 +257,6 @@
 
                 // E. CAMERA CHECK (Gamepad Right Stick)
                 if (myController && myController.rightStick) {
-                    // FIX: Reduced camera speed from 0.04 to 0.015
                     if (Math.abs(myController.rightStick.x) > 0.1) camera.inertialAlphaOffset += myController.rightStick.x * 0.015; 
                     if (Math.abs(myController.rightStick.y) > 0.1) camera.inertialBetaOffset += myController.rightStick.y * 0.015; 
                 }
@@ -371,7 +375,15 @@
         };
 
         createScene().then(scene => { engine.runRenderLoop(() => scene.render()); });
-        window.addEventListener("resize", () => engine.resize());
+        
+        // --- ROTATION FIX ---
+        // Give the mobile browser a fraction of a second to finish rotating before resizing the 3D world
+        window.addEventListener("resize", () => {
+            setTimeout(() => engine.resize(), 100);
+        });
+        window.addEventListener("orientationchange", () => {
+            setTimeout(() => engine.resize(), 200);
+        });
     </script>
 </body>
 </html>
