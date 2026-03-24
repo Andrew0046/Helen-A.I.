@@ -10,8 +10,7 @@
         canvas { width: 100vw; height: 100vh; touch-action: none; display: block; outline: none; }
         #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #ff0055; font-family: monospace; z-index: 10; pointer-events: none; text-shadow: 0px 2px 4px rgba(0,0,0,0.8);}
         
-        /* Mobile Controls Styling */
-        #mobile-controls { display: none; /* Hidden on desktop, shown on touch devices */ }
+        #mobile-controls { display: none; }
         
         #joystick-base {
             position: absolute; bottom: 40px; left: 40px;
@@ -55,7 +54,7 @@
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
 
-        // --- Mobile Touch Setup (UNCHANGED) ---
+        // --- Mobile Touch Setup ---
         const joyBase = document.getElementById("joystick-base");
         const joyStick = document.getElementById("joystick-stick");
         const runBtn = document.getElementById("run-button");
@@ -103,7 +102,6 @@
             }
 
             joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
-            
             touchMoveX = dx / maxDist;
             touchMoveZ = dy / maxDist;
         }
@@ -116,27 +114,21 @@
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color3(0.02, 0.02, 0.02);
             
-            // NEW: Atmospheric Fog
+            // Atmospheric Fog
             scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
             scene.fogDensity = 0.015;
             scene.fogColor = scene.clearColor;
-
-            // NEW: Anime Glow (Bloom) Pipeline
-            const pipeline = new BABYLON.DefaultRenderingPipeline("default", true, scene, [scene.activeCamera]);
-            pipeline.bloomEnabled = true;
-            pipeline.bloomThreshold = 0.8;
-            pipeline.bloomWeight = 0.3;
 
             const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
             dirLight.intensity = 1.5;
             const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(5, 5, -5), new BABYLON.Vector3(-1, -1, 1), Math.PI / 3, 2, scene);
             rimLight.diffuse = new BABYLON.Color3(1, 0, 0.3); 
-            rimLight.intensity = 2.0; // Boosted for the bloom effect
+            rimLight.intensity = 2.0;
 
             const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
             const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
             groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
-            groundMat.specularColor = new BABYLON.Color3(0, 0, 0); // NEW: Removes plastic shine
+            groundMat.specularColor = new BABYLON.Color3(0, 0, 0); 
             ground.material = groundMat;
 
             // Load Helen
@@ -145,7 +137,7 @@
             result.animationGroups.forEach(anim => anim.stop());
 
             const bones = { leftArm:null, rightArm:null, leftLeg:null, rightLeg:null, spine:null };
-            let hairBones = []; // NEW: Array to hold hair for physics
+            let hairBones = []; 
             
             result.transformNodes.forEach(node => {
                 if (node.name === 'J_Bip_C_Spine') bones.spine = node;
@@ -154,7 +146,7 @@
                 if (node.name === 'J_Bip_L_UpperLeg') bones.leftLeg = node;
                 if (node.name === 'J_Bip_R_UpperLeg') bones.rightLeg = node;
                 
-                // NEW: Grab all hair bones
+                // Grab all hair bones for physics
                 if (node.name.includes('J_Sec_Hair')) {
                     node.rotationQuaternion = null;
                     if (!node.rotation) node.rotation = new BABYLON.Vector3(0,0,0);
@@ -169,7 +161,7 @@
                 }
             }
 
-            // NEW: Blinking Setup
+            // Blinking Setup
             let blinkTarget = null;
             result.meshes.forEach(m => {
                 if (m.morphTargetManager) {
@@ -181,7 +173,7 @@
             });
             let blinkState = { isBlinking: false, value: 0, nextTime: Date.now() + 3000 };
 
-            // Camera setup 
+            // Camera setup MUST happen before the Pipeline
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, hero, scene);
             camera.attachControl(canvas, true); 
             camera.lowerRadiusLimit = 2;
@@ -189,7 +181,12 @@
             const baseFov = 0.8; 
             const runFov = 1.1;
             camera.fov = baseFov;
-            pipeline.cameras = [camera]; // NEW: Attach the bloom to the camera
+
+            // Anime Glow (Bloom) Pipeline created AFTER camera
+            const pipeline = new BABYLON.DefaultRenderingPipeline("default", true, scene, [camera]);
+            pipeline.bloomEnabled = true;
+            pipeline.bloomThreshold = 0.8;
+            pipeline.bloomWeight = 0.3;
 
             // Keyboard / Controller Setup
             const inputMap = {};
@@ -211,19 +208,16 @@
                 let moveX = 0; let moveZ = 0;
                 let isRunning = inputMap["shift"] || (myController && myController.browserGamepad.buttons[10]?.pressed) || isTouchRunning; 
 
-                // Keyboard
                 if (inputMap["w"]) moveZ -= speed;
                 if (inputMap["s"]) moveZ += speed;
                 if (inputMap["a"]) moveX += speed;
                 if (inputMap["d"]) moveX -= speed;
 
-                // PS5 Controller
                 if (myController && myController.leftStick) {
                     if (Math.abs(myController.leftStick.x) > 0.1) moveX -= myController.leftStick.x * speed; 
                     if (Math.abs(myController.leftStick.y) > 0.1) moveZ -= myController.leftStick.y * speed; 
                 }
 
-                // Touch Virtual Joystick
                 if (touchMoveX !== 0) moveX -= touchMoveX * speed;
                 if (touchMoveZ !== 0) moveZ += touchMoveZ * speed; 
 
@@ -240,7 +234,6 @@
                     hero.rotation.y = targetAngle + Math.PI; 
                 }
 
-                // Procedural Animation
                 const delta = engine.getDeltaTime() / 1000;
                 const time = Date.now() * 0.001;
                 
@@ -265,14 +258,14 @@
                     if (bones.spine) bones.spine.rotation.x = breath;
                 }
 
-                // NEW: Hair Physics (Wind + Drag)
+                // Hair Physics
                 const wind = Math.sin(time * 2) * 0.03;
                 hairBones.forEach(h => {
-                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 2.5); // Hair flies back when running
+                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 2.5); 
                     h.bone.rotation.x = BABYLON.Scalar.Lerp(h.bone.rotation.x, targetRotX, 0.1);
                 });
 
-                // NEW: Blinking Logic
+                // Blinking Logic
                 if (blinkTarget) {
                     if (blinkState.isBlinking) {
                         blinkState.value += 0.25;
