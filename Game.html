@@ -115,7 +115,6 @@
             crystalLight.diffuse = new BABYLON.Color3(0, 0.8, 1);
             crystalLight.intensity = 2.5; crystalLight.range = 30;
 
-            // Particle System
             const particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
             particleSystem.particleTexture = new BABYLON.Texture("https://textures.babylonjs.com/flare.png", scene);
             particleSystem.emitter = crystal;
@@ -169,8 +168,13 @@
             });
             let blinkState = { isBlinking: false, value: 0, nextTime: Date.now() + 3000 };
 
-            // --- CAMERA SETUP & POST-PROCESSING ---
-            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, hero, scene);
+            // --- CAMERA SETUP & POST-PROCESSING (WITH ANCHOR OFFSET) ---
+            const camAnchor = new BABYLON.TransformNode("camAnchor", scene);
+            camAnchor.parent = hero; 
+            camAnchor.position.y = 1.3; // Slide anchor up to shoulder height
+
+            // Point camera at the anchor instead of the hero's feet!
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, camAnchor, scene);
             camera.lowerRadiusLimit = 2; camera.upperBetaLimit = Math.PI / 2.0; 
             const baseFov = 0.8; const runFov = 1.1; camera.fov = baseFov;
 
@@ -273,6 +277,7 @@
 
                 // 2. CAMERA TERRAIN TRACKING (Spring Arm)
                 const normalRadius = 5; 
+                // We use the absolute camera position for height tracking so it still calculates the dirt properly!
                 let camGroundHeight = ground.getHeightAtCoordinates(camera.position.x, camera.position.z);
                 
                 if (camera.position.y < camGroundHeight + 0.5) {
