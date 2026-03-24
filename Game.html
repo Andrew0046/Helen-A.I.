@@ -4,133 +4,226 @@
     <title>Helen's Epic Adventure: Mobile Edition</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    
     <style>
         body { margin: 0; overflow: hidden; background-color: #050505; touch-action: none; }
-        canvas { width: 100vw; height: 100vh; display: block; outline: none; }
-        #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #ff0055; font-family: monospace; font-size: 1.2rem; pointer-events: none; text-shadow: 0 0 10px rgba(255,0,85,0.8);}
+        canvas { width: 100vw; height: 100vh; touch-action: none; display: block; outline: none; }
+        #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #ff0055; font-family: monospace; z-index: 10; pointer-events: none; text-shadow: 0px 2px 4px rgba(0,0,0,0.8);}
+        
+        /* Mobile Controls Styling */
+        #mobile-controls { display: none; /* Hidden on desktop, shown on touch devices */ }
+        
+        #joystick-base {
+            position: absolute; bottom: 40px; left: 40px;
+            width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%; z-index: 100;
+            touch-action: none; 
+        }
+        #joystick-stick {
+            position: absolute; top: 35px; left: 35px;
+            width: 50px; height: 50px;
+            background: rgba(255, 0, 85, 0.7);
+            border-radius: 50%; pointer-events: none; 
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+        }
+        #run-button {
+            position: absolute; bottom: 50px; right: 40px;
+            width: 80px; height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%; z-index: 100; color: white;
+            font-family: monospace; font-size: 16px; font-weight: bold;
+            display: flex; justify-content: center; align-items: center;
+            touch-action: none; user-select: none;
+        }
     </style>
 </head>
 <body>
-    <div id="ui">Left Thumb: Move | Right Thumb: Camera</div>
+    <div id="ui">Desktop: WASD + Shift | Mobile: Touch Controls</div>
     <canvas id="renderCanvas"></canvas>
+
+    <div id="mobile-controls">
+        <div id="joystick-base">
+            <div id="joystick-stick"></div>
+        </div>
+        <div id="run-button">SPRINT</div>
+    </div>
 
     <script>
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
 
+        // --- Mobile Touch Setup ---
+        const joyBase = document.getElementById("joystick-base");
+        const joyStick = document.getElementById("joystick-stick");
+        const runBtn = document.getElementById("run-button");
+        const mobileControls = document.getElementById("mobile-controls");
+        
+        let touchMoveX = 0, touchMoveZ = 0, isTouchRunning = false;
+        let joyCenterX = 0, joyCenterY = 0;
+
+        // Detect if the user is on a touch screen and show the controls
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            mobileControls.style.display = "block";
+        }
+
+        // Joystick Logic
+        joyBase.addEventListener("pointerdown", (e) => {
+            e.preventDefault(); e.stopPropagation(); // Stops the camera from spinning when using the joystick
+            let rect = joyBase.getBoundingClientRect();
+            joyCenterX = rect.left + rect.width / 2;
+            joyCenterY = rect.top + rect.height / 2;
+            joyBase.setPointerCapture(e.pointerId);
+            updateJoystick(e.clientX, e.clientY);
+        });
+
+        joyBase.addEventListener("pointermove", (e) => {
+            if (joyBase.hasPointerCapture(e.pointerId)) {
+                e.preventDefault(); e.stopPropagation();
+                updateJoystick(e.clientX, e.clientY);
+            }
+        });
+
+        joyBase.addEventListener("pointerup", (e) => {
+            e.preventDefault(); e.stopPropagation();
+            joyBase.releasePointerCapture(e.pointerId);
+            joyStick.style.transform = `translate(0px, 0px)`;
+            touchMoveX = 0; touchMoveZ = 0;
+        });
+
+        function updateJoystick(clientX, clientY) {
+            let dx = clientX - joyCenterX;
+            let dy = clientY - joyCenterY;
+            let distance = Math.sqrt(dx*dx + dy*dy);
+            let maxDist = 35; // How far the stick can stretch visually
+
+            if (distance > maxDist) {
+                dx = (dx / distance) * maxDist;
+                dy = (dy / distance) * maxDist;
+            }
+
+            joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+            
+            // Normalize values from -1.0 to 1.0 for the game loop
+            touchMoveX = dx / maxDist;
+            touchMoveZ = dy / maxDist;
+        }
+
+        // Sprint Button Logic
+        runBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); isTouchRunning = true; runBtn.style.background = "rgba(255, 0, 85, 0.7)"; });
+        runBtn.addEventListener("pointerup", (e) => { e.preventDefault(); e.stopPropagation(); isTouchRunning = false; runBtn.style.background = "rgba(255, 255, 255, 0.1)"; });
+
+        // --- Core Game Setup ---
         const createScene = async function () {
             const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color3(0.05, 0.07, 0.1); // Dark atmospheric fantasy night
-            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-            scene.fogDensity = 0.015;
-            scene.fogColor = scene.clearColor;
+            scene.clearColor = new BABYLON.Color3(0.02, 0.02, 0.02);
 
-            // --- 1. POST-PROCESSING (The "Anime Glow" from the one.txt) ---
-            const pipeline = new BABYLON.DefaultRenderingPipeline("default", true, scene, [scene.activeCamera]);
-            pipeline.bloomEnabled = true;
-            pipeline.bloomThreshold = 0.8;
-            pipeline.bloomWeight = 0.3;
-
-            // --- 2. LIGHTING ---
-            const mainLight = new BABYLON.DirectionalLight("mainLight", new BABYLON.Vector3(1, -2, 1), scene);
-            mainLight.intensity = 1.5;
-            const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(-2, 2, -2), new BABYLON.Vector3(1, -1, 1), Math.PI / 2, 2, scene);
-            rimLight.diffuse = new BABYLON.Color3(1, 0.2, 0.5); // Pinkish rim light
-            rimLight.intensity = 2.0;
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.intensity = 1.5;
+            const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(5, 5, -5), new BABYLON.Vector3(-1, -1, 1), Math.PI / 3, 2, scene);
+            rimLight.diffuse = new BABYLON.Color3(1, 0, 0.3); 
 
             const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
             const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-            groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.15, 0.1);
-            groundMat.specularColor = new BABYLON.Color3(0, 0, 0); // Remove plastic shine
+            groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
             ground.material = groundMat;
 
-            // --- 3. LOAD HELEN & STOP T-POSE ---
+            // Load Helen
             const result = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "Helen1.glb", scene);
             const hero = result.meshes[0]; 
             result.animationGroups.forEach(anim => anim.stop());
 
-            // --- 4. MAP EXACT VROID BONES ---
-            const bones = { 
-                leftArm: scene.getTransformNodeByName("J_Bip_L_UpperArm"), 
-                rightArm: scene.getTransformNodeByName("J_Bip_R_UpperArm"), 
-                leftLeg: scene.getTransformNodeByName("J_Bip_L_UpperLeg"), 
-                rightLeg: scene.getTransformNodeByName("J_Bip_R_UpperLeg"), 
-                spine: scene.getTransformNodeByName("J_Bip_C_Spine") 
-            };
+            const bones = { leftArm:null, rightArm:null, leftLeg:null, rightLeg:null, spine:null };
+            
+            result.transformNodes.forEach(node => {
+                if (node.name === 'J_Bip_C_Spine') bones.spine = node;
+                if (node.name === 'J_Bip_L_UpperArm') bones.leftArm = node;
+                if (node.name === 'J_Bip_R_UpperArm') bones.rightArm = node;
+                if (node.name === 'J_Bip_L_UpperLeg') bones.leftLeg = node;
+                if (node.name === 'J_Bip_R_UpperLeg') bones.rightLeg = node;
+            });
 
             for (let key in bones) {
                 if (bones[key]) {
                     bones[key].rotationQuaternion = null;
-                    if (!bones[key].rotation) bones[key].rotation = new BABYLON.Vector3(0,0,0);
+                    if (!bones[key].rotation) bones[key].rotation = new BABYLON.Vector3(0, 0, 0);
                 }
             }
 
-            // --- 5. SETUP HAIR PHYSICS & BLINKING ---
-            let hairBones = [];
-            result.transformNodes.forEach(node => {
-                if (node.name.includes('J_Sec_Hair')) {
-                    node.rotationQuaternion = null;
-                    if (!node.rotation) node.rotation = new BABYLON.Vector3(0,0,0);
-                    hairBones.push({ bone: node, baseRot: node.rotation.clone() });
-                }
-            });
-
-            let blinkTarget = null;
-            result.meshes.forEach(m => {
-                if (m.morphTargetManager) {
-                    for (let i = 0; i < m.morphTargetManager.numTargets; i++) {
-                        let target = m.morphTargetManager.getTarget(i);
-                        if (target.name === "Fcl_EYE_Close") blinkTarget = target;
-                    }
-                }
-            });
-
-            let blinkState = { isBlinking: false, value: 0, nextTime: Date.now() + 3000 };
-
-            // --- 6. CAMERA & VIRTUAL JOYSTICK ---
-            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 4, hero, scene);
+            // Camera setup (Handles swiping inherently!)
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, hero, scene);
             camera.attachControl(canvas, true); 
-            camera.lowerRadiusLimit = 1.5;
+            camera.lowerRadiusLimit = 2;
             camera.upperBetaLimit = Math.PI / 2.1; 
-            pipeline.cameras = [camera]; // Attach bloom to camera
+            const baseFov = 0.8; 
+            const runFov = 1.1;
+            camera.fov = baseFov;
 
-            const leftJoystick = new BABYLON.VirtualJoystick(true);
-            BABYLON.VirtualJoystick.Canvas.style.zIndex = "4";
+            // Keyboard / Controller Setup
+            const inputMap = {};
+            scene.actionManager = new BABYLON.ActionManager(scene);
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = true));
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = false));
 
-            // --- 7. HYBRID GAME LOOP ---
+            const gamepadManager = new BABYLON.GamepadManager();
+            let myController = null;
+            gamepadManager.onGamepadConnectedObservable.add(gamepad => myController = gamepad);
+            gamepadManager.onGamepadDisconnectedObservable.add(() => myController = null);
+
+            // The Game Loop
             const speed = 0.08; 
             let walkAccumulator = 0; 
             let smoothSpeed = 0;
 
             scene.onBeforeRenderObservable.add(() => {
                 let moveX = 0; let moveZ = 0;
-                const time = Date.now() * 0.001;
-                const delta = engine.getDeltaTime() / 1000;
+                let isRunning = inputMap["shift"] || (myController && myController.browserGamepad.buttons[10]?.pressed) || isTouchRunning; 
 
-                // Joystick Input
-                if (leftJoystick.pressed) {
-                    moveX = leftJoystick.deltaPosition.x * speed;
-                    moveZ = leftJoystick.deltaPosition.y * speed; 
+                // Keyboard
+                if (inputMap["w"]) moveZ -= speed;
+                if (inputMap["s"]) moveZ += speed;
+                if (inputMap["a"]) moveX += speed;
+                if (inputMap["d"]) moveX -= speed;
+
+                // PS5 Controller
+                if (myController && myController.leftStick) {
+                    if (Math.abs(myController.leftStick.x) > 0.1) moveX -= myController.leftStick.x * speed; 
+                    if (Math.abs(myController.leftStick.y) > 0.1) moveZ -= myController.leftStick.y * speed; 
                 }
 
-                let currentSpeed = Math.sqrt(moveX*moveX + moveZ*moveZ);
-                smoothSpeed = BABYLON.Scalar.Lerp(smoothSpeed, currentSpeed, 0.15);
+                // Touch Virtual Joystick
+                if (touchMoveX !== 0) moveX -= touchMoveX * speed;
+                if (touchMoveZ !== 0) moveZ += touchMoveZ * speed; // + because pushing UP on a screen creates a negative Y coordinate, and we want forward (negative Z)
 
-                // Movement & Rotation
+                if (isRunning) { moveX *= 1.8; moveZ *= 1.8; }
+
+                let currentSpeed = Math.sqrt(moveX*moveX + moveZ*moveZ);
+                smoothSpeed = BABYLON.Scalar.Lerp(smoothSpeed, currentSpeed, 0.1);
+
                 if (currentSpeed > 0) {
                     hero.position.x += moveX;
                     hero.position.z += moveZ;
-                    hero.rotation.y = Math.atan2(moveX, moveZ) + Math.PI; 
+                    let targetAngle = Math.atan2(moveX, moveZ);
+                    hero.rotationQuaternion = null; 
+                    hero.rotation.y = targetAngle + Math.PI; 
                 }
 
-                // Procedural Animation (Limbs & Breathing)
+                // Procedural Animation
+                const delta = engine.getDeltaTime() / 1000;
+                const time = Date.now() * 0.001;
+                
                 if (smoothSpeed > 0.01) {
                     walkAccumulator += (smoothSpeed * 150) * delta;
                     const wc = walkAccumulator;
-                    if (bones.leftLeg) bones.leftLeg.rotation.x = Math.sin(wc) * 0.5;
-                    if (bones.rightLeg) bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * 0.5;
-                    if (bones.leftArm) bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * 0.3;
-                    if (bones.rightArm) bones.rightArm.rotation.x = Math.sin(wc) * 0.3;
+                    const legAmp = isRunning ? 0.7 : 0.4;
+                    const armAmp = isRunning ? 0.5 : 0.2;
+
+                    if (bones.leftLeg) bones.leftLeg.rotation.x = Math.sin(wc) * legAmp;
+                    if (bones.rightLeg) bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * legAmp;
+                    if (bones.leftArm) bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp;
+                    if (bones.rightArm) bones.rightArm.rotation.x = Math.sin(wc) * armAmp;
                     if (bones.spine) bones.spine.rotation.y = Math.cos(wc) * 0.1;
                 } else {
                     walkAccumulator = 0;
@@ -142,31 +235,7 @@
                     if (bones.spine) bones.spine.rotation.x = breath;
                 }
 
-                // Hair Physics (Wind + Movement Drag)
-                const wind = Math.sin(time * 2) * 0.03;
-                hairBones.forEach(h => {
-                    // Hair leans back based on speed, plus a little wind
-                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 2.5);
-                    h.bone.rotation.x = BABYLON.Scalar.Lerp(h.bone.rotation.x, targetRotX, 0.1);
-                });
-
-                // Blinking Logic
-                if (blinkTarget) {
-                    if (blinkState.isBlinking) {
-                        blinkState.value += 0.25;
-                        if (blinkState.value >= 1.2) { blinkState.value = 1; blinkState.isBlinking = false; }
-                    } else {
-                        blinkState.value -= 0.1;
-                        if (blinkState.value <= 0) {
-                            blinkState.value = 0;
-                            if (Date.now() >= blinkState.nextTime) {
-                                blinkState.isBlinking = true;
-                                blinkState.nextTime = Date.now() + 3500 + (Math.random() * 2000);
-                            }
-                        }
-                    }
-                    blinkTarget.influence = Math.max(0, Math.min(1, blinkState.value));
-                }
+                camera.fov = BABYLON.Scalar.Lerp(camera.fov, isRunning && smoothSpeed > 0.05 ? runFov : baseFov, 0.05);
             });
 
             return scene;
