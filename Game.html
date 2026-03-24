@@ -250,11 +250,11 @@
                     if (Math.abs(myController.leftStick.y) > 0.1) moveZ -= myController.leftStick.y * speed; 
                 }
 
-                // NEW: E. CAMERA CHECK (Gamepad Right Stick)
+                // E. CAMERA CHECK (Gamepad Right Stick)
                 if (myController && myController.rightStick) {
-                    // Inject the right stick movements directly into the camera's inertia
-                    if (Math.abs(myController.rightStick.x) > 0.1) camera.inertialAlphaOffset += myController.rightStick.x * 0.04; 
-                    if (Math.abs(myController.rightStick.y) > 0.1) camera.inertialBetaOffset += myController.rightStick.y * 0.04; 
+                    // FIX: Reduced camera speed from 0.04 to 0.015
+                    if (Math.abs(myController.rightStick.x) > 0.1) camera.inertialAlphaOffset += myController.rightStick.x * 0.015; 
+                    if (Math.abs(myController.rightStick.y) > 0.1) camera.inertialBetaOffset += myController.rightStick.y * 0.015; 
                 }
 
                 // F. MOVEMENT CHECK (Touch Virtual Joystick)
