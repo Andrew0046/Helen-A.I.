@@ -1,56 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Helen's Enchanted Forest Odyssey</title>
+    <title>Helen's Epic Adventure: Universal Pro HD</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     
     <style>
         body { margin: 0; overflow: hidden; background-color: #050505; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { width: 100vw; height: 100vh; touch-action: none; display: block; outline: none; }
-        
-        #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #00ffcc; font-family: monospace; font-size: 1.5rem; z-index: 10; pointer-events: none; text-shadow: 0 0 15px rgba(0,255,204,0.8); }
-        #crystal-counter { position: absolute; top: 70px; left: 30px; color: #ff00ff; font-family: monospace; font-size: 1.4rem; z-index: 10; pointer-events: none; text-shadow: 0 0 10px rgba(255,0,255,0.9); }
-        #win-screen { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.85); display: none; flex-direction: column; 
-            justify-content: center; align-items: center; color: #00ffcc; 
-            font-family: monospace; font-size: 3rem; text-align: center; z-index: 100;
-            text-shadow: 0 0 30px #00ffcc;
-        }
+        #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #00e5ff; font-family: monospace; font-size: 1.2rem; z-index: 10; pointer-events: none; text-shadow: 0px 2px 4px rgba(0,0,0,0.8);}
         
         #interaction-prompt {
-            position: absolute; top: 120px; width: 100%; text-align: center; 
-            color: #ff00ff; font-family: monospace; font-size: 1.6rem; font-weight: bold;
-            z-index: 10; pointer-events: none; text-shadow: 0 0 20px rgba(255,0,255,0.9);
-            opacity: 0; transition: opacity 0.4s ease;
+            position: absolute; top: 60px; width: 100%; text-align: center; 
+            color: #ff00ff; font-family: monospace; font-size: 1.5rem; font-weight: bold;
+            z-index: 10; pointer-events: none; text-shadow: 0px 0px 15px rgba(255,0,255,0.9);
+            opacity: 0; transition: opacity 0.3s ease-in-out;
         }
 
-        /* MOBILE UI */
+        /* --- MOBILE UI --- */
         #mobile-controls { display: none; }
         #joystick-base {
-            position: absolute; bottom: 40px; left: 40px; width: 130px; height: 130px;
-            background: rgba(255,255,255,0.06); border: 3px solid rgba(0,255,204,0.3);
-            border-radius: 50%; z-index: 100; touch-action: none; display: none;
+            position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%; z-index: 100; touch-action: none; display: none; pointer-events: none;
         }
         #joystick-stick {
-            position: absolute; top: 40px; left: 40px; width: 50px; height: 50px;
-            background: rgba(0,255,204,0.7); border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            position: absolute; top: 35px; left: 35px; width: 50px; height: 50px;
+            background: rgba(0, 229, 255, 0.5); border-radius: 50%; pointer-events: none; 
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.5); transition: transform 0.05s ease-out;
         }
         
         .action-button {
-            position: absolute; background: rgba(255,255,255,0.08); border: 3px solid rgba(255,255,255,0.35);
+            position: absolute; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%; z-index: 100; color: white; font-family: monospace; font-weight: bold;
-            display: flex; justify-content: center; align-items: center; touch-action: none;
+            display: flex; justify-content: center; align-items: center; touch-action: none; user-select: none;
         }
-        #run-button { bottom: 40px; right: 130px; width: 75px; height: 75px; font-size: 13px; }
-        #jump-button { bottom: 110px; right: 40px; width: 85px; height: 85px; font-size: 19px; background: rgba(0,255,204,0.25); }
+        #run-button { bottom: 40px; right: 120px; width: 70px; height: 70px; }
+        #jump-button { bottom: 100px; right: 40px; width: 80px; height: 80px; font-size: 18px; background: rgba(0, 229, 255, 0.2); }
     </style>
 </head>
 <body>
-    <div id="ui">HELEN'S ENCHANTED FOREST ODYSSEY</div>
-    <div id="crystal-counter">CRYSTALS: <span id="count">0</span>/3</div>
-    <div id="interaction-prompt">THE CRYSTAL CALLS...</div>
+    <div id="ui">Universal Controls Active</div>
+    <div id="interaction-prompt">The Crystal Resonates...</div>
     <canvas id="renderCanvas"></canvas>
 
     <div id="mobile-controls">
@@ -59,23 +50,18 @@
         <div id="jump-button" class="action-button">JUMP</div>
     </div>
 
-    <div id="win-screen">
-        <div>🌲 VICTORY! 🌲</div>
-        <div style="font-size:1.4rem; margin-top:20px;">You collected all the crystals!<br>Helen thanks you ❤️</div>
-    </div>
-
     <script>
         window.addEventListener("contextmenu", e => e.preventDefault());
 
         const canvas = document.getElementById("renderCanvas");
+        
+        // --- HD MOBILE FIX ---
         const engine = new BABYLON.Engine(canvas, true, { adaptToDeviceRatio: true });
         engine.setHardwareScalingLevel(1 / window.devicePixelRatio);
 
         const promptUI = document.getElementById("interaction-prompt");
-        const counterUI = document.getElementById("count");
-        const winScreen = document.getElementById("win-screen");
 
-        // Mobile controls
+        // --- 1. TOUCH CONTROLS SETUP ---
         const joyBase = document.getElementById("joystick-base");
         const joyStick = document.getElementById("joystick-stick");
         const runBtn = document.getElementById("run-button");
@@ -88,160 +74,75 @@
         if ('ontouchstart' in window || navigator.maxTouchPoints > 0) mobileControls.style.display = "block";
 
         function updateJoystick(clientX, clientY) {
-            let dx = clientX - joyCenterX;
-            let dy = clientY - joyCenterY;
-            let distance = Math.sqrt(dx*dx + dy*dy);
-            let maxDist = 45;
+            let dx = clientX - joyCenterX; let dy = clientY - joyCenterY;
+            let distance = Math.sqrt(dx*dx + dy*dy); let maxDist = 35; 
             if (distance > maxDist) { dx = (dx / distance) * maxDist; dy = (dy / distance) * maxDist; }
             joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
-            touchMoveX = dx / maxDist;
-            touchMoveZ = dy / maxDist;
+            touchMoveX = dx / maxDist; touchMoveZ = dy / maxDist;
         }
 
-        runBtn.addEventListener("pointerdown", e => { e.preventDefault(); isTouchRunning = true; runBtn.style.background = "rgba(0,255,204,0.8)"; });
-        runBtn.addEventListener("pointerup", e => { e.preventDefault(); isTouchRunning = false; runBtn.style.background = "rgba(255,255,255,0.08)"; });
-        runBtn.addEventListener("pointerleave", () => { isTouchRunning = false; runBtn.style.background = "rgba(255,255,255,0.08)"; });
+        // Touch Buttons
+        runBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); isTouchRunning = true; runBtn.style.background = "rgba(0, 229, 255, 0.7)"; });
+        runBtn.addEventListener("pointerup", (e) => { e.preventDefault(); isTouchRunning = false; runBtn.style.background = "rgba(255, 255, 255, 0.1)"; });
+        runBtn.addEventListener("pointerleave", (e) => { isTouchRunning = false; runBtn.style.background = "rgba(255, 255, 255, 0.1)"; });
 
-        jumpBtn.addEventListener("pointerdown", e => { e.preventDefault(); isTouchJumping = true; jumpBtn.style.background = "rgba(0,255,204,0.9)"; });
-        jumpBtn.addEventListener("pointerup", e => { e.preventDefault(); isTouchJumping = false; jumpBtn.style.background = "rgba(0,255,204,0.25)"; });
-        jumpBtn.addEventListener("pointerleave", () => { isTouchJumping = false; jumpBtn.style.background = "rgba(0,255,204,0.25)"; });
+        jumpBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); isTouchJumping = true; jumpBtn.style.background = "rgba(0, 229, 255, 0.9)"; });
+        jumpBtn.addEventListener("pointerup", (e) => { e.preventDefault(); isTouchJumping = false; jumpBtn.style.background = "rgba(0, 229, 255, 0.2)"; });
+        jumpBtn.addEventListener("pointerleave", (e) => { isTouchJumping = false; jumpBtn.style.background = "rgba(0, 229, 255, 0.2)"; });
 
+        // --- CORE GAME SETUP ---
         const createScene = async function () {
             const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color3(0.01, 0.03, 0.08);
-            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-            scene.fogDensity = 0.0028;
-            scene.fogColor = new BABYLON.Color3(0.15, 0.25, 0.4);
+            scene.clearColor = new BABYLON.Color3(0.01, 0.02, 0.04); 
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2; scene.fogDensity = 0.008; scene.fogColor = scene.clearColor;
 
-            // Lights
-            const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-0.6, -1, -0.4), scene);
-            sun.intensity = 1.1;
-            sun.diffuse = new BABYLON.Color3(1, 0.95, 0.85);
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-0.5, -1, -0.5), scene); dirLight.intensity = 0.5; 
+            const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(5, 5, -5), new BABYLON.Vector3(-1, -1, 1), Math.PI / 3, 2, scene);
+            rimLight.diffuse = new BABYLON.Color3(0.8, 0.2, 1); rimLight.intensity = 2.0;
 
-            const rim = new BABYLON.SpotLight("rim", new BABYLON.Vector3(15, 25, -20), new BABYLON.Vector3(-0.5, -1, 0.8), Math.PI/3, 2, scene);
-            rim.diffuse = new BABYLON.Color3(0.6, 0.3, 1);
-            rim.intensity = 1.8;
-
-            // BEAUTIFUL SKYBOX + ENVIRONMENT
-            const env = scene.createDefaultEnvironment({
-                createGround: false,
-                skyboxSize: 1800,
-                skyboxColor: new BABYLON.Color3(0.05, 0.1, 0.25)
-            });
-            env.skybox.material.diffuseColor = new BABYLON.Color3(0.08, 0.12, 0.3);
-
-            // BIG TERRAIN
-            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 520, height: 520, subdivisions: 120, updatable: true}, scene);
+            // Terrain
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 200, height: 200, subdivisions: 80, updatable: true}, scene);
             const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
             for (let i = 0; i < positions.length; i += 3) {
-                const x = positions[i];
-                const z = positions[i + 2];
-                positions[i + 1] = Math.sin(x/18)*5.5 + Math.cos(z/15)*4.8 + Math.sin((x+z)/6)*1.8;
+                const x = positions[i]; const z = positions[i + 2];
+                positions[i + 1] = (Math.sin(x / 8) * 2.5) + (Math.cos(z / 10) * 2.5) + (Math.sin((x + z) / 4) * 0.5); 
             }
             ground.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
-            BABYLON.VertexData.ComputeNormals(positions, ground.getIndices(), ground.getVerticesData(BABYLON.VertexBuffer.NormalKind));
+            BABYLON.VertexData.ComputeNormals(positions, ground.getIndices(), ground.getVerticesData(BABYLON.VertexBuffer.NormalKind)); 
 
             const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-            groundMat.diffuseColor = new BABYLON.Color3(0.035, 0.08, 0.04);
-            groundMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+            groundMat.diffuseColor = new BABYLON.Color3(0.05, 0.1, 0.08); groundMat.specularColor = new BABYLON.Color3(0, 0, 0); 
             ground.material = groundMat;
 
-            // === TREES (3 VARIATIONS) ===
-            const trees = [];
-            function createTree(x, z, type) {
-                const tree = new BABYLON.TransformNode("tree", scene);
-                let trunkH = 5.5, leafSize = 4.2;
+            // Crystal
+            const crystalX = 15; const crystalZ = 20;
+            const crystalY = ground.getHeightAtCoordinates(crystalX, crystalZ) + 6;
+            const crystal = BABYLON.MeshBuilder.CreateCylinder("crystal", {height: 12, diameterTop: 0.1, diameterBottom: 3, tessellation: 6}, scene);
+            crystal.position.set(crystalX, crystalY, crystalZ);
+            const crystalMat = new BABYLON.StandardMaterial("crystalMat", scene);
+            crystalMat.emissiveColor = new BABYLON.Color3(0, 0.8, 1); crystalMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
+            crystal.material = crystalMat;
 
-                if (type === 1) { trunkH = 7; leafSize = 3.8; }      // tall pine
-                if (type === 2) { trunkH = 4; leafSize = 5; }        // bushy
+            const crystalLight = new BABYLON.PointLight("crystalLight", crystal.position, scene);
+            crystalLight.diffuse = new BABYLON.Color3(0, 0.8, 1); crystalLight.intensity = 2.5; crystalLight.range = 30;
 
-                const trunk = BABYLON.MeshBuilder.CreateCylinder("trunk", {height: trunkH, diameter: 1.1}, scene);
-                trunk.position.y = trunkH/2;
-                const tMat = new BABYLON.StandardMaterial("tMat", scene);
-                tMat.diffuseColor = new BABYLON.Color3(0.35, 0.22, 0.1);
-                trunk.material = tMat;
+            const particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
+            particleSystem.particleTexture = new BABYLON.Texture("https://textures.babylonjs.com/flare.png", scene);
+            particleSystem.emitter = crystal;
+            particleSystem.minEmitBox = new BABYLON.Vector3(-1.5, -6, -1.5); particleSystem.maxEmitBox = new BABYLON.Vector3(1.5, -6, 1.5);
+            particleSystem.color1 = new BABYLON.Color4(0, 0.8, 1, 1); particleSystem.color2 = new BABYLON.Color4(0, 0.5, 1, 1);
+            particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0);
+            particleSystem.minSize = 0.1; particleSystem.maxSize = 0.4;
+            particleSystem.minLifeTime = 1.0; particleSystem.maxLifeTime = 4.0; particleSystem.emitRate = 80;
+            particleSystem.direction1 = new BABYLON.Vector3(-0.5, 1, -0.5); particleSystem.direction2 = new BABYLON.Vector3(0.5, 2, 0.5);
+            particleSystem.gravity = new BABYLON.Vector3(0, 0.5, 0); particleSystem.start();
 
-                const leaves = BABYLON.MeshBuilder.CreateSphere("leaves", {diameter: leafSize}, scene);
-                leaves.position.y = trunkH + 1.5;
-                leaves.scaling.set(1, 0.65, 1);
-                const lMat = new BABYLON.StandardMaterial("lMat", scene);
-                lMat.diffuseColor = type === 2 ? new BABYLON.Color3(0.05, 0.55, 0.2) : new BABYLON.Color3(0.08, 0.42, 0.18);
-                leaves.material = lMat;
-
-                trunk.parent = tree;
-                leaves.parent = tree;
-
-                const scale = 0.85 + Math.random() * 0.45;
-                tree.scaling.set(scale, scale * (type === 1 ? 1.15 : 0.95), scale);
-                tree.rotation.y = Math.random() * Math.PI * 2;
-
-                const height = ground.getHeightAtCoordinates(x, z);
-                tree.position.set(x, height, z);
-                trees.push(tree);
-                return tree;
-            }
-
-            for (let i = 0; i < 65; i++) {
-                const x = (Math.random() - 0.5) * 480;
-                const z = (Math.random() - 0.5) * 480;
-                if (Math.abs(x) < 40 && Math.abs(z) < 40) continue;
-                const type = Math.random() > 0.6 ? 1 : (Math.random() > 0.5 ? 2 : 0);
-                createTree(x, z, type);
-            }
-
-            // === 3 COLLECTIBLE CRYSTALS ===
-            let crystals = [];
-            let collected = 0;
-            function spawnCrystal() {
-                const c = BABYLON.MeshBuilder.CreateCylinder("crystal", {height: 9, diameterTop: 0.15, diameterBottom: 3.2, tessellation: 6}, scene);
-                let x, z;
-                do {
-                    x = (Math.random() - 0.5) * 420;
-                    z = (Math.random() - 0.5) * 420;
-                } while (Math.abs(x) < 60 && Math.abs(z) < 60);
-                
-                const y = ground.getHeightAtCoordinates(x, z) + 5;
-                c.position.set(x, y, z);
-                
-                const mat = new BABYLON.StandardMaterial("cMat", scene);
-                mat.emissiveColor = new BABYLON.Color3(0.1, 0.9, 1);
-                mat.diffuseColor = new BABYLON.Color3(0.3, 0.8, 1);
-                c.material = mat;
-
-                const light = new BABYLON.PointLight("cLight", c.position, scene);
-                light.diffuse = new BABYLON.Color3(0.1, 0.9, 1);
-                light.intensity = 3;
-                light.range = 35;
-
-                const ps = new BABYLON.ParticleSystem("ps", 1200, scene);
-                ps.particleTexture = new BABYLON.Texture("https://textures.babylonjs.com/flare.png", scene);
-                ps.emitter = c;
-                ps.minEmitBox = new BABYLON.Vector3(-2, -4, -2);
-                ps.maxEmitBox = new BABYLON.Vector3(2, -4, 2);
-                ps.color1 = new BABYLON.Color4(0.2, 1, 1, 1);
-                ps.color2 = new BABYLON.Color4(0.6, 0.8, 1, 1);
-                ps.colorDead = new BABYLON.Color4(0, 0.3, 1, 0);
-                ps.minSize = 0.15; ps.maxSize = 0.45;
-                ps.minLifeTime = 1.2; ps.maxLifeTime = 3.5;
-                ps.emitRate = 70;
-                ps.direction1 = new BABYLON.Vector3(-0.6, 1.5, -0.6);
-                ps.direction2 = new BABYLON.Vector3(0.6, 2.5, 0.6);
-                ps.gravity = new BABYLON.Vector3(0, 0.4, 0);
-                ps.start();
-
-                crystals.push({mesh: c, light: light, ps: ps, mat: mat});
-                return c;
-            }
-
-            for (let i = 0; i < 3; i++) spawnCrystal();
-
-            // === HELEN ===
+            // Load Helen
             const result = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "Helen1.glb", scene);
-            const hero = result.meshes[0];
-            result.animationGroups.forEach(anim => anim.stop());
+            const hero = result.meshes[0]; result.animationGroups.forEach(anim => anim.stop());
 
             const bones = { leftArm:null, rightArm:null, leftLeg:null, rightLeg:null, spine:null };
-            let hairBones = [];
+            let hairBones = []; 
             
             result.transformNodes.forEach(node => {
                 if (node.name === 'J_Bip_C_Spine') bones.spine = node;
@@ -249,10 +150,15 @@
                 if (node.name === 'J_Bip_R_UpperArm') bones.rightArm = node;
                 if (node.name === 'J_Bip_L_UpperLeg') bones.leftLeg = node;
                 if (node.name === 'J_Bip_R_UpperLeg') bones.rightLeg = node;
-                if (node.name.includes('J_Sec_Hair')) hairBones.push({bone: node, baseRot: node.rotation ? node.rotation.clone() : new BABYLON.Vector3()});
+                if (node.name.includes('J_Sec_Hair')) {
+                    if (node.rotationQuaternion) { node.rotation = node.rotationQuaternion.toEulerAngles(); node.rotationQuaternion = null; }
+                    hairBones.push({ bone: node, baseRot: node.rotation.clone() });
+                }
             });
 
-            hero.rotationQuaternion = null; // one-time fix
+            for (let key in bones) {
+                if (bones[key] && bones[key].rotationQuaternion) { bones[key].rotation = bones[key].rotationQuaternion.toEulerAngles(); bones[key].rotationQuaternion = null; }
+            }
 
             let blinkTarget = null;
             result.meshes.forEach(m => {
@@ -262,260 +168,239 @@
                     }
                 }
             });
-
-            let blinkState = { isBlinking: false, value: 0, nextTime: Date.now() + 2800 };
+            let blinkState = { isBlinking: false, value: 0, nextTime: Date.now() + 3000 };
 
             // Camera
             const camAnchor = new BABYLON.TransformNode("camAnchor", scene);
-            camAnchor.parent = hero;
-            camAnchor.position.y = 1.4;
-            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/3.1, 6, camAnchor, scene);
-            camera.lowerRadiusLimit = 2.5;
-            camera.upperBetaLimit = Math.PI / 2.05;
-            camera.fov = 0.85;
+            camAnchor.parent = hero; camAnchor.position.y = 1.3; 
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, camAnchor, scene);
+            camera.lowerRadiusLimit = 2; camera.upperBetaLimit = Math.PI / 2.0; 
+            const baseFov = 0.8; const runFov = 1.1; camera.fov = baseFov;
 
             const pipeline = new BABYLON.DefaultRenderingPipeline("default", true, scene, [camera]);
-            pipeline.bloomEnabled = true;
-            pipeline.bloomThreshold = 0.65;
-            pipeline.bloomWeight = 0.55;
+            pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.7; pipeline.bloomWeight = 0.5;
 
-            // Touch swipe controls
-            let joystickPointerId = null;
-            let cameraPointerId = null;
-            let lastCamX = 0, lastCamY = 0;
-
+            // --- DUAL-ZONE TOUCH EVENT LISTENERS (MOBILE FIX) ---
+            let joystickPointerId = null; let cameraPointerId = null; let lastCamX = 0, lastCamY = 0;
+            
             scene.onPointerObservable.add((pointerInfo) => {
-                const e = pointerInfo.event;
-                const half = engine.getRenderWidth() / 2;
-                if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
-                    if (e.target === runBtn || e.target === jumpBtn) return;
-                    if (e.clientX < half && joystickPointerId === null) {
-                        joystickPointerId = e.pointerId;
-                        joyCenterX = e.clientX; joyCenterY = e.clientY;
-                        joyBase.style.left = `${joyCenterX-65}px`;
-                        joyBase.style.top = `${joyCenterY-65}px`;
-                        joyBase.style.display = "block";
-                        updateJoystick(e.clientX, e.clientY);
-                    } else if (e.clientX >= half && cameraPointerId === null) {
-                        cameraPointerId = e.pointerId;
-                        lastCamX = e.clientX; lastCamY = e.clientY;
-                    }
-                }
-                if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE) {
-                    if (e.pointerId === joystickPointerId) updateJoystick(e.clientX, e.clientY);
-                    else if (e.pointerId === cameraPointerId) {
-                        camera.inertialAlphaOffset -= (e.clientX - lastCamX) * 0.0052;
-                        camera.inertialBetaOffset -= (e.clientY - lastCamY) * 0.0052;
-                        lastCamX = e.clientX; lastCamY = e.clientY;
-                    }
-                }
-                if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERUP) {
-                    if (e.pointerId === joystickPointerId) { joystickPointerId = null; joyBase.style.display = "none"; touchMoveX = 0; touchMoveZ = 0; }
-                    else if (e.pointerId === cameraPointerId) cameraPointerId = null;
+                const e = pointerInfo.event; 
+                // Use Babylon's rock-solid pointer tracker instead of raw browser events
+                const ptrX = scene.pointerX; 
+                const ptrY = scene.pointerY;
+                const halfWidth = engine.getRenderWidth() / 2;
+                
+                // Fallback for strict mobile browsers to guarantee we have an ID for the finger
+                const pId = e.pointerId || (e.changedTouches ? e.changedTouches[0].identifier : 1);
+
+                switch (pointerInfo.type) {
+                    case BABYLON.PointerEventTypes.POINTERDOWN:
+                        if (e.target === runBtn || e.target === jumpBtn) return; 
+                        
+                        if (ptrX < halfWidth && joystickPointerId === null) {
+                            joystickPointerId = pId; 
+                            joyCenterX = ptrX; joyCenterY = ptrY;
+                            joyBase.style.left = `${joyCenterX - 60}px`; joyBase.style.top = `${joyCenterY - 60}px`;
+                            joyBase.style.display = "block"; updateJoystick(ptrX, ptrY);
+                        } else if (ptrX >= halfWidth && cameraPointerId === null) {
+                            cameraPointerId = pId; lastCamX = ptrX; lastCamY = ptrY;
+                        }
+                        break;
+
+                    case BABYLON.PointerEventTypes.POINTERMOVE:
+                        if (pId === joystickPointerId) { 
+                            updateJoystick(ptrX, ptrY); 
+                        } else if (pId === cameraPointerId) {
+                            // Force the camera to rotate directly (bypassing the sleeping inertia system)
+                            camera.alpha -= (ptrX - lastCamX) * 0.005; 
+                            camera.beta -= (ptrY - lastCamY) * 0.005; 
+                            lastCamX = ptrX; lastCamY = ptrY;
+                        }
+                        break;
+
+                    case BABYLON.PointerEventTypes.POINTERUP:
+                        if (pId === joystickPointerId) { 
+                            joystickPointerId = null; joyBase.style.display = "none"; touchMoveX = 0; touchMoveZ = 0; 
+                        } else if (pId === cameraPointerId) { 
+                            cameraPointerId = null; 
+                        }
+                        break;
                 }
             });
 
-            // Keyboard + Gamepad
+            // --- 2. KEYBOARD & GAMEPAD SETUP ---
             const inputMap = {};
             scene.actionManager = new BABYLON.ActionManager(scene);
-            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, e => inputMap[e.sourceEvent.key.toLowerCase()] = true));
-            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, e => inputMap[e.sourceEvent.key.toLowerCase()] = false));
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = true));
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = false));
 
             const gamepadManager = new BABYLON.GamepadManager();
-            let controller = null;
-            gamepadManager.onGamepadConnectedObservable.add(g => controller = g);
+            let myController = null;
+            gamepadManager.onGamepadConnectedObservable.add(gamepad => myController = gamepad);
+            gamepadManager.onGamepadDisconnectedObservable.add(() => myController = null);
 
-            // === RUNNING DUST TRAIL ===
-            const dustPS = new BABYLON.ParticleSystem("dust", 400, scene);
-            dustPS.particleTexture = new BABYLON.Texture("https://textures.babylonjs.com/flare.png", scene);
-            dustPS.emitter = hero;
-            dustPS.minEmitBox = new BABYLON.Vector3(-0.8, 0.1, -0.8);
-            dustPS.maxEmitBox = new BABYLON.Vector3(0.8, 0.1, 0.8);
-            dustPS.color1 = new BABYLON.Color4(0.8, 0.8, 0.7, 0.6);
-            dustPS.color2 = new BABYLON.Color4(0.6, 0.6, 0.5, 0.3);
-            dustPS.colorDead = new BABYLON.Color4(0.4, 0.4, 0.4, 0);
-            dustPS.minSize = 0.2; dustPS.maxSize = 0.6;
-            dustPS.minLifeTime = 0.6; dustPS.maxLifeTime = 1.4;
-            dustPS.emitRate = 0;
-            dustPS.direction1 = new BABYLON.Vector3(-1, 1, -1);
-            dustPS.direction2 = new BABYLON.Vector3(1, 2, 1);
-            dustPS.gravity = new BABYLON.Vector3(0, -2, 0);
-            dustPS.start();
 
-            // === GAME LOOP VARS ===
-            let walkAccumulator = 0;
-            let smoothSpeed = 0;
-            let velocityY = 0;
-            const gravity = -0.028;
-            const jumpPower = 0.48;
-            const colorCyan = new BABYLON.Color3(0, 0.85, 1);
-            const colorMagenta = new BABYLON.Color3(1, 0.1, 1);
+            // --- 3. THE UNIVERSAL GAME LOOP ---
+            const speed = 0.08; 
+            let walkAccumulator = 0; let smoothSpeed = 0;
+            
+            // JUMP VARIABLES
+            let velocityY = 0; 
+            const gravity = -0.015; // How fast she falls back down
+            const jumpPower = 0.3;  // How high she leaps
+
+            const colorCyan = new BABYLON.Color3(0, 0.8, 1);
+            const colorMagenta = new BABYLON.Color3(1, 0, 1);
 
             scene.onBeforeRenderObservable.add(() => {
-                const delta = engine.getDeltaTime() / 1000;
-                const speedFactor = delta * 68; // normalized to ~60fps feel
+                let moveX = 0; let moveZ = 0;
+                
+                // A. SPRINT CHECK 
+                let isRunning = inputMap["shift"] || (myController && myController.browserGamepad.buttons[10]?.pressed) || isTouchRunning; 
 
-                let moveX = 0, moveZ = 0;
-                let isRunning = inputMap["shift"] || (controller && controller.browserGamepad.buttons[10]?.pressed) || isTouchRunning;
-                let isJumpingPressed = inputMap[" "] || (controller && controller.browserGamepad.buttons[0]?.pressed) || isTouchJumping;
+                // B. JUMP CHECK 
+                let isJumpingPressed = inputMap[" "] || (myController && myController.browserGamepad.buttons[0]?.pressed) || isTouchJumping;
 
-                // Keyboard
-                if (inputMap["w"]) moveZ -= 1;
-                if (inputMap["s"]) moveZ += 1;
-                if (inputMap["a"]) moveX += 1;
-                if (inputMap["d"]) moveX -= 1;
+                // C. MOVEMENT CHECK (Keyboard WASD)
+                if (inputMap["w"]) moveZ -= speed;
+                if (inputMap["s"]) moveZ += speed;
+                if (inputMap["a"]) moveX += speed;
+                if (inputMap["d"]) moveX -= speed;
 
-                // Gamepad left stick
-                if (controller && controller.leftStick) {
-                    if (Math.abs(controller.leftStick.x) > 0.12) moveX -= controller.leftStick.x;
-                    if (Math.abs(controller.leftStick.y) > 0.12) moveZ -= controller.leftStick.y;
+                // D. MOVEMENT CHECK (Gamepad Left Stick)
+                if (myController && myController.leftStick) {
+                    if (Math.abs(myController.leftStick.x) > 0.1) moveX -= myController.leftStick.x * speed; 
+                    if (Math.abs(myController.leftStick.y) > 0.1) moveZ -= myController.leftStick.y * speed; 
                 }
 
-                // Touch joystick
-                if (touchMoveX !== 0) moveX -= touchMoveX;
-                if (touchMoveZ !== 0) moveZ += touchMoveZ;
-
-                // Normalize direction
-                let len = Math.sqrt(moveX*moveX + moveZ*moveZ);
-                if (len > 0) {
-                    moveX /= len;
-                    moveZ /= len;
+                // E. CAMERA CHECK (Gamepad Right Stick)
+                if (myController && myController.rightStick) {
+                    if (Math.abs(myController.rightStick.x) > 0.1) camera.inertialAlphaOffset += myController.rightStick.x * 0.015; 
+                    if (Math.abs(myController.rightStick.y) > 0.1) camera.inertialBetaOffset += myController.rightStick.y * 0.015; 
                 }
 
-                // Sprint
-                if (isRunning) {
-                    moveX *= 1.85;
-                    moveZ *= 1.85;
-                }
+                // F. MOVEMENT CHECK (Touch Virtual Joystick)
+                if (touchMoveX !== 0) moveX -= touchMoveX * speed;
+                if (touchMoveZ !== 0) moveZ += touchMoveZ * speed; 
 
-                const currentSpeed = Math.sqrt(moveX*moveX + moveZ*moveZ);
-                smoothSpeed = BABYLON.Scalar.Lerp(smoothSpeed, currentSpeed, 0.12);
+                // Apply Sprint Multiplier
+                if (isRunning) { moveX *= 1.8; moveZ *= 1.8; }
 
-                // === MOVEMENT ===
-                if (currentSpeed > 0.01) {
+                let currentSpeed = Math.sqrt(moveX*moveX + moveZ*moveZ);
+                smoothSpeed = BABYLON.Scalar.Lerp(smoothSpeed, currentSpeed, 0.1);
+
+                // Apply Forward/Directional Movement (Camera Relative)
+                if (currentSpeed > 0) {
                     const forward = camera.getFrontPosition(1).subtract(camera.position);
                     forward.y = 0; forward.normalize();
-                    const right = BABYLON.Vector3.Cross(new BABYLON.Vector3(0,1,0), forward).normalize();
-                    const dir = forward.scale(moveZ).add(right.scale(-moveX));
+                    const right = BABYLON.Vector3.Cross(new BABYLON.Vector3(0, 1, 0), forward).normalize();
+                    const direction = forward.scale(moveZ).add(right.scale(-moveX));
                     
-                    hero.position.addInPlace(dir.scale(speedFactor * 0.085));
-                    hero.rotationQuaternion = null;
-                    hero.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+                    hero.position.addInPlace(direction);
+                    hero.rotationQuaternion = null; 
+                    hero.rotation.y = Math.atan2(direction.x, direction.z) + Math.PI; 
                 }
 
-                // === JUMP + GRAVITY ===
-                const groundHeight = ground.getHeightAtCoordinates(hero.position.x, hero.position.z);
-                const isGrounded = hero.position.y <= groundHeight + 0.08;
+                // THE JUMPING & GRAVITY LOGIC 
+                let groundHeight = ground.getHeightAtCoordinates(hero.position.x, hero.position.z);
+                let isGrounded = (hero.position.y <= groundHeight + 0.05); 
 
                 if (isGrounded) {
-                    if (isJumpingPressed) velocityY = jumpPower;
-                    else { hero.position.y = groundHeight; velocityY = 0; }
-                } else {
-                    velocityY += gravity * speedFactor;
-                }
-                hero.position.y += velocityY * speedFactor;
-
-                // Dust trail intensity
-                dustPS.emitRate = isRunning && smoothSpeed > 0.3 && isGrounded ? 180 : 0;
-
-                // Camera terrain follow
-                let camGround = ground.getHeightAtCoordinates(camera.position.x, camera.position.z);
-                if (camera.position.y < camGround + 0.8) camera.radius = BABYLON.Scalar.Lerp(camera.radius, camera.radius - 1.2, 0.25);
-                else if (camera.radius < 6) camera.radius = BABYLON.Scalar.Lerp(camera.radius, 6, 0.08);
-
-                // === CRYSTAL COLLECTION + PULSE ===
-                let nearAny = false;
-                crystals.forEach((c, i) => {
-                    const dist = BABYLON.Vector3.Distance(hero.position, c.mesh.position);
-                    if (dist < 7) {
-                        nearAny = true;
-                        c.mesh.scaling.set(1.15 + Math.sin(Date.now()/180)*0.08, 1.15 + Math.sin(Date.now()/220)*0.08, 1.15 + Math.sin(Date.now()/180)*0.08);
-                        c.mat.emissiveColor = BABYLON.Color3.Lerp(c.mat.emissiveColor, colorMagenta, 0.1);
-                        
-                        if (dist < 4.5) {
-                            // COLLECT!
-                            collected++;
-                            counterUI.textContent = collected;
-                            c.ps.stop();
-                            c.light.intensity = 0;
-                            c.mesh.dispose();
-                            crystals.splice(i, 1);
-                            
-                            if (collected >= 3) {
-                                winScreen.style.display = "flex";
-                            } else {
-                                // spawn new one
-                                setTimeout(() => spawnCrystal(), 800);
-                            }
-                        }
+                    if (isJumpingPressed) {
+                        velocityY = jumpPower; 
                     } else {
-                        c.mesh.rotation.y += 0.015 * speedFactor;
-                        c.mat.emissiveColor = BABYLON.Color3.Lerp(c.mat.emissiveColor, colorCyan, 0.08);
+                        hero.position.y = groundHeight; 
+                        velocityY = 0;
                     }
-                });
+                } else {
+                    velocityY += gravity; 
+                }
+                hero.position.y += velocityY; 
 
-                promptUI.style.opacity = nearAny ? "1" : "0";
+                // Camera Terrain Tracking (Spring Arm)
+                const normalRadius = 5; 
+                let camGroundHeight = ground.getHeightAtCoordinates(camera.position.x, camera.position.z);
+                if (camera.position.y < camGroundHeight + 0.5) {
+                    camera.radius = BABYLON.Scalar.Lerp(camera.radius, camera.radius - 1.0, 0.2);
+                } else {
+                    if (camera.radius < normalRadius) { camera.radius = BABYLON.Scalar.Lerp(camera.radius, normalRadius, 0.05); }
+                }
 
-                // Procedural walk animation
+                // Crystal Proximity
+                if (BABYLON.Vector3.Distance(hero.position, crystal.position) < 6.0) {
+                    promptUI.style.opacity = "1";
+                    crystalMat.emissiveColor = BABYLON.Color3.Lerp(crystalMat.emissiveColor, colorMagenta, 0.05);
+                    crystalLight.diffuse = BABYLON.Color3.Lerp(crystalLight.diffuse, colorMagenta, 0.05);
+                    particleSystem.color1 = new BABYLON.Color4(1, 0, 1, 1);
+                } else {
+                    promptUI.style.opacity = "0";
+                    crystalMat.emissiveColor = BABYLON.Color3.Lerp(crystalMat.emissiveColor, colorCyan, 0.05);
+                    crystalLight.diffuse = BABYLON.Color3.Lerp(crystalLight.diffuse, colorCyan, 0.05);
+                    particleSystem.color1 = new BABYLON.Color4(0, 0.8, 1, 1);
+                }
+
+                const delta = engine.getDeltaTime() / 1000;
                 const time = Date.now() * 0.001;
-                if (smoothSpeed > 0.02 && isGrounded) {
-                    walkAccumulator += smoothSpeed * 240 * delta;
+                
+                // Procedural Animations 
+                if (smoothSpeed > 0.01 && isGrounded) {
+                    walkAccumulator += (smoothSpeed * 150) * delta;
                     const wc = walkAccumulator;
-                    const legAmp = isRunning ? 0.75 : 0.42;
-                    const armAmp = isRunning ? 0.55 : 0.23;
+                    const legAmp = isRunning ? 0.7 : 0.4;
+                    const armAmp = isRunning ? 0.5 : 0.2;
 
                     if (bones.leftLeg) bones.leftLeg.rotation.x = Math.sin(wc) * legAmp;
                     if (bones.rightLeg) bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * legAmp;
-                    if (bones.leftArm) { bones.leftArm.rotation.z = -1.25; bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp; }
-                    if (bones.rightArm) { bones.rightArm.rotation.z = 1.25; bones.rightArm.rotation.x = Math.sin(wc) * armAmp; }
-                    if (bones.spine) bones.spine.rotation.y = Math.cos(wc) * 0.09;
+                    if (bones.leftArm) { bones.leftArm.rotation.z = -1.2; bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp; }
+                    if (bones.rightArm) { bones.rightArm.rotation.z = 1.2; bones.rightArm.rotation.x = Math.sin(wc) * armAmp; }
+                    if (bones.spine) bones.spine.rotation.y = Math.cos(wc) * 0.1;
                 } else {
                     walkAccumulator = 0;
-                    const breath = isGrounded ? Math.sin(time * 2.8) * 0.035 : 0;
-                    if (bones.leftLeg) bones.leftLeg.rotation.x = BABYLON.Scalar.Lerp(bones.leftLeg.rotation.x, 0, 0.15);
-                    if (bones.rightLeg) bones.rightLeg.rotation.x = BABYLON.Scalar.Lerp(bones.rightLeg.rotation.x, 0, 0.15);
-                    if (bones.leftArm) { bones.leftArm.rotation.z = BABYLON.Scalar.Lerp(bones.leftArm.rotation.z, -1.25, 0.15); bones.leftArm.rotation.x = BABYLON.Scalar.Lerp(bones.leftArm.rotation.x, 0, 0.15); }
-                    if (bones.rightArm) { bones.rightArm.rotation.z = BABYLON.Scalar.Lerp(bones.rightArm.rotation.z, 1.25, 0.15); bones.rightArm.rotation.x = BABYLON.Scalar.Lerp(bones.rightArm.rotation.x, 0, 0.15); }
+                    const breath = isGrounded ? Math.sin(time * 2.5) * 0.03 : 0;
+                    if (bones.leftLeg) bones.leftLeg.rotation.x = BABYLON.Scalar.Lerp(bones.leftLeg.rotation.x, 0, 0.1);
+                    if (bones.rightLeg) bones.rightLeg.rotation.x = BABYLON.Scalar.Lerp(bones.rightLeg.rotation.x, 0, 0.1);
+                    if (bones.leftArm) { bones.leftArm.rotation.z = BABYLON.Scalar.Lerp(bones.leftArm.rotation.z, -1.2, 0.1); bones.leftArm.rotation.x = BABYLON.Scalar.Lerp(bones.leftArm.rotation.x, 0, 0.1); }
+                    if (bones.rightArm) { bones.rightArm.rotation.z = BABYLON.Scalar.Lerp(bones.rightArm.rotation.z, 1.2, 0.1); bones.rightArm.rotation.x = BABYLON.Scalar.Lerp(bones.rightArm.rotation.x, 0, 0.1); }
                     if (bones.spine) bones.spine.rotation.x = breath;
                 }
 
-                // Hair wind
-                const wind = Math.sin(time * 2.2) * 0.035;
+                // Hair Physics
+                const wind = Math.sin(time * 2) * 0.03;
                 hairBones.forEach(h => {
-                    let target = h.baseRot.x + wind + (smoothSpeed * 0.55) - (velocityY * 1.8);
-                    h.bone.rotation.x = BABYLON.Scalar.Lerp(h.bone.rotation.x, target, 0.13);
+                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 0.5) - (velocityY * 1.5); 
+                    h.bone.rotation.x = BABYLON.Scalar.Lerp(h.bone.rotation.x, targetRotX, 0.1);
                 });
 
                 // Blinking
                 if (blinkTarget) {
                     if (blinkState.isBlinking) {
-                        blinkState.value += 0.32 * speedFactor;
-                        if (blinkState.value >= 1) { blinkState.value = 1; blinkState.isBlinking = false; }
+                        blinkState.value += 0.25;
+                        if (blinkState.value >= 1.2) { blinkState.value = 1; blinkState.isBlinking = false; }
                     } else {
-                        blinkState.value -= 0.14 * speedFactor;
+                        blinkState.value -= 0.1;
                         if (blinkState.value <= 0) {
                             blinkState.value = 0;
-                            if (Date.now() > blinkState.nextTime) {
-                                blinkState.isBlinking = true;
-                                blinkState.nextTime = Date.now() + 2600 + Math.random() * 2200;
-                            }
+                            if (Date.now() >= blinkState.nextTime) { blinkState.isBlinking = true; blinkState.nextTime = Date.now() + 3500 + (Math.random() * 2000); }
                         }
                     }
                     blinkTarget.influence = Math.max(0, Math.min(1, blinkState.value));
                 }
 
-                camera.fov = BABYLON.Scalar.Lerp(camera.fov, isRunning && smoothSpeed > 0.1 ? 1.08 : 0.85, 0.07);
+                camera.fov = BABYLON.Scalar.Lerp(camera.fov, isRunning && smoothSpeed > 0.05 ? runFov : baseFov, 0.05);
             });
 
             return scene;
         };
 
-        createScene().then(scene => {
-            engine.runRenderLoop(() => scene.render());
+        createScene().then(scene => { engine.runRenderLoop(() => scene.render()); });
+        
+        // --- ROTATION FIX ---
+        window.addEventListener("resize", () => {
+            setTimeout(() => engine.resize(), 100);
         });
-
-        window.addEventListener("resize", () => setTimeout(() => engine.resize(), 80));
-        window.addEventListener("orientationchange", () => setTimeout(() => engine.resize(), 180));
+        window.addEventListener("orientationchange", () => {
+            setTimeout(() => engine.resize(), 200);
+        });
     </script>
 </body>
 </html>
