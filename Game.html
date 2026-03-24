@@ -55,7 +55,7 @@
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
 
-        // --- Mobile Touch Setup ---
+        // --- Mobile Touch Setup (UNCHANGED) ---
         const joyBase = document.getElementById("joystick-base");
         const joyStick = document.getElementById("joystick-stick");
         const runBtn = document.getElementById("run-button");
@@ -64,14 +64,12 @@
         let touchMoveX = 0, touchMoveZ = 0, isTouchRunning = false;
         let joyCenterX = 0, joyCenterY = 0;
 
-        // Detect if the user is on a touch screen and show the controls
         if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
             mobileControls.style.display = "block";
         }
 
-        // Joystick Logic
         joyBase.addEventListener("pointerdown", (e) => {
-            e.preventDefault(); e.stopPropagation(); // Stops the camera from spinning when using the joystick
+            e.preventDefault(); e.stopPropagation(); 
             let rect = joyBase.getBoundingClientRect();
             joyCenterX = rect.left + rect.width / 2;
             joyCenterY = rect.top + rect.height / 2;
@@ -97,7 +95,7 @@
             let dx = clientX - joyCenterX;
             let dy = clientY - joyCenterY;
             let distance = Math.sqrt(dx*dx + dy*dy);
-            let maxDist = 35; // How far the stick can stretch visually
+            let maxDist = 35; 
 
             if (distance > maxDist) {
                 dx = (dx / distance) * maxDist;
@@ -106,12 +104,10 @@
 
             joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
             
-            // Normalize values from -1.0 to 1.0 for the game loop
             touchMoveX = dx / maxDist;
             touchMoveZ = dy / maxDist;
         }
 
-        // Sprint Button Logic
         runBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); isTouchRunning = true; runBtn.style.background = "rgba(255, 0, 85, 0.7)"; });
         runBtn.addEventListener("pointerup", (e) => { e.preventDefault(); e.stopPropagation(); isTouchRunning = false; runBtn.style.background = "rgba(255, 255, 255, 0.1)"; });
 
@@ -119,15 +115,28 @@
         const createScene = async function () {
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color3(0.02, 0.02, 0.02);
+            
+            // NEW: Atmospheric Fog
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogDensity = 0.015;
+            scene.fogColor = scene.clearColor;
+
+            // NEW: Anime Glow (Bloom) Pipeline
+            const pipeline = new BABYLON.DefaultRenderingPipeline("default", true, scene, [scene.activeCamera]);
+            pipeline.bloomEnabled = true;
+            pipeline.bloomThreshold = 0.8;
+            pipeline.bloomWeight = 0.3;
 
             const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
             dirLight.intensity = 1.5;
             const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(5, 5, -5), new BABYLON.Vector3(-1, -1, 1), Math.PI / 3, 2, scene);
             rimLight.diffuse = new BABYLON.Color3(1, 0, 0.3); 
+            rimLight.intensity = 2.0; // Boosted for the bloom effect
 
             const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
             const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
             groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            groundMat.specularColor = new BABYLON.Color3(0, 0, 0); // NEW: Removes plastic shine
             ground.material = groundMat;
 
             // Load Helen
@@ -136,6 +145,7 @@
             result.animationGroups.forEach(anim => anim.stop());
 
             const bones = { leftArm:null, rightArm:null, leftLeg:null, rightLeg:null, spine:null };
+            let hairBones = []; // NEW: Array to hold hair for physics
             
             result.transformNodes.forEach(node => {
                 if (node.name === 'J_Bip_C_Spine') bones.spine = node;
@@ -143,6 +153,13 @@
                 if (node.name === 'J_Bip_R_UpperArm') bones.rightArm = node;
                 if (node.name === 'J_Bip_L_UpperLeg') bones.leftLeg = node;
                 if (node.name === 'J_Bip_R_UpperLeg') bones.rightLeg = node;
+                
+                // NEW: Grab all hair bones
+                if (node.name.includes('J_Sec_Hair')) {
+                    node.rotationQuaternion = null;
+                    if (!node.rotation) node.rotation = new BABYLON.Vector3(0,0,0);
+                    hairBones.push({ bone: node, baseRot: node.rotation.clone() });
+                }
             });
 
             for (let key in bones) {
@@ -152,7 +169,19 @@
                 }
             }
 
-            // Camera setup (Handles swiping inherently!)
+            // NEW: Blinking Setup
+            let blinkTarget = null;
+            result.meshes.forEach(m => {
+                if (m.morphTargetManager) {
+                    for (let i = 0; i < m.morphTargetManager.numTargets; i++) {
+                        let target = m.morphTargetManager.getTarget(i);
+                        if (target.name === "Fcl_EYE_Close") blinkTarget = target;
+                    }
+                }
+            });
+            let blinkState = { isBlinking: false, value: 0, nextTime: Date.now() + 3000 };
+
+            // Camera setup 
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, hero, scene);
             camera.attachControl(canvas, true); 
             camera.lowerRadiusLimit = 2;
@@ -160,6 +189,7 @@
             const baseFov = 0.8; 
             const runFov = 1.1;
             camera.fov = baseFov;
+            pipeline.cameras = [camera]; // NEW: Attach the bloom to the camera
 
             // Keyboard / Controller Setup
             const inputMap = {};
@@ -195,7 +225,7 @@
 
                 // Touch Virtual Joystick
                 if (touchMoveX !== 0) moveX -= touchMoveX * speed;
-                if (touchMoveZ !== 0) moveZ += touchMoveZ * speed; // + because pushing UP on a screen creates a negative Y coordinate, and we want forward (negative Z)
+                if (touchMoveZ !== 0) moveZ += touchMoveZ * speed; 
 
                 if (isRunning) { moveX *= 1.8; moveZ *= 1.8; }
 
@@ -233,6 +263,31 @@
                     if (bones.leftArm) bones.leftArm.rotation.x = BABYLON.Scalar.Lerp(bones.leftArm.rotation.x, 0.1, 0.1);
                     if (bones.rightArm) bones.rightArm.rotation.x = BABYLON.Scalar.Lerp(bones.rightArm.rotation.x, 0.1, 0.1);
                     if (bones.spine) bones.spine.rotation.x = breath;
+                }
+
+                // NEW: Hair Physics (Wind + Drag)
+                const wind = Math.sin(time * 2) * 0.03;
+                hairBones.forEach(h => {
+                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 2.5); // Hair flies back when running
+                    h.bone.rotation.x = BABYLON.Scalar.Lerp(h.bone.rotation.x, targetRotX, 0.1);
+                });
+
+                // NEW: Blinking Logic
+                if (blinkTarget) {
+                    if (blinkState.isBlinking) {
+                        blinkState.value += 0.25;
+                        if (blinkState.value >= 1.2) { blinkState.value = 1; blinkState.isBlinking = false; }
+                    } else {
+                        blinkState.value -= 0.1;
+                        if (blinkState.value <= 0) {
+                            blinkState.value = 0;
+                            if (Date.now() >= blinkState.nextTime) {
+                                blinkState.isBlinking = true;
+                                blinkState.nextTime = Date.now() + 3500 + (Math.random() * 2000);
+                            }
+                        }
+                    }
+                    blinkTarget.influence = Math.max(0, Math.min(1, blinkState.value));
                 }
 
                 camera.fov = BABYLON.Scalar.Lerp(camera.fov, isRunning && smoothSpeed > 0.05 ? runFov : baseFov, 0.05);
