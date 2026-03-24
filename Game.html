@@ -92,31 +92,93 @@
         jumpBtn.addEventListener("pointerleave", (e) => { isTouchJumping = false; jumpBtn.style.background = "rgba(0, 229, 255, 0.2)"; });
 
         // --- CORE GAME SETUP ---
-        const createScene = async function () {
+                const createScene = async function () {
             const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color3(0.01, 0.02, 0.04); 
-            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2; scene.fogDensity = 0.008; scene.fogColor = scene.clearColor;
+            scene.clearColor = new BABYLON.Color3(0.006, 0.01, 0.028); 
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2; 
+            scene.fogDensity = 0.0035; 
+            scene.fogColor = new BABYLON.Color3(0.04, 0.02, 0.1);
 
-            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-0.5, -1, -0.5), scene); dirLight.intensity = 0.5; 
-            const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(5, 5, -5), new BABYLON.Vector3(-1, -1, 1), Math.PI / 3, 2, scene);
-            rimLight.diffuse = new BABYLON.Color3(0.8, 0.2, 1); rimLight.intensity = 2.0;
+            // Lights
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-0.5, -1, -0.6), scene); 
+            dirLight.intensity = 0.6; 
 
-            // Terrain
-            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 200, height: 200, subdivisions: 80, updatable: true}, scene);
+            const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(10, 15, -12), new BABYLON.Vector3(-0.6, -1, 0.9), Math.PI / 3, 2, scene);
+            rimLight.diffuse = new BABYLON.Color3(0.8, 0.25, 1); 
+            rimLight.intensity = 2.0;
+
+            // === NEW SKYBOX (bright & epic) ===
+            scene.createDefaultEnvironment({
+                createGround: false,
+                skyboxSize: 1350,
+                skyboxColor: new BABYLON.Color3(0.025, 0.008, 0.085)
+            });
+
+            // === BIGGER TERRAIN ===
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 420, height: 420, subdivisions: 110, updatable: true}, scene);
             const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
             for (let i = 0; i < positions.length; i += 3) {
-                const x = positions[i]; const z = positions[i + 2];
-                positions[i + 1] = (Math.sin(x / 8) * 2.5) + (Math.cos(z / 10) * 2.5) + (Math.sin((x + z) / 4) * 0.5); 
+                const x = positions[i];
+                const z = positions[i + 2];
+                positions[i + 1] = (Math.sin(x / 13) * 4) + (Math.cos(z / 12) * 3.5) + Math.sin((x + z) / 5) * 1.4; 
             }
             ground.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
             BABYLON.VertexData.ComputeNormals(positions, ground.getIndices(), ground.getVerticesData(BABYLON.VertexBuffer.NormalKind)); 
 
             const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-            groundMat.diffuseColor = new BABYLON.Color3(0.05, 0.1, 0.08); groundMat.specularColor = new BABYLON.Color3(0, 0, 0); 
+            groundMat.diffuseColor = new BABYLON.Color3(0.04, 0.09, 0.055);
             ground.material = groundMat;
 
-            // Crystal
-            const crystalX = 15; const crystalZ = 20;
+            // === TREE FUNCTION ===
+            function createTree(x, z) {
+                const tree = new BABYLON.TransformNode("tree", scene);
+                
+                // Trunk
+                const trunk = BABYLON.MeshBuilder.CreateCylinder("trunk", {height: 5, diameter: 0.9}, scene);
+                trunk.position.y = 2.5;
+                const trunkMat = new BABYLON.StandardMaterial("trunkMat", scene);
+                trunkMat.diffuseColor = new BABYLON.Color3(0.36, 0.23, 0.11);
+                trunk.material = trunkMat;
+
+                // Leaves
+                const leafMat = new BABYLON.StandardMaterial("leafMat", scene);
+                leafMat.diffuseColor = new BABYLON.Color3(0.07, 0.39, 0.16);
+
+                const leaves1 = BABYLON.MeshBuilder.CreateSphere("leaves1", {diameter: 4.5}, scene);
+                leaves1.position.y = 5.2;
+                leaves1.scaling.set(1, 0.7, 1);
+                leaves1.material = leafMat;
+
+                const leaves2 = BABYLON.MeshBuilder.CreateSphere("leaves2", {diameter: 3.4}, scene);
+                leaves2.position.y = 7.5;
+                leaves2.scaling.set(0.85, 0.6, 0.85);
+                leaves2.material = leafMat;
+
+                trunk.parent = tree;
+                leaves1.parent = tree;
+                leaves2.parent = tree;
+
+                // Random variation
+                const scale = 0.9 + Math.random() * 0.35;
+                tree.scaling.set(scale, scale*1.05, scale);
+                tree.rotation.y = Math.random() * 6.28;
+
+                const height = ground.getHeightAtCoordinates(x, z);
+                tree.position.set(x, height, z);
+                return tree;
+            }
+
+            // Spawn 40 trees
+            for (let i = 0; i < 40; i++) {
+                const x = (Math.random() - 0.5) * 370;
+                const z = (Math.random() - 0.5) * 370;
+                if (Math.abs(x) < 35 && Math.abs(z) < 35) continue; // away from spawn
+                createTree(x, z);
+            }
+
+            // === CRYSTAL (moved farther into the forest) ===
+            const crystalX = 38; 
+            const crystalZ = 52;
             const crystalY = ground.getHeightAtCoordinates(crystalX, crystalZ) + 6;
             const crystal = BABYLON.MeshBuilder.CreateCylinder("crystal", {height: 12, diameterTop: 0.1, diameterBottom: 3, tessellation: 6}, scene);
             crystal.position.set(crystalX, crystalY, crystalZ);
