@@ -173,38 +173,38 @@
             fireSystem.gravity = new BABYLON.Vector3(0, 1, 0); 
             fireSystem.start();
 
-            // --- LOAD YOUR CUSTOM TREES (UPDATED LINK) ---
+            // --- LOAD YOUR CUSTOM TREES (FIXED SCALE & CLONING) ---
             BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "treee.glb", scene).then((result) => {
                 const originalRoot = result.meshes[0];
                 
-                // Hide the master tree deep underground so we only see the scattered clones
-                originalRoot.position.y = -100;
+                // Turn the master tree invisible properly
+                originalRoot.setEnabled(false); 
                 
-                // Scatter 40 trees around the map!
+                // Scatter 40 trees
                 for (let i = 0; i < 40; i++) {
-                    // Clone the entire GLB model perfectly
                     let entries = result.instantiateModelsToScene(name => name + "-clone-" + i);
                     let treeClone = entries.rootNodes[0];
                     
-                    // Note: If your tree imports too tiny or too huge, change the 1.0 numbers below!
-                    treeClone.scaling = new BABYLON.Vector3(1.0, 1.0, 1.0);
+                    // Pump up the scale massively! 
+                    // If it suddenly appears huge, dial these numbers down to 5.0 or 1.0. 
+                    treeClone.scaling = new BABYLON.Vector3(15.0, 15.0, 15.0);
                     
-                    // Pick a random spot in the world
                     let randomX = (Math.random() - 0.5) * 150;
                     let randomZ = (Math.random() - 0.5) * 150;
                     
-                    // Make sure trees don't spawn right on top of the campfire
                     if (Math.abs(randomX - 15) < 8 && Math.abs(randomZ - 20) < 8) {
                         randomX += 15;
                     }
 
-                    // Snap to the terrain
                     let treeY = ground.getHeightAtCoordinates(randomX, randomZ);
                     
                     treeClone.position.set(randomX, treeY, randomZ);
-                    treeClone.rotationQuaternion = null; // Free the rotation
-                    treeClone.rotation.y = Math.random() * Math.PI * 2; // Give it a natural, random turn
+                    treeClone.rotationQuaternion = null; 
+                    treeClone.rotation.y = Math.random() * Math.PI * 2; 
                 }
+            }).catch((err) => {
+                // If the file is broken or missing, this will tell us exactly why!
+                console.error("Oops! The tree failed to load. Check the F12 Console:", err);
             });
 
             // Load Helen
