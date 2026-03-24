@@ -173,8 +173,8 @@
             fireSystem.gravity = new BABYLON.Vector3(0, 1, 0); 
             fireSystem.start();
 
-            // --- LOAD YOUR CUSTOM TREES ---
-            BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./a18c50aa243059f2b48ce8cb1f4c3d935a35f02a/", "treee.glb", scene).then((result) => {
+            // --- LOAD YOUR CUSTOM TREES (UPDATED LINK) ---
+            BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "treee.glb", scene).then((result) => {
                 const originalRoot = result.meshes[0];
                 
                 // Hide the master tree deep underground so we only see the scattered clones
