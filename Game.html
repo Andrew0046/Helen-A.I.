@@ -99,14 +99,17 @@
             scene.fogDensity = 0.015; // Thicker fog for the blizzard
             scene.fogColor = scene.clearColor;
 
-            // Sunlight & Rimlight
-            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -1.5, -1), scene); 
-            dirLight.diffuse = new BABYLON.Color3(0.9, 0.95, 1.0);
-            dirLight.intensity = 1.2; 
+            // --- FIXED LIGHTING FOR TUNDRA ---
+            // Sunlight & Sky Light
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene); 
+            dirLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.95); // Bright, crisp sun
+            dirLight.intensity = 1.5; 
             
-            const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(5, 5, -5), new BABYLON.Vector3(-1, -1, 1), Math.PI / 3, 2, scene);
-            rimLight.diffuse = new BABYLON.Color3(0.5, 0.7, 1.0); 
-            rimLight.intensity = 1.0;
+            // A Hemispheric light acts like the sky, illuminating the tops of all hills evenly!
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.diffuse = new BABYLON.Color3(0.6, 0.8, 1.0); // Icy blue sky reflections
+            hemiLight.groundColor = new BABYLON.Color3(0.1, 0.15, 0.2); // Darker bluish shadows in the valleys
+            hemiLight.intensity = 0.8;
 
             // PROCEDURAL TERRAIN: Snowy Peaks
             const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 200, height: 200, subdivisions: 80, updatable: true}, scene);
@@ -125,7 +128,7 @@
             groundMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Slight shimmer
             ground.material = groundMat;
 
-            // NEW WEATHER SYSTEM: Falling Blizzard Snow
+            // WEATHER SYSTEM: Falling Blizzard Snow
             const snowSystem = new BABYLON.ParticleSystem("snow", 5000, scene);
             snowSystem.particleTexture = new BABYLON.Texture("https://textures.babylonjs.com/flare.png", scene);
             // Spawn snow from a massive invisible box way up in the sky
@@ -143,7 +146,7 @@
             snowSystem.gravity = new BABYLON.Vector3(0, -2, 0); 
             snowSystem.start();
 
-            // NEW LANDMARK: The Warm Campfire
+            // LANDMARK: The Warm Campfire
             const fireX = 15; const fireZ = 20;
             const fireY = ground.getHeightAtCoordinates(fireX, fireZ);
             
