@@ -114,7 +114,6 @@
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color3(0.02, 0.02, 0.02);
             
-            // Atmospheric Fog
             scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
             scene.fogDensity = 0.015;
             scene.fogColor = scene.clearColor;
@@ -131,7 +130,6 @@
             groundMat.specularColor = new BABYLON.Color3(0, 0, 0); 
             ground.material = groundMat;
 
-            // Load Helen
             const result = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "Helen1.glb", scene);
             const hero = result.meshes[0]; 
             result.animationGroups.forEach(anim => anim.stop());
@@ -146,34 +144,36 @@
                 if (node.name === 'J_Bip_L_UpperLeg') bones.leftLeg = node;
                 if (node.name === 'J_Bip_R_UpperLeg') bones.rightLeg = node;
                 
-                // Grab all hair bones for physics
+                // HAIR FIX: Safely convert resting position before unlocking so her hair isn't messy!
                 if (node.name.includes('J_Sec_Hair')) {
-                    node.rotationQuaternion = null;
-                    if (!node.rotation) node.rotation = new BABYLON.Vector3(0,0,0);
+                    if (node.rotationQuaternion) {
+                        node.rotation = node.rotationQuaternion.toEulerAngles();
+                        node.rotationQuaternion = null; 
+                    }
                     hairBones.push({ bone: node, baseRot: node.rotation.clone() });
                 }
             });
 
+            // LIMB FIX: Safely unlock arms and legs without losing orientation
             for (let key in bones) {
                 if (bones[key]) {
-                    bones[key].rotationQuaternion = null;
-                    if (!bones[key].rotation) bones[key].rotation = new BABYLON.Vector3(0, 0, 0);
+                    if (bones[key].rotationQuaternion) {
+                        bones[key].rotation = bones[key].rotationQuaternion.toEulerAngles();
+                        bones[key].rotationQuaternion = null;
+                    }
                 }
             }
 
-            // Blinking Setup
             let blinkTarget = null;
             result.meshes.forEach(m => {
                 if (m.morphTargetManager) {
                     for (let i = 0; i < m.morphTargetManager.numTargets; i++) {
-                        let target = m.morphTargetManager.getTarget(i);
-                        if (target.name === "Fcl_EYE_Close") blinkTarget = target;
+                        if (m.morphTargetManager.getTarget(i).name === "Fcl_EYE_Close") blinkTarget = m.morphTargetManager.getTarget(i);
                     }
                 }
             });
             let blinkState = { isBlinking: false, value: 0, nextTime: Date.now() + 3000 };
 
-            // Camera setup MUST happen before the Pipeline
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, hero, scene);
             camera.attachControl(canvas, true); 
             camera.lowerRadiusLimit = 2;
@@ -182,13 +182,11 @@
             const runFov = 1.1;
             camera.fov = baseFov;
 
-            // Anime Glow (Bloom) Pipeline created AFTER camera
             const pipeline = new BABYLON.DefaultRenderingPipeline("default", true, scene, [camera]);
             pipeline.bloomEnabled = true;
             pipeline.bloomThreshold = 0.8;
             pipeline.bloomWeight = 0.3;
 
-            // Keyboard / Controller Setup
             const inputMap = {};
             scene.actionManager = new BABYLON.ActionManager(scene);
             scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = true));
@@ -199,7 +197,6 @@
             gamepadManager.onGamepadConnectedObservable.add(gamepad => myController = gamepad);
             gamepadManager.onGamepadDisconnectedObservable.add(() => myController = null);
 
-            // The Game Loop
             const speed = 0.08; 
             let walkAccumulator = 0; 
             let smoothSpeed = 0;
@@ -229,9 +226,8 @@
                 if (currentSpeed > 0) {
                     hero.position.x += moveX;
                     hero.position.z += moveZ;
-                    let targetAngle = Math.atan2(moveX, moveZ);
                     hero.rotationQuaternion = null; 
-                    hero.rotation.y = targetAngle + Math.PI; 
+                    hero.rotation.y = Math.atan2(moveX, moveZ) + Math.PI; 
                 }
 
                 const delta = engine.getDeltaTime() / 1000;
@@ -245,27 +241,43 @@
 
                     if (bones.leftLeg) bones.leftLeg.rotation.x = Math.sin(wc) * legAmp;
                     if (bones.rightLeg) bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * legAmp;
-                    if (bones.leftArm) bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp;
-                    if (bones.rightArm) bones.rightArm.rotation.x = Math.sin(wc) * armAmp;
+                    
+                    // ARM FIX: Drop arms to her sides (rotation.z) AND swing them (rotation.x)
+                    if (bones.leftArm) {
+                        bones.leftArm.rotation.z = -1.2; 
+                        bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp;
+                    }
+                    if (bones.rightArm) {
+                        bones.rightArm.rotation.z = 1.2; 
+                        bones.rightArm.rotation.x = Math.sin(wc) * armAmp;
+                    }
                     if (bones.spine) bones.spine.rotation.y = Math.cos(wc) * 0.1;
                 } else {
                     walkAccumulator = 0;
                     const breath = Math.sin(time * 2.5) * 0.03;
+                    
                     if (bones.leftLeg) bones.leftLeg.rotation.x = BABYLON.Scalar.Lerp(bones.leftLeg.rotation.x, 0, 0.1);
                     if (bones.rightLeg) bones.rightLeg.rotation.x = BABYLON.Scalar.Lerp(bones.rightLeg.rotation.x, 0, 0.1);
-                    if (bones.leftArm) bones.leftArm.rotation.x = BABYLON.Scalar.Lerp(bones.leftArm.rotation.x, 0.1, 0.1);
-                    if (bones.rightArm) bones.rightArm.rotation.x = BABYLON.Scalar.Lerp(bones.rightArm.rotation.x, 0.1, 0.1);
+                    
+                    // ARM FIX: Smoothly return arms to her sides during idle
+                    if (bones.leftArm) {
+                        bones.leftArm.rotation.z = BABYLON.Scalar.Lerp(bones.leftArm.rotation.z, -1.2, 0.1);
+                        bones.leftArm.rotation.x = BABYLON.Scalar.Lerp(bones.leftArm.rotation.x, 0, 0.1);
+                    }
+                    if (bones.rightArm) {
+                        bones.rightArm.rotation.z = BABYLON.Scalar.Lerp(bones.rightArm.rotation.z, 1.2, 0.1);
+                        bones.rightArm.rotation.x = BABYLON.Scalar.Lerp(bones.rightArm.rotation.x, 0, 0.1);
+                    }
                     if (bones.spine) bones.spine.rotation.x = breath;
                 }
 
-                // Hair Physics
+                // Smooth hair physics
                 const wind = Math.sin(time * 2) * 0.03;
                 hairBones.forEach(h => {
-                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 2.5); 
+                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 0.5); 
                     h.bone.rotation.x = BABYLON.Scalar.Lerp(h.bone.rotation.x, targetRotX, 0.1);
                 });
 
-                // Blinking Logic
                 if (blinkTarget) {
                     if (blinkState.isBlinking) {
                         blinkState.value += 0.25;
