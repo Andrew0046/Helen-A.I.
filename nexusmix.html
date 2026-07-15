@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="theme-color" content="#020705" />
-  <title>Nightwatch XR V4.4 Verified Ultra-Wide Visor</title>
+  <title>Nightwatch XR V4.5 Cardboard Safe View</title>
   <style>
     :root {
       --green: #68ff9d;
@@ -217,7 +217,7 @@
     <div class="boot-card">
       <div class="boot-topline">
         <div class="eyebrow">TACTICAL SEARCH VISOR / PROTOTYPE</div>
-        <div class="build-tag">BUILD 4.4 / VERIFIED 0.5×</div>
+        <div class="build-tag">BUILD 4.5 / CARDBOARD SAFE VIEW</div>
       </div>
       <h1>NIGHTWATCH XR</h1>
       <p class="subtitle">A calibrated hands-free camera visor with full-view stereo, stabilized motion zones, improved low-light processing, and capability-aware camera controls.</p>
@@ -286,9 +286,9 @@
             <div class="setup-row"><label for="eyeVerticalRange">Both-eye vertical trim</label><output id="eyeVerticalOutput">CENTER</output></div>
             <input id="eyeVerticalRange" type="range" min="-0.08" max="0.08" step="0.005" value="0">
 
-            <div class="setup-row"><label for="fovRange">View field</label><output id="fovOutput">78°</output></div>
-            <input id="fovRange" type="range" min="60" max="105" step="1" value="78">
-            <div class="setup-row"><label for="barrelRange">Lens barrel correction</label><output id="barrelOutput">0.00</output></div>
+            <div class="setup-row"><label for="fovRange">HUD field of view</label><output id="fovOutput">72°</output></div>
+            <input id="fovRange" type="range" min="60" max="95" step="1" value="72">
+            <div class="setup-row"><label for="barrelRange">Optical warp — leave at 0 unless required</label><output id="barrelOutput">0.00</output></div>
             <input id="barrelRange" type="range" min="-0.20" max="0.45" step="0.01" value="0.00">
             <div class="setup-row"><label for="shiftRange">Lens-center shift</label><output id="shiftOutput">0.00</output></div>
             <input id="shiftRange" type="range" min="-0.15" max="0.15" step="0.01" value="0.00">
@@ -297,7 +297,7 @@
 
             <div class="setup-row"><label for="performanceSelect">Performance profile</label><select id="performanceSelect"><option>AUTO</option><option>BATTERY</option><option>BALANCED</option><option>MAXIMUM</option></select></div>
             <div class="setup-row"><label for="paletteSelect">Night palette</label><select id="paletteSelect"><option value="0">GREEN</option><option value="1">AMBER</option><option value="2">MONO</option><option value="3">NATURAL</option></select></div>
-            <div class="setup-row"><label for="fitSelect">Camera fit</label><select id="fitSelect"><option value="0">FILL / CROP</option><option value="1">FULL SENSOR / BARS</option></select></div>
+            <div class="setup-row"><label for="fitSelect">Cardboard camera view</label><select id="fitSelect"><option value="0">NATURAL / FULL IMAGE</option><option value="1">FILL / CROP</option><option value="2">FULL SENSOR / BLACK BARS</option></select></div>
 
             <div class="setup-row"><label for="noiseRange">Noise reduction</label><output id="noiseOutput">55%</output></div>
             <input id="noiseRange" type="range" min="0" max="1" step="0.05" value="0.55">
@@ -313,7 +313,7 @@
             <label class="toggle-line"><input id="webxrToggle" type="checkbox" disabled> Try experimental WebXR pose when available</label>
           </div>
         </div>
-        <button id="launchButton" type="button">Launch calibrated full-view visor</button>
+        <div class="setup-actions" style="margin-top:14px"><button id="safeViewSetupButton" type="button">Apply recommended Cardboard view</button><button id="launchButton" type="button">Launch Cardboard visor</button></div>
       </div>
 
       <p id="bootStatus">Complete setup while the phone is outside the headset, then launch Full View.</p>
@@ -407,7 +407,7 @@
       leftEyeOffset: 0.000,
       rightEyeOffset: 0.000,
       eyeVerticalOffset: 0.000,
-      fov: 78,
+      fov: 72,
       lensDistortion: 0.00,
       lensShift: 0.00,
       fitMode: 0,
@@ -548,52 +548,115 @@
         float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
         float rand(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 
-        vec2 lensUv(vec2 uv) {
+        vec2 alignedScreenUv(vec2 uv) {
+          float visibleShiftX = 0.0;
+
+          if (uEyeSign < -0.5) {
+            visibleShiftX = uEyeCenterShift + uLeftEyeOffset;
+          } else if (uEyeSign > 0.5) {
+            visibleShiftX = -uEyeCenterShift + uRightEyeOffset;
+          }
+
+          // Sampling moves opposite to the visible image movement.
+          uv.x -= visibleShiftX;
+          uv.y -= uEyeVerticalOffset;
+
+          // Optical correction belongs in display space. Applying it after camera
+          // aspect fitting was stretching the room and making straight lines bend.
           vec2 center = vec2(0.5 + uLensShift * uEyeSign, 0.5);
           vec2 p = uv - center;
           float r2 = dot(p, p);
-          float factor = 1.0 + uLensDistortion * r2 + 0.22 * uLensDistortion * r2 * r2;
+          float factor = 1.0 + uLensDistortion * r2
+                       + 0.18 * uLensDistortion * r2 * r2;
           return center + p * factor;
         }
 
-        vec3 rawSource(vec2 uv) {
+        vec2 coverUv(vec2 uv) {
           float screenAspect = uViewport.x / max(uViewport.y, 1.0);
           float videoAspect = uVideoSize.x / max(uVideoSize.y, 1.0);
-          vec2 fitted = uv;
+          vec2 mapped = uv;
 
-          if (uFitMode == 0) {
-            if (screenAspect > videoAspect) {
-              float scaleY = videoAspect / screenAspect;
-              fitted.y = (fitted.y - 0.5) * scaleY + 0.5;
-            } else {
-              float scaleX = screenAspect / videoAspect;
-              fitted.x = (fitted.x - 0.5) * scaleX + 0.5;
-            }
+          if (screenAspect > videoAspect) {
+            float sampleHeight = videoAspect / screenAspect;
+            mapped.y = (uv.y - 0.5) * sampleHeight + 0.5;
           } else {
-            if (screenAspect > videoAspect) {
-              float scaleX = videoAspect / screenAspect;
-              fitted.x = (fitted.x - 0.5) / max(scaleX, 0.001) + 0.5;
-            } else {
-              float scaleY = screenAspect / videoAspect;
-              fitted.y = (fitted.y - 0.5) / max(scaleY, 0.001) + 0.5;
-            }
+            float sampleWidth = screenAspect / videoAspect;
+            mapped.x = (uv.x - 0.5) * sampleWidth + 0.5;
           }
 
-          // Align the duplicated mono camera frame with the physical Cardboard lens centers.
-          // Positive convergence moves the visible left image right and the right image left.
-          float displayOffsetX = 0.0;
-          if (uEyeSign < -0.5) {
-            displayOffsetX = uEyeCenterShift + uLeftEyeOffset;
-          } else if (uEyeSign > 0.5) {
-            displayOffsetX = -uEyeCenterShift + uRightEyeOffset;
+          return mapped;
+        }
+
+        vec2 containUv(vec2 uv, out float mask) {
+          float screenAspect = uViewport.x / max(uViewport.y, 1.0);
+          float videoAspect = uVideoSize.x / max(uVideoSize.y, 1.0);
+          vec2 mapped = uv;
+          float feather = 0.012;
+
+          if (screenAspect > videoAspect) {
+            float contentWidth = videoAspect / screenAspect;
+            float minX = 0.5 - contentWidth * 0.5;
+            float maxX = 0.5 + contentWidth * 0.5;
+            mapped.x = (uv.x - minX) / max(contentWidth, 0.001);
+            mask =
+              smoothstep(minX, minX + feather, uv.x) *
+              (1.0 - smoothstep(maxX - feather, maxX, uv.x));
+          } else {
+            float contentHeight = screenAspect / videoAspect;
+            float minY = 0.5 - contentHeight * 0.5;
+            float maxY = 0.5 + contentHeight * 0.5;
+            mapped.y = (uv.y - minY) / max(contentHeight, 0.001);
+            mask =
+              smoothstep(minY, minY + feather, uv.y) *
+              (1.0 - smoothstep(maxY - feather, maxY, uv.y));
           }
 
-          // Texture sampling moves in the opposite direction from the visible image.
-          fitted.x -= displayOffsetX;
-          fitted.y -= uEyeVerticalOffset;
-          fitted = lensUv(fitted);
-          if (fitted.x < 0.0 || fitted.x > 1.0 || fitted.y < 0.0 || fitted.y > 1.0) return vec3(0.0);
-          return texture2D(uVideo, fitted).rgb;
+          return mapped;
+        }
+
+        vec3 videoSample(vec2 uv) {
+          if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+            return vec3(0.0);
+          }
+          return texture2D(uVideo, uv).rgb;
+        }
+
+        vec3 rawSource(vec2 uv) {
+          vec2 displayUv = alignedScreenUv(uv);
+
+          if (
+            displayUv.x < 0.0 || displayUv.x > 1.0 ||
+            displayUv.y < 0.0 || displayUv.y > 1.0
+          ) {
+            return vec3(0.0);
+          }
+
+          // Natural mode: show the entire undistorted camera frame. A dim cover
+          // copy fills the unused Cardboard lens area so the screen does not feel
+          // like a small floating rectangle.
+          if (uFitMode == 0) {
+            float foregroundMask = 0.0;
+            vec2 foregroundUv = containUv(displayUv, foregroundMask);
+            vec2 backgroundUv = coverUv(displayUv);
+
+            vec3 background = videoSample(backgroundUv);
+            float backgroundLuma = luma(background);
+            background = mix(vec3(backgroundLuma), background, 0.35) * 0.28;
+
+            vec3 foreground = videoSample(foregroundUv);
+            return mix(background, foreground, foregroundMask);
+          }
+
+          // Optional crop mode fills every pixel, but intentionally crops the
+          // sides of a wide phone-camera frame inside each near-square eye view.
+          if (uFitMode == 1) {
+            return videoSample(coverUv(displayUv));
+          }
+
+          // Exact full-sensor mode preserves the frame and leaves true black bars.
+          float sensorMask = 0.0;
+          vec2 sensorUv = containUv(displayUv, sensorMask);
+          return videoSample(sensorUv) * sensorMask;
         }
 
         vec3 filteredSource(vec2 uv) {
@@ -837,9 +900,13 @@
       return t;
     }
 
+    const CARDBOARD_YAW_SCALE = 0.72;
+    const CARDBOARD_PITCH_SCALE = 0.68;
+
     function sphericalPosition(yawDegrees, pitchDegrees, distance) {
-      const yaw = THREE.MathUtils.degToRad(yawDegrees);
-      const pitch = THREE.MathUtils.degToRad(pitchDegrees);
+      const yaw = THREE.MathUtils.degToRad(yawDegrees * CARDBOARD_YAW_SCALE);
+      const pitch = THREE.MathUtils.degToRad(pitchDegrees * CARDBOARD_PITCH_SCALE);
+
       return new THREE.Vector3(
         Math.sin(yaw) * Math.cos(pitch) * distance,
         Math.sin(pitch) * distance,
@@ -848,7 +915,7 @@
     }
 
     function addMenuButton(config) {
-      const geometry = new THREE.PlaneGeometry(1.46, 0.68);
+      const geometry = new THREE.PlaneGeometry(1.24, 0.58);
       const material = new THREE.MeshBasicMaterial({
         map: makeButtonTexture(config.title, config.subtitle, config.accent, config.selected || false),
         transparent: true,
@@ -859,7 +926,7 @@
         side: THREE.DoubleSide
       });
       const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.copy(sphericalPosition(config.yaw, config.pitch, 4.2));
+      mesh.position.copy(sphericalPosition(config.yaw, config.pitch, 4.45));
       mesh.lookAt(0, 0, 0);
       const showWhen = config.showWhen || 'quick';
       mesh.userData = { ...config, showWhen, baseScale: 1 };
@@ -912,10 +979,9 @@
     const imageButton = addMenuButton({ id: 'image', title: 'IMAGE CLEAR', subtitle: 'filter preset', yaw: 15, pitch: 18, accent: '#d8ffe5', showWhen: 'settings', action: cycleImagePreset });
     const sensitivityButton = addMenuButton({ id: 'sensitivity', title: 'MOTION MED', subtitle: 'persistent zones', yaw: 45, pitch: 18, accent: '#ff9e6a', showWhen: 'settings', action: cycleMotionSensitivity });
 
-    const ipdDownButton = addMenuButton({ id: 'ipdDown', title: 'IPD −', subtitle: 'eyes closer', yaw: -45, pitch: -7, accent: '#ffd36a', showWhen: 'settings', action: () => adjustIpd(-0.002) });
-    const ipdUpButton = addMenuButton({ id: 'ipdUp', title: 'IPD +', subtitle: 'eyes wider', yaw: -15, pitch: -7, accent: '#ffd36a', showWhen: 'settings', action: () => adjustIpd(0.002) });
-    const fovDownButton = addMenuButton({ id: 'fovDown', title: 'FOV −', subtitle: 'narrow view', yaw: 15, pitch: -7, accent: '#63eaff', showWhen: 'settings', action: () => adjustFov(-3) });
-    const fovUpButton = addMenuButton({ id: 'fovUp', title: 'FOV +', subtitle: 'wider view', yaw: 45, pitch: -7, accent: '#63eaff', showWhen: 'settings', action: () => adjustFov(3) });
+    const viewModeButton = addMenuButton({ id: 'viewMode', title: 'VIEW NATURAL', subtitle: 'full camera frame', yaw: -30, pitch: -7, accent: '#63eaff', showWhen: 'settings', action: cycleFitMode });
+    const safeViewButton = addMenuButton({ id: 'safeView', title: 'SAFE VIEW', subtitle: 'reset Cardboard optics', yaw: 0, pitch: -7, accent: '#68ff9d', showWhen: 'settings', action: applyCardboardSafeView });
+    const fovDownButton = addMenuButton({ id: 'fovDown', title: 'HUD FOV −', subtitle: 'menus closer', yaw: 30, pitch: -7, accent: '#ffd36a', showWhen: 'settings', action: () => adjustFov(-3) });
 
     const dwellButton = addMenuButton({ id: 'dwell', title: 'DWELL 1.3', subtitle: 'selection time', yaw: -45, pitch: -31, accent: '#ffffff', showWhen: 'settings', action: cycleDwell });
     const hudButton = addMenuButton({ id: 'hud', title: 'HUD MIN', subtitle: 'display density', yaw: -15, pitch: -31, accent: '#68ff9d', showWhen: 'settings', action: cycleHud });
@@ -1050,6 +1116,55 @@
       shaderUniforms.uFitMode.value = state.fitMode;
     }
 
+    const fitModeNames = ['NATURAL', 'CROP', 'SENSOR'];
+
+    function refreshViewModeButton() {
+      if (!viewModeButton) return;
+      const subtitles = [
+        'full image + soft fill',
+        'edge-to-edge crop',
+        'full sensor + bars'
+      ];
+      refreshButtonTexture(
+        viewModeButton,
+        `VIEW ${fitModeNames[state.fitMode] || 'NATURAL'}`,
+        subtitles[state.fitMode] || subtitles[0],
+        '#63eaff',
+        true
+      );
+    }
+
+    function cycleFitMode() {
+      state.fitMode = (state.fitMode + 1) % 3;
+      shaderUniforms.uFitMode.value = state.fitMode;
+      fitSelect.value = String(state.fitMode);
+      refreshViewModeButton();
+      saveConfig();
+      announce(`VIEW ${fitModeNames[state.fitMode]}`);
+    }
+
+    function applyCardboardSafeView() {
+      state.fitMode = 0;
+      state.fov = 72;
+      state.lensDistortion = 0;
+      state.lensShift = 0;
+      state.eyeCenterShift = 0;
+      state.leftEyeOffset = 0;
+      state.rightEyeOffset = 0;
+      state.eyeVerticalOffset = 0;
+
+      camera.fov = state.fov;
+      camera.updateProjectionMatrix();
+      syncImageUniforms();
+      syncEyeAlignment(false);
+      syncSetupControls();
+      refreshViewModeButton();
+      saveConfig();
+      syncViewportNow(true);
+      announce('CARDBOARD SAFE VIEW');
+      vibrate([25, 35, 25]);
+    }
+
     function alignmentText(value) {
       if (Math.abs(value) < 0.0005) return 'CENTER';
       return `${value > 0 ? 'RIGHT' : 'LEFT'} ${(Math.abs(value) * 100).toFixed(1)}%`;
@@ -1164,6 +1279,7 @@
 
     syncImageUniforms();
     syncEyeAlignment(false);
+    refreshViewModeButton();
     refreshButtonTexture(paletteButton, paletteNames[state.palette], 'night palette', '#68ff9d', true);
     refreshButtonTexture(imageButton, `IMAGE ${imagePresets[state.imagePreset].name}`, 'filter preset', '#d8ffe5', true);
     refreshButtonTexture(sensitivityButton, `MOTION ${state.motionSensitivityNames[state.motionSensitivity]}`, 'persistent zones', '#ff9e6a', true);
@@ -2171,8 +2287,15 @@
 
     function loadSavedConfig() {
       try {
-        const saved = JSON.parse(localStorage.getItem('nightwatch-v4-3-config') || '{}');
-        const legacy = JSON.parse(localStorage.getItem('nightwatch-v4-config') || '{}');
+        const saved = JSON.parse(
+          localStorage.getItem('nightwatch-v4-5-config') || '{}'
+        );
+        const previous = JSON.parse(
+          localStorage.getItem('nightwatch-v4-3-config') || '{}'
+        );
+        const legacy = JSON.parse(
+          localStorage.getItem('nightwatch-v4-config') || '{}'
+        );
 
         if (saved.ipd) state.ipd = saved.ipd;
         if (Number.isFinite(saved.eyeCenterShift)) state.eyeCenterShift = saved.eyeCenterShift;
@@ -2192,9 +2315,19 @@
         if (Number.isFinite(saved.highlightProtect)) state.highlightProtect = saved.highlightProtect;
         if (Number.isFinite(saved.blackLevel)) state.blackLevel = saved.blackLevel;
 
-        // Keep camera assignments from older builds, but never inherit old eye shifts.
-        state.savedNormalDeviceId = saved.normalDeviceId || legacy.normalDeviceId || '';
-        state.savedUltraDeviceId = saved.ultraDeviceId || legacy.ultraDeviceId || '';
+        // Camera assignments are safe to carry forward. Old crop, warp and
+        // eye-placement values are intentionally not imported.
+        state.savedNormalDeviceId =
+          saved.normalDeviceId ||
+          previous.normalDeviceId ||
+          legacy.normalDeviceId ||
+          '';
+
+        state.savedUltraDeviceId =
+          saved.ultraDeviceId ||
+          previous.ultraDeviceId ||
+          legacy.ultraDeviceId ||
+          '';
       } catch (error) {
         console.warn('Could not load saved calibration:', error);
       }
@@ -2214,7 +2347,7 @@
         normalDeviceId: state.normalDeviceId, ultraDeviceId: state.ultraDeviceId
       };
       try {
-        localStorage.setItem('nightwatch-v4-3-config', JSON.stringify(config));
+        localStorage.setItem('nightwatch-v4-5-config', JSON.stringify(config));
       } catch (error) {
         console.warn('Calibration could not be saved on this browser:', error);
       }
@@ -2471,6 +2604,7 @@
     updateDiagnostics();
     launchButton.addEventListener('click', launchVisor);
     document.querySelector('#previewCameraButton').addEventListener('click', previewSelectedCamera);
+    document.querySelector('#safeViewSetupButton').addEventListener('click', applyCardboardSafeView);
     document.querySelector('#assignUltraButton').addEventListener('click', async () => {
       const selected = cameraSelect.value;
       if (!selected) return;
@@ -2682,12 +2816,14 @@
         renderer.setScissorTest(true);
 
         if (state.stereo) {
-          stereoCamera.eyeSep = state.ipd;
-          stereoCamera.update(camera);
           const leftWidth = Math.floor(width / 2);
           const rightWidth = width - leftWidth;
-          renderEye(0, 0, leftWidth, height, stereoCamera.cameraL, -1);
-          renderEye(leftWidth, 0, rightWidth, height, stereoCamera.cameraR, 1);
+
+          // The phone provides one mono camera image. Rendering the HUD with a
+          // second stereo offset made panels appear shifted or doubled through
+          // Cardboard lenses, so both eyes now use the same head camera.
+          renderEye(0, 0, leftWidth, height, camera, -1);
+          renderEye(leftWidth, 0, rightWidth, height, camera, 1);
         } else {
           renderEye(0, 0, width, height, camera, 0);
         }
