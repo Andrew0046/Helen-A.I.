@@ -4,151 +4,276 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="theme-color" content="#020705" />
-  <title>Nightwatch XR V4 Pro Visor</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Nightwatch XR V5</title>
   <style>
     :root {
       --green: #68ff9d;
       --cyan: #63eaff;
       --amber: #ffd36a;
       --red: #ff526f;
-      --panel: rgba(2, 10, 8, 0.88);
-      --panel-2: rgba(5, 20, 15, 0.92);
-      --line: rgba(104, 255, 157, 0.28);
-      --soft-line: rgba(149, 255, 191, 0.12);
+      --panel: rgba(2, 12, 9, 0.92);
+      --panel-2: rgba(4, 18, 14, 0.94);
+      --line: rgba(104, 255, 157, 0.32);
+      --soft-line: rgba(149, 255, 191, 0.14);
+      --text: #e9fff1;
+      --muted: #8da696;
       --shadow-green: rgba(70, 255, 150, 0.18);
     }
+
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #010302; color: #e9fff1; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    html, body {
+      width: 100%; height: 100%; margin: 0; overflow: hidden;
+      background: #010302; color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
     body { touch-action: none; }
+
     #app, #xrCanvas { position: fixed; inset: 0; width: 100%; height: 100%; }
     #xrCanvas { display: block; background: #000; }
-    #cameraVideo, #sampleCanvas { position: fixed; width: 2px; height: 2px; left: -10px; top: -10px; opacity: 0.001; pointer-events: none; }
+    #cameraVideo, #sampleCanvas {
+      position: fixed; width: 2px; height: 2px; left: -10px; top: -10px;
+      opacity: 0.001; pointer-events: none;
+    }
     #setupVideo { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
 
+    /* ─── Startup ─── */
     #startup {
-      position: fixed; inset: 0; z-index: 30; display: grid; place-items: start center; overflow-y: auto;
-      padding: max(22px, env(safe-area-inset-top)) 22px max(22px, env(safe-area-inset-bottom));
+      position: fixed; inset: 0; z-index: 30;
+      display: grid; place-items: start center; overflow-y: auto;
+      padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
       background:
-        radial-gradient(circle at 50% 20%, rgba(70,255,150,.13), transparent 36%),
-        linear-gradient(180deg, #07100c, #010302 68%);
+        radial-gradient(circle at 50% 12%, rgba(70,255,150,.12), transparent 38%),
+        linear-gradient(180deg, #06100c, #010302 70%);
     }
+
     .boot-card {
-      width: min(720px, 100%); padding: 28px; margin: auto 0; border: 1px solid var(--line); border-radius: 26px;
-      position: relative; overflow: hidden;
+      width: min(760px, 100%);
+      padding: 24px 22px;
+      margin: auto 0;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
       background:
-        linear-gradient(145deg, rgba(14,31,24,.95), rgba(2,8,6,.98)),
-        repeating-linear-gradient(0deg, transparent 0 7px, rgba(104,255,157,.018) 8px);
-      box-shadow: 0 34px 110px rgba(0,0,0,.72), inset 0 0 56px rgba(70,255,150,.045);
+        linear-gradient(150deg, rgba(12,28,22,.96), rgba(2,8,6,.98)),
+        repeating-linear-gradient(0deg, transparent 0 7px, rgba(104,255,157,.015) 8px);
+      box-shadow: 0 28px 90px rgba(0,0,0,.7), inset 0 0 48px rgba(70,255,150,.04);
     }
+
     .boot-card::before {
       content: ""; position: absolute; inset: 0; pointer-events: none;
       background:
-        linear-gradient(90deg, var(--green), transparent 17%) top left / 180px 2px no-repeat,
-        linear-gradient(180deg, var(--green), transparent 17%) top left / 2px 150px no-repeat,
-        linear-gradient(270deg, var(--cyan), transparent 17%) bottom right / 180px 2px no-repeat,
-        linear-gradient(0deg, var(--cyan), transparent 17%) bottom right / 2px 150px no-repeat;
-      opacity: .6;
+        linear-gradient(90deg, var(--green), transparent 18%) top left / 160px 2px no-repeat,
+        linear-gradient(180deg, var(--green), transparent 18%) top left / 2px 130px no-repeat,
+        linear-gradient(270deg, var(--cyan), transparent 18%) bottom right / 160px 2px no-repeat,
+        linear-gradient(0deg, var(--cyan), transparent 18%) bottom right / 2px 130px no-repeat;
+      opacity: .55;
     }
-    .boot-topline { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+
+    .boot-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .build-tag {
-      padding: 7px 10px; border: 1px solid rgba(99,234,255,.3); border-radius: 999px;
-      color: var(--cyan); background: rgba(99,234,255,.06); font-size: .64rem; letter-spacing: .12em;
+      padding: 6px 10px; border: 1px solid rgba(99,234,255,.28); border-radius: 999px;
+      color: var(--cyan); background: rgba(99,234,255,.06);
+      font-size: .62rem; letter-spacing: .12em; white-space: nowrap;
     }
-    .eyebrow { color: var(--green); font-size: .72rem; letter-spacing: .2em; font-weight: 800; }
-    h1 { margin: 9px 0 6px; font-family: system-ui, sans-serif; font-size: clamp(2rem, 8vw, 4.5rem); line-height: .94; letter-spacing: -.055em; }
-    .subtitle { margin: 0 0 18px; color: #a9c4b2; line-height: 1.55; font-family: system-ui, sans-serif; }
-    .feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 20px 0 16px; }
+    .eyebrow { color: var(--green); font-size: .7rem; letter-spacing: .18em; font-weight: 800; }
+    h1 {
+      margin: 8px 0 6px;
+      font-family: system-ui, sans-serif;
+      font-size: clamp(1.9rem, 7.5vw, 3.8rem);
+      line-height: .95; letter-spacing: -.045em;
+    }
+    .subtitle {
+      margin: 0 0 16px; color: #a9c4b2; line-height: 1.5;
+      font-family: system-ui, sans-serif; font-size: .92rem;
+    }
+
+    .feature-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin: 16px 0 14px;
+    }
     .feature {
-      min-height: 80px; padding: 13px 14px; border: 1px solid var(--soft-line); border-radius: 15px;
-      background: linear-gradient(135deg, rgba(104,255,157,.055), rgba(255,255,255,.018));
-      color: #c9ded0; font-size: .76rem; line-height: 1.45;
+      min-height: 74px; padding: 11px 12px;
+      border: 1px solid var(--soft-line); border-radius: 13px;
+      background: linear-gradient(135deg, rgba(104,255,157,.05), rgba(255,255,255,.015));
+      color: #c9ded0; font-size: .72rem; line-height: 1.4;
     }
-    .feature strong { display: block; color: #fff; margin-bottom: 3px; }
+    .feature strong { display: block; color: #fff; margin-bottom: 2px; font-size: .78rem; }
+
     .boot-readout {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 15px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 0 0 14px;
     }
     .readout-chip {
-      padding: 10px 11px; border: 1px solid var(--soft-line); border-radius: 12px;
-      background: rgba(0,0,0,.22); color: #89aa96; font-size: .64rem; letter-spacing: .08em;
+      padding: 9px 10px; border: 1px solid var(--soft-line); border-radius: 11px;
+      background: rgba(0,0,0,.22); color: #89aa96; font-size: .6rem; letter-spacing: .07em;
     }
-    .readout-chip strong { display: block; margin-top: 4px; color: #e9fff1; font-size: .76rem; letter-spacing: .02em; }
+    .readout-chip strong {
+      display: block; margin-top: 3px; color: #e9fff1;
+      font-size: .72rem; letter-spacing: .02em;
+    }
+
     #startButton {
-      width: 100%; min-height: 62px; border: 1px solid rgba(255,255,255,.25); border-radius: 16px; cursor: pointer;
+      width: 100%; min-height: 56px;
+      border: 1px solid rgba(255,255,255,.22); border-radius: 14px; cursor: pointer;
       position: relative; overflow: hidden;
-      background: linear-gradient(115deg, #76ffab, #47e0cb 62%, #63eaff); color: #00170a;
-      font: 950 .92rem/1 system-ui, sans-serif; letter-spacing: .13em; text-transform: uppercase;
-      box-shadow: 0 14px 42px rgba(72,255,154,.26), inset 0 1px rgba(255,255,255,.42);
+      background: linear-gradient(115deg, #76ffab, #47e0cb 62%, #63eaff);
+      color: #00170a;
+      font: 950 .88rem/1 system-ui, sans-serif;
+      letter-spacing: .12em; text-transform: uppercase;
+      box-shadow: 0 12px 36px rgba(72,255,154,.24), inset 0 1px rgba(255,255,255,.4);
     }
     #startButton::after {
       content: ""; position: absolute; inset: 0; transform: translateX(-105%);
-      background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.45), transparent 80%);
-      animation: bootSweep 2.8s ease-in-out infinite;
+      background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.42), transparent 80%);
+      animation: bootSweep 2.6s ease-in-out infinite;
     }
-    @keyframes bootSweep { 0%, 55% { transform: translateX(-105%); } 82%, 100% { transform: translateX(105%); } }
-    #startButton:disabled { opacity: .55; cursor: wait; }
-    #bootStatus { min-height: 20px; margin: 12px 0 0; color: #99b5a3; font-size: .75rem; text-align: center; }
-    .warning { margin-top: 16px; color: #82988a; font-size: .68rem; line-height: 1.5; }
+    @keyframes bootSweep {
+      0%, 55% { transform: translateX(-105%); }
+      82%, 100% { transform: translateX(105%); }
+    }
+    #startButton:disabled { opacity: .5; cursor: wait; }
 
-    #setupWizard { display: none; margin-top: 18px; }
+    #bootStatus {
+      min-height: 18px; margin: 11px 0 0;
+      color: #99b5a3; font-size: .72rem; text-align: center;
+    }
+    .warning {
+      margin-top: 14px; color: #6f8578; font-size: .64rem; line-height: 1.45;
+    }
+
+    /* ─── Setup Wizard ─── */
+    #setupWizard { display: none; margin-top: 16px; }
     #setupWizard.open { display: block; }
-    .setup-grid { display: grid; grid-template-columns: minmax(220px, .9fr) minmax(300px, 1.35fr); gap: 14px; }
-    .setup-panel { border: 1px solid var(--soft-line); border-radius: 17px; padding: 13px; background: rgba(0,0,0,.22); }
-    .setup-panel h3 { margin: 0 0 10px; font: 850 .78rem/1 system-ui, sans-serif; letter-spacing: .09em; text-transform: uppercase; color: #f0fff5; }
-    .preview-frame { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 13px; border: 1px solid rgba(99,234,255,.25); background: #000; }
-    .preview-frame::before, .preview-frame::after { content: ''; position: absolute; z-index: 2; pointer-events: none; opacity: .45; }
+
+    .setup-grid {
+      display: grid;
+      grid-template-columns: minmax(210px, .85fr) minmax(290px, 1.4fr);
+      gap: 12px;
+    }
+    .setup-panel {
+      border: 1px solid var(--soft-line); border-radius: 15px;
+      padding: 12px; background: rgba(0,0,0,.24);
+    }
+    .setup-panel h3 {
+      margin: 0 0 9px;
+      font: 850 .74rem/1 system-ui, sans-serif;
+      letter-spacing: .08em; text-transform: uppercase; color: #f0fff5;
+    }
+
+    .preview-frame {
+      position: relative; aspect-ratio: 16/9; overflow: hidden;
+      border-radius: 11px; border: 1px solid rgba(99,234,255,.22); background: #000;
+    }
+    .preview-frame::before, .preview-frame::after {
+      content: ''; position: absolute; z-index: 2; pointer-events: none; opacity: .4;
+    }
     .preview-frame::before { left: 50%; top: 0; bottom: 0; width: 1px; background: var(--cyan); }
     .preview-frame::after { top: 50%; left: 0; right: 0; height: 1px; background: var(--cyan); }
-    .diagnostics { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
-    .diagnostic { display: flex; justify-content: space-between; gap: 8px; padding: 7px 8px; border-radius: 9px; background: rgba(255,255,255,.025); font-size: .62rem; color: #92aa9a; }
+
+    .diagnostics {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 9px;
+    }
+    .diagnostic {
+      display: flex; justify-content: space-between; gap: 6px;
+      padding: 6px 7px; border-radius: 8px;
+      background: rgba(255,255,255,.02); font-size: .58rem; color: #92aa9a;
+    }
     .diagnostic strong { color: #dffff0; font-weight: 800; }
     .diagnostic strong.ok { color: var(--green); }
     .diagnostic strong.warn { color: var(--amber); }
     .diagnostic strong.bad { color: #ff8ca0; }
-    .setup-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 9px; margin: 8px 0; }
-    .setup-row.stack { grid-template-columns: 1fr; }
-    .setup-row label { color: #b7cdbd; font-size: .68rem; line-height: 1.3; }
-    .setup-row output { color: var(--cyan); font-size: .67rem; min-width: 58px; text-align: right; }
-    .setup-row select, .setup-row input[type='range'] { width: 100%; }
-    .setup-row select { min-height: 36px; border: 1px solid var(--soft-line); border-radius: 10px; padding: 0 9px; background: #06100b; color: #eafff0; font: 700 .68rem ui-monospace, monospace; }
-    input[type='range'] { accent-color: var(--green); }
-    .setup-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 8px; }
-    .setup-actions button, #launchButton { min-height: 39px; border: 1px solid var(--line); border-radius: 11px; padding: 8px; background: rgba(104,255,157,.08); color: #eafff0; font: 800 .65rem/1.2 system-ui, sans-serif; letter-spacing: .04em; cursor: pointer; }
-    .setup-actions button.primary { color: #00170a; border-color: transparent; background: linear-gradient(115deg, #76ffab, #63eaff); }
-    #launchButton { width: 100%; min-height: 56px; margin-top: 13px; color: #00170a; border-color: transparent; background: linear-gradient(115deg, #76ffab, #47e0cb 62%, #63eaff); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; }
-    #launchButton:disabled { opacity: .5; }
-    .assignment-line { margin-top: 8px; color: #8da696; font-size: .62rem; line-height: 1.5; }
-    .assignment-line strong { color: #eafff0; }
-    .calibration-note {
-      margin: 9px 0 3px; padding: 9px 10px; border-left: 2px solid var(--cyan);
-      background: rgba(99,234,255,.045); color: #a8c9b5; font-size: .63rem; line-height: 1.45;
-    }
-    .toggle-line { display: flex; align-items: center; gap: 8px; color: #b7cdbd; font-size: .68rem; }
 
-    #fallbackBar {
-      position: fixed; z-index: 20; left: 50%; top: max(9px, env(safe-area-inset-top)); transform: translateX(-50%);
-      display: none; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid rgba(255,255,255,.12);
-      border-radius: 999px; background: rgba(0,0,0,.62); backdrop-filter: blur(12px); font-size: .67rem;
+    .setup-row {
+      display: grid; grid-template-columns: 1fr auto;
+      align-items: center; gap: 8px; margin: 7px 0;
     }
-    #fallbackBar button { border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; background: rgba(104,255,157,.1); color: #ddffe8; font: inherit; }
+    .setup-row.stack { grid-template-columns: 1fr; }
+    .setup-row label { color: #b7cdbd; font-size: .66rem; line-height: 1.3; }
+    .setup-row output {
+      color: var(--cyan); font-size: .64rem; min-width: 54px; text-align: right;
+    }
+    .setup-row select, .setup-row input[type='range'] { width: 100%; }
+    .setup-row select {
+      min-height: 34px; border: 1px solid var(--soft-line); border-radius: 9px;
+      padding: 0 8px; background: #06100b; color: #eafff0;
+      font: 700 .66rem ui-monospace, monospace;
+    }
+    input[type='range'] { accent-color: var(--green); }
+
+    .setup-actions {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 7px;
+    }
+    .setup-actions button, #launchButton {
+      min-height: 36px; border: 1px solid var(--line); border-radius: 10px;
+      padding: 7px; background: rgba(104,255,157,.07); color: #eafff0;
+      font: 800 .62rem/1.2 system-ui, sans-serif; letter-spacing: .03em; cursor: pointer;
+    }
+    .setup-actions button.primary {
+      color: #00170a; border-color: transparent;
+      background: linear-gradient(115deg, #76ffab, #63eaff);
+    }
+    #launchButton {
+      width: 100%; min-height: 52px; margin-top: 12px;
+      color: #00170a; border-color: transparent;
+      background: linear-gradient(115deg, #76ffab, #47e0cb 62%, #63eaff);
+      font-size: .74rem; letter-spacing: .09em; text-transform: uppercase;
+    }
+    #launchButton:disabled { opacity: .48; }
+
+    .assignment-line {
+      margin-top: 7px; color: #8da696; font-size: .6rem; line-height: 1.45;
+    }
+    .assignment-line strong { color: #eafff0; }
+
+    .calibration-note {
+      margin: 8px 0 3px; padding: 8px 9px;
+      border-left: 2px solid var(--cyan);
+      background: rgba(99,234,255,.04); color: #a8c9b5;
+      font-size: .6rem; line-height: 1.4;
+    }
+
+    .toggle-line {
+      display: flex; align-items: center; gap: 7px;
+      color: #b7cdbd; font-size: .66rem; margin-top: 6px;
+    }
+
+    /* ─── Fallback / Error ─── */
+    #fallbackBar {
+      position: fixed; z-index: 20;
+      left: 50%; top: max(8px, env(safe-area-inset-top));
+      transform: translateX(-50%);
+      display: none; gap: 7px; align-items: center;
+      padding: 7px 9px; border: 1px solid rgba(255,255,255,.12);
+      border-radius: 999px; background: rgba(0,0,0,.65);
+      backdrop-filter: blur(12px); font-size: .64rem;
+    }
+    #fallbackBar button {
+      border: 1px solid var(--line); border-radius: 999px;
+      padding: 6px 9px; background: rgba(104,255,157,.1);
+      color: #ddffe8; font: inherit; cursor: pointer;
+    }
 
     #errorPanel {
-      position: fixed; z-index: 40; inset: 0; display: none; place-items: center; padding: 24px; background: rgba(0,0,0,.92);
+      position: fixed; z-index: 40; inset: 0;
+      display: none; place-items: center; padding: 22px;
+      background: rgba(0,0,0,.93);
     }
-    #errorPanel .boot-card { max-width: 560px; }
-    #errorMessage { color: #ffb1bf; line-height: 1.55; }
+    #errorPanel .boot-card { max-width: 520px; }
+    #errorMessage { color: #ffb1bf; line-height: 1.5; }
 
     @media (max-width: 560px) {
-      .boot-card { padding: 20px; }
-      .feature-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
-      .feature { min-height: 70px; padding: 9px 10px; font-size: .68rem; }
+      .boot-card { padding: 18px 15px; }
+      .feature-grid { gap: 6px; }
+      .feature { min-height: 64px; padding: 8px 9px; font-size: .65rem; }
       .boot-readout { grid-template-columns: 1fr 1fr; }
       .readout-chip:last-child { grid-column: 1 / -1; }
       .build-tag { display: none; }
       .setup-grid { grid-template-columns: 1fr; }
-      .diagnostics { grid-template-columns: 1fr 1fr; }
       .setup-actions { grid-template-columns: 1fr 1fr; }
     }
   </style>
+
   <script type="importmap">
   {
     "imports": {
@@ -167,104 +292,202 @@
   <section id="startup">
     <div class="boot-card">
       <div class="boot-topline">
-        <div class="eyebrow">TACTICAL SEARCH VISOR / PROTOTYPE</div>
-        <div class="build-tag">BUILD 4.1 / CARDBOARD ALIGN</div>
+        <div class="eyebrow">TACTICAL SEARCH VISOR</div>
+        <div class="build-tag">V5 / CARDBOARD</div>
       </div>
       <h1>NIGHTWATCH XR</h1>
-      <p class="subtitle">A calibrated hands-free camera visor with full-view stereo, stabilized motion zones, improved low-light processing, and capability-aware camera controls.</p>
+      <p class="subtitle">
+        Full-view stereo camera visor with calibrated Cardboard optics, adaptive low-light processing,
+        stabilized motion zones, and gaze-controlled menus.
+      </p>
+
       <div class="feature-grid">
-        <div class="feature"><strong>Full-view VR</strong>The camera starts edge-to-edge in both eyes. Look down at MENU only when controls are needed.</div>
-        <div class="feature"><strong>Dual camera lenses</strong>Gaze-select normal 1× or hardware 0.5× ultra-wide when available.</div>
-        <div class="feature"><strong>Camera vision modes</strong>Normal, green low-light, contour-only, and dim edge fusion.</div>
-        <div class="feature"><strong>Adaptive light</strong>Samples room brightness and automatically adjusts digital gain.</div>
-        <div class="feature"><strong>Stabilized motion zones</strong>Compensates for head rotation, requires persistent change, and marks only the changed region.</div>
-        <div class="feature"><strong>Performance manager</strong>Battery, balanced, maximum, and automatic fallback profiles.</div>
+        <div class="feature"><strong>Full-view stereo</strong>Edge-to-edge camera in both eyes. Look down only when you need the menu.</div>
+        <div class="feature"><strong>Dual optic support</strong>Gaze-select normal 1× or hardware 0.5× ultra-wide when available.</div>
+        <div class="feature"><strong>Vision modes</strong>Normal · Night · Contour · Fusion (dim + edge).</div>
+        <div class="feature"><strong>Adaptive light</strong>Samples scene brightness and smoothly drives digital gain.</div>
+        <div class="feature"><strong>Stabilized motion</strong>Compensates head rotation, requires persistence, marks only the changed region.</div>
+        <div class="feature"><strong>Performance profiles</strong>Battery · Balanced · Maximum + automatic fallback.</div>
       </div>
+
       <div class="boot-readout">
-        <div class="readout-chip">CAMERA SETUP<strong>IDENTIFY 0.5× + 1×</strong></div>
-        <div class="readout-chip">CALIBRATION<strong>IPD / FOV / OPTICS</strong></div>
-        <div class="readout-chip">PROCESSING<strong>DENOISE / LOCAL CONTRAST</strong></div>
+        <div class="readout-chip">CAMERA<strong>0.5× + 1× READY</strong></div>
+        <div class="readout-chip">OPTICS<strong>IPD / FOV / ALIGN</strong></div>
+        <div class="readout-chip">PIPELINE<strong>DENOISE + CONTRAST</strong></div>
       </div>
+
       <button id="startButton" type="button">Run diagnostics &amp; camera setup</button>
 
       <div id="setupWizard">
         <div class="setup-grid">
+          <!-- Left: Camera -->
           <div class="setup-panel">
             <h3>Camera preview & diagnostics</h3>
-            <div class="preview-frame"><video id="setupVideo" autoplay muted playsinline></video></div>
-            <div class="diagnostics">
-              <div class="diagnostic"><span>Secure context</span><strong id="diagSecure">CHECK</strong></div>
-              <div class="diagnostic"><span>Rear cameras</span><strong id="diagCameras">CHECK</strong></div>
-              <div class="diagnostic"><span>0.5× optic</span><strong id="diagUltra">CHECK</strong></div>
-              <div class="diagnostic"><span>Motion sensor</span><strong id="diagMotion">CHECK</strong></div>
-              <div class="diagnostic"><span>Torch</span><strong id="diagTorch">CHECK</strong></div>
-              <div class="diagnostic"><span>WebXR VR</span><strong id="diagWebXR">CHECK</strong></div>
-              <div class="diagnostic"><span>Wake lock</span><strong id="diagWake">CHECK</strong></div>
-              <div class="diagnostic"><span>Video frames</span><strong id="diagFrames">CHECK</strong></div>
+            <div class="preview-frame">
+              <video id="setupVideo" autoplay muted playsinline></video>
             </div>
+            <div class="diagnostics">
+              <div class="diagnostic"><span>Secure context</span><strong id="diagSecure">…</strong></div>
+              <div class="diagnostic"><span>Rear cameras</span><strong id="diagCameras">…</strong></div>
+              <div class="diagnostic"><span>0.5× optic</span><strong id="diagUltra">…</strong></div>
+              <div class="diagnostic"><span>Motion sensor</span><strong id="diagMotion">…</strong></div>
+              <div class="diagnostic"><span>Torch</span><strong id="diagTorch">…</strong></div>
+              <div class="diagnostic"><span>WebXR VR</span><strong id="diagWebXR">…</strong></div>
+              <div class="diagnostic"><span>Wake lock</span><strong id="diagWake">…</strong></div>
+              <div class="diagnostic"><span>Video frames</span><strong id="diagFrames">…</strong></div>
+            </div>
+
             <div class="setup-row stack">
               <label for="cameraSelect">Preview a camera</label>
               <select id="cameraSelect"></select>
             </div>
             <div class="setup-actions">
-              <button id="previewCameraButton" type="button">Preview selected</button>
+              <button id="previewCameraButton" type="button">Preview</button>
               <button id="assignUltraButton" type="button">Save as 0.5×</button>
               <button id="assignNormalButton" type="button">Save as 1×</button>
             </div>
-            <div class="assignment-line">0.5×: <strong id="ultraAssignment">AUTO</strong><br>1×: <strong id="normalAssignment">AUTO</strong></div>
+            <div class="assignment-line">
+              0.5×: <strong id="ultraAssignment">AUTO</strong><br>
+              1×: <strong id="normalAssignment">AUTO</strong>
+            </div>
           </div>
 
+          <!-- Right: Calibration -->
           <div class="setup-panel">
             <h3>Headset & image calibration</h3>
-            <div class="setup-row"><label for="ipdRange">3D HUD depth / IPD</label><output id="ipdOutput">64 mm</output></div>
+
+            <div class="setup-row">
+              <label for="ipdRange">3D HUD depth / IPD</label>
+              <output id="ipdOutput">64 mm</output>
+            </div>
             <input id="ipdRange" type="range" min="50" max="75" step="1" value="64">
 
             <div class="calibration-note">
-              These controls align the duplicated camera image with the physical Cardboard lenses.
-              Increase <strong>camera image convergence</strong> when the two views feel too far apart.
-              Use an individual trim only when one eye is off-center.
+              Align the duplicated camera image with the physical Cardboard lenses.
+              Increase <strong>convergence</strong> when the two views feel too far apart.
+              Use individual trims only when one eye is off-center.
             </div>
-            <div class="setup-row"><label for="eyeCenterRange">Camera image convergence</label><output id="eyeCenterOutput">4.0%</output></div>
+
+            <div class="setup-row">
+              <label for="eyeCenterRange">Camera image convergence</label>
+              <output id="eyeCenterOutput">4.0%</output>
+            </div>
             <input id="eyeCenterRange" type="range" min="0" max="0.12" step="0.005" value="0.04">
-            <div class="setup-row"><label for="leftEyeRange">Left-eye image trim</label><output id="leftEyeOutput">CENTER</output></div>
+
+            <div class="setup-row">
+              <label for="leftEyeRange">Left-eye image trim</label>
+              <output id="leftEyeOutput">CENTER</output>
+            </div>
             <input id="leftEyeRange" type="range" min="-0.10" max="0.10" step="0.005" value="0">
-            <div class="setup-row"><label for="rightEyeRange">Right-eye image trim</label><output id="rightEyeOutput">CENTER</output></div>
+
+            <div class="setup-row">
+              <label for="rightEyeRange">Right-eye image trim</label>
+              <output id="rightEyeOutput">CENTER</output>
+            </div>
             <input id="rightEyeRange" type="range" min="-0.10" max="0.10" step="0.005" value="0">
-            <div class="setup-row"><label for="eyeVerticalRange">Both-eye vertical trim</label><output id="eyeVerticalOutput">CENTER</output></div>
+
+            <div class="setup-row">
+              <label for="eyeVerticalRange">Both-eye vertical trim</label>
+              <output id="eyeVerticalOutput">CENTER</output>
+            </div>
             <input id="eyeVerticalRange" type="range" min="-0.08" max="0.08" step="0.005" value="0">
 
-            <div class="setup-row"><label for="fovRange">View field</label><output id="fovOutput">78°</output></div>
+            <div class="setup-row">
+              <label for="fovRange">View field</label>
+              <output id="fovOutput">78°</output>
+            </div>
             <input id="fovRange" type="range" min="60" max="105" step="1" value="78">
-            <div class="setup-row"><label for="barrelRange">Lens barrel correction</label><output id="barrelOutput">0.10</output></div>
+
+            <div class="setup-row">
+              <label for="barrelRange">Lens barrel correction</label>
+              <output id="barrelOutput">0.10</output>
+            </div>
             <input id="barrelRange" type="range" min="-0.20" max="0.45" step="0.01" value="0.10">
-            <div class="setup-row"><label for="shiftRange">Lens-center shift</label><output id="shiftOutput">0.00</output></div>
+
+            <div class="setup-row">
+              <label for="shiftRange">Lens-center shift</label>
+              <output id="shiftOutput">0.00</output>
+            </div>
             <input id="shiftRange" type="range" min="-0.15" max="0.15" step="0.01" value="0.00">
-            <div class="setup-row"><label for="dwellRange">Gaze dwell time</label><output id="dwellOutput">1.3 s</output></div>
+
+            <div class="setup-row">
+              <label for="dwellRange">Gaze dwell time</label>
+              <output id="dwellOutput">1.3 s</output>
+            </div>
             <input id="dwellRange" type="range" min="800" max="2000" step="100" value="1300">
 
-            <div class="setup-row"><label for="performanceSelect">Performance profile</label><select id="performanceSelect"><option>AUTO</option><option>BATTERY</option><option>BALANCED</option><option>MAXIMUM</option></select></div>
-            <div class="setup-row"><label for="paletteSelect">Night palette</label><select id="paletteSelect"><option value="0">GREEN</option><option value="1">AMBER</option><option value="2">MONO</option><option value="3">NATURAL</option></select></div>
-            <div class="setup-row"><label for="fitSelect">Camera fit</label><select id="fitSelect"><option value="0">FILL / CROP</option><option value="1">FULL SENSOR / BARS</option></select></div>
+            <div class="setup-row">
+              <label for="performanceSelect">Performance profile</label>
+              <select id="performanceSelect">
+                <option>AUTO</option>
+                <option>BATTERY</option>
+                <option>BALANCED</option>
+                <option>MAXIMUM</option>
+              </select>
+            </div>
 
-            <div class="setup-row"><label for="noiseRange">Noise reduction</label><output id="noiseOutput">55%</output></div>
+            <div class="setup-row">
+              <label for="paletteSelect">Night palette</label>
+              <select id="paletteSelect">
+                <option value="0">GREEN</option>
+                <option value="1">AMBER</option>
+                <option value="2">MONO</option>
+                <option value="3">NATURAL</option>
+              </select>
+            </div>
+
+            <div class="setup-row">
+              <label for="fitSelect">Camera fit</label>
+              <select id="fitSelect">
+                <option value="0">FILL / CROP</option>
+                <option value="1">FULL SENSOR / BARS</option>
+              </select>
+            </div>
+
+            <div class="setup-row">
+              <label for="noiseRange">Noise reduction</label>
+              <output id="noiseOutput">55%</output>
+            </div>
             <input id="noiseRange" type="range" min="0" max="1" step="0.05" value="0.55">
-            <div class="setup-row"><label for="edgeRange">Edge strength</label><output id="edgeOutput">3.2</output></div>
+
+            <div class="setup-row">
+              <label for="edgeRange">Edge strength</label>
+              <output id="edgeOutput">3.2</output>
+            </div>
             <input id="edgeRange" type="range" min="1" max="6" step="0.1" value="3.2">
-            <div class="setup-row"><label for="shadowRange">Shadow boost</label><output id="shadowOutput">55%</output></div>
+
+            <div class="setup-row">
+              <label for="shadowRange">Shadow boost</label>
+              <output id="shadowOutput">55%</output>
+            </div>
             <input id="shadowRange" type="range" min="0" max="1" step="0.05" value="0.55">
-            <div class="setup-row"><label for="highlightRange">Highlight protection</label><output id="highlightOutput">35%</output></div>
+
+            <div class="setup-row">
+              <label for="highlightRange">Highlight protection</label>
+              <output id="highlightOutput">35%</output>
+            </div>
             <input id="highlightRange" type="range" min="0" max="1" step="0.05" value="0.35">
-            <div class="setup-row"><label for="blackRange">Black level</label><output id="blackOutput">0.02</output></div>
+
+            <div class="setup-row">
+              <label for="blackRange">Black level</label>
+              <output id="blackOutput">0.02</output>
+            </div>
             <input id="blackRange" type="range" min="0" max="0.15" step="0.01" value="0.02">
 
-            <label class="toggle-line"><input id="webxrToggle" type="checkbox" disabled> Try experimental WebXR pose when available</label>
+            <label class="toggle-line">
+              <input id="webxrToggle" type="checkbox" disabled>
+              Try experimental WebXR pose when available
+            </label>
           </div>
         </div>
+
         <button id="launchButton" type="button">Launch calibrated full-view visor</button>
       </div>
 
       <p id="bootStatus">Complete setup while the phone is outside the headset, then launch Full View.</p>
-      <p class="warning">Prototype visual effect only. It is not real night-vision hardware and is not safety, navigation, or protective equipment.</p>
+      <p class="warning">
+        Prototype visual effect only. This is not real night-vision hardware and is not safety, navigation, or protective equipment.
+      </p>
     </div>
   </section>
 
@@ -279,7 +502,7 @@
   <section id="errorPanel">
     <div class="boot-card">
       <div class="eyebrow">STARTUP ERROR</div>
-      <h2>Camera visor could not start</h2>
+      <h2 style="margin:8px 0 10px;font-family:system-ui,sans-serif;">Camera visor could not start</h2>
       <p id="errorMessage"></p>
     </div>
   </section>
@@ -287,6 +510,9 @@
   <script type="module">
     import * as THREE from 'three';
 
+    // ═══════════════════════════════════════════════════════════════
+    // DOM & Renderer
+    // ═══════════════════════════════════════════════════════════════
     const canvas = document.querySelector('#xrCanvas');
     const video = document.querySelector('#cameraVideo');
     const sampleCanvas = document.querySelector('#sampleCanvas');
@@ -306,12 +532,20 @@
     const fitSelect = document.querySelector('#fitSelect');
     const webxrToggle = document.querySelector('#webxrToggle');
 
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.0));
     renderer.xr.enabled = true;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.autoClear = false;
 
+    // ═══════════════════════════════════════════════════════════════
+    // Scenes
+    // ═══════════════════════════════════════════════════════════════
     const bgScene = new THREE.Scene();
     const bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const overlayScene = new THREE.Scene();
@@ -322,6 +556,9 @@
     const stereoCamera = new THREE.StereoCamera();
     stereoCamera.eyeSep = 0.064;
 
+    // ═══════════════════════════════════════════════════════════════
+    // State
+    // ═══════════════════════════════════════════════════════════════
     const state = {
       running: false,
       stereo: true,
@@ -361,6 +598,7 @@
       shadowBoost: 0.55,
       highlightProtect: 0.35,
       blackLevel: 0.02,
+      edgeStrength: 3.2,
       wakeLock: null,
       lastMotionBeep: 0,
       lastSampleTime: 0,
@@ -409,9 +647,14 @@
       heading: 0,
       gestureStart: 0,
       gestureType: '',
-      setupReady: false
+      setupReady: false,
+      savedNormalDeviceId: '',
+      savedUltraDeviceId: ''
     };
 
+    // ═══════════════════════════════════════════════════════════════
+    // Shader
+    // ═══════════════════════════════════════════════════════════════
     const shaderUniforms = {
       uVideo: { value: null },
       uVideoSize: { value: new THREE.Vector2(1280, 720) },
@@ -484,8 +727,13 @@
         uniform float uFullSensorView;
         varying vec2 vUv;
 
-        float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
-        float rand(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+        float luma(vec3 c) {
+          return dot(c, vec3(0.299, 0.587, 0.114));
+        }
+
+        float rand(vec2 p) {
+          return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+        }
 
         vec2 lensUv(vec2 uv) {
           vec2 center = vec2(0.5 + uLensShift * uEyeSign, 0.5);
@@ -518,8 +766,7 @@
             }
           }
 
-          // Align the duplicated mono camera frame with the physical Cardboard lens centers.
-          // Positive convergence moves the visible left image right and the right image left.
+          // Cardboard lens alignment
           float displayOffsetX = 0.0;
           if (uEyeSign < -0.5) {
             displayOffsetX = uEyeCenterShift + uLeftEyeOffset;
@@ -527,11 +774,13 @@
             displayOffsetX = -uEyeCenterShift + uRightEyeOffset;
           }
 
-          // Texture sampling moves in the opposite direction from the visible image.
           fitted.x -= displayOffsetX;
           fitted.y -= uEyeVerticalOffset;
           fitted = lensUv(fitted);
-          if (fitted.x < 0.0 || fitted.x > 1.0 || fitted.y < 0.0 || fitted.y > 1.0) return vec3(0.0);
+
+          if (fitted.x < 0.0 || fitted.x > 1.0 || fitted.y < 0.0 || fitted.y > 1.0) {
+            return vec3(0.0);
+          }
           return texture2D(uVideo, fitted).rgb;
         }
 
@@ -544,15 +793,18 @@
             rawSource(uv + vec2(0.0, texel.y)) +
             rawSource(uv - vec2(0.0, texel.y))
           ) * 0.25;
+
           vec3 blur = crossBlur;
           if (uQuality > 0.5) {
             vec3 diagonal = (
-              rawSource(uv + texel) + rawSource(uv - texel) +
+              rawSource(uv + texel) +
+              rawSource(uv - texel) +
               rawSource(uv + vec2(texel.x, -texel.y)) +
               rawSource(uv + vec2(-texel.x, texel.y))
             ) * 0.25;
             blur = mix(crossBlur, diagonal, 0.38);
           }
+
           vec3 denoised = mix(c, blur, uDenoise);
           vec3 detail = c - blur;
           return clamp(denoised + detail * uLocalContrast, 0.0, 1.0);
@@ -577,6 +829,7 @@
           if (uPalette == 1) return vec3(value, value * 0.56, value * 0.08);
           if (uPalette == 2) return vec3(value);
           if (uPalette == 3) return natural;
+          // Classic NV green
           return vec3(value * 0.04, value, value * 0.22);
         }
 
@@ -584,8 +837,12 @@
           if (uMotionActive < 0.5) return 0.0;
           vec2 minP = uMotionZone.xy;
           vec2 maxP = uMotionZone.xy + uMotionZone.zw;
-          float inside = step(minP.x, uv.x) * step(minP.y, uv.y) * step(uv.x, maxP.x) * step(uv.y, maxP.y);
-          float d = min(min(abs(uv.x - minP.x), abs(uv.x - maxP.x)), min(abs(uv.y - minP.y), abs(uv.y - maxP.y)));
+          float inside = step(minP.x, uv.x) * step(minP.y, uv.y) *
+                         step(uv.x, maxP.x) * step(uv.y, maxP.y);
+          float d = min(
+            min(abs(uv.x - minP.x), abs(uv.x - maxP.x)),
+            min(abs(uv.y - minP.y), abs(uv.y - maxP.y))
+          );
           return inside * smoothstep(0.015, 0.0, d);
         }
 
@@ -593,41 +850,55 @@
           vec2 uv = vUv;
           vec3 source = filteredSource(uv);
           float originalLum = luma(source);
+
+          // Shadow lift + highlight protection
           float shadowLift = mix(originalLum, pow(max(originalLum, 0.0001), 0.62), uShadowBoost);
           float protectedLum = shadowLift / (1.0 + uHighlightProtect * shadowLift * 0.9);
           float lum = clamp((protectedLum - uBlackLevel) / max(1.0 - uBlackLevel, 0.001), 0.0, 1.0);
+
           float edge = sobel(uv) * uEdgeStrength;
           float edgeMask = smoothstep(0.10, 0.46, edge);
+
           float noise = (rand(gl_FragCoord.xy + uTime * 31.0) - 0.5) * (0.025 * (1.0 - uDenoise));
           float scan = 0.975 + 0.025 * sin(gl_FragCoord.y * 1.8);
+
           float enhanced = pow(clamp(lum * uGain + noise, 0.0, 1.0), 0.72);
           vec3 nightColor = palette(enhanced, clamp(source * (0.55 + uGain * 0.28), 0.0, 1.0));
-          vec3 edgeColor = uPalette == 1 ? vec3(1.0, 0.55, 0.08) : (uPalette == 2 ? vec3(1.0) : vec3(0.13, 1.0, 0.55));
-          vec3 color;
+          vec3 edgeColor = uPalette == 1
+            ? vec3(1.0, 0.55, 0.08)
+            : (uPalette == 2 ? vec3(1.0) : vec3(0.13, 1.0, 0.55));
 
+          vec3 color;
           if (uMode == 0) {
+            // Normal
             color = pow(max(source, 0.0), vec3(0.94));
             color *= 0.78 + min(uGain, 2.0) * 0.11;
           } else if (uMode == 1) {
+            // Night
             color = nightColor + edgeMask * edgeColor * 0.15;
             color *= scan;
           } else if (uMode == 2) {
+            // Contour only
             float faint = enhanced * 0.025;
             color = palette(faint, source * 0.025) + edgeMask * edgeColor;
             color *= scan;
           } else {
+            // Fusion
             vec3 dimBase = source * (0.08 + 0.045 * uGain);
             color = dimBase + nightColor * 0.25 + edgeMask * edgeColor * 0.86;
             color *= scan;
           }
 
+          // Soft vignette
           float distToCenter = distance(uv, vec2(0.5));
           float vignette = 1.0 - smoothstep(0.50, 0.92, distToCenter);
           color *= mix(0.92, 1.0, vignette);
 
+          // Alert flash + motion border
           float outer = smoothstep(0.045, 0.0, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
           color += outer * uAlert * vec3(0.9, 0.03, 0.08);
           color += motionBorder(uv) * vec3(1.0, 0.14, 0.08) * (0.72 + 0.28 * sin(uTime * 8.0));
+
           gl_FragColor = vec4(max(color, 0.0), 1.0);
         }
       `
@@ -635,7 +906,7 @@
 
     bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMaterial));
 
-
+    // WebXR feed plane (optional)
     const xrFeedMaterial = bgMaterial.clone();
     xrFeedMaterial.uniforms = shaderUniforms;
     xrFeedMaterial.vertexShader = `
@@ -652,6 +923,9 @@
     xrFeedPlane.visible = false;
     camera.add(xrFeedPlane);
 
+    // ═══════════════════════════════════════════════════════════════
+    // HUD
+    // ═══════════════════════════════════════════════════════════════
     function createHudCanvas() {
       const hudCanvas = document.createElement('canvas');
       hudCanvas.width = 1024;
@@ -660,7 +934,13 @@
       const texture = new THREE.CanvasTexture(hudCanvas);
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.minFilter = THREE.LinearFilter;
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        toneMapped: false
+      });
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.45, 2.45), material);
       mesh.position.set(0, 0, -1.72);
       mesh.renderOrder = 20;
@@ -670,6 +950,7 @@
 
     const hud = createHudCanvas();
 
+    // Reticle
     const reticleMaterial = new THREE.ShaderMaterial({
       transparent: true,
       depthTest: false,
@@ -682,7 +963,10 @@
       },
       vertexShader: `
         varying vec2 vUv;
-        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
       `,
       fragmentShader: `
         precision highp float;
@@ -713,13 +997,17 @@
     reticle.renderOrder = 30;
     camera.add(reticle);
 
+    // ═══════════════════════════════════════════════════════════════
+    // Menu system
+    // ═══════════════════════════════════════════════════════════════
     const menuGroup = new THREE.Group();
     overlayScene.add(menuGroup);
     const menuButtons = [];
 
     function makeButtonTexture(title, subtitle, accent = '#68ff9d', selected = false) {
       const c = document.createElement('canvas');
-      c.width = 512; c.height = 220;
+      c.width = 512;
+      c.height = 220;
       const x = c.getContext('2d');
       x.clearRect(0, 0, c.width, c.height);
 
@@ -752,12 +1040,16 @@
       x.fillRect(34, 29, selected ? 118 : 52, 5);
       x.fillStyle = accent;
       x.font = '950 54px system-ui, sans-serif';
-      x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
       x.fillText(title, 256, 92);
 
       x.strokeStyle = 'rgba(255,255,255,.13)';
       x.lineWidth = 2;
-      x.beginPath(); x.moveTo(74, 133); x.lineTo(438, 133); x.stroke();
+      x.beginPath();
+      x.moveTo(74, 133);
+      x.lineTo(438, 133);
+      x.stroke();
 
       x.fillStyle = selected ? 'rgba(235,255,242,.96)' : 'rgba(225,255,236,.72)';
       x.font = '750 24px ui-monospace, monospace';
@@ -809,24 +1101,15 @@
       return mesh;
     }
 
+    // Quick menu buttons
     const menuOpenButton = addMenuButton({
-      id: 'menuOpen',
-      title: 'MENU',
-      subtitle: 'look down to open',
-      yaw: 0,
-      pitch: -43,
-      accent: '#68ff9d',
-      showWhen: 'closed',
+      id: 'menuOpen', title: 'MENU', subtitle: 'look down to open',
+      yaw: 0, pitch: -43, accent: '#68ff9d', showWhen: 'closed',
       action: () => setMenuOpen(true)
     });
     const fullViewButton = addMenuButton({
-      id: 'fullView',
-      title: 'FULL VIEW',
-      subtitle: 'hide control field',
-      yaw: 0,
-      pitch: -43,
-      accent: '#63eaff',
-      showWhen: 'quick',
+      id: 'fullView', title: 'FULL VIEW', subtitle: 'hide control field',
+      yaw: 0, pitch: -43, accent: '#63eaff', showWhen: 'quick',
       action: () => setMenuOpen(false)
     });
 
@@ -846,6 +1129,7 @@
     addMenuButton({ id: 'recenter', title: 'RECENTER', subtitle: 'reset heading', yaw: 0, pitch: 48, accent: '#ffffff', action: recenter });
     addMenuButton({ id: 'settings', title: 'SETTINGS', subtitle: 'optics + camera', yaw: 0, pitch: -47, accent: '#ffd36a', showWhen: 'quick', action: () => setMenuPage('settings') });
 
+    // Settings page
     const performanceButton = addMenuButton({ id: 'performance', title: 'PERF AUTO', subtitle: 'adaptive quality', yaw: -45, pitch: 18, accent: '#63eaff', showWhen: 'settings', action: cyclePerformance });
     const paletteButton = addMenuButton({ id: 'palette', title: 'GREEN', subtitle: 'night palette', yaw: -15, pitch: 18, accent: '#68ff9d', showWhen: 'settings', action: cyclePalette });
     const imageButton = addMenuButton({ id: 'image', title: 'IMAGE CLEAR', subtitle: 'filter preset', yaw: 15, pitch: 18, accent: '#d8ffe5', showWhen: 'settings', action: cycleImagePreset });
@@ -867,6 +1151,7 @@
     addMenuButton({ id: 'alignEyes', title: 'ALIGN EYES', subtitle: 'Cardboard image center', yaw: 0, pitch: 57, accent: '#63eaff', showWhen: 'settings', action: () => setMenuPage('align') });
     addMenuButton({ id: 'back', title: 'BACK', subtitle: 'quick controls', yaw: 0, pitch: -54, accent: '#ffffff', showWhen: 'settings', action: () => setMenuPage('quick') });
 
+    // Alignment page
     addMenuButton({ id: 'eyesOut', title: 'EYES OUT', subtitle: 'views farther apart', yaw: -37, pitch: 18, accent: '#ffd36a', showWhen: 'align', action: () => adjustEyeCenter(-0.005) });
     addMenuButton({ id: 'eyesIn', title: 'EYES IN', subtitle: 'views closer together', yaw: 37, pitch: 18, accent: '#68ff9d', showWhen: 'align', action: () => adjustEyeCenter(0.005) });
 
@@ -880,6 +1165,9 @@
     addMenuButton({ id: 'eyesDown', title: 'BOTH ↓', subtitle: 'move images down', yaw: 30, pitch: -34, accent: '#ffffff', showWhen: 'align', action: () => adjustEyeVertical(-0.005) });
     addMenuButton({ id: 'alignBack', title: 'BACK', subtitle: 'settings', yaw: 0, pitch: -55, accent: '#ffffff', showWhen: 'align', action: () => setMenuPage('settings') });
 
+    // ═══════════════════════════════════════════════════════════════
+    // Button helpers
+    // ═══════════════════════════════════════════════════════════════
     function refreshButtonTexture(mesh, title, subtitle, accent, selected = false) {
       mesh.material.map.dispose();
       mesh.material.map = makeButtonTexture(title, subtitle, accent, selected);
@@ -899,7 +1187,11 @@
     }
 
     function refreshLensButtons() {
-      refreshButtonTexture(lens05Button, '0.5×', state.ultraDeviceId || supportsHalfZoom() ? 'ultra-wide ready' : 'best effort', '#63eaff', state.lensMode === '0.5X');
+      refreshButtonTexture(
+        lens05Button, '0.5×',
+        state.ultraDeviceId || supportsHalfZoom() ? 'ultra-wide ready' : 'best effort',
+        '#63eaff', state.lensMode === '0.5X'
+      );
       refreshButtonTexture(lens1Button, '1×', 'normal camera', '#d8ffe5', state.lensMode === '1X');
     }
 
@@ -950,14 +1242,24 @@
 
     function toggleAutoGain() {
       state.autoGain = !state.autoGain;
-      refreshButtonTexture(autoButton, state.autoGain ? 'AUTO ON' : 'AUTO OFF', state.autoGain ? 'adaptive light' : 'manual gain', state.autoGain ? '#68ff9d' : '#8d9b92');
+      refreshButtonTexture(
+        autoButton,
+        state.autoGain ? 'AUTO ON' : 'AUTO OFF',
+        state.autoGain ? 'adaptive light' : 'manual gain',
+        state.autoGain ? '#68ff9d' : '#8d9b92'
+      );
       announce(state.autoGain ? 'AUTO LIGHT ON' : 'AUTO LIGHT OFF');
       vibrate(30);
     }
 
     function toggleMotion() {
       state.motionEnabled = !state.motionEnabled;
-      refreshButtonTexture(motionButton, state.motionEnabled ? 'MOTION ON' : 'MOTION OFF', state.motionEnabled ? 'stabilized zones' : 'disabled', state.motionEnabled ? '#ff9e6a' : '#8d9b92');
+      refreshButtonTexture(
+        motionButton,
+        state.motionEnabled ? 'MOTION ON' : 'MOTION OFF',
+        state.motionEnabled ? 'stabilized zones' : 'disabled',
+        state.motionEnabled ? '#ff9e6a' : '#8d9b92'
+      );
       state.motionPersistence.fill(0);
       announce(state.motionEnabled ? 'MOTION ON' : 'MOTION OFF');
       vibrate(30);
@@ -965,10 +1267,10 @@
 
     const paletteNames = ['GREEN', 'AMBER', 'MONO', 'NATURAL'];
     const imagePresets = [
-      { name: 'CLEAR', denoise: .55, contrast: .55, edge: 3.2, shadow: .55, highlight: .35, black: .02 },
-      { name: 'DETAIL', denoise: .25, contrast: .85, edge: 4.5, shadow: .48, highlight: .25, black: .01 },
-      { name: 'LOW LIGHT', denoise: .78, contrast: .38, edge: 3.5, shadow: .86, highlight: .58, black: .015 },
-      { name: 'HARD EDGE', denoise: .12, contrast: .72, edge: 5.8, shadow: .38, highlight: .18, black: .045 }
+      { name: 'CLEAR', denoise: 0.55, contrast: 0.55, edge: 3.2, shadow: 0.55, highlight: 0.35, black: 0.02 },
+      { name: 'DETAIL', denoise: 0.25, contrast: 0.85, edge: 4.5, shadow: 0.48, highlight: 0.25, black: 0.01 },
+      { name: 'LOW LIGHT', denoise: 0.78, contrast: 0.38, edge: 3.5, shadow: 0.86, highlight: 0.58, black: 0.015 },
+      { name: 'HARD EDGE', denoise: 0.12, contrast: 0.72, edge: 5.8, shadow: 0.38, highlight: 0.18, black: 0.045 }
     ];
 
     function syncImageUniforms() {
@@ -1039,7 +1341,13 @@
     function cyclePalette() {
       state.palette = (state.palette + 1) % paletteNames.length;
       shaderUniforms.uPalette.value = state.palette;
-      refreshButtonTexture(paletteButton, paletteNames[state.palette], 'night palette', state.palette === 1 ? '#ffd36a' : '#68ff9d', true);
+      refreshButtonTexture(
+        paletteButton,
+        paletteNames[state.palette],
+        'night palette',
+        state.palette === 1 ? '#ffd36a' : '#68ff9d',
+        true
+      );
       announce(`PALETTE ${paletteNames[state.palette]}`);
     }
 
@@ -1059,12 +1367,18 @@
 
     function cycleMotionSensitivity() {
       state.motionSensitivity = (state.motionSensitivity + 1) % 3;
-      refreshButtonTexture(sensitivityButton, `MOTION ${state.motionSensitivityNames[state.motionSensitivity]}`, 'persistent zones', '#ff9e6a', true);
+      refreshButtonTexture(
+        sensitivityButton,
+        `MOTION ${state.motionSensitivityNames[state.motionSensitivity]}`,
+        'persistent zones',
+        '#ff9e6a',
+        true
+      );
       announce(`MOTION ${state.motionSensitivityNames[state.motionSensitivity]}`);
     }
 
     function adjustIpd(amount) {
-      state.ipd = THREE.MathUtils.clamp(state.ipd + amount, .05, .075);
+      state.ipd = THREE.MathUtils.clamp(state.ipd + amount, 0.05, 0.075);
       stereoCamera.eyeSep = state.ipd;
       announce(`IPD ${Math.round(state.ipd * 1000)} MM`);
     }
@@ -1097,7 +1411,7 @@
       applyPerformanceMode(state.performanceMode, true);
     }
 
-
+    // Initial button state
     syncImageUniforms();
     syncEyeAlignment(false);
     refreshButtonTexture(paletteButton, paletteNames[state.palette], 'night palette', '#68ff9d', true);
@@ -1106,7 +1420,6 @@
     refreshButtonTexture(dwellButton, `DWELL ${(state.dwellMs / 1000).toFixed(1)}`, 'selection time', '#ffffff', true);
     refreshButtonTexture(hudButton, `HUD ${state.hudMode}`, 'display density', '#68ff9d', true);
 
-    state.edgeStrength = 3.2;
     stereoCamera.eyeSep = state.ipd;
     camera.fov = state.fov;
     camera.updateProjectionMatrix();
@@ -1114,6 +1427,9 @@
     refreshLensButtons();
     refreshMenuVisibility();
 
+    // ═══════════════════════════════════════════════════════════════
+    // Announcements & haptics
+    // ═══════════════════════════════════════════════════════════════
     let announcement = '';
     let announcementUntil = 0;
     function announce(text) {
@@ -1125,6 +1441,9 @@
       navigator.vibrate?.(duration);
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Orientation
+    // ═══════════════════════════════════════════════════════════════
     let rawOrientationQuaternion = new THREE.Quaternion();
     let recenterInverse = new THREE.Quaternion();
     let recenterInitialized = false;
@@ -1199,7 +1518,9 @@
     function updateHeadGesture(now, gazeCamera) {
       const forward = new THREE.Vector3();
       gazeCamera.getWorldDirection(forward);
-      const requested = !state.menuOpen && forward.y < -0.72 ? 'OPEN' : (state.menuOpen && forward.y > 0.76 ? 'CLOSE' : '');
+      const requested = !state.menuOpen && forward.y < -0.72
+        ? 'OPEN'
+        : (state.menuOpen && forward.y > 0.76 ? 'CLOSE' : '');
       if (requested !== state.gestureType) {
         state.gestureType = requested;
         state.gestureStart = now;
@@ -1210,6 +1531,9 @@
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Gaze selection
+    // ═══════════════════════════════════════════════════════════════
     const raycaster = new THREE.Raycaster();
     const rayDirection = new THREE.Vector3();
 
@@ -1249,7 +1573,7 @@
 
       reticleMaterial.uniforms.uProgress.value = state.hoverProgress;
       reticleMaterial.uniforms.uActive.value = hovered ? 1 : 0;
-      reticleMaterial.uniforms.uVisibility.value = hovered ? 1 : (state.menuOpen ? .46 : .12);
+      reticleMaterial.uniforms.uVisibility.value = hovered ? 1 : (state.menuOpen ? 0.46 : 0.12);
 
       menuButtons.forEach(button => {
         if (!button.visible) return;
@@ -1261,6 +1585,9 @@
       });
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Motion detection (stabilized)
+    // ═══════════════════════════════════════════════════════════════
     const motionRelativeQuaternion = new THREE.Quaternion();
     const motionEuler = new THREE.Euler();
 
@@ -1280,7 +1607,7 @@
         let total = 0;
 
         for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-          const lum = Math.round(data[i] * .299 + data[i + 1] * .587 + data[i + 2] * .114);
+          const lum = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
           current[p] = lum;
           total += lum;
         }
@@ -1290,7 +1617,7 @@
         let shiftX = 0;
         let shiftY = 0;
         let fastTurn = false;
-        const elapsed = state.previousSampleTime ? Math.max(.001, (now - state.previousSampleTime) / 1000) : 0;
+        const elapsed = state.previousSampleTime ? Math.max(0.001, (now - state.previousSampleTime) / 1000) : 0;
 
         if (state.previousSampleQuaternion && elapsed > 0) {
           const dot = Math.min(1, Math.abs(state.previousSampleQuaternion.dot(currentQuaternion)));
@@ -1302,10 +1629,10 @@
           motionEuler.setFromQuaternion(motionRelativeQuaternion, 'YXZ');
           const verticalFov = THREE.MathUtils.degToRad(state.fov);
           const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * (width / height));
-          shiftX = Math.round((-motionEuler.y / Math.max(horizontalFov, .1)) * width);
-          shiftY = Math.round((motionEuler.x / Math.max(verticalFov, .1)) * height);
-          shiftX = THREE.MathUtils.clamp(shiftX, -Math.floor(width * .22), Math.floor(width * .22));
-          shiftY = THREE.MathUtils.clamp(shiftY, -Math.floor(height * .22), Math.floor(height * .22));
+          shiftX = Math.round((-motionEuler.y / Math.max(horizontalFov, 0.1)) * width);
+          shiftY = Math.round((motionEuler.x / Math.max(verticalFov, 0.1)) * height);
+          shiftX = THREE.MathUtils.clamp(shiftX, -Math.floor(width * 0.22), Math.floor(width * 0.22));
+          shiftY = THREE.MathUtils.clamp(shiftY, -Math.floor(height * 0.22), Math.floor(height * 0.22));
         }
 
         const zoneCols = 4;
@@ -1331,15 +1658,18 @@
           }
         }
 
-        const thresholds = [.30, .20, .13];
+        const thresholds = [0.30, 0.20, 0.13];
         const threshold = thresholds[state.motionSensitivity];
         let bestZone = -1;
         let bestScore = 0;
 
         for (let i = 0; i < zoneTotals.length; i++) {
           const score = zoneCounts[i] ? zoneTotals[i] / zoneCounts[i] / 46 : 0;
-          if (!fastTurn && score > threshold) state.motionPersistence[i] = Math.min(4, state.motionPersistence[i] + 1);
-          else state.motionPersistence[i] = Math.max(0, state.motionPersistence[i] - 1);
+          if (!fastTurn && score > threshold) {
+            state.motionPersistence[i] = Math.min(4, state.motionPersistence[i] + 1);
+          } else {
+            state.motionPersistence[i] = Math.max(0, state.motionPersistence[i] - 1);
+          }
           if (state.motionPersistence[i] >= 2 && score > bestScore) {
             bestScore = score;
             bestZone = i;
@@ -1350,10 +1680,19 @@
         if (state.motionEnabled && bestZone >= 0 && now > state.motionCooldownUntil) {
           const zx = bestZone % zoneCols;
           const zy = Math.floor(bestZone / zoneCols);
-          state.motionZone = { x: zx / zoneCols, y: 1 - (zy + 1) / zoneRows, w: 1 / zoneCols, h: 1 / zoneRows, score: bestScore };
-          shaderUniforms.uMotionZone.value.set(state.motionZone.x, state.motionZone.y, state.motionZone.w, state.motionZone.h);
+          state.motionZone = {
+            x: zx / zoneCols,
+            y: 1 - (zy + 1) / zoneRows,
+            w: 1 / zoneCols,
+            h: 1 / zoneRows,
+            score: bestScore
+          };
+          shaderUniforms.uMotionZone.value.set(
+            state.motionZone.x, state.motionZone.y,
+            state.motionZone.w, state.motionZone.h
+          );
           shaderUniforms.uMotionActive.value = 1;
-          state.alert = Math.min(1, state.alert + .9);
+          state.alert = Math.min(1, state.alert + 0.9);
           state.motionCooldownUntil = now + 1450;
           if (now - state.lastMotionBeep > 1900) {
             softBeep();
@@ -1387,6 +1726,9 @@
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Audio feedback
+    // ═══════════════════════════════════════════════════════════════
     let audioContext = null;
     function softBeep() {
       if (!audioContext) return;
@@ -1399,7 +1741,8 @@
       gain.gain.exponentialRampToValueAtTime(0.025, audioContext.currentTime + 0.015);
       gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.12);
       oscillator.connect(gain).connect(audioContext.destination);
-      oscillator.start(); oscillator.stop(audioContext.currentTime + 0.13);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.13);
     }
 
     function updateAdaptiveGain(delta) {
@@ -1409,7 +1752,7 @@
       shaderUniforms.uGain.value = state.currentGain;
       shaderUniforms.uAverageLight.value = state.averageLight;
       state.alert = Math.max(0, state.alert - delta * 1.25);
-      if (state.alert <= .02) {
+      if (state.alert <= 0.02) {
         state.motionZone = null;
         shaderUniforms.uMotionActive.value = 0;
       }
@@ -1421,6 +1764,9 @@
       return names[Math.round(degrees / 45) % 8];
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // HUD drawing
+    // ═══════════════════════════════════════════════════════════════
     function drawHud(now) {
       const x = hud.context;
       const w = hud.canvas.width;
@@ -1428,15 +1774,25 @@
       x.clearRect(0, 0, w, h);
       x.save();
       hud.mesh.visible = state.menuOpen || state.hudMode !== 'OFF';
-      if (!hud.mesh.visible) { hud.texture.needsUpdate = true; x.restore(); return; }
+      if (!hud.mesh.visible) {
+        hud.texture.needsUpdate = true;
+        x.restore();
+        return;
+      }
+
       x.strokeStyle = 'rgba(104,255,157,.55)';
       x.fillStyle = 'rgba(104,255,157,.86)';
       x.lineWidth = 3;
 
+      // Corner brackets
       const m = 42, arm = 110;
-      const corners = [[m,m,1,1],[w-m,m,-1,1],[m,h-m,1,-1],[w-m,h-m,-1,-1]];
-      for (const [cx,cy,sx,sy] of corners) {
-        x.beginPath(); x.moveTo(cx, cy + sy * arm); x.lineTo(cx, cy); x.lineTo(cx + sx * arm, cy); x.stroke();
+      const corners = [[m, m, 1, 1], [w - m, m, -1, 1], [m, h - m, 1, -1], [w - m, h - m, -1, -1]];
+      for (const [cx, cy, sx, sy] of corners) {
+        x.beginPath();
+        x.moveTo(cx, cy + sy * arm);
+        x.lineTo(cx, cy);
+        x.lineTo(cx + sx * arm, cy);
+        x.stroke();
       }
 
       x.font = state.menuOpen ? '700 26px ui-monospace, monospace' : '700 20px ui-monospace, monospace';
@@ -1444,35 +1800,49 @@
       x.globalAlpha = state.menuOpen ? 1 : 0.72;
       x.fillText(state.menuOpen ? 'NIGHTWATCH // CONTROL FIELD' : 'NW // FULL VIEW', 58, 54);
       x.textAlign = 'right';
-      x.fillText(state.menuOpen ? `${state.fps.toFixed(0)} FPS  ${state.resolutionLabel}` : `${state.modeNames[state.mode]}  ${state.lensMode}`, w - 58, 54);
+      x.fillText(
+        state.menuOpen
+          ? `${state.fps.toFixed(0)} FPS  ${state.resolutionLabel}`
+          : `${state.modeNames[state.mode]}  ${state.lensMode}`,
+        w - 58, 54
+      );
 
       x.textAlign = 'center';
       x.font = state.menuOpen ? '900 31px system-ui, sans-serif' : '800 23px system-ui, sans-serif';
-      x.fillStyle = state.alert > .2 ? '#ff526f' : '#68ff9d';
-      x.fillText(state.alert > .2 ? 'MOTION CHANGE' : `${compassPoint(state.heading)} ${state.heading.toFixed(0).padStart(3,'0')}°`, w / 2, 52);
+      x.fillStyle = state.alert > 0.2 ? '#ff526f' : '#68ff9d';
+      x.fillText(
+        state.alert > 0.2
+          ? 'MOTION CHANGE'
+          : `${compassPoint(state.heading)} ${state.heading.toFixed(0).padStart(3, '0')}°`,
+        w / 2, 52
+      );
       x.globalAlpha = 1;
 
       if (state.menuOpen) {
         x.strokeStyle = 'rgba(104,255,157,.36)';
-        x.beginPath(); x.moveTo(w * .28, 105); x.lineTo(w * .72, 105); x.stroke();
+        x.beginPath();
+        x.moveTo(w * 0.28, 105);
+        x.lineTo(w * 0.72, 105);
+        x.stroke();
         x.font = '700 22px ui-monospace, monospace';
         x.fillStyle = 'rgba(230,255,238,.85)';
-        x.fillText(`${compassPoint(state.heading)}  ${state.heading.toFixed(0).padStart(3,'0')}°`, w / 2, 116);
+        x.fillText(`${compassPoint(state.heading)}  ${state.heading.toFixed(0).padStart(3, '0')}°`, w / 2, 116);
       }
 
-      // Central brackets only in detailed HUD or during an alert.
+      // Central brackets
       const cx = w / 2, cy = h / 2, box = 118, cut = 44;
-      x.strokeStyle = state.alert > .2 ? 'rgba(255,82,111,.82)' : 'rgba(104,255,157,.58)';
+      x.strokeStyle = state.alert > 0.2 ? 'rgba(255,82,111,.82)' : 'rgba(104,255,157,.58)';
       x.lineWidth = 3;
-      if (state.hudMode === 'FULL' || state.menuOpen || state.alert > .2) {
-      x.beginPath();
-      x.moveTo(cx - box, cy - box + cut); x.lineTo(cx - box, cy - box); x.lineTo(cx - box + cut, cy - box);
-      x.moveTo(cx + box - cut, cy - box); x.lineTo(cx + box, cy - box); x.lineTo(cx + box, cy - box + cut);
-      x.moveTo(cx - box, cy + box - cut); x.lineTo(cx - box, cy + box); x.lineTo(cx - box + cut, cy + box);
-      x.moveTo(cx + box - cut, cy + box); x.lineTo(cx + box, cy + box); x.lineTo(cx + box, cy + box - cut);
-      x.stroke();
+      if (state.hudMode === 'FULL' || state.menuOpen || state.alert > 0.2) {
+        x.beginPath();
+        x.moveTo(cx - box, cy - box + cut); x.lineTo(cx - box, cy - box); x.lineTo(cx - box + cut, cy - box);
+        x.moveTo(cx + box - cut, cy - box); x.lineTo(cx + box, cy - box); x.lineTo(cx + box, cy - box + cut);
+        x.moveTo(cx - box, cy + box - cut); x.lineTo(cx - box, cy + box); x.lineTo(cx - box + cut, cy + box);
+        x.moveTo(cx + box - cut, cy + box); x.lineTo(cx + box, cy + box); x.lineTo(cx + box, cy + box - cut);
+        x.stroke();
       }
 
+      // Alignment overlay
       if (state.menuOpen && state.menuPage === 'align') {
         x.save();
         x.strokeStyle = 'rgba(99,234,255,.86)';
@@ -1488,7 +1858,10 @@
         x.textAlign = 'center';
         x.fillText(`INWARD ${(state.eyeCenterShift * 100).toFixed(1)}%`, cx, cy - 275);
         x.font = '700 18px ui-monospace, monospace';
-        x.fillText(`LEFT ${alignmentText(state.leftEyeOffset)}   |   RIGHT ${alignmentText(state.rightEyeOffset)}`, cx, cy + 255);
+        x.fillText(
+          `LEFT ${alignmentText(state.leftEyeOffset)}   |   RIGHT ${alignmentText(state.rightEyeOffset)}`,
+          cx, cy + 255
+        );
         x.restore();
       }
 
@@ -1501,31 +1874,39 @@
         x.fillText(state.cameraBusy ? 'LENS SWITCHING' : state.cameraLabel, w - 60, 116);
       }
 
-      const lightBarX = 60, lightBarY = h - 105, lightBarW = 260;
+      // Light / motion bars (menu only)
       if (state.menuOpen) {
-      x.textAlign = 'left';
-      x.fillStyle = 'rgba(220,255,232,.82)';
-      x.font = '700 22px ui-monospace, monospace';
-      x.fillText(`LIGHT ${(state.averageLight * 100).toFixed(0)}%`, lightBarX, lightBarY - 34);
-      x.strokeStyle = 'rgba(104,255,157,.35)'; x.strokeRect(lightBarX, lightBarY, lightBarW, 16);
-      x.fillStyle = '#68ff9d'; x.fillRect(lightBarX + 2, lightBarY + 2, (lightBarW - 4) * state.averageLight, 12);
+        const lightBarX = 60, lightBarY = h - 105, lightBarW = 260;
+        x.textAlign = 'left';
+        x.fillStyle = 'rgba(220,255,232,.82)';
+        x.font = '700 22px ui-monospace, monospace';
+        x.fillText(`LIGHT ${(state.averageLight * 100).toFixed(0)}%`, lightBarX, lightBarY - 34);
+        x.strokeStyle = 'rgba(104,255,157,.35)';
+        x.strokeRect(lightBarX, lightBarY, lightBarW, 16);
+        x.fillStyle = '#68ff9d';
+        x.fillRect(lightBarX + 2, lightBarY + 2, (lightBarW - 4) * state.averageLight, 12);
 
-      const motionBarX = w - 320, motionBarY = h - 105, motionBarW = 260;
-      x.textAlign = 'right';
-      x.fillStyle = state.motionEnabled ? 'rgba(255,226,205,.88)' : 'rgba(160,170,164,.72)';
-      x.fillText(`MOTION ${state.motionEnabled ? Math.min(99, state.motionScore * 100).toFixed(0) + '%' : 'OFF'}`, w - 60, motionBarY - 34);
-      x.strokeStyle = 'rgba(255,158,106,.36)'; x.strokeRect(motionBarX, motionBarY, motionBarW, 16);
-      x.fillStyle = '#ff9e6a'; x.fillRect(motionBarX + 2, motionBarY + 2, (motionBarW - 4) * Math.min(1, state.motionScore), 12);
+        const motionBarX = w - 320, motionBarY = h - 105, motionBarW = 260;
+        x.textAlign = 'right';
+        x.fillStyle = state.motionEnabled ? 'rgba(255,226,205,.88)' : 'rgba(160,170,164,.72)';
+        x.fillText(
+          `MOTION ${state.motionEnabled ? Math.min(99, state.motionScore * 100).toFixed(0) + '%' : 'OFF'}`,
+          w - 60, motionBarY - 34
+        );
+        x.strokeStyle = 'rgba(255,158,106,.36)';
+        x.strokeRect(motionBarX, motionBarY, motionBarW, 16);
+        x.fillStyle = '#ff9e6a';
+        x.fillRect(motionBarX + 2, motionBarY + 2, (motionBarW - 4) * Math.min(1, state.motionScore), 12);
 
-      x.textAlign = 'left';
-      x.fillStyle = 'rgba(211,255,226,.75)';
-      x.fillText(`GAIN ${state.currentGain.toFixed(2)}  ${state.autoGain ? 'AUTO' : 'MANUAL'}`, 60, h - 62);
-      x.textAlign = 'center';
-      x.fillStyle = state.lensMode === '0.5X' ? '#63eaff' : '#d8ffe5';
-      x.fillText(`${state.lensMode} OPTIC`, w / 2, h - 62);
-      x.textAlign = 'right';
-      x.fillStyle = 'rgba(211,255,226,.75)';
-      x.fillText(state.orientationReady ? 'GAZE CONTROL ONLINE' : 'WAITING FOR MOTION', w - 60, h - 62);
+        x.textAlign = 'left';
+        x.fillStyle = 'rgba(211,255,226,.75)';
+        x.fillText(`GAIN ${state.currentGain.toFixed(2)}  ${state.autoGain ? 'AUTO' : 'MANUAL'}`, 60, h - 62);
+        x.textAlign = 'center';
+        x.fillStyle = state.lensMode === '0.5X' ? '#63eaff' : '#d8ffe5';
+        x.fillText(`${state.lensMode} OPTIC`, w / 2, h - 62);
+        x.textAlign = 'right';
+        x.fillStyle = 'rgba(211,255,226,.75)';
+        x.fillText(state.orientationReady ? 'GAZE CONTROL ONLINE' : 'WAITING FOR MOTION', w - 60, h - 62);
       } else {
         x.globalAlpha = 0.68;
         x.font = '700 18px ui-monospace, monospace';
@@ -1535,13 +1916,14 @@
         x.globalAlpha = 1;
       }
 
-      if (state.motionZone && state.alert > .05) {
+      // Motion zone highlight
+      if (state.motionZone && state.alert > 0.05) {
         const zone = state.motionZone;
         const zx = zone.x * w;
         const zy = (1 - zone.y - zone.h) * h;
         const zw = zone.w * w;
         const zh = zone.h * h;
-        x.strokeStyle = `rgba(255,82,111,${.45 + state.alert * .45})`;
+        x.strokeStyle = `rgba(255,82,111,${0.45 + state.alert * 0.45})`;
         x.lineWidth = 5;
         x.strokeRect(zx + 12, zy + 12, zw - 24, zh - 24);
         x.fillStyle = 'rgba(255,82,111,.92)';
@@ -1550,22 +1932,31 @@
         x.fillText(`REGION CHANGE ${(zone.score * 100).toFixed(0)}%`, zx + 20, zy + 22);
       }
 
+      // Announcement banner
       if (now < announcementUntil) {
         const alpha = Math.min(1, (announcementUntil - now) / 250);
         x.globalAlpha = alpha;
         x.fillStyle = 'rgba(0,12,7,.76)';
         x.strokeStyle = 'rgba(104,255,157,.74)';
         x.lineWidth = 3;
-        x.beginPath(); x.roundRect(w/2 - 190, h/2 + 105, 380, 72, 16); x.fill(); x.stroke();
-        x.textAlign = 'center'; x.textBaseline = 'middle';
-        x.fillStyle = '#eafff0'; x.font = '900 28px system-ui, sans-serif';
-        x.fillText(announcement, w/2, h/2 + 141);
+        x.beginPath();
+        x.roundRect(w / 2 - 190, h / 2 + 105, 380, 72, 16);
+        x.fill();
+        x.stroke();
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.fillStyle = '#eafff0';
+        x.font = '900 28px system-ui, sans-serif';
+        x.fillText(announcement, w / 2, h / 2 + 141);
       }
 
       x.restore();
       hud.texture.needsUpdate = true;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Permissions & performance
+    // ═══════════════════════════════════════════════════════════════
     async function requestMotionPermission() {
       try {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -1579,9 +1970,9 @@
     }
 
     const PERFORMANCE_PROFILES = {
-      BATTERY: { width: 1280, height: 720, fps: 30, pixelRatio: .78, sampleWidth: 48, sampleHeight: 27, sampleInterval: 250, quality: 0 },
-      BALANCED: { width: 1920, height: 1080, fps: 30, pixelRatio: 1.0, sampleWidth: 64, sampleHeight: 36, sampleInterval: 155, quality: 1 },
-      MAXIMUM: { width: 2560, height: 1440, fps: 60, pixelRatio: 1.25, sampleWidth: 80, sampleHeight: 45, sampleInterval: 95, quality: 1 }
+      BATTERY:  { width: 1280, height: 720,  fps: 30, pixelRatio: 0.78, sampleWidth: 48, sampleHeight: 27, sampleInterval: 250, quality: 0 },
+      BALANCED: { width: 1920, height: 1080, fps: 30, pixelRatio: 1.0,  sampleWidth: 64, sampleHeight: 36, sampleInterval: 155, quality: 1 },
+      MAXIMUM:  { width: 2560, height: 1440, fps: 60, pixelRatio: 1.25, sampleWidth: 80, sampleHeight: 45, sampleInterval: 95,  quality: 1 }
     };
 
     function profileForMode(mode) {
@@ -1597,7 +1988,13 @@
       sampleCanvas.height = profile.sampleHeight;
       shaderUniforms.uQuality.value = profile.quality;
       onResize();
-      refreshButtonTexture(performanceButton, `PERF ${mode === 'MAXIMUM' ? 'MAX' : mode}`, mode === 'AUTO' ? `now ${state.activePerformance.toLowerCase()}` : `${profile.fps} fps target`, '#63eaff', true);
+      refreshButtonTexture(
+        performanceButton,
+        `PERF ${mode === 'MAXIMUM' ? 'MAX' : mode}`,
+        mode === 'AUTO' ? `now ${state.activePerformance.toLowerCase()}` : `${profile.fps} fps target`,
+        '#63eaff',
+        true
+      );
       announce(`PERFORMANCE ${mode}`);
       if (reopenCamera && state.cameraTrack && !state.cameraBusy) restartCameraForProfile();
     }
@@ -1613,6 +2010,9 @@
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Camera capabilities
+    // ═══════════════════════════════════════════════════════════════
     function updateCameraCapabilities() {
       const caps = state.cameraTrack?.getCapabilities?.() || {};
       const settings = state.cameraTrack?.getSettings?.() || {};
@@ -1631,9 +2031,27 @@
     }
 
     function refreshCameraControlButtons() {
-      refreshButtonTexture(torchButton, state.torchSupported ? `TORCH ${state.torchOn ? 'ON' : 'OFF'}` : 'TORCH N/A', state.torchSupported ? 'camera light' : 'not exposed', state.torchOn ? '#ffd36a' : '#8d9b92', state.torchOn);
-      refreshButtonTexture(focusButton, `FOCUS ${String(state.focusMode).toUpperCase()}`, state.focusModes.length ? 'camera focus' : 'not exposed', '#d8ffe5', false);
-      refreshButtonTexture(whiteBalanceButton, `WB ${String(state.whiteBalanceMode).toUpperCase()}`, state.whiteBalanceModes.length ? 'white balance' : 'not exposed', '#d8ffe5', false);
+      refreshButtonTexture(
+        torchButton,
+        state.torchSupported ? `TORCH ${state.torchOn ? 'ON' : 'OFF'}` : 'TORCH N/A',
+        state.torchSupported ? 'camera light' : 'not exposed',
+        state.torchOn ? '#ffd36a' : '#8d9b92',
+        state.torchOn
+      );
+      refreshButtonTexture(
+        focusButton,
+        `FOCUS ${String(state.focusMode).toUpperCase()}`,
+        state.focusModes.length ? 'camera focus' : 'not exposed',
+        '#d8ffe5',
+        false
+      );
+      refreshButtonTexture(
+        whiteBalanceButton,
+        `WB ${String(state.whiteBalanceMode).toUpperCase()}`,
+        state.whiteBalanceModes.length ? 'white balance' : 'not exposed',
+        '#d8ffe5',
+        false
+      );
     }
 
     async function applyAdvancedConstraint(constraint) {
@@ -1648,7 +2066,10 @@
     }
 
     async function toggleTorch() {
-      if (!state.torchSupported) { announce('TORCH NOT AVAILABLE'); return; }
+      if (!state.torchSupported) {
+        announce('TORCH NOT AVAILABLE');
+        return;
+      }
       const next = !state.torchOn;
       if (await applyAdvancedConstraint({ torch: next })) {
         state.torchOn = next;
@@ -1658,7 +2079,10 @@
     }
 
     async function cycleFocus() {
-      if (!state.focusModes.length) { announce('FOCUS CONTROL N/A'); return; }
+      if (!state.focusModes.length) {
+        announce('FOCUS CONTROL N/A');
+        return;
+      }
       const index = Math.max(0, state.focusModes.indexOf(state.focusMode));
       const next = state.focusModes[(index + 1) % state.focusModes.length];
       if (await applyAdvancedConstraint({ focusMode: next })) {
@@ -1669,7 +2093,10 @@
     }
 
     async function cycleWhiteBalance() {
-      if (!state.whiteBalanceModes.length) { announce('WHITE BALANCE N/A'); return; }
+      if (!state.whiteBalanceModes.length) {
+        announce('WHITE BALANCE N/A');
+        return;
+      }
       const index = Math.max(0, state.whiteBalanceModes.indexOf(state.whiteBalanceMode));
       const next = state.whiteBalanceModes[(index + 1) % state.whiteBalanceModes.length];
       if (await applyAdvancedConstraint({ whiteBalanceMode: next })) {
@@ -1680,8 +2107,15 @@
     }
 
     async function adjustExposure(direction) {
-      if (!state.exposureStep || state.exposureMax === state.exposureMin) { announce('EXPOSURE CONTROL N/A'); return; }
-      const next = THREE.MathUtils.clamp(state.exposureValue + direction * state.exposureStep, state.exposureMin, state.exposureMax);
+      if (!state.exposureStep || state.exposureMax === state.exposureMin) {
+        announce('EXPOSURE CONTROL N/A');
+        return;
+      }
+      const next = THREE.MathUtils.clamp(
+        state.exposureValue + direction * state.exposureStep,
+        state.exposureMin,
+        state.exposureMax
+      );
       if (await applyAdvancedConstraint({ exposureCompensation: next })) {
         state.exposureValue = next;
         announce(`EXPOSURE ${next > 0 ? '+' : ''}${next.toFixed(1)}`);
@@ -1705,26 +2139,32 @@
       const ultraPattern = /ultra|wide.?angle|0[.,]5|0\.5x|fisheye/i;
       const telePattern = /tele|zoom|portrait/i;
 
-      const labeledRear = state.cameraDevices.filter(device => rearPattern.test(device.label) && !frontPattern.test(device.label));
+      const labeledRear = state.cameraDevices.filter(
+        device => rearPattern.test(device.label) && !frontPattern.test(device.label)
+      );
       state.rearDevices = labeledRear.length
         ? labeledRear
         : state.cameraDevices.filter(device => !frontPattern.test(device.label));
 
       const current = state.rearDevices.find(device => device.deviceId === currentDeviceId);
-      const explicitNormal = state.rearDevices.find(device =>
-        !ultraPattern.test(device.label) && !telePattern.test(device.label)
+      const explicitNormal = state.rearDevices.find(
+        device => !ultraPattern.test(device.label) && !telePattern.test(device.label)
       );
       const explicitUltra = state.rearDevices.find(device => ultraPattern.test(device.label));
 
       state.normalDeviceId = current?.deviceId || explicitNormal?.deviceId || state.rearDevices[0]?.deviceId || currentDeviceId;
       state.ultraDeviceId = explicitUltra?.deviceId || '';
-      if (state.savedNormalDeviceId && state.rearDevices.some(device => device.deviceId === state.savedNormalDeviceId)) state.normalDeviceId = state.savedNormalDeviceId;
-      if (state.savedUltraDeviceId && state.rearDevices.some(device => device.deviceId === state.savedUltraDeviceId)) state.ultraDeviceId = state.savedUltraDeviceId;
 
-      // Some Android browsers expose multiple rear cameras with generic labels.
-      // The secondary rear camera is used only as a best-effort 0.5× fallback.
+      if (state.savedNormalDeviceId && state.rearDevices.some(d => d.deviceId === state.savedNormalDeviceId)) {
+        state.normalDeviceId = state.savedNormalDeviceId;
+      }
+      if (state.savedUltraDeviceId && state.rearDevices.some(d => d.deviceId === state.savedUltraDeviceId)) {
+        state.ultraDeviceId = state.savedUltraDeviceId;
+      }
+
+      // Fallback: secondary rear camera as best-effort 0.5×
       if (!state.ultraDeviceId && state.rearDevices.length > 1) {
-        const secondary = state.rearDevices.find(device => device.deviceId !== state.normalDeviceId);
+        const secondary = state.rearDevices.find(d => d.deviceId !== state.normalDeviceId);
         state.ultraDeviceId = secondary?.deviceId || '';
       }
     }
@@ -1858,8 +2298,6 @@
       } catch (error) {
         console.warn('Lens switch failed:', error);
         announce('LENS SWITCH FAILED');
-
-        // Attempt to recover the previously active camera.
         if (!state.cameraTrack?.readyState || state.cameraTrack.readyState === 'ended') {
           try {
             await openCamera({ deviceId: previousDeviceId || state.normalDeviceId, lensMode: previousLensMode });
@@ -1872,6 +2310,9 @@
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Diagnostics & setup UI
+    // ═══════════════════════════════════════════════════════════════
     function setDiagnostic(id, textValue, status = 'ok') {
       const element = document.querySelector(`#${id}`);
       if (!element) return;
@@ -1880,17 +2321,35 @@
     }
 
     async function updateDiagnostics() {
-      setDiagnostic('diagSecure', isSecureContext || location.hostname === 'localhost' ? 'READY' : 'HTTPS NEEDED', isSecureContext ? 'ok' : 'bad');
-      setDiagnostic('diagCameras', state.rearDevices.length ? `${state.rearDevices.length} FOUND` : 'UNKNOWN', state.rearDevices.length ? 'ok' : 'warn');
+      setDiagnostic(
+        'diagSecure',
+        isSecureContext || location.hostname === 'localhost' ? 'READY' : 'HTTPS NEEDED',
+        isSecureContext ? 'ok' : 'bad'
+      );
+      setDiagnostic(
+        'diagCameras',
+        state.rearDevices.length ? `${state.rearDevices.length} FOUND` : 'UNKNOWN',
+        state.rearDevices.length ? 'ok' : 'warn'
+      );
       const ultraReady = Boolean(state.ultraDeviceId || supportsHalfZoom());
       setDiagnostic('diagUltra', ultraReady ? 'READY' : 'NOT EXPOSED', ultraReady ? 'ok' : 'warn');
-      setDiagnostic('diagMotion', 'DeviceOrientationEvent' in window ? 'AVAILABLE' : 'NO', 'DeviceOrientationEvent' in window ? 'ok' : 'warn');
+      setDiagnostic(
+        'diagMotion',
+        'DeviceOrientationEvent' in window ? 'AVAILABLE' : 'NO',
+        'DeviceOrientationEvent' in window ? 'ok' : 'warn'
+      );
       setDiagnostic('diagTorch', state.torchSupported ? 'READY' : 'NO', state.torchSupported ? 'ok' : 'warn');
       setDiagnostic('diagWake', 'wakeLock' in navigator ? 'READY' : 'NO', 'wakeLock' in navigator ? 'ok' : 'warn');
-      setDiagnostic('diagFrames', typeof video.requestVideoFrameCallback === 'function' ? 'SYNCED' : 'FALLBACK', typeof video.requestVideoFrameCallback === 'function' ? 'ok' : 'warn');
+      setDiagnostic(
+        'diagFrames',
+        typeof video.requestVideoFrameCallback === 'function' ? 'SYNCED' : 'FALLBACK',
+        typeof video.requestVideoFrameCallback === 'function' ? 'ok' : 'warn'
+      );
       try {
         state.webXRSupported = Boolean(await navigator.xr?.isSessionSupported?.('immersive-vr'));
-      } catch { state.webXRSupported = false; }
+      } catch {
+        state.webXRSupported = false;
+      }
       setDiagnostic('diagWebXR', state.webXRSupported ? 'SUPPORTED' : 'NO', state.webXRSupported ? 'ok' : 'warn');
       webxrToggle.disabled = !state.webXRSupported;
     }
@@ -1909,7 +2368,7 @@
     }
 
     function cameraName(deviceId) {
-      return state.cameraDevices.find(device => device.deviceId === deviceId)?.label || (deviceId ? 'Saved camera' : 'AUTO');
+      return state.cameraDevices.find(d => d.deviceId === deviceId)?.label || (deviceId ? 'Saved camera' : 'AUTO');
     }
 
     function updateAssignmentLabels() {
@@ -1919,7 +2378,7 @@
 
     function loadSavedConfig() {
       try {
-        const saved = JSON.parse(localStorage.getItem('nightwatch-v4-config') || '{}');
+        const saved = JSON.parse(localStorage.getItem('nightwatch-v5-config') || '{}');
         if (saved.ipd) state.ipd = saved.ipd;
         if (Number.isFinite(saved.eyeCenterShift)) state.eyeCenterShift = saved.eyeCenterShift;
         if (Number.isFinite(saved.leftEyeOffset)) state.leftEyeOffset = saved.leftEyeOffset;
@@ -1939,7 +2398,9 @@
         if (Number.isFinite(saved.blackLevel)) state.blackLevel = saved.blackLevel;
         state.savedNormalDeviceId = saved.normalDeviceId || '';
         state.savedUltraDeviceId = saved.ultraDeviceId || '';
-      } catch (error) { console.warn('Could not load saved calibration:', error); }
+      } catch (error) {
+        console.warn('Could not load saved calibration:', error);
+      }
     }
 
     function saveConfig() {
@@ -1949,38 +2410,47 @@
         leftEyeOffset: state.leftEyeOffset,
         rightEyeOffset: state.rightEyeOffset,
         eyeVerticalOffset: state.eyeVerticalOffset,
-        fov: state.fov, lensDistortion: state.lensDistortion, lensShift: state.lensShift,
-        dwellMs: state.dwellMs, performanceMode: state.performanceMode, palette: state.palette, fitMode: state.fitMode,
-        denoise: state.denoise, edgeStrength: state.edgeStrength, shadowBoost: state.shadowBoost,
-        highlightProtect: state.highlightProtect, blackLevel: state.blackLevel,
-        normalDeviceId: state.normalDeviceId, ultraDeviceId: state.ultraDeviceId
+        fov: state.fov,
+        lensDistortion: state.lensDistortion,
+        lensShift: state.lensShift,
+        dwellMs: state.dwellMs,
+        performanceMode: state.performanceMode,
+        palette: state.palette,
+        fitMode: state.fitMode,
+        denoise: state.denoise,
+        edgeStrength: state.edgeStrength,
+        shadowBoost: state.shadowBoost,
+        highlightProtect: state.highlightProtect,
+        blackLevel: state.blackLevel,
+        normalDeviceId: state.normalDeviceId,
+        ultraDeviceId: state.ultraDeviceId
       };
       try {
-        localStorage.setItem('nightwatch-v4-config', JSON.stringify(config));
+        localStorage.setItem('nightwatch-v5-config', JSON.stringify(config));
       } catch (error) {
-        console.warn('Calibration could not be saved on this browser:', error);
+        console.warn('Calibration could not be saved:', error);
       }
     }
 
     function syncSetupControls() {
       const bindings = [
-        ['ipdRange', state.ipd * 1000, 'ipdOutput', value => `${Math.round(value)} mm`],
-        ['eyeCenterRange', state.eyeCenterShift, 'eyeCenterOutput', value => `${(value * 100).toFixed(1)}%`],
-        ['leftEyeRange', state.leftEyeOffset, 'leftEyeOutput', value => alignmentText(value)],
-        ['rightEyeRange', state.rightEyeOffset, 'rightEyeOutput', value => alignmentText(value)],
-        ['eyeVerticalRange', state.eyeVerticalOffset, 'eyeVerticalOutput', value => {
-          if (Math.abs(value) < 0.0005) return 'CENTER';
-          return `${value > 0 ? 'UP' : 'DOWN'} ${(Math.abs(value) * 100).toFixed(1)}%`;
+        ['ipdRange', state.ipd * 1000, 'ipdOutput', v => `${Math.round(v)} mm`],
+        ['eyeCenterRange', state.eyeCenterShift, 'eyeCenterOutput', v => `${(v * 100).toFixed(1)}%`],
+        ['leftEyeRange', state.leftEyeOffset, 'leftEyeOutput', v => alignmentText(v)],
+        ['rightEyeRange', state.rightEyeOffset, 'rightEyeOutput', v => alignmentText(v)],
+        ['eyeVerticalRange', state.eyeVerticalOffset, 'eyeVerticalOutput', v => {
+          if (Math.abs(v) < 0.0005) return 'CENTER';
+          return `${v > 0 ? 'UP' : 'DOWN'} ${(Math.abs(v) * 100).toFixed(1)}%`;
         }],
-        ['fovRange', state.fov, 'fovOutput', value => `${Math.round(value)}°`],
-        ['barrelRange', state.lensDistortion, 'barrelOutput', value => Number(value).toFixed(2)],
-        ['shiftRange', state.lensShift, 'shiftOutput', value => Number(value).toFixed(2)],
-        ['dwellRange', state.dwellMs, 'dwellOutput', value => `${(value / 1000).toFixed(1)} s`],
-        ['noiseRange', state.denoise, 'noiseOutput', value => `${Math.round(value * 100)}%`],
-        ['edgeRange', state.edgeStrength || 3.2, 'edgeOutput', value => Number(value).toFixed(1)],
-        ['shadowRange', state.shadowBoost, 'shadowOutput', value => `${Math.round(value * 100)}%`],
-        ['highlightRange', state.highlightProtect, 'highlightOutput', value => `${Math.round(value * 100)}%`],
-        ['blackRange', state.blackLevel, 'blackOutput', value => Number(value).toFixed(2)]
+        ['fovRange', state.fov, 'fovOutput', v => `${Math.round(v)}°`],
+        ['barrelRange', state.lensDistortion, 'barrelOutput', v => Number(v).toFixed(2)],
+        ['shiftRange', state.lensShift, 'shiftOutput', v => Number(v).toFixed(2)],
+        ['dwellRange', state.dwellMs, 'dwellOutput', v => `${(v / 1000).toFixed(1)} s`],
+        ['noiseRange', state.denoise, 'noiseOutput', v => `${Math.round(v * 100)}%`],
+        ['edgeRange', state.edgeStrength || 3.2, 'edgeOutput', v => Number(v).toFixed(1)],
+        ['shadowRange', state.shadowBoost, 'shadowOutput', v => `${Math.round(v * 100)}%`],
+        ['highlightRange', state.highlightProtect, 'highlightOutput', v => `${Math.round(v * 100)}%`],
+        ['blackRange', state.blackLevel, 'blackOutput', v => Number(v).toFixed(2)]
       ];
       bindings.forEach(([inputId, value, outputId, format]) => {
         const input = document.querySelector(`#${inputId}`);
@@ -2020,23 +2490,23 @@
 
     function bindSetupRanges() {
       const mappings = [
-        ['ipdRange', 'ipdOutput', value => `${Math.round(value)} mm`],
-        ['eyeCenterRange', 'eyeCenterOutput', value => `${(value * 100).toFixed(1)}%`],
-        ['leftEyeRange', 'leftEyeOutput', value => alignmentText(value)],
-        ['rightEyeRange', 'rightEyeOutput', value => alignmentText(value)],
-        ['eyeVerticalRange', 'eyeVerticalOutput', value => {
-          if (Math.abs(value) < 0.0005) return 'CENTER';
-          return `${value > 0 ? 'UP' : 'DOWN'} ${(Math.abs(value) * 100).toFixed(1)}%`;
+        ['ipdRange', 'ipdOutput', v => `${Math.round(v)} mm`],
+        ['eyeCenterRange', 'eyeCenterOutput', v => `${(v * 100).toFixed(1)}%`],
+        ['leftEyeRange', 'leftEyeOutput', v => alignmentText(v)],
+        ['rightEyeRange', 'rightEyeOutput', v => alignmentText(v)],
+        ['eyeVerticalRange', 'eyeVerticalOutput', v => {
+          if (Math.abs(v) < 0.0005) return 'CENTER';
+          return `${v > 0 ? 'UP' : 'DOWN'} ${(Math.abs(v) * 100).toFixed(1)}%`;
         }],
-        ['fovRange', 'fovOutput', value => `${Math.round(value)}°`],
-        ['barrelRange', 'barrelOutput', value => value.toFixed(2)],
-        ['shiftRange', 'shiftOutput', value => value.toFixed(2)],
-        ['dwellRange', 'dwellOutput', value => `${(value / 1000).toFixed(1)} s`],
-        ['noiseRange', 'noiseOutput', value => `${Math.round(value * 100)}%`],
-        ['edgeRange', 'edgeOutput', value => value.toFixed(1)],
-        ['shadowRange', 'shadowOutput', value => `${Math.round(value * 100)}%`],
-        ['highlightRange', 'highlightOutput', value => `${Math.round(value * 100)}%`],
-        ['blackRange', 'blackOutput', value => value.toFixed(2)]
+        ['fovRange', 'fovOutput', v => `${Math.round(v)}°`],
+        ['barrelRange', 'barrelOutput', v => v.toFixed(2)],
+        ['shiftRange', 'shiftOutput', v => v.toFixed(2)],
+        ['dwellRange', 'dwellOutput', v => `${(v / 1000).toFixed(1)} s`],
+        ['noiseRange', 'noiseOutput', v => `${Math.round(v * 100)}%`],
+        ['edgeRange', 'edgeOutput', v => v.toFixed(1)],
+        ['shadowRange', 'shadowOutput', v => `${Math.round(v * 100)}%`],
+        ['highlightRange', 'highlightOutput', v => `${Math.round(v * 100)}%`],
+        ['blackRange', 'blackOutput', v => v.toFixed(2)]
       ];
       mappings.forEach(([inputId, outputId, format]) => {
         const input = document.querySelector(`#${inputId}`);
@@ -2055,9 +2525,14 @@
       if (!deviceId || state.cameraBusy) return;
       state.cameraBusy = true;
       try {
-        await openCamera({ deviceId, lensMode: deviceId === state.ultraDeviceId ? '0.5X' : '1X' });
+        await openCamera({
+          deviceId,
+          lensMode: deviceId === state.ultraDeviceId ? '0.5X' : '1X'
+        });
         announce('CAMERA PREVIEW');
-      } finally { state.cameraBusy = false; }
+      } finally {
+        state.cameraBusy = false;
+      }
     }
 
     async function beginSetup() {
@@ -2077,11 +2552,15 @@
         console.error(error);
         errorPanel.style.display = 'grid';
         errorMessage.textContent = `${error.message || error}. Use HTTPS (or localhost), allow camera access, and try a current mobile browser.`;
-      } finally { startButton.disabled = false; }
+      } finally {
+        startButton.disabled = false;
+      }
     }
 
     async function startCamera() {
-      if (!navigator.mediaDevices?.getUserMedia) throw new Error('This browser does not provide camera access.');
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('This browser does not provide camera access.');
+      }
 
       const track = await openCamera({ lensMode: '1X' });
       const settings = track?.getSettings?.() || {};
@@ -2091,14 +2570,16 @@
       populateCameraSelect();
       await updateDiagnostics();
 
-      // Start with the requested 0.5× view whenever the browser exposes it.
+      // Prefer 0.5× if available
       await setLens('0.5X', true);
     }
 
     async function requestExperimentalWebXR() {
       if (!webxrToggle.checked || !state.webXRSupported || !navigator.xr) return null;
       try {
-        const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
+        const session = await navigator.xr.requestSession('immersive-vr', {
+          optionalFeatures: ['local-floor']
+        });
         await renderer.xr.setSession(session);
         state.webXRSession = session;
         xrFeedPlane.visible = true;
@@ -2115,7 +2596,11 @@
     }
 
     async function requestWakeLock() {
-      try { state.wakeLock = await navigator.wakeLock?.request?.('screen'); } catch (error) { console.warn('Wake lock unavailable:', error); }
+      try {
+        state.wakeLock = await navigator.wakeLock?.request?.('screen');
+      } catch (error) {
+        console.warn('Wake lock unavailable:', error);
+      }
     }
 
     async function launchVisor() {
@@ -2131,7 +2616,10 @@
         const webxrPromise = requestExperimentalWebXR();
         const wakePromise = requestWakeLock();
 
-        const [motionGranted] = await Promise.all([motionPromise, fullscreenPromise, orientationPromise, webxrPromise, wakePromise]);
+        const [motionGranted] = await Promise.all([
+          motionPromise, fullscreenPromise, orientationPromise, webxrPromise, wakePromise
+        ]);
+
         state.running = true;
         state.setupReady = false;
         setMenuOpen(false);
@@ -2144,15 +2632,21 @@
         console.error(error);
         errorPanel.style.display = 'grid';
         errorMessage.textContent = `${error.message || error}. Use HTTPS (or localhost), allow camera access, and try a current mobile browser.`;
-      } finally { launchButton.disabled = false; }
+      } finally {
+        launchButton.disabled = false;
+      }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // Event wiring
+    // ═══════════════════════════════════════════════════════════════
     startButton.addEventListener('click', beginSetup);
     loadSavedConfig();
     bindSetupRanges();
     syncSetupControls();
     updateDiagnostics();
     launchButton.addEventListener('click', launchVisor);
+
     document.querySelector('#previewCameraButton').addEventListener('click', previewSelectedCamera);
     document.querySelector('#assignUltraButton').addEventListener('click', () => {
       state.ultraDeviceId = cameraSelect.value;
@@ -2179,7 +2673,10 @@
       const eyeWidth = state.stereo ? width / 2 : width;
       camera.aspect = eyeWidth / height;
       camera.updateProjectionMatrix();
-      shaderUniforms.uViewport.value.set(eyeWidth * renderer.getPixelRatio(), height * renderer.getPixelRatio());
+      shaderUniforms.uViewport.value.set(
+        eyeWidth * renderer.getPixelRatio(),
+        height * renderer.getPixelRatio()
+      );
     }
     addEventListener('resize', onResize);
     visualViewport?.addEventListener('resize', onResize);
@@ -2189,6 +2686,9 @@
       if (document.visibilityState === 'visible' && state.running) requestWakeLock();
     });
 
+    // ═══════════════════════════════════════════════════════════════
+    // Render loop
+    // ═══════════════════════════════════════════════════════════════
     let previousTime = performance.now();
     function render(now) {
       if (!state.running || !shaderUniforms.uVideo.value) return;
@@ -2205,9 +2705,11 @@
         state.fps = state.frameCounter * 1000 / (now - state.fpsTime);
         state.frameCounter = 0;
         state.fpsTime = now;
+
         if (state.performanceMode === 'AUTO') {
           if (state.fps < 23) state.lowFpsChecks++;
           else state.lowFpsChecks = Math.max(0, state.lowFpsChecks - 1);
+
           if (state.lowFpsChecks >= 4 && state.activePerformance !== 'BATTERY') {
             state.activePerformance = 'BATTERY';
             const profile = PERFORMANCE_PROFILES.BATTERY;
