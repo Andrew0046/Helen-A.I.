@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="theme-color" content="#020705" />
-  <title>Nightwatch XR V4.3 True Fullscreen Visor</title>
+  <title>Nightwatch XR V4.4 Verified Ultra-Wide Visor</title>
   <style>
     :root {
       --green: #68ff9d;
@@ -217,7 +217,7 @@
     <div class="boot-card">
       <div class="boot-topline">
         <div class="eyebrow">TACTICAL SEARCH VISOR / PROTOTYPE</div>
-        <div class="build-tag">BUILD 4.3 / TRUE FULLSCREEN</div>
+        <div class="build-tag">BUILD 4.4 / VERIFIED 0.5×</div>
       </div>
       <h1>NIGHTWATCH XR</h1>
       <p class="subtitle">A calibrated hands-free camera visor with full-view stereo, stabilized motion zones, improved low-light processing, and capability-aware camera controls.</p>
@@ -257,10 +257,14 @@
             </div>
             <div class="setup-actions">
               <button id="previewCameraButton" type="button">Preview selected</button>
-              <button id="assignUltraButton" type="button">Save as 0.5×</button>
+              <button id="assignUltraButton" type="button">Use selected as 0.5×</button>
               <button id="assignNormalButton" type="button">Save as 1×</button>
             </div>
-            <div class="assignment-line">0.5×: <strong id="ultraAssignment">AUTO</strong><br>1×: <strong id="normalAssignment">AUTO</strong></div>
+            <div class="assignment-line">
+              0.5×: <strong id="ultraAssignment">AUTO</strong><br>
+              1×: <strong id="normalAssignment">AUTO</strong><br>
+              Switch result: <strong id="cameraSwitchStatus">NOT TESTED</strong>
+            </div>
           </div>
 
           <div class="setup-panel">
@@ -438,8 +442,11 @@
       normalDeviceId: '',
       ultraDeviceId: '',
       currentDeviceId: '',
-      lensMode: '0.5X',
+      lensMode: '1X',
       cameraBusy: false,
+      lensVerified: false,
+      lensVerification: 'NOT TESTED',
+      activeZoom: null,
       cameraCapabilities: {},
       torchSupported: false,
       torchOn: false,
@@ -1555,7 +1562,13 @@
         x.textAlign = 'left';
         x.fillText(`OPTIC ${state.lensMode}`, 60, 116);
         x.textAlign = 'right';
-        x.fillText(state.cameraBusy ? 'LENS SWITCHING' : state.cameraLabel, w - 60, 116);
+        x.fillText(
+          state.cameraBusy
+            ? 'LENS SWITCHING'
+            : `${state.cameraLabel}${state.lensMode === '0.5X' ? state.lensVerified ? ' ✓' : ' ?' : ''}`,
+          w - 60,
+          116
+        );
         x.textAlign = 'center';
         x.fillStyle = 'rgba(99,234,255,.68)';
         x.fillText(`VIEW ${state.viewportWidth}×${state.viewportHeight}`, w / 2, 148);
@@ -1752,40 +1765,83 @@
       stream?.getTracks?.().forEach(track => track.stop());
     }
 
-    function supportsHalfZoom() {
-      const capabilities = state.cameraTrack?.getCapabilities?.();
-      return Boolean(capabilities?.zoom && capabilities.zoom.min <= 0.5 && capabilities.zoom.max >= 0.5);
+    function setCameraSwitchStatus(message, status = 'warn') {
+      state.lensVerification = message;
+      const element = document.querySelector('#cameraSwitchStatus');
+      if (!element) return;
+      element.textContent = message;
+      element.className = status;
+    }
+
+    function getZoomCapability(track = state.cameraTrack) {
+      return track?.getCapabilities?.()?.zoom || null;
+    }
+
+    function getTrackZoom(track = state.cameraTrack) {
+      const zoom = track?.getSettings?.()?.zoom;
+      return Number.isFinite(zoom) ? Number(zoom) : null;
+    }
+
+    function supportsHalfZoom(track = state.cameraTrack) {
+      const zoom = getZoomCapability(track);
+      if (zoom && Number.isFinite(zoom.min) && Number.isFinite(zoom.max)) {
+        return zoom.min <= 0.5 && zoom.max >= 0.5;
+      }
+      return Boolean(navigator.mediaDevices?.getSupportedConstraints?.().zoom);
     }
 
     function classifyCameraDevices(devices, currentDeviceId = '') {
       state.cameraDevices = devices.filter(device => device.kind === 'videoinput');
 
-      const frontPattern = /front|user|selfie|facetime/i;
-      const rearPattern = /back|rear|environment|world|camera2/i;
-      const ultraPattern = /ultra|wide.?angle|0[.,]5|0\.5x|fisheye/i;
-      const telePattern = /tele|zoom|portrait/i;
+      const frontPattern = /front|user|selfie|facetime|facing front/i;
+      const rearPattern = /back|rear|environment|world|facing back|camera2/i;
+      const ultraPattern = /ultra|ultrawide|wide.?angle|0[.,]5|0\.5x|fisheye|camera2\s*2\b/i;
+      const telePattern = /tele|telephoto|portrait|camera2\s*3\b/i;
 
-      const labeledRear = state.cameraDevices.filter(device => rearPattern.test(device.label) && !frontPattern.test(device.label));
+      const labeledRear = state.cameraDevices.filter(device =>
+        rearPattern.test(device.label) && !frontPattern.test(device.label)
+      );
+
       state.rearDevices = labeledRear.length
         ? labeledRear
         : state.cameraDevices.filter(device => !frontPattern.test(device.label));
 
       const current = state.rearDevices.find(device => device.deviceId === currentDeviceId);
-      const explicitNormal = state.rearDevices.find(device =>
-        !ultraPattern.test(device.label) && !telePattern.test(device.label)
+      const explicitUltra = state.rearDevices.find(device =>
+        ultraPattern.test(device.label) && !telePattern.test(device.label)
       );
-      const explicitUltra = state.rearDevices.find(device => ultraPattern.test(device.label));
+      const explicitNormal =
+        current ||
+        state.rearDevices.find(device =>
+          !ultraPattern.test(device.label) && !telePattern.test(device.label)
+        );
 
-      state.normalDeviceId = current?.deviceId || explicitNormal?.deviceId || state.rearDevices[0]?.deviceId || currentDeviceId;
+      state.normalDeviceId =
+        explicitNormal?.deviceId ||
+        state.rearDevices[0]?.deviceId ||
+        currentDeviceId;
+
       state.ultraDeviceId = explicitUltra?.deviceId || '';
-      if (state.savedNormalDeviceId && state.rearDevices.some(device => device.deviceId === state.savedNormalDeviceId)) state.normalDeviceId = state.savedNormalDeviceId;
-      if (state.savedUltraDeviceId && state.rearDevices.some(device => device.deviceId === state.savedUltraDeviceId)) state.ultraDeviceId = state.savedUltraDeviceId;
 
-      // Some Android browsers expose multiple rear cameras with generic labels.
-      // The secondary rear camera is used only as a best-effort 0.5× fallback.
-      if (!state.ultraDeviceId && state.rearDevices.length > 1) {
-        const secondary = state.rearDevices.find(device => device.deviceId !== state.normalDeviceId);
-        state.ultraDeviceId = secondary?.deviceId || '';
+      if (
+        state.savedNormalDeviceId &&
+        state.rearDevices.some(device => device.deviceId === state.savedNormalDeviceId)
+      ) {
+        state.normalDeviceId = state.savedNormalDeviceId;
+      }
+
+      if (
+        state.savedUltraDeviceId &&
+        state.rearDevices.some(device => device.deviceId === state.savedUltraDeviceId)
+      ) {
+        state.ultraDeviceId = state.savedUltraDeviceId;
+      }
+
+      // With exactly two rear cameras, the non-main camera is a useful fallback.
+      // With three or more cameras, preview and assign manually to avoid choosing telephoto.
+      if (!state.ultraDeviceId && state.rearDevices.length === 2) {
+        state.ultraDeviceId =
+          state.rearDevices.find(device => device.deviceId !== state.normalDeviceId)?.deviceId || '';
       }
     }
 
@@ -1811,10 +1867,27 @@
         }
       };
 
-      if (deviceId) constraints.video.deviceId = { exact: deviceId };
-      else constraints.video.facingMode = { ideal: 'environment' };
+      if (deviceId) {
+        constraints.video.deviceId = { exact: deviceId };
+      } else {
+        constraints.video.facingMode = { ideal: 'environment' };
+      }
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (lensMode === '0.5X') {
+        constraints.video.zoom = { ideal: 0.5 };
+        constraints.video.advanced = [{ zoom: 0.5 }];
+      } else {
+        constraints.video.zoom = { ideal: 1 };
+      }
+
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (error) {
+        delete constraints.video.zoom;
+        delete constraints.video.advanced;
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      }
       const track = stream.getVideoTracks()[0];
       const settings = track?.getSettings?.() || {};
 
@@ -1823,13 +1896,20 @@
       await Promise.allSettled([video.play(), setupVideo.play()]);
       await waitForVideoMetadata();
 
+      if (deviceId && settings.deviceId && settings.deviceId !== deviceId) {
+        stopStream(stream);
+        throw new Error('Browser ignored the selected camera device.');
+      }
+
       const previousStream = state.cameraStream;
       state.cameraStream = stream;
       state.cameraTrack = track;
       state.currentDeviceId = settings.deviceId || deviceId || '';
+      state.activeZoom = getTrackZoom(track);
       state.lensMode = lensMode;
+      state.lensVerified = false;
       state.resolutionLabel = `${video.videoWidth || settings.width || 0}×${video.videoHeight || settings.height || 0}`;
-      state.cameraLabel = lensMode === '0.5X' ? 'ULTRA-WIDE 0.5×' : 'NORMAL REAR 1×';
+      state.cameraLabel = lensMode === '0.5X' ? 'ULTRA-WIDE REQUEST' : 'NORMAL REAR 1×';
 
       shaderUniforms.uVideoSize.value.set(
         video.videoWidth || settings.width || 1280,
@@ -1856,77 +1936,167 @@
 
     async function applyOpticalZoom(targetZoom) {
       const track = state.cameraTrack;
-      const capabilities = track?.getCapabilities?.();
-      if (!track || !capabilities?.zoom) return false;
-      if (targetZoom < capabilities.zoom.min || targetZoom > capabilities.zoom.max) return false;
+      if (!track) return false;
 
-      try {
-        await track.applyConstraints({ advanced: [{ zoom: targetZoom }] });
-        return true;
-      } catch (error) {
-        console.warn('Camera zoom constraint failed:', error);
+      const capability = getZoomCapability(track);
+      if (
+        capability &&
+        Number.isFinite(capability.min) &&
+        Number.isFinite(capability.max) &&
+        (targetZoom < capability.min || targetZoom > capability.max)
+      ) {
         return false;
       }
+
+      const attempts = [
+        { zoom: targetZoom },
+        { advanced: [{ zoom: targetZoom }] },
+        { zoom: { exact: targetZoom } },
+        { zoom: { ideal: targetZoom } }
+      ];
+
+      for (const constraints of attempts) {
+        try {
+          await track.applyConstraints(constraints);
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          const actual = getTrackZoom(track);
+          state.activeZoom = actual;
+
+          if (actual !== null) {
+            if (Math.abs(actual - targetZoom) <= 0.08) return true;
+            continue;
+          }
+
+          // Some Android browsers accept zoom but omit it from getSettings().
+          if (!capability) return 'requested';
+        } catch (error) {
+          console.warn('Zoom constraint failed:', constraints, error);
+        }
+      }
+
+      return false;
     }
 
     async function setLens(lensMode, silent = false) {
-      if (state.cameraBusy) return;
+      if (state.cameraBusy) return false;
       state.cameraBusy = true;
+
       const previousDeviceId = state.currentDeviceId;
       const previousLensMode = state.lensMode;
 
       try {
+        setCameraSwitchStatus(
+          lensMode === '0.5X' ? 'SWITCHING TO 0.5×…' : 'SWITCHING TO 1×…',
+          'warn'
+        );
         announce(lensMode === '0.5X' ? 'SELECTING 0.5×' : 'SELECTING 1×');
 
         if (lensMode === '0.5X') {
-          if (supportsHalfZoom()) {
-            const changed = await applyOpticalZoom(0.5);
-            if (!changed) throw new Error('0.5× zoom could not be applied.');
-            state.lensMode = '0.5X';
-            state.cameraLabel = 'ULTRA-WIDE 0.5×';
-          } else if (state.ultraDeviceId && state.ultraDeviceId !== state.currentDeviceId) {
-            stopStream(state.cameraStream);
-            state.cameraStream = null;
-            state.cameraTrack = null;
-            await openCamera({ deviceId: state.ultraDeviceId, lensMode: '0.5X' });
-          } else if (state.ultraDeviceId && state.ultraDeviceId === state.currentDeviceId) {
-            state.lensMode = '0.5X';
-            state.cameraLabel = 'ULTRA-WIDE 0.5×';
-          } else {
-            announce('0.5× NOT EXPOSED');
-            refreshLensButtons();
-            return;
+          let verified = false;
+          let requestedOnly = false;
+
+          // Prefer the exact physical ultra-wide camera assigned in setup.
+          if (state.ultraDeviceId) {
+            if (state.currentDeviceId !== state.ultraDeviceId) {
+              await openCamera({
+                deviceId: state.ultraDeviceId,
+                lensMode: '0.5X'
+              });
+            }
+
+            if (state.currentDeviceId === state.ultraDeviceId) {
+              verified = true;
+              state.lensVerification = '0.5× PHYSICAL CAMERA';
+            }
           }
-        } else {
-          if (state.normalDeviceId && state.normalDeviceId !== state.currentDeviceId) {
-            stopStream(state.cameraStream);
-            state.cameraStream = null;
-            state.cameraTrack = null;
-            await openCamera({ deviceId: state.normalDeviceId, lensMode: '1X' });
-          } else {
-            await applyOpticalZoom(1);
+
+          // If no separate physical lens is exposed, request 0.5 from the logical camera.
+          if (!verified) {
+            const zoomResult = await applyOpticalZoom(0.5);
+            verified = zoomResult === true;
+            requestedOnly = zoomResult === 'requested';
+
+            if (verified) state.lensVerification = '0.5× ZOOM VERIFIED';
+            if (requestedOnly) state.lensVerification = '0.5× REQUEST SENT';
+          }
+
+          if (!verified && !requestedOnly) {
             state.lensMode = '1X';
+            state.lensVerified = false;
             state.cameraLabel = 'NORMAL REAR 1×';
+            setCameraSwitchStatus('0.5× NOT EXPOSED BY BROWSER', 'bad');
+            announce('0.5× NOT AVAILABLE');
+            refreshLensButtons();
+            return false;
           }
+
+          state.lensMode = '0.5X';
+          state.lensVerified = verified;
+          state.cameraLabel = verified ? 'ULTRA-WIDE 0.5×' : '0.5× REQUESTED';
+
+          setCameraSwitchStatus(
+            verified ? state.lensVerification : '0.5× REQUESTED / UNVERIFIED',
+            verified ? 'ok' : 'warn'
+          );
+        } else {
+          if (
+            state.normalDeviceId &&
+            state.currentDeviceId !== state.normalDeviceId
+          ) {
+            await openCamera({
+              deviceId: state.normalDeviceId,
+              lensMode: '1X'
+            });
+          }
+
+          const zoomResult = await applyOpticalZoom(1);
+          state.lensMode = '1X';
+          state.lensVerified =
+            state.currentDeviceId === state.normalDeviceId ||
+            zoomResult === true;
+          state.cameraLabel = 'NORMAL REAR 1×';
+
+          setCameraSwitchStatus(
+            state.lensVerified ? '1× CAMERA VERIFIED' : '1× CAMERA ACTIVE',
+            state.lensVerified ? 'ok' : 'warn'
+          );
         }
 
         refreshLensButtons();
+        populateCameraSelect();
+
         if (!silent) {
-          announce(lensMode === '0.5X' ? '0.5× ULTRA-WIDE' : '1× NORMAL');
+          announce(
+            lensMode === '0.5X'
+              ? state.lensVerified ? '0.5× VERIFIED' : '0.5× REQUESTED'
+              : '1× NORMAL'
+          );
           vibrate([25, 35, 25]);
         }
+
+        return true;
       } catch (error) {
         console.warn('Lens switch failed:', error);
+        state.lensVerified = false;
+        setCameraSwitchStatus(
+          `SWITCH FAILED: ${error.message || 'UNKNOWN ERROR'}`,
+          'bad'
+        );
         announce('LENS SWITCH FAILED');
 
-        // Attempt to recover the previously active camera.
-        if (!state.cameraTrack?.readyState || state.cameraTrack.readyState === 'ended') {
+        if (!state.cameraTrack || state.cameraTrack.readyState === 'ended') {
           try {
-            await openCamera({ deviceId: previousDeviceId || state.normalDeviceId, lensMode: previousLensMode });
+            await openCamera({
+              deviceId: previousDeviceId || state.normalDeviceId,
+              lensMode: previousLensMode
+            });
           } catch (recoveryError) {
             console.error('Camera recovery failed:', recoveryError);
           }
         }
+
+        return false;
       } finally {
         state.cameraBusy = false;
       }
@@ -1943,7 +2113,22 @@
       setDiagnostic('diagSecure', isSecureContext || location.hostname === 'localhost' ? 'READY' : 'HTTPS NEEDED', isSecureContext ? 'ok' : 'bad');
       setDiagnostic('diagCameras', state.rearDevices.length ? `${state.rearDevices.length} FOUND` : 'UNKNOWN', state.rearDevices.length ? 'ok' : 'warn');
       const ultraReady = Boolean(state.ultraDeviceId || supportsHalfZoom());
-      setDiagnostic('diagUltra', ultraReady ? 'READY' : 'NOT EXPOSED', ultraReady ? 'ok' : 'warn');
+      const ultraText =
+        state.lensVerified && state.lensMode === '0.5X'
+          ? 'VERIFIED'
+          : state.ultraDeviceId
+            ? 'CAMERA FOUND'
+            : supportsHalfZoom()
+              ? 'ZOOM FOUND'
+              : 'NOT EXPOSED';
+
+      setDiagnostic(
+        'diagUltra',
+        ultraText,
+        state.lensVerified && state.lensMode === '0.5X'
+          ? 'ok'
+          : ultraReady ? 'warn' : 'bad'
+      );
       setDiagnostic('diagMotion', 'DeviceOrientationEvent' in window ? 'AVAILABLE' : 'NO', 'DeviceOrientationEvent' in window ? 'ok' : 'warn');
       setDiagnostic('diagTorch', state.torchSupported ? 'READY' : 'NO', state.torchSupported ? 'ok' : 'warn');
       setDiagnostic('diagWake', 'wakeLock' in navigator ? 'READY' : 'NO', 'wakeLock' in navigator ? 'ok' : 'warn');
@@ -1957,14 +2142,21 @@
 
     function populateCameraSelect() {
       cameraSelect.innerHTML = '';
-      const devices = state.cameraDevices.length ? state.cameraDevices : state.rearDevices;
+      const devices = state.rearDevices.length ? state.rearDevices : state.cameraDevices;
+
       devices.forEach((device, index) => {
         const option = document.createElement('option');
         option.value = device.deviceId;
-        option.textContent = device.label || `Camera ${index + 1}`;
+
+        const role =
+          device.deviceId === state.ultraDeviceId ? ' [0.5×]' :
+          device.deviceId === state.normalDeviceId ? ' [1×]' : '';
+
+        option.textContent = `${device.label?.trim() || `Rear camera ${index + 1}`}${role}`;
         if (device.deviceId === state.currentDeviceId) option.selected = true;
         cameraSelect.append(option);
       });
+
       updateAssignmentLabels();
     }
 
@@ -2119,11 +2311,22 @@
     async function previewSelectedCamera() {
       const deviceId = cameraSelect.value;
       if (!deviceId || state.cameraBusy) return;
+
       state.cameraBusy = true;
       try {
-        await openCamera({ deviceId, lensMode: deviceId === state.ultraDeviceId ? '0.5X' : '1X' });
+        setCameraSwitchStatus('OPENING SELECTED CAMERA…', 'warn');
+        await openCamera({
+          deviceId,
+          lensMode: deviceId === state.ultraDeviceId ? '0.5X' : '1X'
+        });
+        setCameraSwitchStatus('PREVIEW ACTIVE — CHECK FIELD OF VIEW', 'warn');
         announce('CAMERA PREVIEW');
-      } finally { state.cameraBusy = false; }
+      } catch (error) {
+        setCameraSwitchStatus(`PREVIEW FAILED: ${error.message || error}`, 'bad');
+        console.error(error);
+      } finally {
+        state.cameraBusy = false;
+      }
     }
 
     async function beginSetup() {
@@ -2157,8 +2360,10 @@
       populateCameraSelect();
       await updateDiagnostics();
 
-      // Start with the requested 0.5× view whenever the browser exposes it.
+      // Attempt a verified switch. If Chrome does not expose the physical
+      // ultra-wide lens or a true 0.5 zoom range, remain on 1× and report it.
       await setLens('0.5X', true);
+      await updateDiagnostics();
     }
 
     async function requestExperimentalWebXR() {
@@ -2266,14 +2471,30 @@
     updateDiagnostics();
     launchButton.addEventListener('click', launchVisor);
     document.querySelector('#previewCameraButton').addEventListener('click', previewSelectedCamera);
-    document.querySelector('#assignUltraButton').addEventListener('click', () => {
-      state.ultraDeviceId = cameraSelect.value;
+    document.querySelector('#assignUltraButton').addEventListener('click', async () => {
+      const selected = cameraSelect.value;
+      if (!selected) return;
+
+      state.ultraDeviceId = selected;
+      state.savedUltraDeviceId = selected;
       updateAssignmentLabels();
-      updateDiagnostics();
+      saveConfig();
+
+      await setLens('0.5X');
+      await updateDiagnostics();
     });
-    document.querySelector('#assignNormalButton').addEventListener('click', () => {
-      state.normalDeviceId = cameraSelect.value;
+
+    document.querySelector('#assignNormalButton').addEventListener('click', async () => {
+      const selected = cameraSelect.value;
+      if (!selected) return;
+
+      state.normalDeviceId = selected;
+      state.savedNormalDeviceId = selected;
       updateAssignmentLabels();
+      saveConfig();
+
+      await setLens('1X');
+      await updateDiagnostics();
     });
 
     document.querySelector('#recenterFallback').addEventListener('click', recenter);
