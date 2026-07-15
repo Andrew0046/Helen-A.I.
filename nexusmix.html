@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="theme-color" content="#020705" />
-  <title>Nightwatch XR V4.2 Cardboard Visor</title>
+  <title>Nightwatch XR V4.3 True Fullscreen Visor</title>
   <style>
     :root {
       --green: #68ff9d;
@@ -19,24 +19,57 @@
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
-      position: fixed; inset: 0; width: 100%; height: 100%; margin: 0; overflow: hidden;
-      background: #010302; color: #e9fff1;
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      min-width: 100%;
+      min-height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      color: #e9fff1;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       overscroll-behavior: none;
     }
     body { touch-action: none; }
-    #app, #xrCanvas {
-      position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
-      width: 100dvw; height: 100dvh; max-width: none; max-height: none;
-      margin: 0; padding: 0; transform: none !important; transform-origin: 0 0;
+    #app {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
     }
-    #app { overflow: hidden; contain: strict; }
-    #xrCanvas { display: block; background: #000; object-fit: fill; }
-    body.visor-running, body.visor-running #app, body.visor-running #xrCanvas {
-      inset: 0; margin: 0; border: 0;
+    #xrCanvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: #000;
+      transform: none !important;
+      transform-origin: 0 0;
     }
-    :fullscreen, :fullscreen body, :fullscreen #app, :fullscreen #xrCanvas {
-      width: 100%; height: 100%; margin: 0; padding: 0;
+    body.visor-running,
+    body.visor-running #app,
+    body.visor-running #xrCanvas,
+    :fullscreen,
+    :fullscreen body,
+    :fullscreen #app,
+    :fullscreen #xrCanvas {
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      border: 0;
     }
     #cameraVideo, #sampleCanvas { position: fixed; width: 2px; height: 2px; left: -10px; top: -10px; opacity: 0.001; pointer-events: none; }
     #setupVideo { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
@@ -184,7 +217,7 @@
     <div class="boot-card">
       <div class="boot-topline">
         <div class="eyebrow">TACTICAL SEARCH VISOR / PROTOTYPE</div>
-        <div class="build-tag">BUILD 4.2 / FULLSCREEN LOCK</div>
+        <div class="build-tag">BUILD 4.3 / TRUE FULLSCREEN</div>
       </div>
       <h1>NIGHTWATCH XR</h1>
       <p class="subtitle">A calibrated hands-free camera visor with full-view stereo, stabilized motion zones, improved low-light processing, and capability-aware camera controls.</p>
@@ -240,8 +273,8 @@
               Increase <strong>camera image convergence</strong> when the two views feel too far apart.
               Use an individual trim only when one eye is off-center.
             </div>
-            <div class="setup-row"><label for="eyeCenterRange">Camera image convergence</label><output id="eyeCenterOutput">4.0%</output></div>
-            <input id="eyeCenterRange" type="range" min="0" max="0.12" step="0.005" value="0.04">
+            <div class="setup-row"><label for="eyeCenterRange">Camera image convergence</label><output id="eyeCenterOutput">0.0%</output></div>
+            <input id="eyeCenterRange" type="range" min="-0.08" max="0.08" step="0.005" value="0">
             <div class="setup-row"><label for="leftEyeRange">Left-eye image trim</label><output id="leftEyeOutput">CENTER</output></div>
             <input id="leftEyeRange" type="range" min="-0.10" max="0.10" step="0.005" value="0">
             <div class="setup-row"><label for="rightEyeRange">Right-eye image trim</label><output id="rightEyeOutput">CENTER</output></div>
@@ -251,8 +284,8 @@
 
             <div class="setup-row"><label for="fovRange">View field</label><output id="fovOutput">78°</output></div>
             <input id="fovRange" type="range" min="60" max="105" step="1" value="78">
-            <div class="setup-row"><label for="barrelRange">Lens barrel correction</label><output id="barrelOutput">0.10</output></div>
-            <input id="barrelRange" type="range" min="-0.20" max="0.45" step="0.01" value="0.10">
+            <div class="setup-row"><label for="barrelRange">Lens barrel correction</label><output id="barrelOutput">0.00</output></div>
+            <input id="barrelRange" type="range" min="-0.20" max="0.45" step="0.01" value="0.00">
             <div class="setup-row"><label for="shiftRange">Lens-center shift</label><output id="shiftOutput">0.00</output></div>
             <input id="shiftRange" type="range" min="-0.15" max="0.15" step="0.01" value="0.00">
             <div class="setup-row"><label for="dwellRange">Gaze dwell time</label><output id="dwellOutput">1.3 s</output></div>
@@ -366,12 +399,12 @@
       menuOpacity: 0.72,
       dwellMs: 1300,
       ipd: 0.064,
-      eyeCenterShift: 0.040,
+      eyeCenterShift: 0.000,
       leftEyeOffset: 0.000,
       rightEyeOffset: 0.000,
       eyeVerticalOffset: 0.000,
       fov: 78,
-      lensDistortion: 0.10,
+      lensDistortion: 0.00,
       lensShift: 0.00,
       fitMode: 0,
       hudMode: 'MIN',
@@ -1024,7 +1057,7 @@
     }
 
     function adjustEyeCenter(amount) {
-      state.eyeCenterShift = THREE.MathUtils.clamp(state.eyeCenterShift + amount, 0, 0.12);
+      state.eyeCenterShift = THREE.MathUtils.clamp(state.eyeCenterShift + amount, -0.08, 0.08);
       syncEyeAlignment();
       announce(`EYE CONVERGENCE ${(state.eyeCenterShift * 100).toFixed(1)}%`);
       vibrate(20);
@@ -1049,12 +1082,14 @@
     }
 
     function resetEyeAlignment() {
-      state.eyeCenterShift = 0.040;
+      state.eyeCenterShift = 0;
       state.leftEyeOffset = 0;
       state.rightEyeOffset = 0;
       state.eyeVerticalOffset = 0;
+      state.lensShift = 0;
+      shaderUniforms.uLensShift.value = 0;
       syncEyeAlignment();
-      announce('ALIGNMENT RESET');
+      announce('EYES CENTERED');
       vibrate([25, 30, 25]);
     }
 
@@ -1621,7 +1656,7 @@
       sampleCanvas.width = profile.sampleWidth;
       sampleCanvas.height = profile.sampleHeight;
       shaderUniforms.uQuality.value = profile.quality;
-      onResize();
+      syncViewportNow(true);
       refreshButtonTexture(performanceButton, `PERF ${mode === 'MAXIMUM' ? 'MAX' : mode}`, mode === 'AUTO' ? `now ${state.activePerformance.toLowerCase()}` : `${profile.fps} fps target`, '#63eaff', true);
       announce(`PERFORMANCE ${mode}`);
       if (reopenCamera && state.cameraTrack && !state.cameraBusy) restartCameraForProfile();
@@ -1944,7 +1979,9 @@
 
     function loadSavedConfig() {
       try {
-        const saved = JSON.parse(localStorage.getItem('nightwatch-v4-config') || '{}');
+        const saved = JSON.parse(localStorage.getItem('nightwatch-v4-3-config') || '{}');
+        const legacy = JSON.parse(localStorage.getItem('nightwatch-v4-config') || '{}');
+
         if (saved.ipd) state.ipd = saved.ipd;
         if (Number.isFinite(saved.eyeCenterShift)) state.eyeCenterShift = saved.eyeCenterShift;
         if (Number.isFinite(saved.leftEyeOffset)) state.leftEyeOffset = saved.leftEyeOffset;
@@ -1962,9 +1999,13 @@
         if (Number.isFinite(saved.shadowBoost)) state.shadowBoost = saved.shadowBoost;
         if (Number.isFinite(saved.highlightProtect)) state.highlightProtect = saved.highlightProtect;
         if (Number.isFinite(saved.blackLevel)) state.blackLevel = saved.blackLevel;
-        state.savedNormalDeviceId = saved.normalDeviceId || '';
-        state.savedUltraDeviceId = saved.ultraDeviceId || '';
-      } catch (error) { console.warn('Could not load saved calibration:', error); }
+
+        // Keep camera assignments from older builds, but never inherit old eye shifts.
+        state.savedNormalDeviceId = saved.normalDeviceId || legacy.normalDeviceId || '';
+        state.savedUltraDeviceId = saved.ultraDeviceId || legacy.ultraDeviceId || '';
+      } catch (error) {
+        console.warn('Could not load saved calibration:', error);
+      }
     }
 
     function saveConfig() {
@@ -1981,7 +2022,7 @@
         normalDeviceId: state.normalDeviceId, ultraDeviceId: state.ultraDeviceId
       };
       try {
-        localStorage.setItem('nightwatch-v4-config', JSON.stringify(config));
+        localStorage.setItem('nightwatch-v4-3-config', JSON.stringify(config));
       } catch (error) {
         console.warn('Calibration could not be saved on this browser:', error);
       }
@@ -2252,34 +2293,24 @@
     }
 
     function readViewportSize() {
-      const root = document.documentElement;
       const vv = window.visualViewport;
+      let width = window.innerWidth || document.documentElement.clientWidth || screen.width;
+      let height = window.innerHeight || document.documentElement.clientHeight || screen.height;
 
-      const widths = [
-        window.innerWidth,
-        root.clientWidth,
-        vv && vv.scale <= 1.05 ? vv.width : 0
-      ].filter(value => Number.isFinite(value) && value > 0);
+      if (vv && vv.scale >= 0.98 && vv.scale <= 1.02 && vv.width > 0 && vv.height > 0) {
+        width = vv.width;
+        height = vv.height;
+      }
 
-      const heights = [
-        window.innerHeight,
-        root.clientHeight,
-        vv && vv.scale <= 1.05 ? vv.height : 0
-      ].filter(value => Number.isFinite(value) && value > 0);
+      width = Math.round(width);
+      height = Math.round(height);
 
-      let width = Math.round(Math.max(...widths, 1));
-      let height = Math.round(Math.max(...heights, 1));
-
-      // A transient portrait measurement can arrive during landscape lock. Keep the
-      // previous valid landscape size instead of briefly shrinking and offsetting both eyes.
-      const orientationType = screen.orientation?.type || '';
       const expectsLandscape =
-        orientationType.startsWith('landscape') ||
-        (document.fullscreenElement && screen.width > screen.height);
+        screen.orientation?.type?.startsWith('landscape') ||
+        (document.fullscreenElement && screen.width >= screen.height);
 
       if (expectsLandscape && width < height && state.viewportWidth > state.viewportHeight) {
-        width = state.viewportWidth;
-        height = state.viewportHeight;
+        return { width: state.viewportWidth, height: state.viewportHeight };
       }
 
       return {
@@ -2299,38 +2330,28 @@
       state.viewportWidth = width;
       state.viewportHeight = height;
 
-      // Pin both the container and canvas to exact CSS pixels. Relying only on 100%
-      // during Android fullscreen transitions can leave the old portrait box in place.
-      const widthPx = `${width}px`;
-      const heightPx = `${height}px`;
-      app.style.width = widthPx;
-      app.style.height = heightPx;
-      canvas.style.width = widthPx;
-      canvas.style.height = heightPx;
-      canvas.style.left = '0px';
-      canvas.style.top = '0px';
-      canvas.style.transform = 'none';
+      app.style.width = '100%';
+      app.style.height = '100%';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.left = '0';
+      canvas.style.top = '0';
 
       renderer.setSize(width, height, false);
       renderer.getDrawingBufferSize(drawingBufferSize);
-      state.viewportPixelWidth = drawingBufferSize.x;
-      state.viewportPixelHeight = drawingBufferSize.y;
+      state.viewportPixelWidth = Math.round(drawingBufferSize.x);
+      state.viewportPixelHeight = Math.round(drawingBufferSize.y);
 
-      const cssEyeWidth = state.stereo ? width / 2 : width;
-      const pixelEyeWidth = state.stereo
-        ? Math.floor(drawingBufferSize.x / 2)
-        : drawingBufferSize.x;
-
-      camera.aspect = cssEyeWidth / Math.max(height, 1);
+      const eyeWidth = state.stereo ? width / 2 : width;
+      camera.aspect = eyeWidth / Math.max(height, 1);
       camera.updateProjectionMatrix();
-      shaderUniforms.uViewport.value.set(
-        pixelEyeWidth,
-        Math.max(drawingBufferSize.y, 1)
-      );
+      shaderUniforms.uViewport.value.set(eyeWidth, height);
 
+      // Three.js expects CSS-pixel viewport values and applies pixel ratio internally.
       renderer.setScissorTest(false);
-      renderer.setViewport(0, 0, drawingBufferSize.x, drawingBufferSize.y);
-      renderer.setScissor(0, 0, drawingBufferSize.x, drawingBufferSize.y);
+      renderer.setViewport(0, 0, width, height);
+      renderer.setScissor(0, 0, width, height);
+      renderer.clear(true, true, true);
     }
 
     function scheduleViewportSync() {
@@ -2338,7 +2359,7 @@
       viewportSyncFrame = requestAnimationFrame(() => syncViewportNow());
 
       viewportSyncTimers.forEach(clearTimeout);
-      viewportSyncTimers = [60, 140, 280, 520, 900].map(delay =>
+      viewportSyncTimers = [40, 100, 180, 300, 500, 800, 1200, 1800].map(delay =>
         setTimeout(() => syncViewportNow(), delay)
       );
     }
@@ -2420,45 +2441,43 @@
       reticleMaterial.uniforms.uTime.value = now / 1000;
       camera.updateMatrixWorld(true);
 
-      renderer.getDrawingBufferSize(drawingBufferSize);
-      const width = Math.max(2, Math.round(drawingBufferSize.x));
-      const height = Math.max(2, Math.round(drawingBufferSize.y));
+      const width = Math.max(2, state.viewportWidth || window.innerWidth);
+      const height = Math.max(2, state.viewportHeight || window.innerHeight);
 
-      if (
-        width !== state.viewportPixelWidth ||
-        height !== state.viewportPixelHeight
-      ) {
-        state.viewportPixelWidth = width;
-        state.viewportPixelHeight = height;
-        const pixelEyeWidth = state.stereo ? Math.floor(width / 2) : width;
-        shaderUniforms.uViewport.value.set(pixelEyeWidth, height);
-      }
+      // Clear the complete screen in CSS pixels. Passing drawing-buffer pixels here
+      // caused the 78%-height image shown in the previous build.
+      renderer.setScissorTest(false);
+      renderer.setViewport(0, 0, width, height);
+      renderer.setScissor(0, 0, width, height);
+      renderer.clear(true, true, true);
 
       if (state.webXRSession) {
-        renderer.setScissorTest(false);
         shaderUniforms.uEyeSign.value = 0;
+        shaderUniforms.uViewport.value.set(width, height);
         xrFeedPlane.visible = true;
-        renderer.clear();
         renderer.render(overlayScene, camera);
       } else {
         xrFeedPlane.visible = false;
         renderer.setScissorTest(true);
-        renderer.clear();
+
         if (state.stereo) {
           stereoCamera.eyeSep = state.ipd;
           stereoCamera.update(camera);
-          const half = Math.floor(width / 2);
-          renderEye(0, 0, half, height, stereoCamera.cameraL, -1);
-          renderEye(half, 0, width - half, height, stereoCamera.cameraR, 1);
+          const leftWidth = Math.floor(width / 2);
+          const rightWidth = width - leftWidth;
+          renderEye(0, 0, leftWidth, height, stereoCamera.cameraL, -1);
+          renderEye(leftWidth, 0, rightWidth, height, stereoCamera.cameraR, 1);
         } else {
           renderEye(0, 0, width, height, camera, 0);
         }
+
         renderer.setScissorTest(false);
       }
     }
 
     function renderEye(x, y, width, height, eyeCamera, eyeSign) {
       shaderUniforms.uEyeSign.value = eyeSign;
+      shaderUniforms.uViewport.value.set(width, height);
       renderer.setViewport(x, y, width, height);
       renderer.setScissor(x, y, width, height);
       renderer.clearDepth();
