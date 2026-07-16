@@ -131,21 +131,30 @@
       schema: {
         enabled: { default: false },
         fov: { type: 'number', default: 82 },
-        maxPixelRatio: { type: 'number', default: 1.5 }
+        maxPixelRatio: { type: 'number', default: 1.35 }
       },
 
       init: function () {
-        this.bufferSize = new THREE.Vector2();
         this.cssWidth = 0;
         this.cssHeight = 0;
+        this.eyeBufferWidth = 0;
+        this.bufferHeight = 0;
         this.patched = false;
         this.rendering = false;
         this.originalRender = null;
-        this.boundSync = () => this.syncViewport(true);
+        this.sourceCanvas = null;
+        this.mirrorCanvas = document.getElementById('right-eye-canvas');
+        this.mirrorContext = this.mirrorCanvas?.getContext('2d', {
+          alpha: false,
+          desynchronized: true
+        }) || null;
+        if (this.mirrorContext) this.mirrorContext.imageSmoothingEnabled = true;
 
+        this.boundSync = () => this.syncViewport(true);
         window.addEventListener('resize', this.boundSync, { passive: true });
         window.addEventListener('orientationchange', this.boundSync, { passive: true });
         window.visualViewport?.addEventListener('resize', this.boundSync, { passive: true });
+        document.addEventListener('fullscreenchange', this.boundSync, { passive: true });
 
         if (this.el.renderer) this.patchRenderer();
         else this.el.addEventListener('renderstart', () => this.patchRenderer(), { once: true });
@@ -153,21 +162,69 @@
 
       update: function () {
         if (!this.el.renderer) return;
-        this.el.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.data.maxPixelRatio));
         this.syncViewport(true);
       },
 
       patchRenderer: function () {
         if (this.patched || !this.el.renderer) return;
         const renderer = this.el.renderer;
+        this.sourceCanvas = renderer.domElement;
         this.originalRender = renderer.render.bind(renderer);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.data.maxPixelRatio));
 
+        /*
+          A single eye-sized WebGL frame is rendered normally. Immediately
+          afterward, the exact same pixels are copied to a second canvas. This
+          avoids every per-eye projection, scissor, ArrayCamera, and XR viewport
+          difference. The two headset windows therefore cannot have different
+          scale, crop, field of view, or optical center.
+        */
         renderer.render = (threeScene, camera) => {
           if (!this.data.enabled || this.rendering || renderer.xr?.isPresenting) {
             return this.originalRender(threeScene, camera);
           }
-          return this.renderAlignedDual(threeScene, camera);
+
+          this.rendering = true;
+          const oldAspect = camera?.aspect;
+          const oldFov = camera?.fov;
+          const oldFilmOffset = camera?.filmOffset || 0;
+          const oldView = camera?.view?.enabled ? { ...camera.view } : null;
+
+          try {
+            this.syncViewport(false);
+
+            if (camera?.isPerspectiveCamera) {
+              camera.clearViewOffset?.();
+              camera.filmOffset = 0;
+              camera.aspect = this.eyeBufferWidth / Math.max(1, this.bufferHeight);
+              camera.fov = this.data.fov;
+              camera.updateProjectionMatrix();
+              camera.updateMatrixWorld(true);
+            }
+
+            const result = this.originalRender(threeScene, camera);
+            this.copyEyePixels();
+            return result;
+          } finally {
+            if (camera?.isPerspectiveCamera) {
+              camera.aspect = oldAspect;
+              camera.fov = oldFov;
+              camera.filmOffset = oldFilmOffset;
+              if (oldView) {
+                camera.setViewOffset(
+                  oldView.fullWidth,
+                  oldView.fullHeight,
+                  oldView.offsetX,
+                  oldView.offsetY,
+                  oldView.width,
+                  oldView.height
+                );
+              } else {
+                camera.clearViewOffset?.();
+              }
+              camera.updateProjectionMatrix();
+            }
+            this.rendering = false;
+          }
         };
 
         this.patched = true;
@@ -175,112 +232,86 @@
       },
 
       getCssSize: function () {
-        const viewport = window.visualViewport;
-        const width = Math.max(2, Math.round(
-          viewport?.width || document.documentElement.clientWidth || window.innerWidth
-        ));
-        const height = Math.max(2, Math.round(
-          viewport?.height || document.documentElement.clientHeight || window.innerHeight
-        ));
+        /*
+          Do not use visualViewport scale or offsets for the renderer. Android
+          may report a transient visual viewport during fullscreen, which was
+          one source of unequal-looking eyes. The layout viewport is the stable
+          landscape surface used by both 50% panels.
+        */
+        const root = document.documentElement;
+        const width = Math.max(2, Math.round(root.clientWidth || window.innerWidth));
+        const height = Math.max(2, Math.round(root.clientHeight || window.innerHeight));
         return { width, height };
       },
 
       syncViewport: function (force = false) {
         const renderer = this.el.renderer;
-        if (!renderer) return;
+        const source = renderer?.domElement;
+        const mirror = this.mirrorCanvas;
+        if (!renderer || !source || !mirror) return;
+
         const { width, height } = this.getCssSize();
-        if (!force && width === this.cssWidth && height === this.cssHeight) return;
+        const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, this.data.maxPixelRatio));
+        const eyeBufferWidth = Math.max(2, Math.round((width * 0.5) * dpr));
+        const bufferHeight = Math.max(2, Math.round(height * dpr));
+
+        const unchanged =
+          width === this.cssWidth &&
+          height === this.cssHeight &&
+          eyeBufferWidth === this.eyeBufferWidth &&
+          bufferHeight === this.bufferHeight;
+        if (!force && unchanged) return;
 
         this.cssWidth = width;
         this.cssHeight = height;
-        const canvas = renderer.domElement;
-        canvas.style.position = 'fixed';
-        canvas.style.left = '0';
-        canvas.style.top = '0';
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
-        canvas.style.maxWidth = 'none';
-        canvas.style.maxHeight = 'none';
-        canvas.style.margin = '0';
-        canvas.style.transform = 'none';
-        renderer.setSize(width, height, false);
+        this.eyeBufferWidth = eyeBufferWidth;
+        this.bufferHeight = bufferHeight;
+
+        /* Pixel ratio is folded into the explicit drawing-buffer dimensions. */
+        renderer.setPixelRatio(1);
+        renderer.setSize(eyeBufferWidth, bufferHeight, false);
+
+        source.style.position = 'fixed';
+        source.style.inset = 'auto';
+        source.style.left = '0';
+        source.style.top = '0';
+        source.style.width = '50%';
+        source.style.height = '100%';
+        source.style.maxWidth = 'none';
+        source.style.maxHeight = 'none';
+        source.style.margin = '0';
+        source.style.padding = '0';
+        source.style.transform = 'none';
+
+        if (mirror.width !== eyeBufferWidth) mirror.width = eyeBufferWidth;
+        if (mirror.height !== bufferHeight) mirror.height = bufferHeight;
+        mirror.style.left = '50%';
+        mirror.style.top = '0';
+        mirror.style.width = '50%';
+        mirror.style.height = '100%';
+        mirror.style.transform = 'none';
+
+        this.copyEyePixels();
       },
 
-      /*
-        The rear phone camera is monoscopic, so both Cardboard eyes must receive
-        the same optical center. The previous StereoCamera introduced an
-        off-axis projection that pushed the cursor, HUD, orb and menu toward the
-        right. This renderer duplicates one correctly centered camera into the
-        two 50/50 eye viewports. Head tracking and world motion remain active,
-        but the two images now line up cleanly through basic Cardboard lenses.
-      */
-      renderAlignedDual: function (threeScene, baseCamera) {
-        const renderer = this.el.renderer;
-        if (!renderer || !baseCamera) return;
-        this.rendering = true;
-
-        const oldAspect = baseCamera.aspect;
-        const oldFov = baseCamera.fov;
-        const oldFilmOffset = baseCamera.filmOffset || 0;
-        const oldAutoClear = renderer.autoClear;
-        const oldView = baseCamera.view && baseCamera.view.enabled
-          ? { ...baseCamera.view }
-          : null;
-
+      copyEyePixels: function () {
+        if (!this.data.enabled || !this.sourceCanvas || !this.mirrorCanvas || !this.mirrorContext) return;
         try {
-          this.syncViewport(false);
-          renderer.getDrawingBufferSize(this.bufferSize);
-
-          const bufferWidth = Math.max(2, Math.floor(this.bufferSize.x));
-          const bufferHeight = Math.max(2, Math.floor(this.bufferSize.y));
-          const leftWidth = Math.floor(bufferWidth / 2);
-          const rightWidth = bufferWidth - leftWidth;
-          const cssEyeWidth = Math.max(1, this.cssWidth / 2);
-
-          // Remove any stale asymmetric projection left by a failed XR session.
-          baseCamera.clearViewOffset?.();
-          baseCamera.filmOffset = 0;
-          baseCamera.aspect = cssEyeWidth / Math.max(1, this.cssHeight);
-          baseCamera.fov = this.data.fov;
-          baseCamera.updateProjectionMatrix();
-          baseCamera.updateMatrixWorld(true);
-
-          renderer.autoClear = false;
-          renderer.setScissorTest(true);
-
-          // Left eye: exact centered copy.
-          renderer.setViewport(0, 0, leftWidth, bufferHeight);
-          renderer.setScissor(0, 0, leftWidth, bufferHeight);
-          renderer.clear(true, true, true);
-          this.originalRender(threeScene, baseCamera);
-
-          // Right eye: the identical centered copy, not an off-axis stereo eye.
-          renderer.setViewport(leftWidth, 0, rightWidth, bufferHeight);
-          renderer.setScissor(leftWidth, 0, rightWidth, bufferHeight);
-          renderer.clear(true, true, true);
-          this.originalRender(threeScene, baseCamera);
-        } finally {
-          renderer.setScissorTest(false);
-          renderer.setViewport(0, 0, Math.max(2, Math.floor(this.bufferSize.x)), Math.max(2, Math.floor(this.bufferSize.y)));
-          renderer.autoClear = oldAutoClear;
-
-          baseCamera.aspect = oldAspect;
-          baseCamera.fov = oldFov;
-          baseCamera.filmOffset = oldFilmOffset;
-          if (oldView) {
-            baseCamera.setViewOffset(
-              oldView.fullWidth,
-              oldView.fullHeight,
-              oldView.offsetX,
-              oldView.offsetY,
-              oldView.width,
-              oldView.height
-            );
-          } else {
-            baseCamera.clearViewOffset?.();
-          }
-          baseCamera.updateProjectionMatrix();
-          this.rendering = false;
+          this.mirrorContext.setTransform(1, 0, 0, 1, 0, 0);
+          this.mirrorContext.globalAlpha = 1;
+          this.mirrorContext.drawImage(
+            this.sourceCanvas,
+            0,
+            0,
+            this.sourceCanvas.width,
+            this.sourceCanvas.height,
+            0,
+            0,
+            this.mirrorCanvas.width,
+            this.mirrorCanvas.height
+          );
+        } catch (error) {
+          console.warn('Right-eye pixel copy skipped:', error);
         }
       },
 
@@ -288,6 +319,7 @@
         window.removeEventListener('resize', this.boundSync);
         window.removeEventListener('orientationchange', this.boundSync);
         window.visualViewport?.removeEventListener('resize', this.boundSync);
+        document.removeEventListener('fullscreenchange', this.boundSync);
         if (this.patched && this.el.renderer && this.originalRender) {
           this.el.renderer.render = this.originalRender;
         }
@@ -478,12 +510,22 @@
       background: #000 !important;
     }
 
-    html.cardboard-active a-scene,
-    html.cardboard-active .a-canvas,
-    html.cardboard-active canvas {
+    html.cardboard-active a-scene {
       position: fixed !important;
       inset: 0 !important;
       width: 100% !important;
+      height: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      transform: none !important;
+    }
+
+    html.cardboard-active .a-canvas {
+      position: fixed !important;
+      inset: auto !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 50% !important;
       height: 100% !important;
       max-width: none !important;
       max-height: none !important;
@@ -491,6 +533,23 @@
       padding: 0 !important;
       transform: none !important;
     }
+
+    #right-eye-canvas {
+      position: fixed;
+      z-index: 4;
+      left: 50%;
+      top: 0;
+      width: 50%;
+      height: 100%;
+      display: none;
+      margin: 0;
+      padding: 0;
+      background: #000;
+      pointer-events: none;
+      transform: none;
+    }
+
+    html.cardboard-active #right-eye-canvas { display: block; }
 
     #stereo-divider {
       position: fixed;
@@ -536,7 +595,7 @@
   <section id="startup">
     <div class="setup-card">
       <h1>Camera 180 Copilot — Cardboard Fixed</h1>
-      <p>The rear camera becomes a forward-facing 180° curved wall with selectable observation vision modes. An aligned dual-eye renderer divides the landscape screen into two exact Cardboard viewports and duplicates one centered camera projection so the eyes fuse cleanly.</p>
+      <p>The rear camera becomes a forward-facing 180° curved wall with selectable observation vision modes. A pixel-locked Cardboard renderer makes one correctly centered eye frame and copies those exact pixels into the second 50% viewport, preventing unequal zoom or crop.</p>
 
       <div class="preview">
         <video id="setup-preview" autoplay muted playsinline></video>
@@ -558,24 +617,25 @@
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
       <div class="instructions">
-        Hold the phone sideways before launch. Face forward while the scene enters fullscreen. The Copilot orb rests on the floor directly in front of you. The live camera occupies only the forward 180° wall, so nothing is projected behind your head. Look down, center the circular cursor on the orb, and hold your gaze to open the physical menu. The launch always uses an aligned left/right Cardboard view, even on browsers without WebXR.
+        Hold the phone sideways before launch. Face forward while the scene enters fullscreen. The Copilot orb rests on the floor directly in front of you. The live camera occupies only the forward 180° wall, so nothing is projected behind your head. Look down, center the circular cursor on the orb, and hold your gaze to open the physical menu. The launch uses two exact 50% Cardboard panels; the second panel is a pixel-for-pixel copy, so neither eye can become larger or more cropped than the other.
       </div>
     </div>
   </section>
 
   <div id="fallback-message"></div>
   <div id="stereo-divider" aria-hidden="true"></div>
+  <canvas id="right-eye-canvas" aria-label="Mirrored right Cardboard eye"></canvas>
   <canvas id="analysis-canvas" width="64" height="36" hidden></canvas>
 
   <a-scene
     id="vr-scene"
     embedded
     background="color: #000"
-    renderer="antialias: true; colorManagement: true; highRefreshRate: true; foveationLevel: 1; precision: mediump;"
+    renderer="antialias: true; colorManagement: true; highRefreshRate: true; foveationLevel: 1; precision: mediump; preserveDrawingBuffer: true;"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
     loading-screen="enabled: false"
-    cardboard-fixed-stereo="enabled: false; fov: 82; maxPixelRatio: 1.5"
+    cardboard-fixed-stereo="enabled: false; fov: 82; maxPixelRatio: 1.35"
   >
     <a-assets timeout="15000">
       <video id="camera-video" autoplay muted playsinline webkit-playsinline crossorigin="anonymous"></video>
@@ -836,7 +896,7 @@
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
         >
-          <a-text id="txt-stereo" value="CARDBOARD: ALIGNED" align="center" anchor="center" width="2.35" color="#00d2ff"></a-text>
+          <a-text id="txt-stereo" value="CARDBOARD: LOCKED" align="center" anchor="center" width="2.35" color="#00d2ff"></a-text>
         </a-plane>
         <a-plane
           id="btn-hide"
@@ -1262,8 +1322,8 @@
       state.cardboardActive = Boolean(enabled);
       scene.setAttribute('cardboard-fixed-stereo', 'enabled', state.cardboardActive);
       document.documentElement.classList.toggle('cardboard-active', state.cardboardActive);
-      state.stereoMode = state.cardboardActive ? 'ALIGNED' : 'OFF';
-      $('#txt-stereo').setAttribute('value', state.cardboardActive ? 'CARDBOARD: ALIGNED' : 'CARDBOARD: OFF');
+      state.stereoMode = state.cardboardActive ? 'PIXEL-LOCKED' : 'OFF';
+      $('#txt-stereo').setAttribute('value', state.cardboardActive ? 'CARDBOARD: LOCKED' : 'CARDBOARD: OFF');
       getStereoComponent()?.syncViewport(true);
     }
 
@@ -1288,8 +1348,8 @@
       await settleLandscapeViewport();
       hudText.setAttribute('value', state.menuOpen ? 'COPILOT HUB · CARDBOARD' : 'LOOK DOWN · CARDBOARD');
       if (announce) {
-        menuStatus.setAttribute('value', 'ALIGNED 50 / 50 CARDBOARD VIEW');
-        showTemporaryMessage('Cardboard alignment refreshed: both eyes now use the same centered camera view.');
+        menuStatus.setAttribute('value', 'PIXEL-LOCKED 50 / 50 CARDBOARD VIEW');
+        showTemporaryMessage('Cardboard alignment refreshed: both eye panels now receive the exact same pixel image.');
       }
       return state.stereoMode;
     }
@@ -1312,8 +1372,8 @@
         await settleLandscapeViewport();
 
         hudText.setAttribute('value', 'LOOK DOWN · CARDBOARD');
-        $('#txt-stereo').setAttribute('value', 'CARDBOARD: ALIGNED');
-        showTemporaryMessage('Aligned Cardboard view active. Both 50% eye panels now share the same optical center.');
+        $('#txt-stereo').setAttribute('value', 'CARDBOARD: LOCKED');
+        showTemporaryMessage('Pixel-locked Cardboard view active. The right eye is an exact copy of the left-eye pixel buffer.');
         setTimeout(recenterScene, 700);
       } catch (error) {
         console.error(error);
