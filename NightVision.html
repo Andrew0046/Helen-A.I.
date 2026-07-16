@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Cardboard Camera 180 — Fixed Cardboard Stereo</title>
+  <title>Cardboard Camera 180 — Pixel-Locked Motion Vision</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -25,7 +25,11 @@
         contrast: { type: 'number', default: 1.0, is: 'uniform' },
         shadowBoost: { type: 'number', default: 0.0, is: 'uniform' },
         highlightProtect: { type: 'number', default: 0.12, is: 'uniform' },
-        sourceSize: { type: 'vec2', default: { x: 1920, y: 1080 }, is: 'uniform' }
+        sourceSize: { type: 'vec2', default: { x: 1920, y: 1080 }, is: 'uniform' },
+        motionMap: { type: 'map', is: 'uniform' },
+        motionSize: { type: 'vec2', default: { x: 128, y: 72 }, is: 'uniform' },
+        motionMode: { type: 'number', default: 0.0, is: 'uniform' },
+        motionStrength: { type: 'number', default: 1.0, is: 'uniform' }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -46,6 +50,10 @@
         uniform float shadowBoost;
         uniform float highlightProtect;
         uniform vec2 sourceSize;
+        uniform sampler2D motionMap;
+        uniform vec2 motionSize;
+        uniform float motionMode;
+        uniform float motionStrength;
         varying vec2 vUv;
 
         float luma(vec3 c) {
@@ -103,6 +111,37 @@
           } else if (mode > 5.5) {
             // Fusion retains the camera image and adds cyan contour detail.
             color = clamp(color * 0.56 + vec3(0.10, 0.86, 1.0) * edge, 0.0, 1.0);
+          }
+
+          // CPU-generated motion mask. It is deliberately low resolution and
+          // softly expanded here so moving regions glow without hard boxes.
+          vec2 motionTexel = 1.0 / max(motionSize, vec2(1.0));
+          float motionCore = texture2D(motionMap, uv).r;
+          float motionGlow = motionCore;
+          motionGlow = max(motionGlow, texture2D(motionMap, uv + vec2(motionTexel.x, 0.0)).r * 0.88);
+          motionGlow = max(motionGlow, texture2D(motionMap, uv - vec2(motionTexel.x, 0.0)).r * 0.88);
+          motionGlow = max(motionGlow, texture2D(motionMap, uv + vec2(0.0, motionTexel.y)).r * 0.88);
+          motionGlow = max(motionGlow, texture2D(motionMap, uv - vec2(0.0, motionTexel.y)).r * 0.88);
+          motionGlow = max(motionGlow, texture2D(motionMap, uv + motionTexel).r * 0.72);
+          motionGlow = max(motionGlow, texture2D(motionMap, uv - motionTexel).r * 0.72);
+          motionGlow = smoothstep(0.05, 0.82, motionGlow) * motionStrength;
+
+          if (motionMode > 0.5 && motionMode < 1.5) {
+            // Motion Glow: clean green-cyan energy around current movement.
+            vec3 motionColor = vec3(0.12, 1.0, 0.48);
+            color = mix(color, max(color, motionColor * (0.34 + motionGlow)), clamp(motionGlow * 0.74, 0.0, 0.86));
+            color += motionColor * motionGlow * 0.20;
+          } else if (motionMode > 1.5 && motionMode < 2.5) {
+            // Motion Trail: stronger retained cyan-green persistence.
+            vec3 trailColor = vec3(0.06, 0.95, 0.78);
+            color = mix(color, trailColor, clamp(motionGlow * 0.64, 0.0, 0.72));
+            color += trailColor * motionGlow * 0.32;
+          } else if (motionMode > 2.5) {
+            // Motion Scan: restrained segmented highlight for observation.
+            float hatch = 0.42 + 0.58 * step(0.54, fract(uv.y * motionSize.y * 0.62));
+            vec3 scanColor = vec3(0.16, 0.90, 1.0);
+            color = mix(color, scanColor, clamp(motionCore * hatch * 0.72, 0.0, 0.78));
+            color += scanColor * motionGlow * 0.12;
           }
 
           float border = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
@@ -595,7 +634,7 @@
   <section id="startup">
     <div class="setup-card">
       <h1>Camera 180 Copilot — Cardboard Fixed</h1>
-      <p>The rear camera becomes a forward-facing 180° curved wall with selectable observation vision modes. A pixel-locked Cardboard renderer makes one correctly centered eye frame and copies those exact pixels into the second 50% viewport, preventing unequal zoom or crop.</p>
+      <p>The rear camera becomes a forward-facing 180° curved wall with selectable observation vision modes and adaptive motion highlighting. A pixel-locked Cardboard renderer makes one correctly centered eye frame and copies those exact pixels into the second 50% viewport, preventing unequal zoom or crop.</p>
 
       <div class="preview">
         <video id="setup-preview" autoplay muted playsinline></video>
@@ -617,7 +656,7 @@
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
       <div class="instructions">
-        Hold the phone sideways before launch. Face forward while the scene enters fullscreen. The Copilot orb rests on the floor directly in front of you. The live camera occupies only the forward 180° wall, so nothing is projected behind your head. Look down, center the circular cursor on the orb, and hold your gaze to open the physical menu. The launch uses two exact 50% Cardboard panels; the second panel is a pixel-for-pixel copy, so neither eye can become larger or more cropped than the other.
+        Hold the phone sideways before launch. Face forward while the scene enters fullscreen. The Copilot orb rests on the floor directly in front of you. The live camera occupies only the forward 180° wall, so nothing is projected behind your head. Look down, center the circular cursor on the orb, and hold your gaze to open the physical menu. The launch uses two exact 50% Cardboard panels; the second panel is a pixel-for-pixel copy, so neither eye can become larger or more cropped than the other. In the Copilot Hub, use MOTION to cycle Off, Glow, Trail, and Scan. Fast head turns temporarily pause detection so the whole scene is not mistaken for movement.
       </div>
     </div>
   </section>
@@ -625,7 +664,8 @@
   <div id="fallback-message"></div>
   <div id="stereo-divider" aria-hidden="true"></div>
   <canvas id="right-eye-canvas" aria-label="Mirrored right Cardboard eye"></canvas>
-  <canvas id="analysis-canvas" width="64" height="36" hidden></canvas>
+  <canvas id="analysis-canvas" width="128" height="72" hidden></canvas>
+  <canvas id="motion-canvas" width="128" height="72" hidden></canvas>
 
   <a-scene
     id="vr-scene"
@@ -888,7 +928,7 @@
           <a-text id="txt-grid" value="PLATFORM: ON" align="center" anchor="center" width="2.40" color="#ffffff"></a-text>
         </a-plane>
         <a-plane
-          id="btn-stereo"
+          id="btn-motion"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
           position="0 -0.40 0.040"
@@ -896,7 +936,7 @@
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
         >
-          <a-text id="txt-stereo" value="CARDBOARD: LOCKED" align="center" anchor="center" width="2.35" color="#00d2ff"></a-text>
+          <a-text id="txt-motion" value="MOTION: OFF" align="center" anchor="center" width="2.35" color="#75ff9f"></a-text>
         </a-plane>
         <a-plane
           id="btn-hide"
@@ -938,7 +978,7 @@
         <a-entity
           id="camera-wall-180"
           geometry="primitive: cylinder; radius: 45; height: 80; thetaLength: 180; openEnded: true; segmentsRadial: 96; segmentsHeight: 1"
-          material="shader: camera-wall-180; src: #camera-video; gain: 1.0; autoGain: 1.0; zoom: 1.0; edgeFade: 0.018; mode: 0; contrast: 1.0; shadowBoost: 0.0; highlightProtect: 0.12; sourceSize: 1920 1080; side: back"
+          material="shader: camera-wall-180; src: #camera-video; motionMap: #motion-canvas; gain: 1.0; autoGain: 1.0; zoom: 1.0; edgeFade: 0.018; mode: 0; contrast: 1.0; shadowBoost: 0.0; highlightProtect: 0.12; sourceSize: 1920 1080; motionSize: 128 72; motionMode: 0; motionStrength: 1.0; side: back"
           rotation="0 -270 0"
         ></a-entity>
 
@@ -992,6 +1032,8 @@
     const fallbackMessage = $('#fallback-message');
     const analysisCanvas = $('#analysis-canvas');
     const analysisContext = analysisCanvas.getContext('2d', { willReadFrequently: true });
+    const motionCanvas = $('#motion-canvas');
+    const motionContext = motionCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
 
     const state = {
       devices: [],
@@ -1005,6 +1047,17 @@
       enhanceIndex: 0,
       autoGain: 1,
       analysisTimer: 0,
+      analysisFrameHandle: 0,
+      lastAnalysisAt: 0,
+      motionModeIndex: 0,
+      motionPrevious: null,
+      motionRaw: null,
+      motionTrail: null,
+      motionImage: null,
+      motionLevel: 0,
+      motionSuppressedUntil: 0,
+      lastMotionQuaternion: null,
+      motionTexture: null,
       stereoMode: 'ALIGNED',
       cardboardActive: false,
       platformVisible: true,
@@ -1032,6 +1085,12 @@
       { label: 'DETAIL', contrast: 1.10, shadow: 0.07, highlight: 0.20 },
       { label: 'DEEP', contrast: 1.20, shadow: 0.15, highlight: 0.30 }
     ];
+    const motionModes = [
+      { label: 'OFF', shaderMode: 0, decay: 0.35, strength: 0.0 },
+      { label: 'GLOW', shaderMode: 1, decay: 0.66, strength: 1.0 },
+      { label: 'TRAIL', shaderMode: 2, decay: 0.91, strength: 1.0 },
+      { label: 'SCAN', shaderMode: 3, decay: 0.58, strength: 0.92 }
+    ];
 
     function setStatus(message, kind = '') {
       setupStatus.textContent = message;
@@ -1057,6 +1116,11 @@
     function stopStream() {
       clearTimeout(state.analysisTimer);
       state.analysisTimer = 0;
+      if (state.analysisFrameHandle && liveVideo.cancelVideoFrameCallback) {
+        try { liveVideo.cancelVideoFrameCallback(state.analysisFrameHandle); } catch (_) {}
+      }
+      state.analysisFrameHandle = 0;
+      resetMotionAnalysis();
       if (state.stream) {
         state.stream.getTracks().forEach(track => track.stop());
       }
@@ -1198,34 +1262,189 @@
       cameraWall.setAttribute('material', 'contrast', enhance.contrast);
       cameraWall.setAttribute('material', 'shadowBoost', enhance.shadow);
       cameraWall.setAttribute('material', 'highlightProtect', enhance.highlight);
+      const motion = motionModes[state.motionModeIndex];
+      cameraWall.setAttribute('material', 'motionMode', motion.shaderMode);
+      cameraWall.setAttribute('material', 'motionStrength', motion.strength);
+      cameraWall.setAttribute('material', 'motionSize', `${motionCanvas.width} ${motionCanvas.height}`);
+      updateMotionTexture();
+    }
+
+    function resetMotionAnalysis() {
+      state.motionPrevious = null;
+      state.motionRaw = null;
+      state.motionTrail = null;
+      state.motionImage = null;
+      state.motionLevel = 0;
+      state.motionSuppressedUntil = performance.now() + 350;
+      state.lastMotionQuaternion = null;
+      motionContext.fillStyle = '#000';
+      motionContext.fillRect(0, 0, motionCanvas.width, motionCanvas.height);
+      updateMotionTexture();
+    }
+
+    function updateMotionTexture() {
+      const mesh = cameraWall.getObject3D('mesh');
+      const uniform = mesh?.material?.uniforms?.motionMap;
+      if (!uniform) return;
+      if (!state.motionTexture) {
+        state.motionTexture = new THREE.CanvasTexture(motionCanvas);
+        state.motionTexture.minFilter = THREE.LinearFilter;
+        state.motionTexture.magFilter = THREE.LinearFilter;
+        state.motionTexture.generateMipmaps = false;
+        state.motionTexture.wrapS = THREE.ClampToEdgeWrapping;
+        state.motionTexture.wrapT = THREE.ClampToEdgeWrapping;
+      }
+      if (uniform.value !== state.motionTexture) uniform.value = state.motionTexture;
+      state.motionTexture.needsUpdate = true;
+    }
+
+    function headTurnAmount() {
+      if (!vrCamera?.object3D || typeof THREE === 'undefined') return 0;
+      const current = new THREE.Quaternion();
+      vrCamera.object3D.getWorldQuaternion(current);
+      if (!state.lastMotionQuaternion) {
+        state.lastMotionQuaternion = current.clone();
+        return 0;
+      }
+      const dot = Math.min(1, Math.abs(current.dot(state.lastMotionQuaternion)));
+      const angle = 2 * Math.acos(dot);
+      state.lastMotionQuaternion.copy(current);
+      return angle;
+    }
+
+    function analyzeMotionFrame(data, now) {
+      const width = analysisCanvas.width;
+      const height = analysisCanvas.height;
+      const count = width * height;
+      if (!state.motionPrevious || state.motionPrevious.length !== count) {
+        state.motionPrevious = new Uint8Array(count);
+        state.motionRaw = new Float32Array(count);
+        state.motionTrail = new Float32Array(count);
+        state.motionImage = motionContext.createImageData(width, height);
+        for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+          state.motionPrevious[p] = Math.round(data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722);
+        }
+        motionContext.putImageData(state.motionImage, 0, 0);
+        updateMotionTexture();
+        return;
+      }
+
+      const motion = motionModes[state.motionModeIndex];
+      const turn = headTurnAmount();
+      if (turn > 0.045) state.motionSuppressedUntil = now + 320;
+
+      let changed = 0;
+      let totalDifference = 0;
+      const threshold = 22;
+      for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+        const luminance = Math.round(data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722);
+        const difference = Math.abs(luminance - state.motionPrevious[p]);
+        state.motionPrevious[p] = luminance;
+        totalDifference += difference;
+        const value = Math.max(0, Math.min(1, (difference - threshold) / 62));
+        state.motionRaw[p] = value;
+        if (value > 0.18) changed += 1;
+      }
+
+      const changedRatio = changed / Math.max(1, count);
+      const averageDifference = totalDifference / Math.max(1, count);
+      if (changedRatio > 0.54 || averageDifference > 30) {
+        state.motionSuppressedUntil = now + 280;
+      }
+      const suppressed = now < state.motionSuppressedUntil || motion.shaderMode === 0;
+
+      let levelTotal = 0;
+      const output = state.motionImage.data;
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const p = y * width + x;
+          let local = state.motionRaw[p] * 0.45;
+          if (x > 0) local += state.motionRaw[p - 1] * 0.14;
+          if (x + 1 < width) local += state.motionRaw[p + 1] * 0.14;
+          if (y > 0) local += state.motionRaw[p - width] * 0.14;
+          if (y + 1 < height) local += state.motionRaw[p + width] * 0.14;
+          local = suppressed ? 0 : Math.min(1, local);
+          const retained = state.motionTrail[p] * motion.decay;
+          const value = Math.max(local, retained);
+          state.motionTrail[p] = value;
+          levelTotal += value;
+          const byte = Math.round(Math.min(1, value * 1.18) * 255);
+          const o = p * 4;
+          output[o] = byte;
+          output[o + 1] = byte;
+          output[o + 2] = byte;
+          output[o + 3] = 255;
+        }
+      }
+
+      state.motionLevel += ((levelTotal / Math.max(1, count)) - state.motionLevel) * 0.28;
+      motionContext.putImageData(state.motionImage, 0, 0);
+      updateMotionTexture();
+
+      if (state.menuOpen && motion.shaderMode > 0) {
+        const percent = Math.round(Math.min(1, state.motionLevel * 3.2) * 100);
+        menuStatus.setAttribute('value', suppressed ? 'HEAD TURN · MOTION PAUSED' : `MOTION ${motion.label} · ${percent}%`);
+      }
     }
 
     function startLightAnalysis() {
       clearTimeout(state.analysisTimer);
-      const analyze = () => {
-        const vision = visionModes[state.visionIndex];
-        if (state.stream && liveVideo.readyState >= 2 && vision.auto) {
-          try {
-            analysisContext.drawImage(liveVideo, 0, 0, analysisCanvas.width, analysisCanvas.height);
-            const data = analysisContext.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height).data;
+      if (state.analysisFrameHandle && liveVideo.cancelVideoFrameCallback) {
+        try { liveVideo.cancelVideoFrameCallback(state.analysisFrameHandle); } catch (_) {}
+      }
+      state.analysisFrameHandle = 0;
+      state.lastAnalysisAt = 0;
+      resetMotionAnalysis();
+
+      const analyze = (now = performance.now()) => {
+        if (!state.stream || liveVideo.readyState < 2) return;
+        try {
+          analysisContext.drawImage(liveVideo, 0, 0, analysisCanvas.width, analysisCanvas.height);
+          const frame = analysisContext.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
+          const data = frame.data;
+          const vision = visionModes[state.visionIndex];
+
+          if (vision.auto) {
             let total = 0;
+            let samples = 0;
             for (let i = 0; i < data.length; i += 16) {
               total += data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722;
+              samples += 1;
             }
-            const samples = Math.max(1, data.length / 16);
-            const average = total / samples / 255;
+            const average = total / Math.max(1, samples) / 255;
             const desired = Math.min(2.45, Math.max(1.0, 0.43 / Math.max(0.06, average)));
             state.autoGain += (desired - state.autoGain) * 0.20;
-          } catch (error) {
-            state.autoGain += (1 - state.autoGain) * 0.15;
+          } else {
+            state.autoGain += (1 - state.autoGain) * 0.20;
           }
-        } else {
-          state.autoGain += (1 - state.autoGain) * 0.20;
+
+          analyzeMotionFrame(data, now);
+        } catch (error) {
+          state.autoGain += (1 - state.autoGain) * 0.15;
         }
         applyVisionMaterial();
-        state.analysisTimer = window.setTimeout(analyze, 180);
       };
-      analyze();
+
+      const schedule = () => {
+        if (!state.stream) return;
+        if (liveVideo.requestVideoFrameCallback) {
+          state.analysisFrameHandle = liveVideo.requestVideoFrameCallback((now) => {
+            if (now - state.lastAnalysisAt >= 95) {
+              state.lastAnalysisAt = now;
+              analyze(now);
+            }
+            schedule();
+          });
+        } else {
+          state.analysisTimer = window.setTimeout(() => {
+            const now = performance.now();
+            state.lastAnalysisAt = now;
+            analyze(now);
+            schedule();
+          }, 110);
+        }
+      };
+      schedule();
     }
 
     function currentDeviceLabel() {
@@ -1323,7 +1542,7 @@
       scene.setAttribute('cardboard-fixed-stereo', 'enabled', state.cardboardActive);
       document.documentElement.classList.toggle('cardboard-active', state.cardboardActive);
       state.stereoMode = state.cardboardActive ? 'PIXEL-LOCKED' : 'OFF';
-      $('#txt-stereo').setAttribute('value', state.cardboardActive ? 'CARDBOARD: LOCKED' : 'CARDBOARD: OFF');
+      $('#txt-stereo')?.setAttribute('value', state.cardboardActive ? 'CARDBOARD: LOCKED' : 'CARDBOARD: OFF');
       getStereoComponent()?.syncViewport(true);
     }
 
@@ -1372,8 +1591,8 @@
         await settleLandscapeViewport();
 
         hudText.setAttribute('value', 'LOOK DOWN · CARDBOARD');
-        $('#txt-stereo').setAttribute('value', 'CARDBOARD: LOCKED');
-        showTemporaryMessage('Pixel-locked Cardboard view active. The right eye is an exact copy of the left-eye pixel buffer.');
+        $('#txt-stereo')?.setAttribute('value', 'CARDBOARD: LOCKED');
+        showTemporaryMessage('Pixel-locked Cardboard view active. Open Copilot and select MOTION: GLOW to highlight movement.');
         setTimeout(recenterScene, 700);
       } catch (error) {
         console.error(error);
@@ -1567,6 +1786,17 @@
       ensureStereoMode(true).catch(error => console.warn(error));
     }
 
+    function cycleMotion() {
+      state.motionModeIndex = (state.motionModeIndex + 1) % motionModes.length;
+      const motion = motionModes[state.motionModeIndex];
+      $('#txt-motion').setAttribute('value', `MOTION: ${motion.label}`);
+      state.motionSuppressedUntil = performance.now() + 240;
+      if (motion.shaderMode === 0 && state.motionTrail) state.motionTrail.fill(0);
+      applyVisionMaterial();
+      menuStatus.setAttribute('value', motion.shaderMode === 0 ? 'MOTION DETECTION OFF' : `${motion.label} · HEAD-TURN SUPPRESSION ON`);
+      hudText.setAttribute('value', motion.shaderMode === 0 ? `${visionModes[state.visionIndex].label} · CARDBOARD` : `MOTION ${motion.label} · LOOK DOWN FOR HUB`);
+    }
+
     function togglePlatform() {
       state.platformVisible = !state.platformVisible;
       platformRoot.setAttribute('visible', state.platformVisible);
@@ -1582,7 +1812,7 @@
       state.wakeLock = null;
       setCardboardStereo(false);
       state.stereoMode = 'OFF';
-      $('#txt-stereo').setAttribute('value', 'CARDBOARD: OFF');
+      $('#txt-stereo')?.setAttribute('value', 'CARDBOARD: OFF');
       startup.classList.remove('hidden');
       setStatus('Exited Cardboard mode. The current camera remains available for preview.', 'good');
     }
@@ -1604,7 +1834,7 @@
     $('#btn-vision').addEventListener('click', cycleVision);
     $('#btn-light').addEventListener('click', cycleLight);
     $('#btn-enhance').addEventListener('click', cycleEnhancement);
-    $('#btn-stereo').addEventListener('click', confirmStereo);
+    $('#btn-motion').addEventListener('click', cycleMotion);
     $('#btn-grid').addEventListener('click', togglePlatform);
     $('#btn-exit').addEventListener('click', exitScene);
 
