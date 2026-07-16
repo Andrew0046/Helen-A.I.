@@ -119,24 +119,22 @@
       the scene into two equal eye viewports after A-Frame's normal render.
     */
     /*
-      Deterministic Cardboard renderer.
+      Deterministic aligned Cardboard renderer.
 
       This does not depend on WebXR. A-Frame still supplies device-orientation
       tracking, raycasting, animation, materials, and scene management, but the
-      normal render call is intercepted and drawn into two exact 50/50 eye
-      viewports. That makes the result usable in a basic phone Cardboard viewer
+      normal render call is intercepted and duplicated into two exact 50/50 eye
+      viewports with one shared optical center. That makes the result usable in a basic phone Cardboard viewer
       even when the browser has no immersive-vr session provider.
     */
     AFRAME.registerComponent('cardboard-fixed-stereo', {
       schema: {
         enabled: { default: false },
-        eyeSeparation: { type: 'number', default: 0.064 },
         fov: { type: 'number', default: 82 },
         maxPixelRatio: { type: 'number', default: 1.5 }
       },
 
       init: function () {
-        this.stereo = new THREE.StereoCamera();
         this.bufferSize = new THREE.Vector2();
         this.cssWidth = 0;
         this.cssHeight = 0;
@@ -154,10 +152,9 @@
       },
 
       update: function () {
-        if (this.el.renderer) {
-          this.el.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.data.maxPixelRatio));
-          this.syncViewport(true);
-        }
+        if (!this.el.renderer) return;
+        this.el.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.data.maxPixelRatio));
+        this.syncViewport(true);
       },
 
       patchRenderer: function () {
@@ -170,7 +167,7 @@
           if (!this.data.enabled || this.rendering || renderer.xr?.isPresenting) {
             return this.originalRender(threeScene, camera);
           }
-          return this.renderStereo(threeScene, camera);
+          return this.renderAlignedDual(threeScene, camera);
         };
 
         this.patched = true;
@@ -179,8 +176,12 @@
 
       getCssSize: function () {
         const viewport = window.visualViewport;
-        const width = Math.max(2, Math.round(viewport?.width || document.documentElement.clientWidth || window.innerWidth));
-        const height = Math.max(2, Math.round(viewport?.height || document.documentElement.clientHeight || window.innerHeight));
+        const width = Math.max(2, Math.round(
+          viewport?.width || document.documentElement.clientWidth || window.innerWidth
+        ));
+        const height = Math.max(2, Math.round(
+          viewport?.height || document.documentElement.clientHeight || window.innerHeight
+        ));
         return { width, height };
       },
 
@@ -194,61 +195,91 @@
         this.cssHeight = height;
         const canvas = renderer.domElement;
         canvas.style.position = 'fixed';
-        canvas.style.inset = '0';
+        canvas.style.left = '0';
+        canvas.style.top = '0';
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
         canvas.style.maxWidth = 'none';
         canvas.style.maxHeight = 'none';
+        canvas.style.margin = '0';
         canvas.style.transform = 'none';
         renderer.setSize(width, height, false);
       },
 
-      renderStereo: function (threeScene, baseCamera) {
+      /*
+        The rear phone camera is monoscopic, so both Cardboard eyes must receive
+        the same optical center. The previous StereoCamera introduced an
+        off-axis projection that pushed the cursor, HUD, orb and menu toward the
+        right. This renderer duplicates one correctly centered camera into the
+        two 50/50 eye viewports. Head tracking and world motion remain active,
+        but the two images now line up cleanly through basic Cardboard lenses.
+      */
+      renderAlignedDual: function (threeScene, baseCamera) {
         const renderer = this.el.renderer;
         if (!renderer || !baseCamera) return;
         this.rendering = true;
 
+        const oldAspect = baseCamera.aspect;
+        const oldFov = baseCamera.fov;
+        const oldFilmOffset = baseCamera.filmOffset || 0;
+        const oldAutoClear = renderer.autoClear;
+        const oldView = baseCamera.view && baseCamera.view.enabled
+          ? { ...baseCamera.view }
+          : null;
+
         try {
           this.syncViewport(false);
           renderer.getDrawingBufferSize(this.bufferSize);
+
           const bufferWidth = Math.max(2, Math.floor(this.bufferSize.x));
           const bufferHeight = Math.max(2, Math.floor(this.bufferSize.y));
           const leftWidth = Math.floor(bufferWidth / 2);
           const rightWidth = bufferWidth - leftWidth;
+          const cssEyeWidth = Math.max(1, this.cssWidth / 2);
 
-          const cssHalfWidth = Math.max(1, this.cssWidth / 2);
-          const oldAspect = baseCamera.aspect;
-          const oldFov = baseCamera.fov;
-          const oldAutoClear = renderer.autoClear;
-
-          baseCamera.aspect = cssHalfWidth / Math.max(1, this.cssHeight);
+          // Remove any stale asymmetric projection left by a failed XR session.
+          baseCamera.clearViewOffset?.();
+          baseCamera.filmOffset = 0;
+          baseCamera.aspect = cssEyeWidth / Math.max(1, this.cssHeight);
           baseCamera.fov = this.data.fov;
           baseCamera.updateProjectionMatrix();
           baseCamera.updateMatrixWorld(true);
 
-          this.stereo.eyeSep = this.data.eyeSeparation;
-          this.stereo.update(baseCamera);
-
           renderer.autoClear = false;
           renderer.setScissorTest(true);
 
+          // Left eye: exact centered copy.
           renderer.setViewport(0, 0, leftWidth, bufferHeight);
           renderer.setScissor(0, 0, leftWidth, bufferHeight);
           renderer.clear(true, true, true);
-          this.originalRender(threeScene, this.stereo.cameraL);
+          this.originalRender(threeScene, baseCamera);
 
+          // Right eye: the identical centered copy, not an off-axis stereo eye.
           renderer.setViewport(leftWidth, 0, rightWidth, bufferHeight);
           renderer.setScissor(leftWidth, 0, rightWidth, bufferHeight);
           renderer.clear(true, true, true);
-          this.originalRender(threeScene, this.stereo.cameraR);
-
+          this.originalRender(threeScene, baseCamera);
+        } finally {
           renderer.setScissorTest(false);
-          renderer.setViewport(0, 0, bufferWidth, bufferHeight);
+          renderer.setViewport(0, 0, Math.max(2, Math.floor(this.bufferSize.x)), Math.max(2, Math.floor(this.bufferSize.y)));
           renderer.autoClear = oldAutoClear;
+
           baseCamera.aspect = oldAspect;
           baseCamera.fov = oldFov;
+          baseCamera.filmOffset = oldFilmOffset;
+          if (oldView) {
+            baseCamera.setViewOffset(
+              oldView.fullWidth,
+              oldView.fullHeight,
+              oldView.offsetX,
+              oldView.offsetY,
+              oldView.width,
+              oldView.height
+            );
+          } else {
+            baseCamera.clearViewOffset?.();
+          }
           baseCamera.updateProjectionMatrix();
-        } finally {
           this.rendering = false;
         }
       },
@@ -505,7 +536,7 @@
   <section id="startup">
     <div class="setup-card">
       <h1>Camera 180 Copilot — Cardboard Fixed</h1>
-      <p>The rear camera becomes a forward-facing 180° curved wall with selectable observation vision modes. A fixed dual-eye renderer divides the landscape screen into two exact Cardboard viewports without depending on WebXR.</p>
+      <p>The rear camera becomes a forward-facing 180° curved wall with selectable observation vision modes. An aligned dual-eye renderer divides the landscape screen into two exact Cardboard viewports and duplicates one centered camera projection so the eyes fuse cleanly.</p>
 
       <div class="preview">
         <video id="setup-preview" autoplay muted playsinline></video>
@@ -527,7 +558,7 @@
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
       <div class="instructions">
-        Hold the phone sideways before launch. Face forward while the scene enters fullscreen. The Copilot orb rests on the floor directly in front of you. The live camera occupies only the forward 180° wall, so nothing is projected behind your head. Look down, center the circular cursor on the orb, and hold your gaze to open the physical menu. The launch always uses a fixed left/right Cardboard view, even on browsers without WebXR.
+        Hold the phone sideways before launch. Face forward while the scene enters fullscreen. The Copilot orb rests on the floor directly in front of you. The live camera occupies only the forward 180° wall, so nothing is projected behind your head. Look down, center the circular cursor on the orb, and hold your gaze to open the physical menu. The launch always uses an aligned left/right Cardboard view, even on browsers without WebXR.
       </div>
     </div>
   </section>
@@ -544,7 +575,7 @@
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
     loading-screen="enabled: false"
-    cardboard-fixed-stereo="enabled: false; eyeSeparation: 0.064; fov: 82; maxPixelRatio: 1.5"
+    cardboard-fixed-stereo="enabled: false; fov: 82; maxPixelRatio: 1.5"
   >
     <a-assets timeout="15000">
       <video id="camera-video" autoplay muted playsinline webkit-playsinline crossorigin="anonymous"></video>
@@ -805,7 +836,7 @@
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
         >
-          <a-text id="txt-stereo" value="CARDBOARD: ON" align="center" anchor="center" width="2.35" color="#00d2ff"></a-text>
+          <a-text id="txt-stereo" value="CARDBOARD: ALIGNED" align="center" anchor="center" width="2.35" color="#00d2ff"></a-text>
         </a-plane>
         <a-plane
           id="btn-hide"
@@ -914,7 +945,7 @@
       enhanceIndex: 0,
       autoGain: 1,
       analysisTimer: 0,
-      stereoMode: 'FIXED',
+      stereoMode: 'ALIGNED',
       cardboardActive: false,
       platformVisible: true,
       wakeLock: null,
@@ -1231,8 +1262,8 @@
       state.cardboardActive = Boolean(enabled);
       scene.setAttribute('cardboard-fixed-stereo', 'enabled', state.cardboardActive);
       document.documentElement.classList.toggle('cardboard-active', state.cardboardActive);
-      state.stereoMode = state.cardboardActive ? 'FIXED' : 'OFF';
-      $('#txt-stereo').setAttribute('value', state.cardboardActive ? 'CARDBOARD: ON' : 'CARDBOARD: OFF');
+      state.stereoMode = state.cardboardActive ? 'ALIGNED' : 'OFF';
+      $('#txt-stereo').setAttribute('value', state.cardboardActive ? 'CARDBOARD: ALIGNED' : 'CARDBOARD: OFF');
       getStereoComponent()?.syncViewport(true);
     }
 
@@ -1257,8 +1288,8 @@
       await settleLandscapeViewport();
       hudText.setAttribute('value', state.menuOpen ? 'COPILOT HUB · CARDBOARD' : 'LOOK DOWN · CARDBOARD');
       if (announce) {
-        menuStatus.setAttribute('value', 'FIXED 50 / 50 CARDBOARD STEREO');
-        showTemporaryMessage('Cardboard stereo refreshed: left and right eyes are each exactly half of the screen.');
+        menuStatus.setAttribute('value', 'ALIGNED 50 / 50 CARDBOARD VIEW');
+        showTemporaryMessage('Cardboard alignment refreshed: both eyes now use the same centered camera view.');
       }
       return state.stereoMode;
     }
@@ -1281,8 +1312,8 @@
         await settleLandscapeViewport();
 
         hudText.setAttribute('value', 'LOOK DOWN · CARDBOARD');
-        $('#txt-stereo').setAttribute('value', 'CARDBOARD: ON');
-        showTemporaryMessage('Fixed Cardboard stereo active. Each eye uses exactly 50% of the landscape screen.');
+        $('#txt-stereo').setAttribute('value', 'CARDBOARD: ALIGNED');
+        showTemporaryMessage('Aligned Cardboard view active. Both 50% eye panels now share the same optical center.');
         setTimeout(recenterScene, 700);
       } catch (error) {
         console.error(error);
