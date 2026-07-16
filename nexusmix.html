@@ -400,6 +400,8 @@
     }
 
     .menu-card {
+      --menu-x: 0px;
+      --menu-y: 0px;
       width: min(82%, 330px);
       max-height: 78%;
       overflow: hidden;
@@ -410,6 +412,9 @@
       padding: 8px;
       pointer-events: auto;
       backdrop-filter: blur(10px);
+      transform: translate3d(var(--menu-x), var(--menu-y), 0);
+      transform-origin: center center;
+      will-change: transform;
     }
 
     .menu-card[data-page="more"],
@@ -495,7 +500,9 @@
       top: 50%;
       width: 24px;
       height: 24px;
-      transform: translate(-50%, -50%);
+      --dwell-scale: 1;
+      transform: translate(-50%, -50%) scale(var(--dwell-scale));
+      transform-origin: center center;
       border-radius: 50%;
       background: conic-gradient(var(--accent) var(--dwell-deg), rgba(125, 239, 255, 0.12) 0deg);
       filter: drop-shadow(0 0 5px rgba(125, 239, 255, 0.72));
@@ -709,7 +716,7 @@
           <div class="launch-box">
             <div>
               <h3>Place the phone in landscape</h3>
-              <p>After launch, look downward to open the centered gaze menu. Hold the gaze marker over a control to activate it. Desktop fallback: press M to open the menu, move the mouse to aim, and click or dwell.</p>
+              <p>After launch, look downward to open the gaze menu. Like The Hub cursor, the circular point stays centered: move your head until a control passes beneath it, then hold to activate. Desktop fallback: press M, move the mouse to aim, and click or dwell.</p>
               <button id="launchBtn" class="btn primary">Launch fullscreen visor</button>
               <div id="launchStatus" class="status-line"></div>
             </div>
@@ -861,6 +868,11 @@
       menuAnchorPitch: 0,
       menuCloseTime: 0,
       menuSettleUntil: 0,
+      menuOffsetX: 0,
+      menuOffsetY: 0,
+      menuTargetOffsetX: 0,
+      menuTargetOffsetY: 0,
+      gazeLostAt: 0,
       gazeX: 0.5,
       gazeY: 0.5,
       gazeTargetX: 0.5,
@@ -1999,22 +2011,45 @@
       showToast('Head tracking recentered.');
     }
 
-    function openMenu(page = 'main') {
-      state.menuOpen = true;
-      state.menuPage = page;
+    function resetMenuAim(settleMs = 280) {
+      const now = performance.now();
       state.menuAnchorYaw = state.headYaw;
       state.menuAnchorPitch = state.headPitch;
-      state.menuSettleUntil = performance.now() + 420;
+      state.menuSettleUntil = now + settleMs;
+      state.menuOffsetX = 0;
+      state.menuOffsetY = 0;
+      state.menuTargetOffsetX = 0;
+      state.menuTargetOffsetY = 0;
       state.gazeX = 0.5;
       state.gazeY = 0.5;
       state.gazeTargetX = 0.5;
       state.gazeTargetY = 0.5;
+      state.dwellTarget = null;
+      state.dwellStart = 0;
+      state.gazeLostAt = 0;
+      setMenuTranslation(0, 0);
+      setDwellProgress(0);
+      $$('.gaze-active').forEach(element => element.classList.remove('gaze-active'));
+    }
+
+    function setMenuTranslation(x, y) {
+      $$('.menu-card').forEach(card => {
+        card.style.setProperty('--menu-x', `${x.toFixed(2)}px`);
+        card.style.setProperty('--menu-y', `${y.toFixed(2)}px`);
+      });
+    }
+
+    function openMenu(page = 'main') {
+      state.menuOpen = true;
+      state.menuPage = page;
       state.pointerFallback = !state.orientationAvailable;
       state.dwellTarget = null;
       state.dwellStart = 0;
+      state.gazeLostAt = 0;
       $$('.menu-layer').forEach(layer => layer.classList.add('open'));
       $$('.lens-safe').forEach(layer => layer.classList.add('menu-open'));
-      renderMenu(page);
+      renderMenu(page, false);
+      resetMenuAim(420);
     }
 
     function closeMenu() {
@@ -2022,6 +2057,12 @@
       state.menuCloseTime = performance.now();
       state.dwellTarget = null;
       state.dwellStart = 0;
+      state.gazeLostAt = 0;
+      state.menuOffsetX = 0;
+      state.menuOffsetY = 0;
+      state.menuTargetOffsetX = 0;
+      state.menuTargetOffsetY = 0;
+      setMenuTranslation(0, 0);
       $$('.menu-layer').forEach(layer => layer.classList.remove('open'));
       $$('.lens-safe').forEach(layer => layer.classList.remove('menu-open'));
       $$('.gaze-pointer').forEach(pointer => pointer.classList.remove('on-target'));
@@ -2029,15 +2070,18 @@
       $$('.gaze-active').forEach(element => element.classList.remove('gaze-active'));
     }
 
-    function renderMenu(page) {
+    function renderMenu(page, recenterAim = true) {
       state.menuPage = page;
-      state.menuSettleUntil = performance.now() + 220;
       const html = menuMarkup(page);
-      $$('.menu-card').forEach(card => { card.dataset.page = page; card.innerHTML = html; });
+      $$('.menu-card').forEach(card => {
+        card.dataset.page = page;
+        card.innerHTML = html;
+      });
       $$('.gaze-btn').forEach(button => button.addEventListener('click', event => {
         event.stopPropagation();
         activateAction(button.dataset.action || '', button.dataset.value || '');
       }));
+      if (state.menuOpen && recenterAim) resetMenuAim(260);
     }
 
     function menuMarkup(page) {
@@ -2315,62 +2359,96 @@
 
     function updateGaze(now) {
       const leftLens = $('[data-eye-ui="left"] .lens-safe');
+      if (!leftLens) return;
       const lensRect = leftLens.getBoundingClientRect();
+      const cursorCenterX = lensRect.left + lensRect.width * 0.5;
+      const cursorCenterY = lensRect.top + lensRect.height * 0.5;
+
+      let displayX = 0.5;
+      let displayY = 0.5;
+      let hitX = cursorCenterX;
+      let hitY = cursorCenterY;
 
       if (state.menuOpen) {
-        if (now < state.menuSettleUntil && !state.pointerFallback) {
-          state.menuAnchorYaw = state.headYaw;
-          state.menuAnchorPitch = state.headPitch;
-          state.gazeTargetX = 0.5;
-          state.gazeTargetY = 0.5;
-        } else if (!state.pointerFallback && state.orientationAvailable) {
-          const card = $('[data-eye-ui="left"] .menu-card');
-          const cardRect = card.getBoundingClientRect();
-          const yawDelta = applyGazeDeadzone(shortestAngleDelta(state.menuAnchorYaw, state.headYaw), 0.45);
-          const pitchDelta = applyGazeDeadzone(state.headPitch - state.menuAnchorPitch, 0.45);
-          const horizontal = clamp(0.5 + yawDelta / 24, 0, 1);
-          const vertical = clamp(0.5 - pitchDelta / 19, 0, 1);
-          const pad = 10;
-          const minX = clamp((cardRect.left - lensRect.left + pad) / lensRect.width, 0.04, 0.96);
-          const maxX = clamp((cardRect.right - lensRect.left - pad) / lensRect.width, 0.04, 0.96);
-          const minY = clamp((cardRect.top - lensRect.top + pad) / lensRect.height, 0.04, 0.96);
-          const maxY = clamp((cardRect.bottom - lensRect.top - pad) / lensRect.height, 0.04, 0.96);
-          state.gazeTargetX = lerp(minX, maxX, horizontal);
-          state.gazeTargetY = lerp(minY, maxY, vertical);
+        if (state.pointerFallback) {
+          /* Desktop fallback: the mouse moves the cursor while the menu stays centered. */
+          state.menuOffsetX = lerp(state.menuOffsetX, 0, 0.35);
+          state.menuOffsetY = lerp(state.menuOffsetY, 0, 0.35);
+          setMenuTranslation(state.menuOffsetX, state.menuOffsetY);
+          displayX = state.gazeX;
+          displayY = state.gazeY;
+          hitX = lensRect.left + displayX * lensRect.width;
+          hitY = lensRect.top + displayY * lensRect.height;
+        } else if (state.orientationAvailable) {
+          /* Hub-style gaze: cursor stays centered and the world-locked menu moves under it. */
+          if (now < state.menuSettleUntil) {
+            state.menuAnchorYaw = state.headYaw;
+            state.menuAnchorPitch = state.headPitch;
+            state.menuTargetOffsetX = 0;
+            state.menuTargetOffsetY = 0;
+          } else {
+            const card = $('[data-eye-ui="left"] .menu-card');
+            const cardWidth = Math.max(1, card?.offsetWidth || 320);
+            const cardHeight = Math.max(1, card?.offsetHeight || 220);
+            const yawDelta = applyGazeDeadzone(shortestAngleDelta(state.menuAnchorYaw, state.headYaw), 0.35);
+            const pitchDelta = applyGazeDeadzone(state.headPitch - state.menuAnchorPitch, 0.35);
+
+            const maxOffsetX = Math.min(lensRect.width * 0.39, Math.max(48, cardWidth * 0.36));
+            const maxOffsetY = Math.min(lensRect.height * 0.44, Math.max(54, cardHeight * 0.46));
+            const horizontalDegrees = 11;
+            const verticalDegrees = 10;
+
+            state.menuTargetOffsetX = clamp(-yawDelta * (maxOffsetX / horizontalDegrees), -maxOffsetX, maxOffsetX);
+            state.menuTargetOffsetY = clamp(pitchDelta * (maxOffsetY / verticalDegrees), -maxOffsetY, maxOffsetY);
+          }
+
+          const smoothing = now < state.menuSettleUntil ? 0.32 : 0.22;
+          state.menuOffsetX = lerp(state.menuOffsetX, state.menuTargetOffsetX, smoothing);
+          state.menuOffsetY = lerp(state.menuOffsetY, state.menuTargetOffsetY, smoothing);
+          setMenuTranslation(state.menuOffsetX, state.menuOffsetY);
         }
-        state.gazeX = lerp(state.gazeX, state.gazeTargetX, 0.24);
-        state.gazeY = lerp(state.gazeY, state.gazeTargetY, 0.24);
       } else {
         state.gazeX = state.gazeTargetX = 0.5;
         state.gazeY = state.gazeTargetY = 0.5;
+        state.menuOffsetX = state.menuTargetOffsetX = 0;
+        state.menuOffsetY = state.menuTargetOffsetY = 0;
+        setMenuTranslation(0, 0);
       }
 
-      let displayX = state.gazeX;
-      let displayY = state.gazeY;
       let target = null;
-
       if (state.menuOpen && now >= state.menuSettleUntil) {
-        const x = lensRect.left + state.gazeX * lensRect.width;
-        const y = lensRect.top + state.gazeY * lensRect.height;
         const buttons = $$('[data-eye-ui="left"] .gaze-btn[data-action]').filter(button => !button.disabled);
         let bestDistance = Infinity;
+
         for (const button of buttons) {
           const rect = button.getBoundingClientRect();
-          const hitPadding = 12;
-          const inside = x >= rect.left - hitPadding && x <= rect.right + hitPadding && y >= rect.top - hitPadding && y <= rect.bottom + hitPadding;
+          const hitPadding = 7;
+          const inside = hitX >= rect.left - hitPadding && hitX <= rect.right + hitPadding &&
+                         hitY >= rect.top - hitPadding && hitY <= rect.bottom + hitPadding;
           if (!inside) continue;
           const centerX = (rect.left + rect.right) * 0.5;
           const centerY = (rect.top + rect.bottom) * 0.5;
-          const distance = Math.hypot(x - centerX, y - centerY);
+          const distance = Math.hypot(hitX - centerX, hitY - centerY);
           if (distance < bestDistance) {
             bestDistance = distance;
             target = button;
           }
         }
-        if (target) {
-          const targetRect = target.getBoundingClientRect();
-          displayX = clamp(((targetRect.left + targetRect.right) * 0.5 - lensRect.left) / lensRect.width, 0.03, 0.97);
-          displayY = clamp(((targetRect.top + targetRect.bottom) * 0.5 - lensRect.top) / lensRect.height, 0.03, 0.97);
+
+        /* A small sticky region keeps sensor jitter from restarting the fuse timer. */
+        if (!target && state.dwellTarget) {
+          const [action, value = ''] = state.dwellTarget.split('|');
+          const previous = buttons.find(button =>
+            (button.dataset.action || '') === action && (button.dataset.value || '') === value
+          );
+          if (previous) {
+            const rect = previous.getBoundingClientRect();
+            const stickyPadding = 15;
+            if (hitX >= rect.left - stickyPadding && hitX <= rect.right + stickyPadding &&
+                hitY >= rect.top - stickyPadding && hitY <= rect.bottom + stickyPadding) {
+              target = previous;
+            }
+          }
         }
       }
 
@@ -2382,6 +2460,8 @@
 
       if (!state.menuOpen || now < state.menuSettleUntil || now < state.dwellCooldownUntil) {
         state.dwellTarget = null;
+        state.dwellStart = 0;
+        state.gazeLostAt = 0;
         setDwellProgress(0);
         return;
       }
@@ -2391,7 +2471,11 @@
         const action = target.dataset.action || '';
         const value = target.dataset.value || '';
         const key = `${action}|${value}`;
-        $$('.gaze-btn').filter(button => button.dataset.action === action && (button.dataset.value || '') === value).forEach(button => button.classList.add('gaze-active'));
+        $$('.gaze-btn').filter(button =>
+          button.dataset.action === action && (button.dataset.value || '') === value
+        ).forEach(button => button.classList.add('gaze-active'));
+
+        state.gazeLostAt = 0;
         if (state.dwellTarget !== key) {
           state.dwellTarget = key;
           state.dwellStart = now;
@@ -2402,13 +2486,25 @@
           if (progress >= 1) {
             state.dwellCooldownUntil = now + 650;
             state.dwellTarget = null;
+            state.dwellStart = 0;
             setDwellProgress(0);
             activateAction(action, value);
           }
         }
+      } else if (state.dwellTarget) {
+        if (!state.gazeLostAt) state.gazeLostAt = now;
+        if (now - state.gazeLostAt <= 150) {
+          const progress = clamp((now - state.dwellStart) / prefs.dwellMs, 0, 1);
+          setDwellProgress(progress);
+        } else {
+          state.dwellTarget = null;
+          state.dwellStart = 0;
+          state.gazeLostAt = 0;
+          setDwellProgress(0);
+        }
       } else {
-        state.dwellTarget = null;
         state.dwellStart = 0;
+        state.gazeLostAt = 0;
         setDwellProgress(0);
       }
     }
@@ -2423,8 +2519,13 @@
     }
 
     function setDwellProgress(progress) {
-      const degrees = `${Math.round(clamp(progress, 0, 1) * 360)}deg`;
-      $$('.gaze-pointer').forEach(pointer => pointer.style.setProperty('--dwell-deg', degrees));
+      const normalized = clamp(progress, 0, 1);
+      const degrees = `${Math.round(normalized * 360)}deg`;
+      const scale = (1 - normalized * 0.42).toFixed(3);
+      $$('.gaze-pointer').forEach(pointer => {
+        pointer.style.setProperty('--dwell-deg', degrees);
+        pointer.style.setProperty('--dwell-scale', scale);
+      });
     }
 
     async function exitVisor() {
