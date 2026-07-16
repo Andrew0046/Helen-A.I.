@@ -1,0 +1,2969 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#02080b">
+  <title>Cardboard Camera Copilot Platform</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02080b;
+      --panel: rgba(5, 18, 24, 0.94);
+      --panel-soft: rgba(7, 25, 32, 0.78);
+      --line: rgba(125, 235, 255, 0.38);
+      --line-strong: rgba(125, 235, 255, 0.82);
+      --text: #e7fbff;
+      --muted: #8fb2bb;
+      --accent: #7defff;
+      --good: #82f2b1;
+      --warn: #ffd26f;
+      --bad: #ff8a8a;
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      overscroll-behavior: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      touch-action: manipulation;
+    }
+
+    button, select, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .setup-shell {
+      position: fixed;
+      inset: 0;
+      overflow: auto;
+      background:
+        radial-gradient(circle at 50% -20%, rgba(44, 179, 205, 0.2), transparent 44%),
+        linear-gradient(180deg, #061117 0%, #02080b 100%);
+      color: var(--text);
+      padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    }
+
+    .setup-shell[hidden] { display: none !important; }
+
+    .setup-wrap {
+      width: min(980px, 100%);
+      margin: 0 auto;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(1.45rem, 4vw, 2.35rem);
+      letter-spacing: 0.03em;
+    }
+
+    .brand p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      max-width: 720px;
+      line-height: 1.45;
+    }
+
+    .secure-badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      font-size: 0.82rem;
+    }
+
+    .stepper {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      margin: 18px 0;
+    }
+
+    .step-dot {
+      min-height: 46px;
+      border: 1px solid rgba(125, 235, 255, 0.16);
+      border-radius: 12px;
+      background: rgba(7, 22, 28, 0.75);
+      color: var(--muted);
+      padding: 9px 8px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .step-dot strong { display: block; color: inherit; font-size: 0.83rem; }
+    .step-dot span { display: block; font-size: 0.68rem; margin-top: 2px; opacity: 0.82; }
+    .step-dot.active { border-color: var(--line-strong); color: var(--text); background: rgba(18, 57, 68, 0.78); }
+    .step-dot.done { color: var(--good); }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 22px 70px rgba(0, 0, 0, 0.32);
+      overflow: hidden;
+    }
+
+    .step-panel { display: none; padding: clamp(18px, 4vw, 30px); }
+    .step-panel.active { display: block; }
+
+    .step-panel h2 { margin: 0 0 8px; font-size: clamp(1.2rem, 3.5vw, 1.75rem); }
+    .step-panel > p { margin: 0 0 18px; color: var(--muted); line-height: 1.5; }
+
+    .notice {
+      border: 1px solid rgba(255, 210, 111, 0.3);
+      background: rgba(255, 210, 111, 0.07);
+      color: #ffe6a9;
+      padding: 12px 14px;
+      border-radius: 12px;
+      line-height: 1.4;
+      margin: 14px 0;
+    }
+
+    .status-line {
+      min-height: 24px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .status-line.good { color: var(--good); }
+    .status-line.warn { color: var(--warn); }
+    .status-line.bad { color: var(--bad); }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: rgba(9, 29, 36, 0.94);
+      color: var(--text);
+      min-height: 46px;
+      border-radius: 12px;
+      padding: 10px 15px;
+      cursor: pointer;
+      font-weight: 750;
+      letter-spacing: 0.01em;
+    }
+
+    .btn:hover, .btn:focus-visible { border-color: var(--line-strong); outline: none; background: rgba(18, 54, 64, 0.96); }
+    .btn.primary { background: linear-gradient(180deg, rgba(34, 151, 173, 0.95), rgba(18, 101, 119, 0.95)); border-color: rgba(153, 246, 255, 0.9); }
+    .btn.good { border-color: rgba(130, 242, 177, 0.62); color: var(--good); }
+    .btn.warn { border-color: rgba(255, 210, 111, 0.62); color: var(--warn); }
+    .btn.danger { border-color: rgba(255, 138, 138, 0.62); color: var(--bad); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .preview-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .preview-box {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000;
+      aspect-ratio: 16 / 9;
+      min-height: 220px;
+    }
+
+    .preview-box video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      background: #000;
+    }
+
+    .preview-label {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      right: 12px;
+      border: 1px solid rgba(125, 235, 255, 0.34);
+      background: rgba(0, 8, 12, 0.74);
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      color: var(--text);
+      backdrop-filter: blur(10px);
+    }
+
+    .camera-list { display: grid; gap: 10px; max-height: 520px; overflow: auto; padding-right: 3px; }
+
+    .camera-card {
+      border: 1px solid rgba(125, 235, 255, 0.2);
+      background: rgba(5, 20, 26, 0.82);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .camera-card.selected-ultra { border-color: rgba(255, 210, 111, 0.75); }
+    .camera-card.selected-normal { box-shadow: inset 0 0 0 1px rgba(130, 242, 177, 0.65); }
+    .camera-card h3 { margin: 0; font-size: 0.98rem; }
+    .camera-card p { margin: 5px 0 9px; color: var(--muted); font-size: 0.8rem; line-height: 1.35; }
+    .camera-card .mini-row { display: flex; flex-wrap: wrap; gap: 7px; }
+    .camera-card .btn { min-height: 38px; padding: 7px 10px; font-size: 0.78rem; }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .setting-card {
+      border: 1px solid rgba(125, 235, 255, 0.2);
+      background: var(--panel-soft);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .setting-card h3 { margin: 0 0 8px; font-size: 1rem; }
+    .setting-card p { color: var(--muted); margin: 0 0 12px; font-size: 0.84rem; line-height: 1.4; }
+
+    .adjust-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 46px 90px 46px;
+      gap: 7px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .adjust-row span { color: var(--muted); font-size: 0.85rem; }
+    .adjust-row output { text-align: center; border: 1px solid rgba(125, 235, 255, 0.2); border-radius: 9px; padding: 8px 4px; color: var(--text); background: rgba(0, 7, 10, 0.5); }
+    .adjust-row .btn { min-height: 38px; padding: 4px; }
+
+    .diag-list { display: grid; gap: 9px; }
+    .diag-item { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; border: 1px solid rgba(125, 235, 255, 0.16); border-radius: 12px; padding: 11px 12px; background: rgba(4, 16, 21, 0.65); }
+    .diag-icon { width: 12px; height: 12px; margin-top: 4px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 12px currentColor; }
+    .diag-item.good .diag-icon { background: var(--good); color: var(--good); }
+    .diag-item.warn .diag-icon { background: var(--warn); color: var(--warn); }
+    .diag-item.bad .diag-icon { background: var(--bad); color: var(--bad); }
+    .diag-item strong { display: block; font-size: 0.9rem; }
+    .diag-item small { display: block; color: var(--muted); margin-top: 3px; line-height: 1.35; }
+
+    .launch-box {
+      display: grid;
+      place-items: center;
+      min-height: 260px;
+      text-align: center;
+      border: 1px solid rgba(125, 235, 255, 0.2);
+      border-radius: 16px;
+      background: radial-gradient(circle, rgba(25, 105, 120, 0.18), transparent 62%);
+      padding: 24px;
+    }
+
+    .launch-box h3 { font-size: clamp(1.25rem, 4vw, 2rem); margin: 0 0 8px; }
+    .launch-box p { max-width: 620px; color: var(--muted); line-height: 1.45; margin: 0 0 18px; }
+    .launch-box .btn { min-height: 58px; padding-inline: 28px; font-size: 1.05rem; }
+
+    /* Visor layer: never transformed, zoomed, translated, or letterboxed. */
+    #visor {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      min-width: 100%;
+      min-height: 100%;
+      overflow: hidden;
+      background: #000;
+      display: none;
+      touch-action: none;
+      contain: strict;
+    }
+
+    #visor.active { display: block; }
+
+    #glCanvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-width: 100%;
+      min-height: 100%;
+      background: #000;
+    }
+
+    .stereo-ui {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      pointer-events: none;
+    }
+
+    .eye-ui {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .eye-ui:first-child { border-right: 1px solid rgba(125, 235, 255, 0.18); }
+
+    .lens-safe {
+      position: absolute;
+      left: 13%;
+      top: 10%;
+      width: 74%;
+      height: 80%;
+      pointer-events: none;
+    }
+
+    .hud-strip {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: min(70%, 250px);
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 3px 8px;
+      border: 1px solid rgba(125, 235, 255, 0.22);
+      background: rgba(0, 8, 12, 0.3);
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: var(--text);
+      font-size: clamp(9px, 1.55vw, 14px);
+      line-height: 1.15;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      text-shadow: 0 1px 4px #000;
+      backdrop-filter: blur(5px);
+    }
+
+    .hud-strip span:nth-child(even) { text-align: right; }
+    .hud-camera.ok { color: var(--good); }
+    .hud-camera.warn { color: var(--warn); }
+
+    .center-reticle {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 22px;
+      height: 22px;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      display: none;
+    }
+
+    .center-reticle::before, .center-reticle::after {
+      content: "";
+      position: absolute;
+      background: rgba(205, 250, 255, 0.82);
+      box-shadow: 0 0 7px rgba(125, 239, 255, 0.65);
+    }
+
+    .center-reticle::before { width: 1px; height: 22px; left: 10px; top: 0; }
+    .center-reticle::after { width: 22px; height: 1px; left: 0; top: 10px; }
+
+    /* A lightweight world-space cockpit. The camera stays the full background;
+       these elements occupy only the lower visual field. */
+    .world-stage {
+      --world-x: 0px;
+      --world-y: 0px;
+      position: absolute;
+      inset: -8%;
+      overflow: hidden;
+      pointer-events: none;
+      transform: translate3d(var(--world-x), var(--world-y), 0);
+      transform-origin: 50% 72%;
+      will-change: transform;
+      transition: opacity 180ms linear;
+      z-index: 2;
+    }
+
+    .world-horizon {
+      position: absolute;
+      left: 2%;
+      right: 2%;
+      top: 63%;
+      height: 18%;
+      border-top: 1px solid rgba(125, 239, 255, 0.42);
+      border-radius: 50% 50% 0 0;
+      opacity: 0.7;
+      box-shadow: 0 -7px 28px rgba(60, 205, 230, 0.08);
+    }
+
+    .world-horizon::before,
+    .world-horizon::after {
+      content: "";
+      position: absolute;
+      top: -1px;
+      width: 22%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(125, 239, 255, 0.86));
+    }
+
+    .world-horizon::before { left: 2%; }
+    .world-horizon::after { right: 2%; transform: scaleX(-1); }
+
+    .platform-deck {
+      position: absolute;
+      left: 7%;
+      right: 7%;
+      bottom: -14%;
+      height: 39%;
+      clip-path: polygon(17% 0, 83% 0, 100% 100%, 0 100%);
+      border-top: 1px solid rgba(138, 242, 255, 0.56);
+      background:
+        linear-gradient(90deg, transparent 49.5%, rgba(125, 239, 255, 0.16) 50%, transparent 50.5%),
+        repeating-linear-gradient(90deg, transparent 0 11%, rgba(125, 239, 255, 0.07) 11.5% 12%),
+        repeating-linear-gradient(0deg, transparent 0 18%, rgba(125, 239, 255, 0.07) 18.5% 19%),
+        linear-gradient(180deg, rgba(2, 16, 22, 0.16), rgba(1, 9, 13, 0.76));
+      box-shadow: inset 0 16px 42px rgba(75, 218, 239, 0.08), 0 -12px 40px rgba(0, 0, 0, 0.32);
+      opacity: 0.92;
+    }
+
+    .platform-deck::before,
+    .platform-deck::after {
+      content: "";
+      position: absolute;
+      top: 2%;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(rgba(125, 239, 255, 0.6), transparent 72%);
+    }
+
+    .platform-deck::before { left: 17%; }
+    .platform-deck::after { right: 17%; }
+
+    .platform-caption {
+      position: absolute;
+      left: 50%;
+      bottom: 5.5%;
+      transform: translateX(-50%);
+      color: rgba(181, 241, 249, 0.58);
+      font-size: clamp(7px, 1.05vw, 10px);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      text-shadow: 0 1px 5px #000;
+    }
+
+    /* World-anchored Copilot object. It is projected from a fixed angular
+       position below forward view, rather than being slid onto the screen. */
+    .copilot-object {
+      --object-left: 50%;
+      --object-top: 112%;
+      --object-scale: 0.82;
+      --object-opacity: 0;
+      --object-tilt: 0deg;
+      position: absolute;
+      left: var(--object-left);
+      top: var(--object-top);
+      width: clamp(86px, 15vh, 118px);
+      height: clamp(104px, 18vh, 142px);
+      transform: translate(-50%, -31%) scale(var(--object-scale)) perspective(320px) rotateX(var(--object-tilt));
+      transform-origin: 50% 78%;
+      opacity: var(--object-opacity);
+      pointer-events: none;
+      z-index: 12;
+      will-change: left, top, opacity, transform;
+      filter: drop-shadow(0 14px 12px rgba(0, 0, 0, 0.48));
+    }
+
+    .orb-ground-shadow {
+      position: absolute;
+      left: 50%;
+      bottom: 5%;
+      width: 72%;
+      height: 16%;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(0, 0, 0, 0.78) 0 24%, rgba(45, 210, 237, 0.18) 48%, transparent 74%);
+      filter: blur(2px);
+      opacity: 0.9;
+    }
+
+    .orb-pedestal {
+      position: absolute;
+      left: 50%;
+      bottom: 9%;
+      width: 76%;
+      height: 25%;
+      transform: translateX(-50%) perspective(180px) rotateX(63deg);
+      border: 1px solid rgba(151, 244, 255, 0.72);
+      border-radius: 50%;
+      background:
+        radial-gradient(ellipse, rgba(70, 223, 244, 0.14) 0 38%, rgba(3, 19, 27, 0.82) 40% 63%, rgba(112, 239, 255, 0.22) 64% 68%, transparent 70%),
+        rgba(1, 10, 15, 0.55);
+      box-shadow: 0 0 18px rgba(69, 213, 239, 0.28), inset 0 0 12px rgba(113, 239, 255, 0.18);
+    }
+
+    .orb-pedestal::before,
+    .orb-pedestal::after {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      border: 1px solid rgba(125, 239, 255, 0.26);
+      border-radius: 50%;
+    }
+
+    .orb-pedestal::after {
+      inset: 30%;
+      background: rgba(125, 239, 255, 0.16);
+      box-shadow: 0 0 15px rgba(125, 239, 255, 0.38);
+    }
+
+    .copilot-orb {
+      position: absolute;
+      left: 50%;
+      top: 7%;
+      width: clamp(48px, 8.4vh, 68px);
+      aspect-ratio: 1;
+      transform: translateX(-50%);
+      border: 1px solid rgba(213, 253, 255, 0.96);
+      border-radius: 50%;
+      padding: 0;
+      background:
+        radial-gradient(circle at 31% 24%, #ffffff 0 4%, rgba(213, 255, 255, 0.98) 5% 8%, rgba(100, 238, 255, 0.9) 12%, rgba(23, 150, 206, 0.72) 34%, rgba(7, 44, 72, 0.96) 63%, rgba(0, 8, 14, 1) 79%),
+        conic-gradient(from 35deg, #7defff, #5677ff, #73ffd1, #7defff);
+      box-shadow:
+        0 0 10px rgba(197, 252, 255, 0.92),
+        0 0 28px rgba(64, 196, 255, 0.55),
+        0 16px 20px rgba(0, 0, 0, 0.42);
+      pointer-events: none;
+      cursor: pointer;
+      animation: orbFloat 2200ms ease-in-out infinite;
+    }
+
+    .copilot-orb::before {
+      content: "";
+      position: absolute;
+      inset: -10px;
+      border: 1px solid rgba(125, 239, 255, 0.28);
+      border-radius: 50%;
+      box-shadow: 0 0 14px rgba(125, 239, 255, 0.2);
+      animation: copilotPulse 1800ms ease-in-out infinite;
+    }
+
+    .copilot-orb::after {
+      content: "";
+      position: absolute;
+      left: 21%;
+      top: 17%;
+      width: 22%;
+      height: 12%;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.82);
+      filter: blur(1px);
+      transform: rotate(-27deg);
+    }
+
+    .orb-label {
+      position: absolute;
+      left: 50%;
+      bottom: -2%;
+      transform: translateX(-50%);
+      color: rgba(218, 252, 255, 0.92);
+      font-size: clamp(7px, 1.05vw, 10px);
+      font-weight: 850;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      text-align: center;
+      white-space: nowrap;
+      text-shadow: 0 1px 6px #000;
+    }
+
+    .orb-label small {
+      display: block;
+      margin-top: 2px;
+      color: rgba(146, 202, 212, 0.78);
+      font-size: 0.72em;
+      letter-spacing: 0.09em;
+    }
+
+    .copilot-object.orb-visible .copilot-orb { pointer-events: auto; }
+    .copilot-orb.orb-visible { pointer-events: auto; }
+    .copilot-orb.gaze-active {
+      filter: brightness(1.34) drop-shadow(0 0 12px rgba(181,255,237,0.98));
+      animation-play-state: paused;
+    }
+
+    @keyframes orbFloat {
+      0%, 100% { margin-top: 0; }
+      50% { margin-top: -4px; }
+    }
+
+    @keyframes copilotPulse {
+      0%, 100% { transform: scale(0.92); opacity: 0.38; }
+      50% { transform: scale(1.16); opacity: 0.86; }
+    }
+
+    .menu-layer {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .menu-layer.open { display: grid; }
+
+    .menu-card {
+      --menu-x: 0px;
+      --menu-y: 0px;
+      width: min(76%, 310px);
+      max-height: 74%;
+      overflow: hidden;
+      border: 1px solid rgba(154, 244, 255, 0.7);
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(58, 166, 202, 0.17), transparent 46%),
+        rgba(2, 12, 18, 0.82);
+      box-shadow: 0 18px 46px rgba(0, 0, 0, 0.44), 0 0 28px rgba(63, 206, 228, 0.12);
+      padding: 10px;
+      pointer-events: auto;
+      backdrop-filter: blur(13px);
+      transform: translate3d(var(--menu-x), var(--menu-y), 0);
+      transform-origin: center center;
+      will-change: transform;
+    }
+
+    .menu-card[data-page="more"],
+    .menu-card[data-page="effects"],
+    .menu-card[data-page="camera"],
+    .menu-card[data-page="controls"],
+    .menu-card[data-page="calibration"] {
+      width: min(86%, 360px);
+      max-height: 82%;
+      overflow: auto;
+    }
+
+    .menu-title {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      font-size: clamp(10px, 1.45vw, 13px);
+      margin: 1px 3px 9px;
+    }
+
+    .menu-title::before {
+      content: "";
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid rgba(182, 251, 255, 0.9);
+      background: radial-gradient(circle at 35% 30%, #fff 0 5%, #7defff 12%, #226e9a 48%, #06131d 72%);
+      box-shadow: 0 0 11px rgba(125, 239, 255, 0.58);
+    }
+
+    .menu-title small { color: var(--muted); font-size: 0.7em; letter-spacing: 0.03em; }
+
+    .gaze-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .gaze-grid.basic-menu .gaze-btn {
+      min-height: clamp(44px, 8vh, 56px);
+    }
+
+    .gaze-btn {
+      border: 1px solid rgba(125, 235, 255, 0.3);
+      background: rgba(8, 31, 39, 0.9);
+      color: var(--text);
+      border-radius: 14px;
+      min-height: clamp(38px, 7vh, 48px);
+      padding: 5px 7px;
+      text-align: center;
+      font-weight: 800;
+      font-size: clamp(9px, 1.42vw, 12px);
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      line-height: 1.12;
+    }
+
+    .gaze-btn small { display: block; color: var(--muted); font-weight: 600; margin-top: 3px; }
+    .gaze-btn:hover, .gaze-btn:focus-visible, .gaze-btn.gaze-active { outline: none; border-color: var(--line-strong); background: rgba(21, 77, 91, 0.96); }
+    .gaze-btn:disabled { opacity: 0.35; }
+    .gaze-btn.wide { grid-column: 1 / -1; }
+    .gaze-btn.good { color: var(--good); }
+    .gaze-btn.warn { color: var(--warn); }
+    .gaze-btn.danger { color: var(--bad); }
+
+    .cal-grid {
+      display: grid;
+      gap: 6px;
+    }
+
+    .cal-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 44px 68px 44px;
+      gap: 5px;
+      align-items: center;
+      border: 1px solid rgba(125, 235, 255, 0.16);
+      border-radius: 9px;
+      padding: 5px;
+    }
+
+    .cal-row label { color: var(--text); font-size: clamp(9px, 1.4vw, 12px); }
+    .cal-row output { color: var(--accent); text-align: center; font-size: clamp(9px, 1.4vw, 12px); }
+    .cal-row .gaze-btn { min-height: 34px; padding: 3px; }
+
+    .gaze-pointer {
+      --dwell-deg: 0deg;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 24px;
+      height: 24px;
+      --dwell-scale: 1;
+      transform: translate(-50%, -50%) scale(var(--dwell-scale));
+      transform-origin: center center;
+      border-radius: 50%;
+      background: conic-gradient(var(--accent) var(--dwell-deg), rgba(125, 239, 255, 0.12) 0deg);
+      filter: drop-shadow(0 0 5px rgba(125, 239, 255, 0.72));
+      pointer-events: none;
+      z-index: 20;
+      opacity: 0.95;
+      transition: filter 100ms linear;
+    }
+
+    .gaze-pointer.on-target {
+      filter: drop-shadow(0 0 8px rgba(151, 255, 226, 0.95));
+    }
+
+    .lens-safe.menu-open .center-reticle,
+    .lens-safe.menu-open .hud-strip,
+    .lens-safe.menu-open .motion-state { opacity: 0; }
+
+    .lens-safe.menu-open .world-stage { opacity: 0.32; }
+    .lens-safe:not(.menu-open):not(.orb-visible) .gaze-pointer { opacity: 0.22; }
+    .lens-safe.orb-visible .gaze-pointer { opacity: 0.92; }
+
+    .gaze-pointer::before {
+      content: "";
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      border: 1px solid rgba(218, 252, 255, 0.9);
+      background: rgba(0, 8, 12, 0.38);
+    }
+
+    .gaze-pointer::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #fff;
+      transform: translate(-50%, -50%);
+    }
+
+    .motion-state {
+      position: absolute;
+      left: 50%;
+      bottom: 17%;
+      transform: translateX(-50%);
+      color: var(--warn);
+      font-size: clamp(9px, 1.45vw, 12px);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      opacity: 0;
+      transition: opacity 120ms linear;
+      text-shadow: 0 1px 4px #000;
+    }
+
+    .motion-state.active { opacity: 1; }
+
+    .visor-message {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(78%, 560px);
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      background: rgba(0, 9, 13, 0.9);
+      color: var(--text);
+      padding: 18px;
+      text-align: center;
+      z-index: 50;
+      display: none;
+    }
+
+    .visor-message.show { display: block; }
+
+    #cameraVideo, #analysisCanvas { display: none; }
+
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: max(18px, env(safe-area-inset-bottom));
+      transform: translateX(-50%) translateY(24px);
+      width: min(90vw, 620px);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 11px 14px;
+      background: rgba(1, 10, 14, 0.94);
+      color: var(--text);
+      opacity: 0;
+      pointer-events: none;
+      transition: 160ms ease;
+      z-index: 200;
+      text-align: center;
+    }
+
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 760px) {
+      .brand-row { align-items: flex-start; }
+      .secure-badge { display: none; }
+      .step-dot span { display: none; }
+      .preview-layout, .grid-two { grid-template-columns: 1fr; }
+      .preview-box { min-height: 190px; }
+      .adjust-row { grid-template-columns: minmax(0, 1fr) 42px 78px 42px; }
+    }
+
+    @media (orientation: landscape) and (max-height: 520px) {
+      .hud-strip { top: 0; padding: 5px 8px; }
+      .lens-safe { top: 8%; height: 84%; }
+      .menu-card { padding: 7px; }
+      .gaze-grid { gap: 5px; }
+      .gaze-btn { min-height: 34px; }
+      .menu-title { margin-bottom: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <main id="setup" class="setup-shell">
+    <div class="setup-wrap">
+      <div class="brand-row">
+        <div class="brand">
+          <h1>Cardboard Camera Copilot Platform</h1>
+          <p>A landscape-first Cardboard observation space with a live rear-camera world, a floating platform, and a gaze-operated Copilot orb.</p>
+        </div>
+        <div id="secureBadge" class="secure-badge">Checking secure context…</div>
+      </div>
+
+      <div class="stepper" aria-label="Setup steps">
+        <button class="step-dot active" data-step="1"><strong>1 · Access</strong><span>Permission</span></button>
+        <button class="step-dot" data-step="2"><strong>2 · Cameras</strong><span>Preview & assign</span></button>
+        <button class="step-dot" data-step="3"><strong>3 · Alignment</strong><span>Zero defaults</span></button>
+        <button class="step-dot" data-step="4"><strong>4 · Diagnostics</strong><span>Capability check</span></button>
+        <button class="step-dot" data-step="5"><strong>5 · Launch</strong><span>Fullscreen visor</span></button>
+      </div>
+
+      <section class="panel">
+        <div class="step-panel active" data-panel="1">
+          <h2>Step 1 — Camera access</h2>
+          <p>Camera labels and exact device IDs normally become available only after permission is granted. The app will briefly probe exposed cameras so it can report facing direction and supported controls.</p>
+          <div class="notice">Camera access, fullscreen, orientation sensors, and wake lock generally require HTTPS or localhost. Opening the downloaded file directly may not provide camera access.</div>
+          <div class="btn-row">
+            <button id="requestCameraBtn" class="btn primary">Request camera permission</button>
+            <button class="btn" data-next="2" disabled id="continueToCameras">Continue to camera setup</button>
+          </div>
+          <div id="permissionStatus" class="status-line">No permission requested yet.</div>
+        </div>
+
+        <div class="step-panel" data-panel="2">
+          <h2>Step 2 — Preview and assign rear cameras</h2>
+          <p>Preview the exposed camera feeds. Assign the physical ultra-wide camera as 0.5× and the normal rear camera as 1×. The visor opens the chosen camera with an exact device ID and checks the active track settings.</p>
+          <div class="preview-layout">
+            <div>
+              <div class="preview-box">
+                <video id="setupPreview" playsinline muted autoplay></video>
+                <div id="previewLabel" class="preview-label">Select Preview on a camera.</div>
+              </div>
+              <div id="assignmentSummary" class="status-line">No cameras assigned.</div>
+            </div>
+            <div id="cameraList" class="camera-list"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" data-prev="1">Back</button>
+            <button class="btn primary" data-next="3" id="continueToAlignment">Continue</button>
+          </div>
+        </div>
+
+        <div class="step-panel" data-panel="3">
+          <h2>Step 3 — Cardboard alignment</h2>
+          <p>All alignment offsets and lens distortion start at exactly zero. These values affect only calibration and can be reset at any time.</p>
+          <div class="grid-two">
+            <div class="setting-card">
+              <h3>Eye alignment</h3>
+              <p>Both eyes initially receive the same centered camera image. Trims are optional and saved locally.</p>
+              <div class="adjust-row"><span>Left horizontal</span><button class="btn" data-setup-adjust="leftX:-1">−</button><output data-out="leftX">0 px</output><button class="btn" data-setup-adjust="leftX:1">+</button></div>
+              <div class="adjust-row"><span>Right horizontal</span><button class="btn" data-setup-adjust="rightX:-1">−</button><output data-out="rightX">0 px</output><button class="btn" data-setup-adjust="rightX:1">+</button></div>
+              <div class="adjust-row"><span>Both vertical</span><button class="btn" data-setup-adjust="vertical:-1">−</button><output data-out="vertical">0 px</output><button class="btn" data-setup-adjust="vertical:1">+</button></div>
+            </div>
+            <div class="setting-card">
+              <h3>Optional physical-lens calibration</h3>
+              <p>Disabled by default. No barrel or pincushion distortion is applied until lens correction is enabled.</p>
+              <div class="adjust-row"><span>Lens center X</span><button class="btn" data-setup-adjust="lensCenterX:-0.005">−</button><output data-out="lensCenterX">0.000</output><button class="btn" data-setup-adjust="lensCenterX:0.005">+</button></div>
+              <div class="adjust-row"><span>Lens center Y</span><button class="btn" data-setup-adjust="lensCenterY:-0.005">−</button><output data-out="lensCenterY">0.000</output><button class="btn" data-setup-adjust="lensCenterY:0.005">+</button></div>
+              <div class="adjust-row"><span>Distortion</span><button class="btn" data-setup-adjust="distortion:-0.02">−</button><output data-out="distortion">0.000</output><button class="btn" data-setup-adjust="distortion:0.02">+</button></div>
+              <div class="btn-row">
+                <button id="toggleDistortionSetup" class="btn">Lens correction: Off</button>
+                <button class="btn danger" data-reset-alignment>Reset alignment</button>
+              </div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" data-prev="2">Back</button>
+            <button class="btn primary" data-next="4">Continue to diagnostics</button>
+          </div>
+        </div>
+
+        <div class="step-panel" data-panel="4">
+          <h2>Step 4 — Diagnostics</h2>
+          <p>Review browser and hardware support. A warning does not always prevent launch; it means a feature may require manual fallback or may be unavailable in this browser.</p>
+          <div id="diagList" class="diag-list"></div>
+          <div class="btn-row">
+            <button id="motionPermissionBtn" class="btn">Enable orientation and motion</button>
+            <button id="rerunDiagnosticsBtn" class="btn">Refresh diagnostics</button>
+          </div>
+          <div id="diagnosticStatus" class="status-line"></div>
+          <div class="btn-row">
+            <button class="btn" data-prev="3">Back</button>
+            <button class="btn primary" data-next="5">Continue to launch</button>
+          </div>
+        </div>
+
+        <div class="step-panel" data-panel="5">
+          <h2>Step 5 — Launch visor</h2>
+          <p>The app requests fullscreen, locks landscape, corrects Android screen-angle reporting, opens the assigned camera by exact device ID, and starts the two-eye camera platform.</p>
+          <div class="launch-box">
+            <div>
+              <h3>Place the phone in landscape</h3>
+              <p>After launch, the camera becomes the world around the platform. The Copilot node is anchored below your forward view like a physical object. Tilt your head down until the floating ball and pedestal enter view, center the circle on the ball, and hold your gaze. Desktop fallback: press M or use the mouse.</p>
+              <button id="launchBtn" class="btn primary">Launch fullscreen visor</button>
+              <div id="launchStatus" class="status-line"></div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" data-prev="4">Back</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <section id="visor" aria-label="Cardboard camera visor">
+    <canvas id="glCanvas"></canvas>
+    <div class="stereo-ui">
+      <div class="eye-ui" data-eye-ui="left">
+        <div class="lens-safe">
+          <div class="world-stage" aria-hidden="true">
+            <div class="world-horizon"></div>
+            <div class="platform-deck"></div>
+            <div class="platform-caption">Observation platform · camera world</div>
+          </div>
+          <div class="copilot-object" aria-label="World-anchored Copilot object">
+            <div class="orb-ground-shadow"></div>
+            <div class="orb-pedestal"></div>
+            <button class="copilot-orb" data-action="open-copilot" aria-label="Open Copilot menu"></button>
+            <div class="orb-label">Copilot node<small>look + hold</small></div>
+          </div>
+          <div class="hud-strip">
+            <span class="hud-mode">NORMAL</span><span class="hud-lens">LENS —</span>
+            <span class="hud-camera warn">CAM WAIT</span><span class="hud-heading">HDG —</span>
+          </div>
+          <div class="center-reticle"></div>
+          <div class="menu-layer"><div class="menu-card"></div></div>
+          <div class="gaze-pointer"></div>
+          <div class="motion-state">Motion region confirmed</div>
+        </div>
+      </div>
+      <div class="eye-ui" data-eye-ui="right">
+        <div class="lens-safe">
+          <div class="world-stage" aria-hidden="true">
+            <div class="world-horizon"></div>
+            <div class="platform-deck"></div>
+            <div class="platform-caption">Observation platform · camera world</div>
+          </div>
+          <div class="copilot-object" aria-label="World-anchored Copilot object">
+            <div class="orb-ground-shadow"></div>
+            <div class="orb-pedestal"></div>
+            <button class="copilot-orb" data-action="open-copilot" aria-label="Open Copilot menu"></button>
+            <div class="orb-label">Copilot node<small>look + hold</small></div>
+          </div>
+          <div class="hud-strip">
+            <span class="hud-mode">NORMAL</span><span class="hud-lens">LENS —</span>
+            <span class="hud-camera warn">CAM WAIT</span><span class="hud-heading">HDG —</span>
+          </div>
+          <div class="center-reticle"></div>
+          <div class="menu-layer"><div class="menu-card"></div></div>
+          <div class="gaze-pointer"></div>
+          <div class="motion-state">Motion region confirmed</div>
+        </div>
+      </div>
+    </div>
+    <div id="visorMessage" class="visor-message"></div>
+  </section>
+
+  <video id="cameraVideo" playsinline muted autoplay></video>
+  <canvas id="analysisCanvas" width="160" height="90"></canvas>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module">
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const normalizeDegrees = (value) => ((value % 360) + 360) % 360;
+    const sleepFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+    const STORAGE_KEY = 'cardboard-camera-visor-v1';
+    const MODE_NAMES = ['Normal', 'Low-Light Natural', 'Night Green', 'Night Amber', 'Monochrome', 'Edge / Contour', 'Fusion'];
+    const FIT_NAMES = ['Natural View', 'Fill View', 'Full Sensor'];
+    const QUALITY_NAMES = ['Auto', 'Battery', 'Balanced', 'Maximum'];
+    const DWELL_VALUES = [800, 1200, 1800];
+
+    const defaultPrefs = {
+      assignments: { ultra: '', normal: '' },
+      fit: 0,
+      mode: 0,
+      quality: 'auto',
+      dwellMs: 1200,
+      motion: { enabled: false, sensitivity: 'medium' },
+      calibration: {
+        leftX: 0,
+        rightX: 0,
+        vertical: 0,
+        lensCenterX: 0,
+        lensCenterY: 0,
+        distortion: 0,
+        enabled: false
+      },
+      effects: {
+        gain: 1,
+        autoGain: false,
+        shadowBoost: 0,
+        highlightProtection: 0,
+        blackLevel: 0,
+        edgeStrength: 1,
+        noiseReduction: 0
+      }
+    };
+
+    function loadPrefs() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        return {
+          ...structuredClone(defaultPrefs),
+          ...saved,
+          assignments: { ...defaultPrefs.assignments, ...(saved.assignments || {}) },
+          motion: { ...defaultPrefs.motion, ...(saved.motion || {}) },
+          calibration: { ...defaultPrefs.calibration, ...(saved.calibration || {}) },
+          effects: { ...defaultPrefs.effects, ...(saved.effects || {}) }
+        };
+      } catch {
+        return structuredClone(defaultPrefs);
+      }
+    }
+
+    const prefs = loadPrefs();
+    const state = {
+      step: 1,
+      permissionGranted: false,
+      cameras: [],
+      previewStream: null,
+      previewCameraId: '',
+      activeStream: null,
+      activeTrack: null,
+      activeCameraId: '',
+      activeRole: '',
+      activeSettings: {},
+      activeCapabilities: {},
+      exactCameraVerified: false,
+      ultraVerified: false,
+      motionGranted: false,
+      orientationAvailable: false,
+      running: false,
+      glReady: false,
+      videoDirty: false,
+      newVideoFrame: false,
+      videoFrameHandle: 0,
+      animationHandle: 0,
+      wakeLock: null,
+      resizePending: false,
+      cssWidth: 0,
+      cssHeight: 0,
+      bufferWidth: 0,
+      bufferHeight: 0,
+      lastDpr: window.devicePixelRatio || 1,
+      heading: null,
+      headingAbsolute: false,
+      currentQuaternion: [0, 0, 0, 1],
+      referenceQuaternion: null,
+      headYaw: 0,
+      headPitch: 0,
+      effectiveScreenAngle: 0,
+      orbVisibility: 0,
+      lastOrientationTime: 0,
+      lastHeadYaw: 0,
+      lastHeadPitch: 0,
+      rotationMagnitude: 0,
+      motionSuppressUntil: 0,
+      menuOpen: false,
+      menuPage: 'main',
+      menuAnchorYaw: 0,
+      menuAnchorPitch: 0,
+      menuCloseTime: 0,
+      menuSettleUntil: 0,
+      menuOffsetX: 0,
+      menuOffsetY: 0,
+      menuTargetOffsetX: 0,
+      menuTargetOffsetY: 0,
+      gazeLostAt: 0,
+      gazeX: 0.5,
+      gazeY: 0.5,
+      gazeTargetX: 0.5,
+      gazeTargetY: 0.5,
+      pointerFallback: false,
+      dwellTarget: null,
+      dwellStart: 0,
+      dwellCooldownUntil: 0,
+      autoGainFactor: 1,
+      lastAnalysisTime: 0,
+      motionRect: [0, 0, 0, 0],
+      motionActiveUntil: 0,
+      motionCooldownUntil: 0,
+      toastTimer: 0,
+      diagnostics: []
+    };
+
+    const setup = $('#setup');
+    const visor = $('#visor');
+    const glCanvas = $('#glCanvas');
+    const setupPreview = $('#setupPreview');
+    const cameraVideo = $('#cameraVideo');
+    const analysisCanvas = $('#analysisCanvas');
+    const analysisCtx = analysisCanvas.getContext('2d', { willReadFrequently: true, alpha: false });
+    const toastEl = $('#toast');
+    const visorMessage = $('#visorMessage');
+
+    let gl = null;
+    let program = null;
+    let texture = null;
+    let uniforms = null;
+    let quadBuffer = null;
+
+    const analysisWidth = analysisCanvas.width;
+    const analysisHeight = analysisCanvas.height;
+    const grayCurrent = new Uint8Array(analysisWidth * analysisHeight);
+    const grayPrevious = new Uint8Array(analysisWidth * analysisHeight);
+    let hasPreviousGray = false;
+    const regionCols = 8;
+    const regionRows = 4;
+    const regionCount = regionCols * regionRows;
+    const regionScores = new Float32Array(regionCount);
+    const regionSamples = new Uint16Array(regionCount);
+    const regionHits = new Uint8Array(regionCount);
+
+    function savePrefs() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); } catch {}
+    }
+
+    function showToast(message, duration = 2400) {
+      clearTimeout(state.toastTimer);
+      toastEl.textContent = message;
+      toastEl.classList.add('show');
+      state.toastTimer = setTimeout(() => toastEl.classList.remove('show'), duration);
+    }
+
+    function setStatus(element, text, type = '') {
+      element.textContent = text;
+      element.className = `status-line${type ? ` ${type}` : ''}`;
+    }
+
+    function stopStream(stream) {
+      if (!stream) return;
+      for (const track of stream.getTracks()) track.stop();
+    }
+
+    function formatNumber(value, digits = 2) {
+      return Number.isFinite(value) ? Number(value).toFixed(digits) : '—';
+    }
+
+    function shortId(id) {
+      if (!id) return 'not reported';
+      return id.length > 14 ? `${id.slice(0, 6)}…${id.slice(-5)}` : id;
+    }
+
+    function cameraName(camera, index = 0) {
+      return camera.label || `Camera ${index + 1}`;
+    }
+
+    function likelyRear(camera) {
+      const label = (camera.label || '').toLowerCase();
+      return camera.facingMode === 'environment' || /rear|back|environment|world/.test(label);
+    }
+
+    function likelyFront(camera) {
+      const label = (camera.label || '').toLowerCase();
+      return camera.facingMode === 'user' || /front|facetime|user/.test(label);
+    }
+
+    function likelyUltra(camera) {
+      const label = (camera.label || '').toLowerCase();
+      const minZoom = camera.capabilities?.zoom?.min;
+      return /ultra|0\.5|0,5|wide angle|ultrawide/.test(label) || (Number.isFinite(minZoom) && minZoom <= 0.55);
+    }
+
+    function getCameraById(id) {
+      return state.cameras.find(camera => camera.deviceId === id) || null;
+    }
+
+    function getRearCandidates() {
+      const rear = state.cameras.filter(camera => likelyRear(camera) && !likelyFront(camera));
+      return rear.length ? rear : state.cameras.filter(camera => !likelyFront(camera));
+    }
+
+    function showStep(step) {
+      state.step = clamp(Number(step) || 1, 1, 5);
+      $$('.step-panel').forEach(panel => panel.classList.toggle('active', Number(panel.dataset.panel) === state.step));
+      $$('.step-dot').forEach(button => {
+        const buttonStep = Number(button.dataset.step);
+        button.classList.toggle('active', buttonStep === state.step);
+        button.classList.toggle('done', buttonStep < state.step);
+      });
+      if (state.step === 4) runDiagnostics();
+      setup.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    $$('.step-dot').forEach(button => button.addEventListener('click', () => showStep(button.dataset.step)));
+    $$('[data-next]').forEach(button => button.addEventListener('click', () => showStep(button.dataset.next)));
+    $$('[data-prev]').forEach(button => button.addEventListener('click', () => showStep(button.dataset.prev)));
+
+    function updateSecureBadge() {
+      const badge = $('#secureBadge');
+      if (window.isSecureContext) {
+        badge.textContent = 'Secure context available';
+        badge.style.color = 'var(--good)';
+      } else {
+        badge.textContent = 'HTTPS / localhost required';
+        badge.style.color = 'var(--warn)';
+      }
+    }
+
+    async function requestCameraAccess() {
+      const status = $('#permissionStatus');
+      const button = $('#requestCameraBtn');
+      if (!navigator.mediaDevices?.getUserMedia || !navigator.mediaDevices?.enumerateDevices) {
+        setStatus(status, 'This browser does not expose the required MediaDevices APIs.', 'bad');
+        return;
+      }
+      button.disabled = true;
+      setStatus(status, 'Requesting permission…');
+      try {
+        const permissionStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        stopStream(permissionStream);
+        state.permissionGranted = true;
+        setStatus(status, 'Permission granted. Enumerating and probing cameras…', 'good');
+        await enumerateAndProbeCameras();
+        $('#continueToCameras').disabled = state.cameras.length === 0;
+        setStatus(status, `${state.cameras.length} video input${state.cameras.length === 1 ? '' : 's'} exposed. Camera setup is ready.`, state.cameras.length ? 'good' : 'warn');
+        if (state.cameras.length) showStep(2);
+      } catch (error) {
+        console.error(error);
+        const reason = error?.name === 'NotAllowedError' ? 'Camera permission was denied.' : `Camera access failed: ${error?.message || error}`;
+        setStatus(status, reason, 'bad');
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    $('#requestCameraBtn').addEventListener('click', requestCameraAccess);
+
+    async function enumerateAndProbeCameras() {
+      stopStream(state.previewStream);
+      state.previewStream = null;
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputs = devices.filter(device => device.kind === 'videoinput');
+      state.cameras = inputs.map((device, index) => ({
+        deviceId: device.deviceId,
+        groupId: device.groupId,
+        label: device.label || `Camera ${index + 1}`,
+        facingMode: '',
+        settings: {},
+        capabilities: {},
+        exactVerified: false,
+        probeError: ''
+      }));
+
+      const status = $('#permissionStatus');
+      for (let index = 0; index < state.cameras.length; index += 1) {
+        const camera = state.cameras[index];
+        setStatus(status, `Probing camera ${index + 1} of ${state.cameras.length}: ${camera.label}`);
+        let stream = null;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              deviceId: { exact: camera.deviceId },
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              frameRate: { ideal: 30, max: 30 }
+            }
+          });
+          const track = stream.getVideoTracks()[0];
+          const settings = track.getSettings ? track.getSettings() : {};
+          const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+          camera.settings = settings;
+          camera.capabilities = capabilities;
+          camera.facingMode = settings.facingMode || '';
+          camera.exactVerified = Boolean(settings.deviceId && settings.deviceId === camera.deviceId);
+        } catch (error) {
+          camera.probeError = error?.message || String(error);
+        } finally {
+          stopStream(stream);
+        }
+      }
+
+      autoAssignCameras();
+      renderCameraList();
+      updateAssignmentSummary();
+      runDiagnostics();
+    }
+
+    function autoAssignCameras() {
+      const rear = getRearCandidates();
+      if (!prefs.assignments.ultra || !getCameraById(prefs.assignments.ultra)) {
+        const ultra = rear.find(likelyUltra);
+        prefs.assignments.ultra = ultra?.deviceId || '';
+      }
+      if (!prefs.assignments.normal || !getCameraById(prefs.assignments.normal)) {
+        const normal = rear.find(camera => !likelyUltra(camera)) || rear[0] || state.cameras[0];
+        prefs.assignments.normal = normal?.deviceId || '';
+      }
+      if (!prefs.assignments.ultra) {
+        const zoomCamera = rear.find(camera => Number.isFinite(camera.capabilities?.zoom?.min) && camera.capabilities.zoom.min <= 0.55);
+        if (zoomCamera) prefs.assignments.ultra = zoomCamera.deviceId;
+      }
+      savePrefs();
+    }
+
+    function cameraMetaText(camera) {
+      const settings = camera.settings || {};
+      const caps = camera.capabilities || {};
+      const parts = [];
+      if (camera.facingMode) parts.push(camera.facingMode);
+      if (settings.width && settings.height) parts.push(`${settings.width}×${settings.height}`);
+      if (Number.isFinite(settings.frameRate)) parts.push(`${Math.round(settings.frameRate)} fps`);
+      if (caps.zoom) parts.push(`zoom ${formatNumber(caps.zoom.min, 1)}–${formatNumber(caps.zoom.max, 1)}`);
+      if (camera.exactVerified) parts.push('exact ID verified');
+      if (camera.probeError) parts.push('probe unavailable');
+      return parts.join(' · ') || 'Capabilities not reported';
+    }
+
+    function renderCameraList() {
+      const list = $('#cameraList');
+      list.innerHTML = '';
+      state.cameras.forEach((camera, index) => {
+        const card = document.createElement('article');
+        card.className = 'camera-card';
+        if (prefs.assignments.ultra === camera.deviceId) card.classList.add('selected-ultra');
+        if (prefs.assignments.normal === camera.deviceId) card.classList.add('selected-normal');
+        const rearLabel = likelyRear(camera) ? 'Rear candidate' : likelyFront(camera) ? 'Front camera' : 'Facing unknown';
+        const ultraLabel = likelyUltra(camera) ? ' · Ultra-wide/0.5 candidate' : '';
+        card.innerHTML = `
+          <h3>${escapeHtml(cameraName(camera, index))}</h3>
+          <p>${escapeHtml(rearLabel + ultraLabel)}<br>${escapeHtml(cameraMetaText(camera))}<br>ID: ${escapeHtml(shortId(camera.deviceId))}</p>
+          <div class="mini-row">
+            <button class="btn" data-preview-camera="${escapeAttr(camera.deviceId)}">Preview</button>
+            <button class="btn warn" data-assign-ultra="${escapeAttr(camera.deviceId)}">Assign 0.5×</button>
+            <button class="btn good" data-assign-normal="${escapeAttr(camera.deviceId)}">Assign 1×</button>
+          </div>`;
+        list.appendChild(card);
+      });
+
+      $$('[data-preview-camera]', list).forEach(button => button.addEventListener('click', () => previewCamera(button.dataset.previewCamera)));
+      $$('[data-assign-ultra]', list).forEach(button => button.addEventListener('click', () => assignCamera('ultra', button.dataset.assignUltra)));
+      $$('[data-assign-normal]', list).forEach(button => button.addEventListener('click', () => assignCamera('normal', button.dataset.assignNormal)));
+    }
+
+    function assignCamera(role, deviceId) {
+      prefs.assignments[role] = deviceId;
+      savePrefs();
+      renderCameraList();
+      updateAssignmentSummary();
+      runDiagnostics();
+      const camera = getCameraById(deviceId);
+      showToast(`${role === 'ultra' ? '0.5× ultra-wide' : '1× normal'} assigned to ${camera?.label || 'camera'}.`);
+    }
+
+    async function previewCamera(deviceId) {
+      const camera = getCameraById(deviceId);
+      if (!camera) return;
+      stopStream(state.previewStream);
+      state.previewStream = null;
+      $('#previewLabel').textContent = `Opening ${camera.label}…`;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }
+        });
+        state.previewStream = stream;
+        state.previewCameraId = deviceId;
+        setupPreview.srcObject = stream;
+        await setupPreview.play();
+        const track = stream.getVideoTracks()[0];
+        const settings = track.getSettings ? track.getSettings() : {};
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+        camera.settings = settings;
+        camera.capabilities = capabilities;
+        camera.facingMode = settings.facingMode || camera.facingMode;
+        camera.exactVerified = Boolean(settings.deviceId && settings.deviceId === deviceId);
+        $('#previewLabel').textContent = `${camera.label} · ${settings.width || setupPreview.videoWidth || '—'}×${settings.height || setupPreview.videoHeight || '—'} · ${camera.exactVerified ? 'exact ID verified' : 'ID not reported/verified'}`;
+        renderCameraList();
+        runDiagnostics();
+      } catch (error) {
+        console.error(error);
+        $('#previewLabel').textContent = `Preview failed: ${error?.message || error}`;
+      }
+    }
+
+    function updateAssignmentSummary() {
+      const ultra = getCameraById(prefs.assignments.ultra);
+      const normal = getCameraById(prefs.assignments.normal);
+      const parts = [
+        `0.5×: ${ultra ? ultra.label : 'not assigned'}`,
+        `1×: ${normal ? normal.label : 'not assigned'}`
+      ];
+      $('#assignmentSummary').textContent = parts.join(' · ');
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+    }
+
+    function escapeAttr(value) { return escapeHtml(value); }
+
+    function resetAlignment() {
+      Object.assign(prefs.calibration, structuredClone(defaultPrefs.calibration));
+      savePrefs();
+      updateSetupCalibrationOutputs();
+      if (state.menuOpen && state.menuPage === 'calibration') renderMenu('calibration');
+      showToast('Alignment and distortion reset to zero.');
+    }
+
+    function adjustCalibration(key, delta) {
+      const c = prefs.calibration;
+      if (['leftX', 'rightX', 'vertical'].includes(key)) c[key] = clamp(Math.round(c[key] + delta), -40, 40);
+      else if (key === 'distortion') c[key] = clamp(Number((c[key] + delta).toFixed(3)), -0.6, 0.6);
+      else c[key] = clamp(Number((c[key] + delta).toFixed(3)), -0.2, 0.2);
+      savePrefs();
+      updateSetupCalibrationOutputs();
+      if (state.menuOpen && state.menuPage === 'calibration') renderMenu('calibration');
+    }
+
+    function updateSetupCalibrationOutputs() {
+      const c = prefs.calibration;
+      $$('[data-out]').forEach(output => {
+        const key = output.dataset.out;
+        output.value = ['leftX', 'rightX', 'vertical'].includes(key) ? `${c[key]} px` : Number(c[key]).toFixed(3);
+        output.textContent = output.value;
+      });
+      $('#toggleDistortionSetup').textContent = `Lens correction: ${c.enabled ? 'On' : 'Off'}`;
+    }
+
+    $$('[data-setup-adjust]').forEach(button => button.addEventListener('click', () => {
+      const [key, delta] = button.dataset.setupAdjust.split(':');
+      adjustCalibration(key, Number(delta));
+    }));
+    $$('[data-reset-alignment]').forEach(button => button.addEventListener('click', resetAlignment));
+    $('#toggleDistortionSetup').addEventListener('click', () => {
+      prefs.calibration.enabled = !prefs.calibration.enabled;
+      savePrefs();
+      updateSetupCalibrationOutputs();
+    });
+
+    async function requestMotionPermission() {
+      let granted = true;
+      try {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          granted = (await DeviceOrientationEvent.requestPermission()) === 'granted';
+        }
+        if (granted && typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+          granted = (await DeviceMotionEvent.requestPermission()) === 'granted';
+        }
+      } catch (error) {
+        granted = false;
+        console.warn('Motion permission failed', error);
+      }
+      state.motionGranted = granted;
+      if (granted) attachMotionListeners();
+      runDiagnostics();
+      showToast(granted ? 'Orientation and motion enabled.' : 'Motion permission unavailable or denied. Desktop controls remain available.');
+      return granted;
+    }
+
+    $('#motionPermissionBtn').addEventListener('click', requestMotionPermission);
+    $('#rerunDiagnosticsBtn').addEventListener('click', runDiagnostics);
+
+    function diagnosticItem(title, detail, status) {
+      return { title, detail, status };
+    }
+
+    function runDiagnostics() {
+      const rear = getRearCandidates();
+      const ultra = getCameraById(prefs.assignments.ultra);
+      const ultraExact = Boolean(ultra?.exactVerified);
+      const ultraZoomCap = Number.isFinite(ultra?.capabilities?.zoom?.min) && ultra.capabilities.zoom.min <= 0.55;
+      const motionApi = typeof DeviceOrientationEvent !== 'undefined';
+      state.diagnostics = [
+        diagnosticItem('Rear camera', rear.length ? `${rear.length} rear/environment candidate${rear.length === 1 ? '' : 's'} exposed.` : 'No rear-facing camera could be identified from labels or settings.', rear.length ? 'good' : 'bad'),
+        diagnosticItem('0.5× ultra-wide', ultra ? (ultraExact ? 'Assigned camera passed an exact-device probe. Final verification is repeated at launch.' : ultraZoomCap ? 'Assigned camera reports a zoom range reaching approximately 0.5×.' : 'Assigned, but the browser did not report an exact active device ID during probing.') : 'No separate ultra-wide camera is assigned or exposed. The visor will not display a 0.5× label.', ultra ? (ultraExact || ultraZoomCap ? 'good' : 'warn') : 'warn'),
+        diagnosticItem('Orientation / motion', state.motionGranted ? 'Permission granted and listeners active.' : motionApi ? 'API exists; permission may still be required.' : 'No DeviceOrientation API is exposed.', state.motionGranted ? 'good' : motionApi ? 'warn' : 'bad'),
+        diagnosticItem('Fullscreen', document.fullscreenEnabled ? 'Fullscreen requests are supported.' : 'Fullscreen is unavailable or blocked in this context.', document.fullscreenEnabled ? 'good' : 'warn'),
+        diagnosticItem('Landscape lock', screen.orientation?.lock ? 'ScreenOrientation.lock() is exposed.' : 'Orientation lock is not exposed; rotate the phone manually.', screen.orientation?.lock ? 'good' : 'warn'),
+        diagnosticItem('Wake lock', navigator.wakeLock?.request ? 'Screen Wake Lock is exposed.' : 'Wake lock is unavailable; adjust the phone sleep timeout if needed.', navigator.wakeLock?.request ? 'good' : 'warn'),
+        diagnosticItem('Secure context', window.isSecureContext ? 'Camera and sensor APIs can use this context.' : 'Use HTTPS or localhost. A direct file may not access camera/sensors.', window.isSecureContext ? 'good' : 'bad'),
+        diagnosticItem('WebGL', supportsWebGL() ? 'WebGL camera shaders are available.' : 'No WebGL context could be created.', supportsWebGL() ? 'good' : 'bad')
+      ];
+      const list = $('#diagList');
+      list.innerHTML = state.diagnostics.map(item => `<div class="diag-item ${item.status}"><span class="diag-icon"></span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail)}</small></div></div>`).join('');
+      setStatus($('#diagnosticStatus'), 'Diagnostics reflect browser-reported capabilities. Physical field of view cannot be measured reliably by a web page.', 'warn');
+    }
+
+    function supportsWebGL() {
+      try {
+        const canvas = document.createElement('canvas');
+        return Boolean(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+      } catch { return false; }
+    }
+
+    async function requestWakeLock() {
+      if (!navigator.wakeLock?.request) return;
+      try {
+        state.wakeLock = await navigator.wakeLock.request('screen');
+        state.wakeLock.addEventListener('release', () => { state.wakeLock = null; });
+      } catch (error) {
+        console.warn('Wake lock unavailable', error);
+      }
+    }
+
+    async function launchVisor() {
+      const status = $('#launchStatus');
+      const button = $('#launchBtn');
+      if (!state.permissionGranted || !state.cameras.length) {
+        setStatus(status, 'Complete camera permission and camera setup first.', 'bad');
+        showStep(1);
+        return;
+      }
+      button.disabled = true;
+      setStatus(status, 'Entering fullscreen and opening the camera…');
+
+      const fullscreenPromise = document.documentElement.requestFullscreen
+        ? document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(error => ({ error }))
+        : Promise.resolve({ error: new Error('Fullscreen API unavailable') });
+
+      if (!state.motionGranted) requestMotionPermission().catch(() => {});
+
+      try {
+        const fullscreenResult = await fullscreenPromise;
+        if (fullscreenResult?.error) console.warn('Fullscreen request failed', fullscreenResult.error);
+        if (screen.orientation?.lock) {
+          try { await screen.orientation.lock('landscape'); } catch (error) { console.warn('Orientation lock failed', error); }
+        }
+        await requestWakeLock();
+
+        const preferredRole = prefs.assignments.ultra ? 'ultra' : 'normal';
+        await openActiveCamera(preferredRole);
+
+        setup.hidden = true;
+        visor.classList.add('active');
+        await waitForStableViewport(8, 150);
+        initGL();
+        resizeRenderer(true);
+        attachMotionListeners();
+        startVideoFramePump();
+        state.running = true;
+        /* Re-anchor on the first sensor event after landscape/fullscreen settles.
+           This prevents a portrait sample from becoming the landscape reference. */
+        state.referenceQuaternion = null;
+        state.headYaw = 0;
+        state.headPitch = 0;
+        state.menuCloseTime = performance.now();
+        updateHUD();
+        state.animationHandle = requestAnimationFrame(renderLoop);
+        setStatus(status, 'Visor launched.', 'good');
+      } catch (error) {
+        console.error(error);
+        setStatus(status, `Launch failed: ${error?.message || error}`, 'bad');
+        showVisorError(`Launch failed: ${error?.message || error}`);
+        setup.hidden = false;
+        visor.classList.remove('active');
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    $('#launchBtn').addEventListener('click', launchVisor);
+
+    async function waitForStableViewport(stableFrames = 8, maxFrames = 120) {
+      let stable = 0;
+      let lastWidth = 0;
+      let lastHeight = 0;
+      for (let frame = 0; frame < maxFrames; frame += 1) {
+        await sleepFrame();
+        const rect = visor.getBoundingClientRect();
+        const width = Math.round(rect.width * 100) / 100;
+        const height = Math.round(rect.height * 100) / 100;
+        if (width > 0 && height > 0 && Math.abs(width - lastWidth) < 0.25 && Math.abs(height - lastHeight) < 0.25) stable += 1;
+        else stable = 0;
+        lastWidth = width;
+        lastHeight = height;
+        if (stable >= stableFrames) return { width, height };
+      }
+      return { width: visor.clientWidth, height: visor.clientHeight };
+    }
+
+    async function openActiveCamera(role) {
+      const deviceId = prefs.assignments[role] || prefs.assignments.normal || prefs.assignments.ultra;
+      if (!deviceId) throw new Error('No camera has been assigned.');
+      stopStream(state.previewStream);
+      state.previewStream = null;
+      state.previewCameraId = '';
+      setupPreview.srcObject = null;
+      stopStream(state.activeStream);
+      state.activeStream = null;
+      state.activeTrack = null;
+      state.videoDirty = false;
+      hasPreviousGray = false;
+      grayPrevious.fill(0);
+      regionHits.fill(0);
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          deviceId: { exact: deviceId },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30, min: 15 }
+        }
+      });
+      const track = stream.getVideoTracks()[0];
+      let settings = track.getSettings ? track.getSettings() : {};
+      const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+
+      if (capabilities.zoom && role === 'ultra' && capabilities.zoom.min <= 0.55 && prefs.assignments.ultra === prefs.assignments.normal) {
+        try {
+          await track.applyConstraints({ advanced: [{ zoom: clamp(0.5, capabilities.zoom.min, capabilities.zoom.max) }] });
+          settings = track.getSettings ? track.getSettings() : settings;
+        } catch (error) { console.warn('0.5 zoom constraint failed', error); }
+      } else if (capabilities.zoom && role === 'normal' && capabilities.zoom.min <= 1 && capabilities.zoom.max >= 1) {
+        try {
+          await track.applyConstraints({ advanced: [{ zoom: 1 }] });
+          settings = track.getSettings ? track.getSettings() : settings;
+        } catch {}
+      }
+
+      state.activeStream = stream;
+      state.activeTrack = track;
+      state.activeCameraId = deviceId;
+      state.activeRole = role;
+      state.activeSettings = settings;
+      state.activeCapabilities = capabilities;
+      state.exactCameraVerified = Boolean(settings.deviceId && settings.deviceId === deviceId);
+      const zoom = Number(settings.zoom);
+      const zoomVerified = Number.isFinite(zoom) && Math.abs(zoom - 0.5) <= 0.08;
+      state.ultraVerified = role === 'ultra' && (state.exactCameraVerified || zoomVerified);
+
+      cameraVideo.srcObject = stream;
+      await cameraVideo.play();
+      await new Promise(resolve => {
+        if (cameraVideo.readyState >= 2 && cameraVideo.videoWidth) resolve();
+        else cameraVideo.addEventListener('loadeddata', resolve, { once: true });
+      });
+      state.videoDirty = true;
+      updateHUD();
+      if (state.menuOpen) renderMenu(state.menuPage);
+    }
+
+    function showVisorError(message) {
+      visorMessage.textContent = message;
+      visorMessage.classList.add('show');
+      setTimeout(() => visorMessage.classList.remove('show'), 5000);
+    }
+
+    function initGL() {
+      if (state.glReady) return;
+      gl = glCanvas.getContext('webgl', {
+        alpha: false,
+        antialias: false,
+        depth: false,
+        stencil: false,
+        preserveDrawingBuffer: false,
+        powerPreference: 'high-performance'
+      });
+      if (!gl) throw new Error('WebGL is unavailable.');
+
+      const vertexSource = `
+        attribute vec2 a_position;
+        varying vec2 v_uv;
+        void main() {
+          v_uv = a_position * 0.5 + 0.5;
+          gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+      `;
+
+      const fragmentSource = `
+        precision highp float;
+        varying vec2 v_uv;
+        uniform sampler2D u_video;
+        uniform vec2 u_videoSize;
+        uniform vec2 u_eyeSize;
+        uniform vec2 u_eyeShift;
+        uniform vec2 u_lensCenter;
+        uniform vec2 u_texel;
+        uniform float u_distortion;
+        uniform float u_distortionEnabled;
+        uniform float u_gain;
+        uniform float u_autoGain;
+        uniform float u_shadowBoost;
+        uniform float u_highlightProtection;
+        uniform float u_blackLevel;
+        uniform float u_edgeStrength;
+        uniform float u_noiseReduction;
+        uniform vec4 u_motionRect;
+        uniform float u_motionActive;
+        uniform int u_fit;
+        uniform int u_mode;
+
+        float luminance(vec3 c) {
+          return dot(c, vec3(0.2126, 0.7152, 0.0722));
+        }
+
+        vec2 lensCorrect(vec2 uv) {
+          vec2 center = vec2(0.5) + u_lensCenter;
+          vec2 p = uv - center;
+          float r2 = dot(p, p) * 4.0;
+          vec2 warped = center + p * (1.0 + u_distortion * r2);
+          return mix(uv, warped, u_distortionEnabled);
+        }
+
+        vec2 coverUV(vec2 uv) {
+          float sourceAspect = u_videoSize.x / max(u_videoSize.y, 1.0);
+          float destAspect = u_eyeSize.x / max(u_eyeSize.y, 1.0);
+          vec2 outUV = uv;
+          if (destAspect > sourceAspect) {
+            float visibleHeight = sourceAspect / destAspect;
+            outUV.y = (uv.y - 0.5) * visibleHeight + 0.5;
+          } else {
+            float visibleWidth = destAspect / sourceAspect;
+            outUV.x = (uv.x - 0.5) * visibleWidth + 0.5;
+          }
+          return outUV;
+        }
+
+        vec3 containInfo(vec2 uv) {
+          float sourceAspect = u_videoSize.x / max(u_videoSize.y, 1.0);
+          float destAspect = u_eyeSize.x / max(u_eyeSize.y, 1.0);
+          vec2 outUV = uv;
+          float inside = 1.0;
+          if (destAspect > sourceAspect) {
+            float widthFraction = sourceAspect / destAspect;
+            float left = (1.0 - widthFraction) * 0.5;
+            inside = step(left, uv.x) * step(uv.x, left + widthFraction);
+            outUV.x = (uv.x - left) / max(widthFraction, 0.0001);
+          } else {
+            float heightFraction = destAspect / sourceAspect;
+            float bottom = (1.0 - heightFraction) * 0.5;
+            inside = step(bottom, uv.y) * step(uv.y, bottom + heightFraction);
+            outUV.y = (uv.y - bottom) / max(heightFraction, 0.0001);
+          }
+          return vec3(outUV, inside);
+        }
+
+        vec3 sampleCamera(vec2 uv) {
+          vec3 center = texture2D(u_video, uv).rgb;
+          vec3 neighbors = (
+            texture2D(u_video, uv + vec2(u_texel.x, 0.0)).rgb +
+            texture2D(u_video, uv - vec2(u_texel.x, 0.0)).rgb +
+            texture2D(u_video, uv + vec2(0.0, u_texel.y)).rgb +
+            texture2D(u_video, uv - vec2(0.0, u_texel.y)).rgb
+          ) * 0.25;
+          return mix(center, neighbors, u_noiseReduction);
+        }
+
+        vec3 sampleBlurred(vec2 uv) {
+          vec2 t = u_texel * 4.0;
+          vec3 c = texture2D(u_video, uv).rgb * 0.28;
+          c += texture2D(u_video, uv + vec2(t.x, 0.0)).rgb * 0.12;
+          c += texture2D(u_video, uv - vec2(t.x, 0.0)).rgb * 0.12;
+          c += texture2D(u_video, uv + vec2(0.0, t.y)).rgb * 0.12;
+          c += texture2D(u_video, uv - vec2(0.0, t.y)).rgb * 0.12;
+          c += texture2D(u_video, uv + t).rgb * 0.06;
+          c += texture2D(u_video, uv - t).rgb * 0.06;
+          c += texture2D(u_video, uv + vec2(t.x, -t.y)).rgb * 0.06;
+          c += texture2D(u_video, uv + vec2(-t.x, t.y)).rgb * 0.06;
+          return c;
+        }
+
+        float edgeValue(vec2 uv) {
+          float l = luminance(texture2D(u_video, uv - vec2(u_texel.x, 0.0)).rgb);
+          float r = luminance(texture2D(u_video, uv + vec2(u_texel.x, 0.0)).rgb);
+          float d = luminance(texture2D(u_video, uv - vec2(0.0, u_texel.y)).rgb);
+          float u = luminance(texture2D(u_video, uv + vec2(0.0, u_texel.y)).rgb);
+          float gx = r - l;
+          float gy = u - d;
+          return clamp(sqrt(gx * gx + gy * gy) * 4.0 * u_edgeStrength, 0.0, 1.0);
+        }
+
+        vec3 toneMap(vec3 c) {
+          c = max(c - vec3(u_blackLevel), 0.0);
+          c *= u_gain * u_autoGain;
+          float y = luminance(c);
+          c += (1.0 - c) * u_shadowBoost * (1.0 - clamp(y, 0.0, 1.0)) * 0.5;
+          vec3 protectedColor = 1.0 - exp(-max(c, 0.0));
+          c = mix(c, protectedColor, u_highlightProtection);
+          return clamp(c, 0.0, 1.0);
+        }
+
+        vec3 applyMode(vec3 c, vec2 sourceUV) {
+          float edge = edgeValue(sourceUV);
+          vec3 toned = toneMap(c);
+          float y = luminance(toned);
+          if (u_mode == 1) {
+            vec3 low = toneMap(c * 1.22);
+            float ly = luminance(low);
+            low += (1.0 - low) * (1.0 - ly) * 0.10;
+            return clamp(low, 0.0, 1.0);
+          }
+          if (u_mode == 2) return vec3(y * 0.18, y, y * 0.28);
+          if (u_mode == 3) return vec3(y, y * 0.58, y * 0.13);
+          if (u_mode == 4) return vec3(y);
+          if (u_mode == 5) return vec3(edge);
+          if (u_mode == 6) return clamp(toned * 0.42 + vec3(0.12, 0.92, 1.0) * edge, 0.0, 1.0);
+          return toned;
+        }
+
+        float motionBorder(vec2 uv) {
+          float inside = step(u_motionRect.x, uv.x) * step(u_motionRect.y, uv.y) * step(uv.x, u_motionRect.z) * step(uv.y, u_motionRect.w);
+          float d = min(min(abs(uv.x - u_motionRect.x), abs(uv.x - u_motionRect.z)), min(abs(uv.y - u_motionRect.y), abs(uv.y - u_motionRect.w)));
+          return inside * (1.0 - smoothstep(0.004, 0.012, d)) * u_motionActive;
+        }
+
+        void main() {
+          vec2 localUV = v_uv - u_eyeShift;
+          localUV = lensCorrect(localUV);
+          vec3 finalColor = vec3(0.0);
+          vec2 sourceUV = vec2(0.5);
+          float foreground = 1.0;
+
+          if (u_fit == 1) {
+            sourceUV = coverUV(localUV);
+            finalColor = applyMode(sampleCamera(sourceUV), sourceUV);
+          } else {
+            vec3 contained = containInfo(localUV);
+            sourceUV = contained.xy;
+            foreground = contained.z;
+            if (u_fit == 0) {
+              vec2 backgroundUV = coverUV(localUV);
+              vec3 background = toneMap(sampleBlurred(backgroundUV)) * 0.20;
+              vec3 front = applyMode(sampleCamera(clamp(sourceUV, 0.0, 1.0)), clamp(sourceUV, 0.0, 1.0));
+              finalColor = mix(background, front, foreground);
+            } else {
+              vec3 front = applyMode(sampleCamera(clamp(sourceUV, 0.0, 1.0)), clamp(sourceUV, 0.0, 1.0));
+              finalColor = front * foreground;
+            }
+          }
+
+          float alert = motionBorder(sourceUV) * foreground;
+          finalColor = mix(finalColor, vec3(0.16, 0.95, 1.0), alert * 0.88);
+          gl_FragColor = vec4(finalColor, 1.0);
+        }
+      `;
+
+      program = createProgram(gl, vertexSource, fragmentSource);
+      gl.useProgram(program);
+      quadBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+      const positionLocation = gl.getAttribLocation(program, 'a_position');
+      gl.enableVertexAttribArray(positionLocation);
+      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+      texture = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+
+      uniforms = {};
+      ['video', 'videoSize', 'eyeSize', 'eyeShift', 'lensCenter', 'texel', 'distortion', 'distortionEnabled', 'gain', 'autoGain', 'shadowBoost', 'highlightProtection', 'blackLevel', 'edgeStrength', 'noiseReduction', 'motionRect', 'motionActive', 'fit', 'mode'].forEach(name => {
+        uniforms[name] = gl.getUniformLocation(program, `u_${name}`);
+      });
+      gl.uniform1i(uniforms.video, 0);
+      gl.disable(gl.DEPTH_TEST);
+      gl.disable(gl.BLEND);
+      gl.enable(gl.SCISSOR_TEST);
+      state.glReady = true;
+    }
+
+    function compileShader(context, type, source) {
+      const shader = context.createShader(type);
+      context.shaderSource(shader, source);
+      context.compileShader(shader);
+      if (!context.getShaderParameter(shader, context.COMPILE_STATUS)) {
+        const log = context.getShaderInfoLog(shader);
+        context.deleteShader(shader);
+        throw new Error(`Shader compile failed: ${log}`);
+      }
+      return shader;
+    }
+
+    function createProgram(context, vertexSource, fragmentSource) {
+      const vertex = compileShader(context, context.VERTEX_SHADER, vertexSource);
+      const fragment = compileShader(context, context.FRAGMENT_SHADER, fragmentSource);
+      const result = context.createProgram();
+      context.attachShader(result, vertex);
+      context.attachShader(result, fragment);
+      context.linkProgram(result);
+      context.deleteShader(vertex);
+      context.deleteShader(fragment);
+      if (!context.getProgramParameter(result, context.LINK_STATUS)) {
+        const log = context.getProgramInfoLog(result);
+        context.deleteProgram(result);
+        throw new Error(`Shader link failed: ${log}`);
+      }
+      return result;
+    }
+
+    function qualityProfile() {
+      const mode = prefs.quality;
+      const memory = Number(navigator.deviceMemory || 4);
+      const cores = Number(navigator.hardwareConcurrency || 4);
+      if (mode === 'battery') return { scale: 0.52, dprCap: 1, analysisInterval: 190 };
+      if (mode === 'balanced') return { scale: 0.74, dprCap: 1.35, analysisInterval: 105 };
+      if (mode === 'maximum') return { scale: 1, dprCap: 2, analysisInterval: 50 };
+      if (memory <= 3 || cores <= 4) return { scale: 0.62, dprCap: 1.15, analysisInterval: 135 };
+      if (memory >= 8 && cores >= 8) return { scale: 0.9, dprCap: 1.75, analysisInterval: 75 };
+      return { scale: 0.76, dprCap: 1.4, analysisInterval: 100 };
+    }
+
+    function resizeRenderer(force = false) {
+      if (!state.glReady || !visor.classList.contains('active')) return;
+      const rect = glCanvas.getBoundingClientRect();
+      const cssWidth = Math.max(1, rect.width);
+      const cssHeight = Math.max(1, rect.height);
+      const profile = qualityProfile();
+      const dpr = Math.min(window.devicePixelRatio || 1, profile.dprCap);
+      const bufferWidth = Math.max(2, Math.round(cssWidth * dpr * profile.scale));
+      const bufferHeight = Math.max(2, Math.round(cssHeight * dpr * profile.scale));
+      if (!force && bufferWidth === glCanvas.width && bufferHeight === glCanvas.height && cssWidth === state.cssWidth && cssHeight === state.cssHeight) return;
+      glCanvas.width = bufferWidth;
+      glCanvas.height = bufferHeight;
+      state.cssWidth = cssWidth;
+      state.cssHeight = cssHeight;
+      state.bufferWidth = bufferWidth;
+      state.bufferHeight = bufferHeight;
+      state.lastDpr = window.devicePixelRatio || 1;
+    }
+
+    async function queueStableResize() {
+      if (state.resizePending || !state.running) return;
+      state.resizePending = true;
+      await waitForStableViewport(4, 60);
+      resizeRenderer(true);
+      state.resizePending = false;
+    }
+
+    function uploadVideoTexture() {
+      if (!state.videoDirty || cameraVideo.readyState < 2 || !cameraVideo.videoWidth) return;
+      try {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cameraVideo);
+        state.videoDirty = false;
+      } catch (error) {
+        console.warn('Video texture upload failed', error);
+      }
+    }
+
+    function setCommonUniforms(now) {
+      const videoWidth = Math.max(1, cameraVideo.videoWidth || state.activeSettings.width || 1);
+      const videoHeight = Math.max(1, cameraVideo.videoHeight || state.activeSettings.height || 1);
+      const effects = prefs.effects;
+      gl.uniform2f(uniforms.videoSize, videoWidth, videoHeight);
+      gl.uniform2f(uniforms.texel, 1 / videoWidth, 1 / videoHeight);
+      gl.uniform2f(uniforms.lensCenter, prefs.calibration.lensCenterX, prefs.calibration.lensCenterY);
+      gl.uniform1f(uniforms.distortion, prefs.calibration.distortion);
+      gl.uniform1f(uniforms.distortionEnabled, prefs.calibration.enabled ? 1 : 0);
+      gl.uniform1f(uniforms.gain, effects.gain);
+      gl.uniform1f(uniforms.autoGain, effects.autoGain ? state.autoGainFactor : 1);
+      gl.uniform1f(uniforms.shadowBoost, effects.shadowBoost);
+      gl.uniform1f(uniforms.highlightProtection, effects.highlightProtection);
+      gl.uniform1f(uniforms.blackLevel, effects.blackLevel);
+      gl.uniform1f(uniforms.edgeStrength, effects.edgeStrength);
+      gl.uniform1f(uniforms.noiseReduction, effects.noiseReduction);
+      gl.uniform4f(uniforms.motionRect, state.motionRect[0], state.motionRect[1], state.motionRect[2], state.motionRect[3]);
+      gl.uniform1f(uniforms.motionActive, now < state.motionActiveUntil ? 1 : 0);
+      gl.uniform1i(uniforms.fit, prefs.fit);
+      gl.uniform1i(uniforms.mode, prefs.mode);
+    }
+
+    function renderEye(isLeft, eyeBufferX, eyeBufferWidth, eyeCssWidth, cssHeight) {
+      gl.viewport(eyeBufferX, 0, eyeBufferWidth, state.bufferHeight);
+      gl.scissor(eyeBufferX, 0, eyeBufferWidth, state.bufferHeight);
+      gl.uniform2f(uniforms.eyeSize, eyeCssWidth, cssHeight);
+      const horizontalPx = isLeft ? prefs.calibration.leftX : prefs.calibration.rightX;
+      gl.uniform2f(uniforms.eyeShift, horizontalPx / Math.max(eyeCssWidth, 1), prefs.calibration.vertical / Math.max(cssHeight, 1));
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    function renderLoop(now) {
+      if (!state.running) return;
+      if (Math.abs((window.devicePixelRatio || 1) - state.lastDpr) > 0.01) queueStableResize();
+      uploadVideoTexture();
+      gl.useProgram(program);
+      setCommonUniforms(now);
+
+      /* CSS dimensions define the 50/50 split. They are converted to drawing-buffer pixels only after the split is established. */
+      const cssWidth = Math.max(1, state.cssWidth || glCanvas.getBoundingClientRect().width);
+      const cssHeight = Math.max(1, state.cssHeight || glCanvas.getBoundingClientRect().height);
+      const eyeCssWidth = cssWidth * 0.5;
+      const bufferMidpoint = Math.round(state.bufferWidth * 0.5);
+      renderEye(true, 0, bufferMidpoint, eyeCssWidth, cssHeight);
+      renderEye(false, bufferMidpoint, state.bufferWidth - bufferMidpoint, eyeCssWidth, cssHeight);
+
+      updateWorldStage(now);
+      updateGaze(now);
+      updateMotionIndicator(now);
+      state.animationHandle = requestAnimationFrame(renderLoop);
+    }
+
+    function startVideoFramePump() {
+      if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+        const onFrame = (now, metadata) => {
+          state.videoDirty = true;
+          state.newVideoFrame = true;
+          analyzeVideoFrame(now, metadata);
+          if (state.running || cameraVideo.srcObject) state.videoFrameHandle = cameraVideo.requestVideoFrameCallback(onFrame);
+        };
+        state.videoFrameHandle = cameraVideo.requestVideoFrameCallback(onFrame);
+      } else {
+        let lastTime = -1;
+        const fallback = now => {
+          if (!state.running) return;
+          if (cameraVideo.currentTime !== lastTime) {
+            lastTime = cameraVideo.currentTime;
+            state.videoDirty = true;
+            analyzeVideoFrame(now, null);
+          }
+          requestAnimationFrame(fallback);
+        };
+        requestAnimationFrame(fallback);
+      }
+    }
+
+    function analyzeVideoFrame(now) {
+      const needAnalysis = prefs.motion.enabled || prefs.effects.autoGain;
+      if (!needAnalysis || cameraVideo.readyState < 2 || !cameraVideo.videoWidth) return;
+      const interval = qualityProfile().analysisInterval;
+      if (now - state.lastAnalysisTime < interval) return;
+      state.lastAnalysisTime = now;
+
+      try {
+        analysisCtx.drawImage(cameraVideo, 0, 0, analysisWidth, analysisHeight);
+        const pixels = analysisCtx.getImageData(0, 0, analysisWidth, analysisHeight).data;
+        let sum = 0;
+        for (let i = 0, p = 0; i < grayCurrent.length; i += 1, p += 4) {
+          const y = (pixels[p] * 54 + pixels[p + 1] * 183 + pixels[p + 2] * 19) >> 8;
+          grayCurrent[i] = y;
+          sum += y;
+        }
+
+        if (prefs.effects.autoGain) {
+          const average = sum / grayCurrent.length / 255;
+          const target = 0.43;
+          const desired = clamp(target / Math.max(average, 0.06), 0.72, 2.6);
+          state.autoGainFactor = lerp(state.autoGainFactor, desired, 0.08);
+        } else {
+          state.autoGainFactor = lerp(state.autoGainFactor, 1, 0.12);
+        }
+
+        if (prefs.motion.enabled) processMotionRegions(now);
+        grayPrevious.set(grayCurrent);
+        hasPreviousGray = true;
+      } catch (error) {
+        console.warn('Frame analysis failed', error);
+      }
+    }
+
+    function processMotionRegions(now) {
+      if (!hasPreviousGray || now < state.motionSuppressUntil) {
+        regionHits.fill(0);
+        return;
+      }
+      regionScores.fill(0);
+      regionSamples.fill(0);
+      const step = 2;
+      for (let y = 0; y < analysisHeight; y += step) {
+        const regionY = Math.min(regionRows - 1, Math.floor(y * regionRows / analysisHeight));
+        for (let x = 0; x < analysisWidth; x += step) {
+          const index = y * analysisWidth + x;
+          const regionX = Math.min(regionCols - 1, Math.floor(x * regionCols / analysisWidth));
+          const regionIndex = regionY * regionCols + regionX;
+          regionScores[regionIndex] += Math.abs(grayCurrent[index] - grayPrevious[index]);
+          regionSamples[regionIndex] += 1;
+        }
+      }
+
+      const threshold = prefs.motion.sensitivity === 'low' ? 29 : prefs.motion.sensitivity === 'high' ? 13 : 20;
+      let bestRegion = -1;
+      let bestScore = 0;
+      for (let i = 0; i < regionCount; i += 1) {
+        const score = regionSamples[i] ? regionScores[i] / regionSamples[i] : 0;
+        regionScores[i] = score;
+        if (score > threshold) regionHits[i] = Math.min(8, regionHits[i] + 1);
+        else regionHits[i] = Math.max(0, regionHits[i] - 1);
+        if (regionHits[i] >= 3 && score > bestScore) {
+          bestScore = score;
+          bestRegion = i;
+        }
+      }
+
+      if (bestRegion >= 0 && now >= state.motionCooldownUntil) {
+        const column = bestRegion % regionCols;
+        const row = Math.floor(bestRegion / regionCols);
+        state.motionRect[0] = column / regionCols;
+        state.motionRect[1] = row / regionRows;
+        state.motionRect[2] = (column + 1) / regionCols;
+        state.motionRect[3] = (row + 1) / regionRows;
+        state.motionActiveUntil = now + 900;
+        state.motionCooldownUntil = now + 1700;
+      }
+    }
+
+    function updateMotionIndicator(now) {
+      const active = now < state.motionActiveUntil;
+      $$('.motion-state').forEach(element => element.classList.toggle('active', active));
+    }
+
+    function attachMotionListeners() {
+      if (attachMotionListeners.attached) return;
+      attachMotionListeners.attached = true;
+      window.addEventListener('deviceorientation', onDeviceOrientation, true);
+      window.addEventListener('devicemotion', onDeviceMotion, true);
+    }
+
+    function onDeviceMotion(event) {
+      const rate = event.rotationRate;
+      if (!rate) return;
+      const magnitude = Math.hypot(Number(rate.alpha || 0), Number(rate.beta || 0), Number(rate.gamma || 0));
+      state.rotationMagnitude = lerp(state.rotationMagnitude, magnitude, 0.25);
+      if (magnitude > 45) state.motionSuppressUntil = performance.now() + 550;
+    }
+
+    function onDeviceOrientation(event) {
+      if (event.alpha == null && event.beta == null && event.gamma == null) return;
+      state.orientationAvailable = true;
+      const screenAngle = getEffectiveScreenAngle();
+      state.effectiveScreenAngle = screenAngle;
+      const quaternion = deviceOrientationQuaternion(Number(event.alpha || 0), Number(event.beta || 0), Number(event.gamma || 0), screenAngle);
+      state.currentQuaternion = quaternion;
+      if (!state.referenceQuaternion) state.referenceQuaternion = [...quaternion];
+      const relative = quatMultiply(quatConjugate(state.referenceQuaternion), quaternion);
+      const forward = rotateVectorByQuaternion([0, 0, -1], relative);
+      const yaw = Math.atan2(-forward[0], -forward[2]) * 180 / Math.PI;
+      const pitch = Math.asin(clamp(forward[1], -1, 1)) * 180 / Math.PI;
+      const now = performance.now();
+      if (state.lastOrientationTime) {
+        const dt = Math.max(0.001, (now - state.lastOrientationTime) / 1000);
+        const speed = Math.hypot(yaw - state.lastHeadYaw, pitch - state.lastHeadPitch) / dt;
+        if (speed > 85) state.motionSuppressUntil = now + 500;
+      }
+      state.lastOrientationTime = now;
+      state.lastHeadYaw = yaw;
+      state.lastHeadPitch = pitch;
+      state.headYaw = yaw;
+      state.headPitch = pitch;
+
+      if (Number.isFinite(event.webkitCompassHeading)) {
+        state.heading = normalizeDegrees(event.webkitCompassHeading);
+        state.headingAbsolute = true;
+      } else if (Number.isFinite(event.alpha)) {
+        state.heading = normalizeDegrees(360 - event.alpha);
+        state.headingAbsolute = Boolean(event.absolute);
+      }
+      updateHUD();
+
+    }
+
+    function getEffectiveScreenAngle() {
+      const viewportLandscape = window.innerWidth > window.innerHeight;
+      const screenAngleRaw = Number(screen.orientation?.angle);
+      const legacyAngle = Number(window.orientation);
+      const screenAngle = Number.isFinite(screenAngleRaw) ? normalizeDegrees(screenAngleRaw) : null;
+
+      /* Some Android WebViews keep reporting 0 degrees after fullscreen enters
+         landscape. Prefer the legacy value when it is useful, then force a
+         landscape quarter-turn as the final fallback. */
+      if (viewportLandscape) {
+        if (Number.isFinite(legacyAngle) && Math.abs(legacyAngle) === 90) return legacyAngle;
+        if (screenAngle === 90) return 90;
+        if (screenAngle === 270) return -90;
+        const orientationType = String(screen.orientation?.type || '');
+        return orientationType.includes('secondary') ? -90 : 90;
+      }
+
+      if (screenAngle === 180) return 180;
+      return 0;
+    }
+
+    function deviceOrientationQuaternion(alphaDeg, betaDeg, gammaDeg, screenDeg) {
+      const deg = Math.PI / 180;
+      const alpha = alphaDeg * deg;
+      const beta = betaDeg * deg;
+      const gamma = gammaDeg * deg;
+      const orient = screenDeg * deg;
+      const qEuler = quatFromEulerYXZ(beta, alpha, -gamma);
+      const qScreen = quatFromAxisAngle([0, 0, 1], -orient);
+      const qCamera = quatFromAxisAngle([1, 0, 0], -Math.PI / 2);
+      return quatNormalize(quatMultiply(quatMultiply(qEuler, qCamera), qScreen));
+    }
+
+    function quatFromEulerYXZ(x, y, z) {
+      const c1 = Math.cos(x / 2), c2 = Math.cos(y / 2), c3 = Math.cos(z / 2);
+      const s1 = Math.sin(x / 2), s2 = Math.sin(y / 2), s3 = Math.sin(z / 2);
+      return [
+        s1 * c2 * c3 + c1 * s2 * s3,
+        c1 * s2 * c3 - s1 * c2 * s3,
+        c1 * c2 * s3 - s1 * s2 * c3,
+        c1 * c2 * c3 + s1 * s2 * s3
+      ];
+    }
+
+    function quatFromAxisAngle(axis, angle) {
+      const half = angle / 2;
+      const s = Math.sin(half);
+      return [axis[0] * s, axis[1] * s, axis[2] * s, Math.cos(half)];
+    }
+
+    function quatMultiply(a, b) {
+      const ax = a[0], ay = a[1], az = a[2], aw = a[3];
+      const bx = b[0], by = b[1], bz = b[2], bw = b[3];
+      return [
+        ax * bw + aw * bx + ay * bz - az * by,
+        ay * bw + aw * by + az * bx - ax * bz,
+        az * bw + aw * bz + ax * by - ay * bx,
+        aw * bw - ax * bx - ay * by - az * bz
+      ];
+    }
+
+    function quatConjugate(q) { return [-q[0], -q[1], -q[2], q[3]]; }
+
+    function quatNormalize(q) {
+      const length = Math.hypot(q[0], q[1], q[2], q[3]) || 1;
+      return [q[0] / length, q[1] / length, q[2] / length, q[3] / length];
+    }
+
+    function rotateVectorByQuaternion(v, q) {
+      const qv = [v[0], v[1], v[2], 0];
+      const result = quatMultiply(quatMultiply(q, qv), quatConjugate(q));
+      return [result[0], result[1], result[2]];
+    }
+
+    function recenter() {
+      state.referenceQuaternion = [...state.currentQuaternion];
+      state.headYaw = 0;
+      state.headPitch = 0;
+      state.orbVisibility = 0;
+      closeMenu();
+      showToast('Head tracking recentered.');
+    }
+
+    function resetMenuAim(settleMs = 280) {
+      const now = performance.now();
+      state.menuAnchorYaw = state.headYaw;
+      state.menuAnchorPitch = state.headPitch;
+      state.menuSettleUntil = now + settleMs;
+      state.menuOffsetX = 0;
+      state.menuOffsetY = 0;
+      state.menuTargetOffsetX = 0;
+      state.menuTargetOffsetY = 0;
+      state.gazeX = 0.5;
+      state.gazeY = 0.5;
+      state.gazeTargetX = 0.5;
+      state.gazeTargetY = 0.5;
+      state.dwellTarget = null;
+      state.dwellStart = 0;
+      state.gazeLostAt = 0;
+      setMenuTranslation(0, 0);
+      setDwellProgress(0);
+      $$('.gaze-active').forEach(element => element.classList.remove('gaze-active'));
+    }
+
+    function setMenuTranslation(x, y) {
+      $$('.menu-card').forEach(card => {
+        card.style.setProperty('--menu-x', `${x.toFixed(2)}px`);
+        card.style.setProperty('--menu-y', `${y.toFixed(2)}px`);
+      });
+    }
+
+    function openMenu(page = 'main') {
+      state.menuOpen = true;
+      state.menuPage = page;
+      state.pointerFallback = !state.orientationAvailable;
+      state.dwellTarget = null;
+      state.dwellStart = 0;
+      state.gazeLostAt = 0;
+      $$('.menu-layer').forEach(layer => layer.classList.add('open'));
+      $$('.lens-safe').forEach(layer => layer.classList.add('menu-open'));
+      renderMenu(page, false);
+      resetMenuAim(420);
+    }
+
+    function closeMenu() {
+      state.menuOpen = false;
+      state.menuCloseTime = performance.now();
+      state.dwellTarget = null;
+      state.dwellStart = 0;
+      state.gazeLostAt = 0;
+      state.menuOffsetX = 0;
+      state.menuOffsetY = 0;
+      state.menuTargetOffsetX = 0;
+      state.menuTargetOffsetY = 0;
+      setMenuTranslation(0, 0);
+      $$('.menu-layer').forEach(layer => layer.classList.remove('open'));
+      $$('.lens-safe').forEach(layer => layer.classList.remove('menu-open'));
+      $$('.gaze-pointer').forEach(pointer => pointer.classList.remove('on-target'));
+      setDwellProgress(0);
+      $$('.gaze-active').forEach(element => element.classList.remove('gaze-active'));
+    }
+
+    function renderMenu(page, recenterAim = true) {
+      state.menuPage = page;
+      const html = menuMarkup(page);
+      $$('.menu-card').forEach(card => {
+        card.dataset.page = page;
+        card.innerHTML = html;
+      });
+      $$('.gaze-btn').forEach(button => button.addEventListener('click', event => {
+        event.stopPropagation();
+        activateAction(button.dataset.action || '', button.dataset.value || '');
+      }));
+      if (state.menuOpen && recenterAim) resetMenuAim(260);
+    }
+
+    function menuMarkup(page) {
+      if (page === 'calibration') return calibrationMenuMarkup();
+      if (page === 'effects') return effectsMenuMarkup();
+      if (page === 'camera') return cameraMenuMarkup();
+      if (page === 'controls') return controlsMenuMarkup();
+      if (page === 'more') return moreMenuMarkup();
+      const otherRole = state.activeRole === 'ultra' ? 'normal' : 'ultra';
+      const otherAvailable = Boolean(prefs.assignments[otherRole]);
+      return `
+        <div class="menu-title"><span>Copilot</span><small>look + hold</small></div>
+        <div class="gaze-grid basic-menu">
+          <button class="gaze-btn" data-action="mode-cycle">Vision<small>${escapeHtml(MODE_NAMES[prefs.mode])}</small></button>
+          <button class="gaze-btn" data-action="lens-switch" ${otherAvailable ? '' : 'disabled'}>Camera lens<small>${otherAvailable ? (otherRole === 'ultra' ? 'change to 0.5×' : 'change to 1×') : 'one lens assigned'}</small></button>
+          <button class="gaze-btn" data-action="fit-cycle">World view<small>${escapeHtml(FIT_NAMES[prefs.fit])}</small></button>
+          <button class="gaze-btn good" data-action="recenter">Face forward<small>recenter platform</small></button>
+          <button class="gaze-btn" data-action="more-page">System<small>camera · image · comfort</small></button>
+          <button class="gaze-btn" data-action="close-menu">Dismiss<small>return to camera world</small></button>
+        </div>`;
+    }
+
+    function moreMenuMarkup() {
+      return `
+        <div class="menu-title"><span>Copilot system</span><small>${prefs.dwellMs / 1000}s dwell</small></div>
+        <div class="gaze-grid">
+          <button class="gaze-btn" data-action="motion-cycle">Motion<small>${prefs.motion.enabled ? escapeHtml(prefs.motion.sensitivity) : 'off'}</small></button>
+          <button class="gaze-btn" data-action="quality-cycle">Performance<small>${escapeHtml(qualityDisplayName())}</small></button>
+          <button class="gaze-btn" data-action="controls-page">Gaze time<small>${prefs.dwellMs / 1000}s</small></button>
+          <button class="gaze-btn" data-action="effects-page">Image<small>gain · shadows</small></button>
+          <button class="gaze-btn" data-action="camera-page">Camera<small>supported controls</small></button>
+          <button class="gaze-btn" data-action="calibration-page">Alignment<small>advanced</small></button>
+          <button class="gaze-btn" data-action="main-page">Back</button>
+          <button class="gaze-btn danger" data-action="exit-visor">Exit visor</button>
+        </div>`;
+    }
+
+    function calibrationMenuMarkup() {
+      const c = prefs.calibration;
+      const row = (label, key, value, step) => `<div class="cal-row"><label>${label}</label><button class="gaze-btn" data-action="cal-adjust" data-value="${key}:${-step}">−</button><output>${value}</output><button class="gaze-btn" data-action="cal-adjust" data-value="${key}:${step}">+</button></div>`;
+      return `
+        <div class="menu-title"><span>Calibration</span><small>stays open</small></div>
+        <div class="cal-grid">
+          ${row('Left horizontal', 'leftX', `${c.leftX}px`, 1)}
+          ${row('Right horizontal', 'rightX', `${c.rightX}px`, 1)}
+          ${row('Both vertical', 'vertical', `${c.vertical}px`, 1)}
+          ${row('Lens center X', 'lensCenterX', c.lensCenterX.toFixed(3), 0.005)}
+          ${row('Lens center Y', 'lensCenterY', c.lensCenterY.toFixed(3), 0.005)}
+          ${row('Distortion', 'distortion', c.distortion.toFixed(3), 0.02)}
+        </div>
+        <div class="gaze-grid" style="margin-top:7px">
+          <button class="gaze-btn ${c.enabled ? 'warn' : ''}" data-action="distortion-toggle">Lens correction<small>${c.enabled ? 'enabled' : 'disabled'}</small></button>
+          <button class="gaze-btn danger" data-action="reset-alignment">Reset alignment<small>all values to zero</small></button>
+          <button class="gaze-btn wide" data-action="main-page">Back to menu</button>
+        </div>`;
+    }
+
+    function effectsMenuMarkup() {
+      const e = prefs.effects;
+      return `
+        <div class="menu-title"><span>Image controls</span><small>selection closes menu</small></div>
+        <div class="gaze-grid">
+          <button class="gaze-btn" data-action="effect-auto">Automatic gain<small>${e.autoGain ? 'on' : 'off'}</small></button>
+          <button class="gaze-btn" data-action="effect-adjust" data-value="gain:0.1">Digital gain +<small>${e.gain.toFixed(1)}×</small></button>
+          <button class="gaze-btn" data-action="effect-adjust" data-value="gain:-0.1">Digital gain −<small>${e.gain.toFixed(1)}×</small></button>
+          <button class="gaze-btn" data-action="effect-adjust" data-value="shadowBoost:0.1">Shadow boost +<small>${e.shadowBoost.toFixed(1)}</small></button>
+          <button class="gaze-btn" data-action="effect-adjust" data-value="highlightProtection:0.1">Highlight protect +<small>${e.highlightProtection.toFixed(1)}</small></button>
+          <button class="gaze-btn" data-action="effect-adjust" data-value="blackLevel:0.02">Black level +<small>${e.blackLevel.toFixed(2)}</small></button>
+          <button class="gaze-btn" data-action="effect-adjust" data-value="edgeStrength:0.2">Edge strength +<small>${e.edgeStrength.toFixed(1)}</small></button>
+          <button class="gaze-btn" data-action="effect-adjust" data-value="noiseReduction:0.1">Noise reduction +<small>${e.noiseReduction.toFixed(1)}</small></button>
+          <button class="gaze-btn" data-action="effects-reset">Reset image controls</button>
+          <button class="gaze-btn" data-action="main-page">Back</button>
+        </div>`;
+    }
+
+    function cameraMenuMarkup() {
+      const caps = state.activeCapabilities || {};
+      const settings = state.activeSettings || {};
+      const buttons = [];
+      if (Array.isArray(caps.torch) || caps.torch === true) buttons.push(`<button class="gaze-btn" data-action="cam-torch">Torch<small>${settings.torch ? 'on' : 'off'}</small></button>`);
+      if (caps.zoom) buttons.push(`<button class="gaze-btn" data-action="cam-zoom">Zoom step<small>${formatNumber(settings.zoom ?? caps.zoom.min, 2)}×</small></button>`);
+      if (Array.isArray(caps.focusMode) && caps.focusMode.length) buttons.push(`<button class="gaze-btn" data-action="cam-focus">Focus mode<small>${escapeHtml(settings.focusMode || caps.focusMode[0])}</small></button>`);
+      if (caps.exposureCompensation) buttons.push(`<button class="gaze-btn" data-action="cam-exposure">Exposure +<small>${formatNumber(settings.exposureCompensation ?? 0, 1)}</small></button>`);
+      if (Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.length) buttons.push(`<button class="gaze-btn" data-action="cam-whitebalance">White balance<small>${escapeHtml(settings.whiteBalanceMode || caps.whiteBalanceMode[0])}</small></button>`);
+      if (caps.frameRate) buttons.push(`<button class="gaze-btn" data-action="cam-fps">Frame rate<small>${formatNumber(settings.frameRate ?? 30, 0)} fps</small></button>`);
+      if (caps.width && caps.height) buttons.push(`<button class="gaze-btn" data-action="cam-resolution">Resolution<small>${settings.width || cameraVideo.videoWidth}×${settings.height || cameraVideo.videoHeight}</small></button>`);
+      if (!buttons.length) buttons.push('<button class="gaze-btn wide" disabled>No adjustable camera controls reported</button>');
+      return `
+        <div class="menu-title"><span>Camera capabilities</span><small>unsupported controls hidden</small></div>
+        <div class="gaze-grid">${buttons.join('')}<button class="gaze-btn wide" data-action="main-page">Back</button></div>`;
+    }
+
+    function controlsMenuMarkup() {
+      return `
+        <div class="menu-title"><span>Gaze controls</span><small>selection closes menu</small></div>
+        <div class="gaze-grid">
+          ${DWELL_VALUES.map(value => `<button class="gaze-btn ${prefs.dwellMs === value ? 'good' : ''}" data-action="dwell-set" data-value="${value}">${value / 1000}s dwell</button>`).join('')}
+          <button class="gaze-btn" data-action="motion-sensitivity" data-value="low">Motion low</button>
+          <button class="gaze-btn" data-action="motion-sensitivity" data-value="medium">Motion medium</button>
+          <button class="gaze-btn" data-action="motion-sensitivity" data-value="high">Motion high</button>
+          <button class="gaze-btn wide" data-action="main-page">Back</button>
+        </div>`;
+    }
+
+    function qualityDisplayName() {
+      return QUALITY_NAMES[['auto', 'battery', 'balanced', 'maximum'].indexOf(prefs.quality)] || 'Auto';
+    }
+
+    async function activateAction(action, value = '') {
+      if (!action) return;
+      const keepCalibrationOpen = state.menuPage === 'calibration';
+      switch (action) {
+        case 'open-copilot': openMenu('main'); break;
+        case 'mode-cycle':
+          prefs.mode = (prefs.mode + 1) % MODE_NAMES.length;
+          savePrefs(); updateHUD(); showToast(`Vision mode: ${MODE_NAMES[prefs.mode]}`); closeMenu(); break;
+        case 'lens-switch': {
+          const role = state.activeRole === 'ultra' ? 'normal' : 'ultra';
+          if (!prefs.assignments[role]) { showToast('That lens is not assigned.'); break; }
+          showToast(`Opening ${role === 'ultra' ? '0.5× assignment' : '1× assignment'}…`);
+          try { await openActiveCamera(role); showToast(`Camera switched. ${lensDisplayText()}`); } catch (error) { showToast(`Camera switch failed: ${error?.message || error}`); }
+          closeMenu();
+          break;
+        }
+        case 'fit-cycle':
+          prefs.fit = (prefs.fit + 1) % FIT_NAMES.length; savePrefs(); showToast(`Camera fit: ${FIT_NAMES[prefs.fit]}`); closeMenu(); break;
+        case 'motion-cycle': {
+          const sequence = ['off', 'low', 'medium', 'high'];
+          const current = prefs.motion.enabled ? prefs.motion.sensitivity : 'off';
+          const next = sequence[(sequence.indexOf(current) + 1) % sequence.length];
+          prefs.motion.enabled = next !== 'off';
+          if (next !== 'off') prefs.motion.sensitivity = next;
+          savePrefs(); showToast(`Motion detection: ${next}`); closeMenu(); break;
+        }
+        case 'quality-cycle': {
+          const sequence = ['auto', 'battery', 'balanced', 'maximum'];
+          prefs.quality = sequence[(sequence.indexOf(prefs.quality) + 1) % sequence.length];
+          savePrefs(); await queueStableResize(); showToast(`Performance: ${qualityDisplayName()}`); closeMenu(); break;
+        }
+        case 'more-page': renderMenu('more'); break;
+        case 'controls-page': renderMenu('controls'); break;
+        case 'effects-page': renderMenu('effects'); break;
+        case 'camera-page': renderMenu('camera'); break;
+        case 'calibration-page': renderMenu('calibration'); break;
+        case 'main-page': renderMenu('main'); break;
+        case 'recenter': recenter(); break;
+        case 'close-menu': closeMenu(); break;
+        case 'exit-visor': await exitVisor(); break;
+        case 'cal-adjust': {
+          const [key, delta] = value.split(':'); adjustCalibration(key, Number(delta)); break;
+        }
+        case 'distortion-toggle':
+          prefs.calibration.enabled = !prefs.calibration.enabled; savePrefs(); renderMenu('calibration'); showToast(`Lens correction ${prefs.calibration.enabled ? 'enabled' : 'disabled'}.`); break;
+        case 'reset-alignment': resetAlignment(); break;
+        case 'effect-auto':
+          prefs.effects.autoGain = !prefs.effects.autoGain; savePrefs(); showToast(`Automatic gain ${prefs.effects.autoGain ? 'on' : 'off'}.`); closeMenu(); break;
+        case 'effect-adjust': adjustEffect(value); closeMenu(); break;
+        case 'effects-reset': Object.assign(prefs.effects, structuredClone(defaultPrefs.effects)); savePrefs(); showToast('Image controls reset.'); closeMenu(); break;
+        case 'dwell-set': prefs.dwellMs = Number(value); savePrefs(); showToast(`Dwell time: ${prefs.dwellMs / 1000}s`); closeMenu(); break;
+        case 'motion-sensitivity': prefs.motion.enabled = true; prefs.motion.sensitivity = value; savePrefs(); showToast(`Motion sensitivity: ${value}`); closeMenu(); break;
+        case 'cam-torch': await toggleTorch(); closeMenu(); break;
+        case 'cam-zoom': await stepZoom(); closeMenu(); break;
+        case 'cam-focus': await cycleCameraEnum('focusMode'); closeMenu(); break;
+        case 'cam-exposure': await stepExposure(); closeMenu(); break;
+        case 'cam-whitebalance': await cycleCameraEnum('whiteBalanceMode'); closeMenu(); break;
+        case 'cam-fps': await cycleFrameRate(); closeMenu(); break;
+        case 'cam-resolution': await cycleResolution(); closeMenu(); break;
+        default:
+          if (!keepCalibrationOpen) closeMenu();
+      }
+    }
+
+    function adjustEffect(value) {
+      const [key, deltaText] = value.split(':');
+      const delta = Number(deltaText);
+      const e = prefs.effects;
+      const ranges = {
+        gain: [0.5, 3], shadowBoost: [0, 1], highlightProtection: [0, 1], blackLevel: [-0.2, 0.3], edgeStrength: [0.2, 3], noiseReduction: [0, 1]
+      };
+      if (!ranges[key]) return;
+      e[key] = clamp(Number((e[key] + delta).toFixed(2)), ranges[key][0], ranges[key][1]);
+      savePrefs();
+      showToast(`${key.replace(/[A-Z]/g, match => ` ${match.toLowerCase()}`)}: ${e[key]}`);
+    }
+
+    async function applyAdvancedConstraint(name, value) {
+      if (!state.activeTrack?.applyConstraints) throw new Error('Camera constraints are unavailable.');
+      await state.activeTrack.applyConstraints({ advanced: [{ [name]: value }] });
+      state.activeSettings = state.activeTrack.getSettings ? state.activeTrack.getSettings() : state.activeSettings;
+      updateHUD();
+    }
+
+    async function toggleTorch() {
+      try {
+        await applyAdvancedConstraint('torch', !Boolean(state.activeSettings.torch));
+        showToast(`Torch ${state.activeSettings.torch ? 'on' : 'off'}.`);
+      } catch (error) { showToast(`Torch unavailable: ${error?.message || error}`); }
+    }
+
+    async function stepZoom() {
+      const range = state.activeCapabilities.zoom;
+      if (!range) return;
+      const step = range.step || 0.1;
+      const current = Number(state.activeSettings.zoom ?? range.min);
+      let next = current + step;
+      if (next > range.max + 0.0001) next = range.min;
+      try { await applyAdvancedConstraint('zoom', clamp(next, range.min, range.max)); showToast(`Zoom: ${formatNumber(state.activeSettings.zoom, 2)}×`); }
+      catch (error) { showToast(`Zoom failed: ${error?.message || error}`); }
+    }
+
+    async function cycleCameraEnum(name) {
+      const values = state.activeCapabilities[name];
+      if (!Array.isArray(values) || !values.length) return;
+      const current = state.activeSettings[name];
+      const next = values[(Math.max(0, values.indexOf(current)) + 1) % values.length];
+      try { await applyAdvancedConstraint(name, next); showToast(`${name}: ${next}`); }
+      catch (error) { showToast(`${name} failed: ${error?.message || error}`); }
+    }
+
+    async function stepExposure() {
+      const range = state.activeCapabilities.exposureCompensation;
+      if (!range) return;
+      const step = range.step || 0.5;
+      const current = Number(state.activeSettings.exposureCompensation ?? 0);
+      let next = current + step;
+      if (next > range.max + 0.0001) next = range.min;
+      try { await applyAdvancedConstraint('exposureCompensation', clamp(next, range.min, range.max)); showToast(`Exposure compensation: ${formatNumber(state.activeSettings.exposureCompensation, 1)}`); }
+      catch (error) { showToast(`Exposure failed: ${error?.message || error}`); }
+    }
+
+    async function cycleFrameRate() {
+      const range = state.activeCapabilities.frameRate;
+      if (!range || !state.activeTrack) return;
+      const candidates = [15, 24, 30, 60].filter(value => value >= range.min && value <= range.max);
+      if (!candidates.length) return;
+      const current = Number(state.activeSettings.frameRate || 30);
+      const next = candidates.find(value => value > current + 1) || candidates[0];
+      try {
+        await state.activeTrack.applyConstraints({ frameRate: { ideal: next, max: next } });
+        state.activeSettings = state.activeTrack.getSettings();
+        showToast(`Frame rate: ${formatNumber(state.activeSettings.frameRate, 0)} fps`);
+      } catch (error) { showToast(`Frame rate change failed: ${error?.message || error}`); }
+    }
+
+    async function cycleResolution() {
+      if (!state.activeTrack) return;
+      const currentWidth = Number(state.activeSettings.width || cameraVideo.videoWidth || 1280);
+      const options = [{ width: 1280, height: 720 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }];
+      const next = options.find(option => option.width > currentWidth + 100) || options[0];
+      try {
+        await state.activeTrack.applyConstraints({ width: { ideal: next.width }, height: { ideal: next.height } });
+        state.activeSettings = state.activeTrack.getSettings();
+        showToast(`Camera resolution: ${state.activeSettings.width || cameraVideo.videoWidth}×${state.activeSettings.height || cameraVideo.videoHeight}`);
+      } catch (error) { showToast(`Resolution change failed: ${error?.message || error}`); }
+    }
+
+    function lensDisplayText() {
+      if (state.activeRole === 'ultra') {
+        if (state.ultraVerified) return 'LENS 0.5×';
+        return 'LENS ULTRA?';
+      }
+      return 'LENS 1×';
+    }
+
+    function updateHUD() {
+      $$('.hud-mode').forEach(element => { element.textContent = MODE_NAMES[prefs.mode].toUpperCase(); });
+      $$('.hud-lens').forEach(element => { element.textContent = lensDisplayText(); });
+      $$('.hud-camera').forEach(element => {
+        element.textContent = state.exactCameraVerified ? 'CAM VERIFIED' : state.activeTrack ? 'CAM ID UNVERIFIED' : 'CAM WAIT';
+        element.classList.toggle('ok', state.exactCameraVerified);
+        element.classList.toggle('warn', !state.exactCameraVerified);
+      });
+      const headingText = state.heading == null ? 'HDG —' : `${state.headingAbsolute ? 'HDG' : 'HDG~'} ${Math.round(state.heading).toString().padStart(3, '0')}°`;
+      $$('.hud-heading').forEach(element => { element.textContent = headingText; });
+    }
+
+    function updateWorldStage(now) {
+      /* The Copilot node exists at a fixed world direction: straight ahead and
+         about 28 degrees below the recentered horizon. Project that direction
+         into each eye viewport. It therefore enters view because the user looks
+         down—not because the UI slides upward on the page. */
+      const objectWorldYaw = 0;
+      const objectWorldPitch = -28;
+      const horizontalFov = 68;
+      const verticalFov = 54;
+      const relativeYaw = shortestAngleDelta(state.headYaw, objectWorldYaw);
+      const relativePitch = objectWorldPitch - state.headPitch;
+      const hDenom = 2 * Math.tan(horizontalFov * Math.PI / 360);
+      const vDenom = 2 * Math.tan(verticalFov * Math.PI / 360);
+      const projectedX = 0.5 + Math.tan(relativeYaw * Math.PI / 180) / hDenom;
+      const projectedY = 0.5 - Math.tan(relativePitch * Math.PI / 180) / vDenom;
+
+      const inFront = Math.abs(relativeYaw) < 64 && Math.abs(relativePitch) < 70;
+      const nearViewport = projectedX > -0.28 && projectedX < 1.28 && projectedY > -0.35 && projectedY < 1.34;
+      const visibilityTarget = !state.menuOpen && inFront && nearViewport && now - state.menuCloseTime > 650 ? 1 : 0;
+      state.orbVisibility = lerp(state.orbVisibility, visibilityTarget, visibilityTarget ? 0.18 : 0.28);
+
+      const centerDistance = Math.hypot(relativeYaw / 46, relativePitch / 42);
+      const objectScale = clamp(1.04 - centerDistance * 0.18, 0.72, 1.04);
+      const objectTilt = clamp(relativePitch * -0.28, -10, 12);
+      const objectLeft = projectedX * 100;
+      const objectTop = projectedY * 100;
+      const orbInteractive = state.orbVisibility > 0.16 && projectedX > -0.08 && projectedX < 1.08 && projectedY > -0.12 && projectedY < 1.16;
+
+      /* The observation deck behaves like a floor reference and becomes clearer
+         as the user looks down. It is not the menu and never blocks the camera. */
+      const downReveal = clamp((-state.headPitch - 2) / 24, 0, 1);
+      const worldX = clamp(-state.headYaw * 0.72, -22, 22);
+      const worldY = lerp(24, -18, downReveal);
+      $$('.world-stage').forEach(stage => {
+        stage.style.setProperty('--world-x', `${worldX.toFixed(2)}px`);
+        stage.style.setProperty('--world-y', `${worldY.toFixed(2)}px`);
+        stage.style.opacity = String((0.28 + downReveal * 0.68) * (state.menuOpen ? 0.35 : 1));
+      });
+
+      $$('.copilot-object').forEach(object => {
+        object.style.setProperty('--object-left', `${objectLeft.toFixed(3)}%`);
+        object.style.setProperty('--object-top', `${objectTop.toFixed(3)}%`);
+        object.style.setProperty('--object-scale', objectScale.toFixed(3));
+        object.style.setProperty('--object-opacity', state.orbVisibility.toFixed(3));
+        object.style.setProperty('--object-tilt', `${objectTilt.toFixed(2)}deg`);
+        object.classList.toggle('orb-visible', orbInteractive);
+      });
+      $$('.copilot-orb').forEach(orb => orb.classList.toggle('orb-visible', orbInteractive));
+      $$('.lens-safe').forEach(lens => lens.classList.toggle('orb-visible', orbInteractive));
+    }
+
+    function updateGaze(now) {
+      const leftLens = $('[data-eye-ui="left"] .lens-safe');
+      if (!leftLens) return;
+      const lensRect = leftLens.getBoundingClientRect();
+      const cursorCenterX = lensRect.left + lensRect.width * 0.5;
+      const cursorCenterY = lensRect.top + lensRect.height * 0.5;
+
+      let displayX = 0.5;
+      let displayY = 0.5;
+      let hitX = cursorCenterX;
+      let hitY = cursorCenterY;
+
+      if (state.menuOpen) {
+        if (state.pointerFallback) {
+          state.menuOffsetX = lerp(state.menuOffsetX, 0, 0.35);
+          state.menuOffsetY = lerp(state.menuOffsetY, 0, 0.35);
+          setMenuTranslation(state.menuOffsetX, state.menuOffsetY);
+          displayX = state.gazeX;
+          displayY = state.gazeY;
+          hitX = lensRect.left + displayX * lensRect.width;
+          hitY = lensRect.top + displayY * lensRect.height;
+        } else if (state.orientationAvailable) {
+          /* The panel is world-locked. The centered cursor behaves like The Hub:
+             head movement brings a control under the cursor. */
+          if (now < state.menuSettleUntil) {
+            state.menuAnchorYaw = state.headYaw;
+            state.menuAnchorPitch = state.headPitch;
+            state.menuTargetOffsetX = 0;
+            state.menuTargetOffsetY = 0;
+          } else {
+            const card = $('[data-eye-ui="left"] .menu-card');
+            const cardWidth = Math.max(1, card?.offsetWidth || 310);
+            const cardHeight = Math.max(1, card?.offsetHeight || 220);
+            const yawDelta = applyGazeDeadzone(shortestAngleDelta(state.menuAnchorYaw, state.headYaw), 0.38);
+            const pitchDelta = applyGazeDeadzone(state.headPitch - state.menuAnchorPitch, 0.38);
+            const maxOffsetX = Math.min(lensRect.width * 0.4, Math.max(52, cardWidth * 0.4));
+            const maxOffsetY = Math.min(lensRect.height * 0.42, Math.max(50, cardHeight * 0.42));
+            state.menuTargetOffsetX = clamp(-yawDelta * (maxOffsetX / 12), -maxOffsetX, maxOffsetX);
+            state.menuTargetOffsetY = clamp(pitchDelta * (maxOffsetY / 11), -maxOffsetY, maxOffsetY);
+          }
+          state.menuOffsetX = lerp(state.menuOffsetX, state.menuTargetOffsetX, now < state.menuSettleUntil ? 0.32 : 0.2);
+          state.menuOffsetY = lerp(state.menuOffsetY, state.menuTargetOffsetY, now < state.menuSettleUntil ? 0.32 : 0.2);
+          setMenuTranslation(state.menuOffsetX, state.menuOffsetY);
+        }
+      } else {
+        state.menuOffsetX = state.menuTargetOffsetX = 0;
+        state.menuOffsetY = state.menuTargetOffsetY = 0;
+        setMenuTranslation(0, 0);
+        if (state.pointerFallback) {
+          displayX = state.gazeX;
+          displayY = state.gazeY;
+          hitX = lensRect.left + displayX * lensRect.width;
+          hitY = lensRect.top + displayY * lensRect.height;
+        }
+      }
+
+      let target = null;
+      let candidates = [];
+      if (state.menuOpen && now >= state.menuSettleUntil) {
+        candidates = $$('[data-eye-ui="left"] .gaze-btn[data-action]').filter(button => !button.disabled);
+      } else if (!state.menuOpen && now - state.menuCloseTime > 650) {
+        candidates = $$('[data-eye-ui="left"] .copilot-orb.orb-visible[data-action]');
+      }
+
+      let bestDistance = Infinity;
+      for (const candidate of candidates) {
+        const rect = candidate.getBoundingClientRect();
+        const hitPadding = candidate.classList.contains('copilot-orb') ? 10 : 7;
+        const inside = hitX >= rect.left - hitPadding && hitX <= rect.right + hitPadding &&
+                       hitY >= rect.top - hitPadding && hitY <= rect.bottom + hitPadding;
+        if (!inside) continue;
+        const distance = Math.hypot(hitX - (rect.left + rect.right) * 0.5, hitY - (rect.top + rect.bottom) * 0.5);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          target = candidate;
+        }
+      }
+
+      if (!target && state.dwellTarget && candidates.length) {
+        const [action, value = ''] = state.dwellTarget.split('|');
+        const previous = candidates.find(candidate =>
+          (candidate.dataset.action || '') === action && (candidate.dataset.value || '') === value
+        );
+        if (previous) {
+          const rect = previous.getBoundingClientRect();
+          const stickyPadding = previous.classList.contains('copilot-orb') ? 17 : 15;
+          if (hitX >= rect.left - stickyPadding && hitX <= rect.right + stickyPadding &&
+              hitY >= rect.top - stickyPadding && hitY <= rect.bottom + stickyPadding) target = previous;
+        }
+      }
+
+      $$('.gaze-pointer').forEach(pointer => {
+        pointer.style.left = `${displayX * 100}%`;
+        pointer.style.top = `${displayY * 100}%`;
+        pointer.classList.toggle('on-target', Boolean(target));
+      });
+
+      if (now < state.dwellCooldownUntil || (state.menuOpen && now < state.menuSettleUntil)) {
+        state.dwellTarget = null;
+        state.dwellStart = 0;
+        state.gazeLostAt = 0;
+        setDwellProgress(0);
+        return;
+      }
+
+      $$('.gaze-active').forEach(active => active.classList.remove('gaze-active'));
+      if (target) {
+        const action = target.dataset.action || '';
+        const value = target.dataset.value || '';
+        const key = `${action}|${value}`;
+        $$('.gaze-btn, .copilot-orb').filter(element =>
+          element.dataset.action === action && (element.dataset.value || '') === value
+        ).forEach(element => element.classList.add('gaze-active'));
+
+        state.gazeLostAt = 0;
+        if (state.dwellTarget !== key) {
+          state.dwellTarget = key;
+          state.dwellStart = now;
+          setDwellProgress(0);
+        } else {
+          const duration = action === 'open-copilot' ? Math.min(900, prefs.dwellMs) : prefs.dwellMs;
+          const progress = clamp((now - state.dwellStart) / duration, 0, 1);
+          setDwellProgress(progress);
+          if (progress >= 1) {
+            state.dwellCooldownUntil = now + 650;
+            state.dwellTarget = null;
+            state.dwellStart = 0;
+            setDwellProgress(0);
+            activateAction(action, value);
+          }
+        }
+      } else if (state.dwellTarget) {
+        if (!state.gazeLostAt) state.gazeLostAt = now;
+        if (now - state.gazeLostAt <= 170) {
+          const progress = clamp((now - state.dwellStart) / prefs.dwellMs, 0, 1);
+          setDwellProgress(progress);
+        } else {
+          state.dwellTarget = null;
+          state.dwellStart = 0;
+          state.gazeLostAt = 0;
+          setDwellProgress(0);
+        }
+      } else {
+        state.dwellStart = 0;
+        state.gazeLostAt = 0;
+        setDwellProgress(0);
+      }
+    }
+
+    function shortestAngleDelta(from, to) {
+      return ((to - from + 540) % 360) - 180;
+    }
+
+    function applyGazeDeadzone(value, deadzone) {
+      if (Math.abs(value) <= deadzone) return 0;
+      return value - Math.sign(value) * deadzone;
+    }
+
+    function setDwellProgress(progress) {
+      const normalized = clamp(progress, 0, 1);
+      const degrees = `${Math.round(normalized * 360)}deg`;
+      const scale = (1 - normalized * 0.42).toFixed(3);
+      $$('.gaze-pointer').forEach(pointer => {
+        pointer.style.setProperty('--dwell-deg', degrees);
+        pointer.style.setProperty('--dwell-scale', scale);
+      });
+    }
+
+    async function exitVisor() {
+      state.running = false;
+      cancelAnimationFrame(state.animationHandle);
+      if (state.videoFrameHandle && cameraVideo.cancelVideoFrameCallback) cameraVideo.cancelVideoFrameCallback(state.videoFrameHandle);
+      stopStream(state.activeStream);
+      state.activeStream = null;
+      state.activeTrack = null;
+      cameraVideo.srcObject = null;
+      closeMenu();
+      visor.classList.remove('active');
+      setup.hidden = false;
+      showStep(5);
+      if (document.fullscreenElement) {
+        try { await document.exitFullscreen(); } catch {}
+      }
+      if (screen.orientation?.unlock) {
+        try { screen.orientation.unlock(); } catch {}
+      }
+      if (state.wakeLock) {
+        try { await state.wakeLock.release(); } catch {}
+        state.wakeLock = null;
+      }
+      updateHUD();
+    }
+
+    window.addEventListener('pointermove', event => {
+      if (!state.running || event.pointerType === 'touch') return;
+      state.pointerFallback = true;
+      const leftEye = $('[data-eye-ui="left"] .lens-safe');
+      const rect = leftEye.getBoundingClientRect();
+      state.gazeX = state.gazeTargetX = clamp((event.clientX - rect.left) / rect.width, 0.03, 0.97);
+      state.gazeY = state.gazeTargetY = clamp((event.clientY - rect.top) / rect.height, 0.03, 0.97);
+    });
+
+    $$('.copilot-orb').forEach(orb => orb.addEventListener('click', () => {
+      if (state.running) openMenu('main');
+    }));
+
+    window.addEventListener('keydown', event => {
+      if (!state.running) return;
+      if (event.key.toLowerCase() === 'm') state.menuOpen ? closeMenu() : openMenu('main');
+      if (event.key.toLowerCase() === 'r') recenter();
+      if (event.key === 'Escape' && state.menuOpen) closeMenu();
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+      if (state.running) queueStableResize();
+      if (!document.fullscreenElement && state.running) showToast('Fullscreen exited. The visor remains active until Exit is selected.');
+    });
+    function handleScreenOrientationChange() {
+      if (state.running) {
+        state.referenceQuaternion = null;
+        state.headYaw = 0;
+        state.headPitch = 0;
+        closeMenu();
+        showToast('Landscape tracking recalibrated. Face forward.');
+      }
+      queueStableResize();
+    }
+    window.addEventListener('orientationchange', handleScreenOrientationChange);
+    screen.orientation?.addEventListener?.('change', handleScreenOrientationChange);
+    window.visualViewport?.addEventListener('resize', queueStableResize);
+    window.visualViewport?.addEventListener('scroll', queueStableResize);
+    window.addEventListener('resize', queueStableResize);
+
+    if ('ResizeObserver' in window) {
+      const resizeObserver = new ResizeObserver(() => { if (state.running) queueStableResize(); });
+      resizeObserver.observe(visor);
+    }
+
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && state.running && !state.wakeLock) await requestWakeLock();
+    });
+
+    navigator.mediaDevices?.addEventListener?.('devicechange', async () => {
+      if (!state.running && state.permissionGranted) {
+        await enumerateAndProbeCameras();
+        showToast('Camera device list refreshed.');
+      }
+    });
+
+    updateSecureBadge();
+    updateSetupCalibrationOutputs();
+    updateAssignmentSummary();
+    runDiagnostics();
+    attachMotionListeners();
+  </script>
+</body>
+</html>
