@@ -394,31 +394,44 @@
       pointer-events: none;
     }
 
-    .menu-layer.open { display: grid; }
+    .menu-layer.open {
+      display: grid;
+      background: radial-gradient(circle at center, rgba(0, 12, 17, 0.08), rgba(0, 3, 5, 0.28));
+    }
 
     .menu-card {
-      width: min(94%, 460px);
-      max-height: 94%;
-      overflow: auto;
+      width: min(82%, 330px);
+      max-height: 78%;
+      overflow: hidden;
       border: 1px solid rgba(125, 235, 255, 0.72);
-      border-radius: 14px;
-      background: rgba(1, 10, 14, 0.86);
-      box-shadow: 0 0 34px rgba(63, 206, 228, 0.18);
-      padding: 10px;
+      border-radius: 12px;
+      background: rgba(1, 10, 14, 0.88);
+      box-shadow: 0 0 26px rgba(63, 206, 228, 0.16);
+      padding: 8px;
       pointer-events: auto;
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(10px);
+    }
+
+    .menu-card[data-page="more"],
+    .menu-card[data-page="effects"],
+    .menu-card[data-page="camera"],
+    .menu-card[data-page="controls"],
+    .menu-card[data-page="calibration"] {
+      width: min(90%, 400px);
+      max-height: 88%;
+      overflow: auto;
     }
 
     .menu-title {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
       color: var(--text);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      font-size: clamp(10px, 1.6vw, 14px);
-      margin: 0 2px 8px;
+      letter-spacing: 0.07em;
+      font-size: clamp(10px, 1.45vw, 13px);
+      margin: 0 2px 6px;
     }
 
     .menu-title small { color: var(--muted); font-size: 0.72em; letter-spacing: 0.03em; }
@@ -426,22 +439,26 @@
     .gaze-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 7px;
+      gap: 6px;
+    }
+
+    .gaze-grid.basic-menu .gaze-btn {
+      min-height: clamp(38px, 6.8vh, 46px);
     }
 
     .gaze-btn {
       border: 1px solid rgba(125, 235, 255, 0.3);
       background: rgba(8, 31, 39, 0.9);
       color: var(--text);
-      border-radius: 10px;
-      min-height: clamp(38px, 8vh, 52px);
-      padding: 7px 8px;
+      border-radius: 9px;
+      min-height: clamp(36px, 7vh, 46px);
+      padding: 5px 7px;
       text-align: center;
       font-weight: 800;
-      font-size: clamp(9px, 1.55vw, 13px);
-      letter-spacing: 0.025em;
+      font-size: clamp(9px, 1.42vw, 12px);
+      letter-spacing: 0.02em;
       cursor: pointer;
-      line-height: 1.15;
+      line-height: 1.12;
     }
 
     .gaze-btn small { display: block; color: var(--muted); font-weight: 600; margin-top: 3px; }
@@ -476,8 +493,8 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      width: 30px;
-      height: 30px;
+      width: 24px;
+      height: 24px;
       transform: translate(-50%, -50%);
       border-radius: 50%;
       background: conic-gradient(var(--accent) var(--dwell-deg), rgba(125, 239, 255, 0.12) 0deg);
@@ -485,7 +502,16 @@
       pointer-events: none;
       z-index: 20;
       opacity: 0.95;
+      transition: filter 100ms linear;
     }
+
+    .gaze-pointer.on-target {
+      filter: drop-shadow(0 0 8px rgba(151, 255, 226, 0.95));
+    }
+
+    .lens-safe.menu-open .center-reticle,
+    .lens-safe.menu-open .hud-strip,
+    .lens-safe.menu-open .motion-state { opacity: 0; }
 
     .gaze-pointer::before {
       content: "";
@@ -834,8 +860,11 @@
       menuAnchorYaw: 0,
       menuAnchorPitch: 0,
       menuCloseTime: 0,
+      menuSettleUntil: 0,
       gazeX: 0.5,
       gazeY: 0.5,
+      gazeTargetX: 0.5,
+      gazeTargetY: 0.5,
       pointerFallback: false,
       dwellTarget: null,
       dwellStart: 0,
@@ -1975,11 +2004,16 @@
       state.menuPage = page;
       state.menuAnchorYaw = state.headYaw;
       state.menuAnchorPitch = state.headPitch;
+      state.menuSettleUntil = performance.now() + 420;
       state.gazeX = 0.5;
       state.gazeY = 0.5;
+      state.gazeTargetX = 0.5;
+      state.gazeTargetY = 0.5;
+      state.pointerFallback = !state.orientationAvailable;
       state.dwellTarget = null;
       state.dwellStart = 0;
       $$('.menu-layer').forEach(layer => layer.classList.add('open'));
+      $$('.lens-safe').forEach(layer => layer.classList.add('menu-open'));
       renderMenu(page);
     }
 
@@ -1989,14 +2023,17 @@
       state.dwellTarget = null;
       state.dwellStart = 0;
       $$('.menu-layer').forEach(layer => layer.classList.remove('open'));
+      $$('.lens-safe').forEach(layer => layer.classList.remove('menu-open'));
+      $$('.gaze-pointer').forEach(pointer => pointer.classList.remove('on-target'));
       setDwellProgress(0);
       $$('.gaze-active').forEach(element => element.classList.remove('gaze-active'));
     }
 
     function renderMenu(page) {
       state.menuPage = page;
+      state.menuSettleUntil = performance.now() + 220;
       const html = menuMarkup(page);
-      $$('.menu-card').forEach(card => { card.innerHTML = html; });
+      $$('.menu-card').forEach(card => { card.dataset.page = page; card.innerHTML = html; });
       $$('.gaze-btn').forEach(button => button.addEventListener('click', event => {
         event.stopPropagation();
         activateAction(button.dataset.action || '', button.dataset.value || '');
@@ -2008,22 +2045,32 @@
       if (page === 'effects') return effectsMenuMarkup();
       if (page === 'camera') return cameraMenuMarkup();
       if (page === 'controls') return controlsMenuMarkup();
+      if (page === 'more') return moreMenuMarkup();
       const otherRole = state.activeRole === 'ultra' ? 'normal' : 'ultra';
       const otherAvailable = Boolean(prefs.assignments[otherRole]);
       return `
-        <div class="menu-title"><span>Observation menu</span><small>${prefs.dwellMs / 1000}s dwell</small></div>
+        <div class="menu-title"><span>Visor menu</span><small>look + hold</small></div>
+        <div class="gaze-grid basic-menu">
+          <button class="gaze-btn" data-action="mode-cycle">Vision<small>${escapeHtml(MODE_NAMES[prefs.mode])}</small></button>
+          <button class="gaze-btn" data-action="lens-switch" ${otherAvailable ? '' : 'disabled'}>Lens<small>${otherAvailable ? (otherRole === 'ultra' ? 'switch to 0.5×' : 'switch to 1×') : 'not assigned'}</small></button>
+          <button class="gaze-btn" data-action="fit-cycle">View<small>${escapeHtml(FIT_NAMES[prefs.fit])}</small></button>
+          <button class="gaze-btn good" data-action="recenter">Recenter<small>forward view</small></button>
+          <button class="gaze-btn" data-action="more-page">More<small>advanced settings</small></button>
+          <button class="gaze-btn" data-action="close-menu">Close</button>
+        </div>`;
+    }
+
+    function moreMenuMarkup() {
+      return `
+        <div class="menu-title"><span>More settings</span><small>${prefs.dwellMs / 1000}s dwell</small></div>
         <div class="gaze-grid">
-          <button class="gaze-btn" data-action="mode-cycle">Vision mode<small>${escapeHtml(MODE_NAMES[prefs.mode])}</small></button>
-          <button class="gaze-btn" data-action="lens-switch" ${otherAvailable ? '' : 'disabled'}>Switch lens<small>${otherAvailable ? (otherRole === 'ultra' ? '0.5× assignment' : '1× assignment') : 'not assigned'}</small></button>
-          <button class="gaze-btn" data-action="fit-cycle">Camera fit<small>${escapeHtml(FIT_NAMES[prefs.fit])}</small></button>
-          <button class="gaze-btn" data-action="motion-cycle">Motion detection<small>${prefs.motion.enabled ? escapeHtml(prefs.motion.sensitivity) : 'off'}</small></button>
+          <button class="gaze-btn" data-action="motion-cycle">Motion<small>${prefs.motion.enabled ? escapeHtml(prefs.motion.sensitivity) : 'off'}</small></button>
           <button class="gaze-btn" data-action="quality-cycle">Performance<small>${escapeHtml(qualityDisplayName())}</small></button>
-          <button class="gaze-btn" data-action="controls-page">Gaze controls<small>${prefs.dwellMs / 1000}s</small></button>
-          <button class="gaze-btn" data-action="effects-page">Image controls<small>gain · shadows · edges</small></button>
-          <button class="gaze-btn" data-action="camera-page">Camera controls<small>supported capabilities</small></button>
-          <button class="gaze-btn" data-action="calibration-page">Calibration<small>alignment · lens correction</small></button>
-          <button class="gaze-btn good" data-action="recenter">Recenter<small>set current view as forward</small></button>
-          <button class="gaze-btn" data-action="close-menu">Close menu</button>
+          <button class="gaze-btn" data-action="controls-page">Gaze time<small>${prefs.dwellMs / 1000}s</small></button>
+          <button class="gaze-btn" data-action="effects-page">Image<small>gain · shadows</small></button>
+          <button class="gaze-btn" data-action="camera-page">Camera<small>supported controls</small></button>
+          <button class="gaze-btn" data-action="calibration-page">Alignment<small>advanced</small></button>
+          <button class="gaze-btn" data-action="main-page">Back</button>
           <button class="gaze-btn danger" data-action="exit-visor">Exit visor</button>
         </div>`;
     }
@@ -2129,6 +2176,7 @@
           prefs.quality = sequence[(sequence.indexOf(prefs.quality) + 1) % sequence.length];
           savePrefs(); await queueStableResize(); showToast(`Performance: ${qualityDisplayName()}`); closeMenu(); break;
         }
+        case 'more-page': renderMenu('more'); break;
         case 'controls-page': renderMenu('controls'); break;
         case 'effects-page': renderMenu('effects'); break;
         case 'camera-page': renderMenu('camera'); break;
@@ -2266,35 +2314,77 @@
     }
 
     function updateGaze(now) {
+      const leftLens = $('[data-eye-ui="left"] .lens-safe');
+      const lensRect = leftLens.getBoundingClientRect();
+
       if (state.menuOpen) {
-        if (!state.pointerFallback && state.orientationAvailable) {
-          const yawDelta = state.headYaw - state.menuAnchorYaw;
-          const pitchDelta = state.headPitch - state.menuAnchorPitch;
-          state.gazeX = clamp(0.5 + yawDelta / 42, 0.08, 0.92);
-          state.gazeY = clamp(0.5 - pitchDelta / 34, 0.08, 0.92);
+        if (now < state.menuSettleUntil && !state.pointerFallback) {
+          state.menuAnchorYaw = state.headYaw;
+          state.menuAnchorPitch = state.headPitch;
+          state.gazeTargetX = 0.5;
+          state.gazeTargetY = 0.5;
+        } else if (!state.pointerFallback && state.orientationAvailable) {
+          const card = $('[data-eye-ui="left"] .menu-card');
+          const cardRect = card.getBoundingClientRect();
+          const yawDelta = applyGazeDeadzone(shortestAngleDelta(state.menuAnchorYaw, state.headYaw), 0.45);
+          const pitchDelta = applyGazeDeadzone(state.headPitch - state.menuAnchorPitch, 0.45);
+          const horizontal = clamp(0.5 + yawDelta / 24, 0, 1);
+          const vertical = clamp(0.5 - pitchDelta / 19, 0, 1);
+          const pad = 10;
+          const minX = clamp((cardRect.left - lensRect.left + pad) / lensRect.width, 0.04, 0.96);
+          const maxX = clamp((cardRect.right - lensRect.left - pad) / lensRect.width, 0.04, 0.96);
+          const minY = clamp((cardRect.top - lensRect.top + pad) / lensRect.height, 0.04, 0.96);
+          const maxY = clamp((cardRect.bottom - lensRect.top - pad) / lensRect.height, 0.04, 0.96);
+          state.gazeTargetX = lerp(minX, maxX, horizontal);
+          state.gazeTargetY = lerp(minY, maxY, vertical);
         }
+        state.gazeX = lerp(state.gazeX, state.gazeTargetX, 0.24);
+        state.gazeY = lerp(state.gazeY, state.gazeTargetY, 0.24);
       } else {
-        state.gazeX = 0.5;
-        state.gazeY = 0.5;
+        state.gazeX = state.gazeTargetX = 0.5;
+        state.gazeY = state.gazeTargetY = 0.5;
+      }
+
+      let displayX = state.gazeX;
+      let displayY = state.gazeY;
+      let target = null;
+
+      if (state.menuOpen && now >= state.menuSettleUntil) {
+        const x = lensRect.left + state.gazeX * lensRect.width;
+        const y = lensRect.top + state.gazeY * lensRect.height;
+        const buttons = $$('[data-eye-ui="left"] .gaze-btn[data-action]').filter(button => !button.disabled);
+        let bestDistance = Infinity;
+        for (const button of buttons) {
+          const rect = button.getBoundingClientRect();
+          const hitPadding = 12;
+          const inside = x >= rect.left - hitPadding && x <= rect.right + hitPadding && y >= rect.top - hitPadding && y <= rect.bottom + hitPadding;
+          if (!inside) continue;
+          const centerX = (rect.left + rect.right) * 0.5;
+          const centerY = (rect.top + rect.bottom) * 0.5;
+          const distance = Math.hypot(x - centerX, y - centerY);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            target = button;
+          }
+        }
+        if (target) {
+          const targetRect = target.getBoundingClientRect();
+          displayX = clamp(((targetRect.left + targetRect.right) * 0.5 - lensRect.left) / lensRect.width, 0.03, 0.97);
+          displayY = clamp(((targetRect.top + targetRect.bottom) * 0.5 - lensRect.top) / lensRect.height, 0.03, 0.97);
+        }
       }
 
       $$('.gaze-pointer').forEach(pointer => {
-        pointer.style.left = `${state.gazeX * 100}%`;
-        pointer.style.top = `${state.gazeY * 100}%`;
+        pointer.style.left = `${displayX * 100}%`;
+        pointer.style.top = `${displayY * 100}%`;
+        pointer.classList.toggle('on-target', Boolean(target));
       });
 
-      if (!state.menuOpen || now < state.dwellCooldownUntil) {
+      if (!state.menuOpen || now < state.menuSettleUntil || now < state.dwellCooldownUntil) {
         state.dwellTarget = null;
         setDwellProgress(0);
         return;
       }
-
-      const leftEye = $('[data-eye-ui="left"] .lens-safe');
-      const rect = leftEye.getBoundingClientRect();
-      const x = rect.left + state.gazeX * rect.width;
-      const y = rect.top + state.gazeY * rect.height;
-      const element = document.elementFromPoint(x, y)?.closest?.('.gaze-btn[data-action]');
-      const target = element && !element.disabled ? element : null;
 
       $$('.gaze-active').forEach(active => active.classList.remove('gaze-active'));
       if (target) {
@@ -2310,7 +2400,7 @@
           const progress = clamp((now - state.dwellStart) / prefs.dwellMs, 0, 1);
           setDwellProgress(progress);
           if (progress >= 1) {
-            state.dwellCooldownUntil = now + 700;
+            state.dwellCooldownUntil = now + 650;
             state.dwellTarget = null;
             setDwellProgress(0);
             activateAction(action, value);
@@ -2321,6 +2411,15 @@
         state.dwellStart = 0;
         setDwellProgress(0);
       }
+    }
+
+    function shortestAngleDelta(from, to) {
+      return ((to - from + 540) % 360) - 180;
+    }
+
+    function applyGazeDeadzone(value, deadzone) {
+      if (Math.abs(value) <= deadzone) return 0;
+      return value - Math.sign(value) * deadzone;
     }
 
     function setDwellProgress(progress) {
@@ -2358,8 +2457,8 @@
       state.pointerFallback = true;
       const leftEye = $('[data-eye-ui="left"] .lens-safe');
       const rect = leftEye.getBoundingClientRect();
-      state.gazeX = clamp((event.clientX - rect.left) / rect.width, 0.03, 0.97);
-      state.gazeY = clamp((event.clientY - rect.top) / rect.height, 0.03, 0.97);
+      state.gazeX = state.gazeTargetX = clamp((event.clientX - rect.left) / rect.width, 0.03, 0.97);
+      state.gazeY = state.gazeTargetY = clamp((event.clientY - rect.top) / rect.height, 0.03, 0.97);
     });
 
     window.addEventListener('keydown', event => {
