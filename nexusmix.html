@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080b">
-  <title>Cardboard Camera Observation Visor</title>
+  <title>Cardboard Camera Copilot Platform</title>
   <style>
     :root {
       color-scheme: dark;
@@ -344,15 +344,15 @@
       position: absolute;
       left: 50%;
       top: 0;
-      width: min(94%, 440px);
+      width: min(70%, 250px);
       transform: translateX(-50%);
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 5px 10px;
-      border: 1px solid rgba(125, 235, 255, 0.34);
-      background: rgba(0, 8, 12, 0.48);
-      border-radius: 10px;
-      padding: 7px 10px;
+      gap: 3px 8px;
+      border: 1px solid rgba(125, 235, 255, 0.22);
+      background: rgba(0, 8, 12, 0.3);
+      border-radius: 999px;
+      padding: 5px 10px;
       color: var(--text);
       font-size: clamp(9px, 1.55vw, 14px);
       line-height: 1.15;
@@ -373,7 +373,8 @@
       width: 22px;
       height: 22px;
       transform: translate(-50%, -50%);
-      opacity: 0.72;
+      opacity: 0;
+      display: none;
     }
 
     .center-reticle::before, .center-reticle::after {
@@ -386,32 +387,171 @@
     .center-reticle::before { width: 1px; height: 22px; left: 10px; top: 0; }
     .center-reticle::after { width: 22px; height: 1px; left: 0; top: 10px; }
 
+    /* A lightweight world-space cockpit. The camera stays the full background;
+       these elements occupy only the lower visual field. */
+    .world-stage {
+      --world-x: 0px;
+      --world-y: 0px;
+      position: absolute;
+      inset: -8%;
+      overflow: hidden;
+      pointer-events: none;
+      transform: translate3d(var(--world-x), var(--world-y), 0);
+      transform-origin: 50% 72%;
+      will-change: transform;
+      transition: opacity 180ms linear;
+      z-index: 2;
+    }
+
+    .world-horizon {
+      position: absolute;
+      left: 2%;
+      right: 2%;
+      top: 63%;
+      height: 18%;
+      border-top: 1px solid rgba(125, 239, 255, 0.42);
+      border-radius: 50% 50% 0 0;
+      opacity: 0.7;
+      box-shadow: 0 -7px 28px rgba(60, 205, 230, 0.08);
+    }
+
+    .world-horizon::before,
+    .world-horizon::after {
+      content: "";
+      position: absolute;
+      top: -1px;
+      width: 22%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(125, 239, 255, 0.86));
+    }
+
+    .world-horizon::before { left: 2%; }
+    .world-horizon::after { right: 2%; transform: scaleX(-1); }
+
+    .platform-deck {
+      position: absolute;
+      left: 7%;
+      right: 7%;
+      bottom: -14%;
+      height: 39%;
+      clip-path: polygon(17% 0, 83% 0, 100% 100%, 0 100%);
+      border-top: 1px solid rgba(138, 242, 255, 0.56);
+      background:
+        linear-gradient(90deg, transparent 49.5%, rgba(125, 239, 255, 0.16) 50%, transparent 50.5%),
+        repeating-linear-gradient(90deg, transparent 0 11%, rgba(125, 239, 255, 0.07) 11.5% 12%),
+        repeating-linear-gradient(0deg, transparent 0 18%, rgba(125, 239, 255, 0.07) 18.5% 19%),
+        linear-gradient(180deg, rgba(2, 16, 22, 0.16), rgba(1, 9, 13, 0.76));
+      box-shadow: inset 0 16px 42px rgba(75, 218, 239, 0.08), 0 -12px 40px rgba(0, 0, 0, 0.32);
+      opacity: 0.92;
+    }
+
+    .platform-deck::before,
+    .platform-deck::after {
+      content: "";
+      position: absolute;
+      top: 2%;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(rgba(125, 239, 255, 0.6), transparent 72%);
+    }
+
+    .platform-deck::before { left: 17%; }
+    .platform-deck::after { right: 17%; }
+
+    .platform-caption {
+      position: absolute;
+      left: 50%;
+      bottom: 5.5%;
+      transform: translateX(-50%);
+      color: rgba(181, 241, 249, 0.58);
+      font-size: clamp(7px, 1.05vw, 10px);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      text-shadow: 0 1px 5px #000;
+    }
+
+    .copilot-orb {
+      --orb-left: 50%;
+      --orb-top: 91%;
+      --orb-scale: 0.78;
+      position: absolute;
+      left: var(--orb-left);
+      top: var(--orb-top);
+      width: clamp(42px, 7.4vh, 60px);
+      aspect-ratio: 1;
+      transform: translate(-50%, -50%) scale(var(--orb-scale));
+      border: 1px solid rgba(174, 252, 255, 0.92);
+      border-radius: 50%;
+      padding: 0;
+      background:
+        radial-gradient(circle at 37% 31%, rgba(255,255,255,0.98) 0 4%, rgba(142, 246, 255, 0.82) 8%, rgba(34, 178, 218, 0.38) 30%, rgba(1, 18, 27, 0.9) 69%),
+        conic-gradient(from 45deg, #7defff, #4d79ff, #80ffd6, #7defff);
+      box-shadow: 0 0 12px rgba(125, 239, 255, 0.75), 0 0 36px rgba(70, 176, 255, 0.32);
+      opacity: 0;
+      pointer-events: none;
+      will-change: left, top, opacity, transform;
+      transition: opacity 120ms linear, filter 120ms linear;
+      z-index: 12;
+    }
+
+    .copilot-orb::before {
+      content: "";
+      position: absolute;
+      inset: -9px;
+      border: 1px solid rgba(125, 239, 255, 0.28);
+      border-radius: 50%;
+      animation: copilotPulse 1800ms ease-in-out infinite;
+    }
+
+    .copilot-orb::after {
+      content: "COPILOT";
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 12px);
+      transform: translateX(-50%);
+      color: rgba(220, 252, 255, 0.9);
+      font-size: clamp(7px, 1.05vw, 10px);
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-shadow: 0 1px 5px #000;
+      white-space: nowrap;
+    }
+
+    .copilot-orb.orb-visible { opacity: 0.96; }
+    .copilot-orb.gaze-active { filter: brightness(1.38) drop-shadow(0 0 10px rgba(181,255,237,0.95)); }
+
+    @keyframes copilotPulse {
+      0%, 100% { transform: scale(0.92); opacity: 0.45; }
+      50% { transform: scale(1.14); opacity: 0.9; }
+    }
+
     .menu-layer {
       position: absolute;
       inset: 0;
       display: none;
       place-items: center;
       pointer-events: none;
+      z-index: 10;
     }
 
-    .menu-layer.open {
-      display: grid;
-      background: radial-gradient(circle at center, rgba(0, 12, 17, 0.08), rgba(0, 3, 5, 0.28));
-    }
+    .menu-layer.open { display: grid; }
 
     .menu-card {
       --menu-x: 0px;
       --menu-y: 0px;
-      width: min(82%, 330px);
-      max-height: 78%;
+      width: min(76%, 310px);
+      max-height: 74%;
       overflow: hidden;
-      border: 1px solid rgba(125, 235, 255, 0.72);
-      border-radius: 12px;
-      background: rgba(1, 10, 14, 0.88);
-      box-shadow: 0 0 26px rgba(63, 206, 228, 0.16);
-      padding: 8px;
+      border: 1px solid rgba(154, 244, 255, 0.7);
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(58, 166, 202, 0.17), transparent 46%),
+        rgba(2, 12, 18, 0.82);
+      box-shadow: 0 18px 46px rgba(0, 0, 0, 0.44), 0 0 28px rgba(63, 206, 228, 0.12);
+      padding: 10px;
       pointer-events: auto;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(13px);
       transform: translate3d(var(--menu-x), var(--menu-y), 0);
       transform-origin: center center;
       will-change: transform;
@@ -422,24 +562,34 @@
     .menu-card[data-page="camera"],
     .menu-card[data-page="controls"],
     .menu-card[data-page="calibration"] {
-      width: min(90%, 400px);
-      max-height: 88%;
+      width: min(86%, 360px);
+      max-height: 82%;
       overflow: auto;
     }
 
     .menu-title {
-      display: flex;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
       align-items: center;
-      justify-content: space-between;
       gap: 8px;
       color: var(--text);
       text-transform: uppercase;
       letter-spacing: 0.07em;
       font-size: clamp(10px, 1.45vw, 13px);
-      margin: 0 2px 6px;
+      margin: 1px 3px 9px;
     }
 
-    .menu-title small { color: var(--muted); font-size: 0.72em; letter-spacing: 0.03em; }
+    .menu-title::before {
+      content: "";
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid rgba(182, 251, 255, 0.9);
+      background: radial-gradient(circle at 35% 30%, #fff 0 5%, #7defff 12%, #226e9a 48%, #06131d 72%);
+      box-shadow: 0 0 11px rgba(125, 239, 255, 0.58);
+    }
+
+    .menu-title small { color: var(--muted); font-size: 0.7em; letter-spacing: 0.03em; }
 
     .gaze-grid {
       display: grid;
@@ -448,15 +598,15 @@
     }
 
     .gaze-grid.basic-menu .gaze-btn {
-      min-height: clamp(38px, 6.8vh, 46px);
+      min-height: clamp(44px, 8vh, 56px);
     }
 
     .gaze-btn {
       border: 1px solid rgba(125, 235, 255, 0.3);
       background: rgba(8, 31, 39, 0.9);
       color: var(--text);
-      border-radius: 9px;
-      min-height: clamp(36px, 7vh, 46px);
+      border-radius: 14px;
+      min-height: clamp(38px, 7vh, 48px);
       padding: 5px 7px;
       text-align: center;
       font-weight: 800;
@@ -520,6 +670,10 @@
     .lens-safe.menu-open .hud-strip,
     .lens-safe.menu-open .motion-state { opacity: 0; }
 
+    .lens-safe.menu-open .world-stage { opacity: 0.32; }
+    .lens-safe:not(.menu-open):not(.orb-visible) .gaze-pointer { opacity: 0.22; }
+    .lens-safe.orb-visible .gaze-pointer { opacity: 0.92; }
+
     .gaze-pointer::before {
       content: "";
       position: absolute;
@@ -544,7 +698,7 @@
     .motion-state {
       position: absolute;
       left: 50%;
-      bottom: 1%;
+      bottom: 17%;
       transform: translateX(-50%);
       color: var(--warn);
       font-size: clamp(9px, 1.45vw, 12px);
@@ -621,8 +775,8 @@
     <div class="setup-wrap">
       <div class="brand-row">
         <div class="brand">
-          <h1>Cardboard Camera Observation Visor</h1>
-          <p>A touch-free, dual-eye camera viewer with natural image proportions, verified camera selection, optional observation filters, and zero default lens distortion.</p>
+          <h1>Cardboard Camera Copilot Platform</h1>
+          <p>A landscape-first Cardboard observation space with a live rear-camera world, a floating platform, and a gaze-operated Copilot orb.</p>
         </div>
         <div id="secureBadge" class="secure-badge">Checking secure context…</div>
       </div>
@@ -712,11 +866,11 @@
 
         <div class="step-panel" data-panel="5">
           <h2>Step 5 — Launch visor</h2>
-          <p>The app requests fullscreen, attempts a landscape lock, opens the assigned camera by exact device ID, waits for the fullscreen viewport to stabilize, and then starts the two-eye renderer.</p>
+          <p>The app requests fullscreen, locks landscape, corrects Android screen-angle reporting, opens the assigned camera by exact device ID, and starts the two-eye camera platform.</p>
           <div class="launch-box">
             <div>
               <h3>Place the phone in landscape</h3>
-              <p>After launch, look downward to open the gaze menu. Like The Hub cursor, the circular point stays centered: move your head until a control passes beneath it, then hold to activate. Desktop fallback: press M, move the mouse to aim, and click or dwell.</p>
+              <p>After launch, the camera becomes the world around the platform. Look down until the Copilot orb rises beneath the centered circle, then hold your gaze to open the compact control panel. Desktop fallback: press M or use the mouse.</p>
               <button id="launchBtn" class="btn primary">Launch fullscreen visor</button>
               <div id="launchStatus" class="status-line"></div>
             </div>
@@ -734,6 +888,12 @@
     <div class="stereo-ui">
       <div class="eye-ui" data-eye-ui="left">
         <div class="lens-safe">
+          <div class="world-stage" aria-hidden="true">
+            <div class="world-horizon"></div>
+            <div class="platform-deck"></div>
+            <div class="platform-caption">Observation platform · camera world</div>
+            <button class="copilot-orb" data-action="open-copilot" aria-label="Open Copilot menu"></button>
+          </div>
           <div class="hud-strip">
             <span class="hud-mode">NORMAL</span><span class="hud-lens">LENS —</span>
             <span class="hud-camera warn">CAM WAIT</span><span class="hud-heading">HDG —</span>
@@ -746,6 +906,12 @@
       </div>
       <div class="eye-ui" data-eye-ui="right">
         <div class="lens-safe">
+          <div class="world-stage" aria-hidden="true">
+            <div class="world-horizon"></div>
+            <div class="platform-deck"></div>
+            <div class="platform-caption">Observation platform · camera world</div>
+            <button class="copilot-orb" data-action="open-copilot" aria-label="Open Copilot menu"></button>
+          </div>
           <div class="hud-strip">
             <span class="hud-mode">NORMAL</span><span class="hud-lens">LENS —</span>
             <span class="hud-camera warn">CAM WAIT</span><span class="hud-heading">HDG —</span>
@@ -857,6 +1023,8 @@
       referenceQuaternion: null,
       headYaw: 0,
       headPitch: 0,
+      effectiveScreenAngle: 0,
+      orbVisibility: 0,
       lastOrientationTime: 0,
       lastHeadYaw: 0,
       lastHeadPitch: 0,
@@ -1340,7 +1508,12 @@
         attachMotionListeners();
         startVideoFramePump();
         state.running = true;
-        state.referenceQuaternion = [...state.currentQuaternion];
+        /* Re-anchor on the first sensor event after landscape/fullscreen settles.
+           This prevents a portrait sample from becoming the landscape reference. */
+        state.referenceQuaternion = null;
+        state.headYaw = 0;
+        state.headPitch = 0;
+        state.menuCloseTime = performance.now();
         updateHUD();
         state.animationHandle = requestAnimationFrame(renderLoop);
         setStatus(status, 'Visor launched.', 'good');
@@ -1787,6 +1960,7 @@
       renderEye(true, 0, bufferMidpoint, eyeCssWidth, cssHeight);
       renderEye(false, bufferMidpoint, state.bufferWidth - bufferMidpoint, eyeCssWidth, cssHeight);
 
+      updateWorldStage(now);
       updateGaze(now);
       updateMotionIndicator(now);
       state.animationHandle = requestAnimationFrame(renderLoop);
@@ -1918,7 +2092,8 @@
     function onDeviceOrientation(event) {
       if (event.alpha == null && event.beta == null && event.gamma == null) return;
       state.orientationAvailable = true;
-      const screenAngle = Number(screen.orientation?.angle ?? window.orientation ?? 0);
+      const screenAngle = getEffectiveScreenAngle();
+      state.effectiveScreenAngle = screenAngle;
       const quaternion = deviceOrientationQuaternion(Number(event.alpha || 0), Number(event.beta || 0), Number(event.gamma || 0), screenAngle);
       state.currentQuaternion = quaternion;
       if (!state.referenceQuaternion) state.referenceQuaternion = [...quaternion];
@@ -1947,7 +2122,27 @@
       }
       updateHUD();
 
-      if (state.running && !state.menuOpen && pitch < -18 && now - state.menuCloseTime > 900) openMenu('main');
+    }
+
+    function getEffectiveScreenAngle() {
+      const viewportLandscape = window.innerWidth > window.innerHeight;
+      const screenAngleRaw = Number(screen.orientation?.angle);
+      const legacyAngle = Number(window.orientation);
+      const screenAngle = Number.isFinite(screenAngleRaw) ? normalizeDegrees(screenAngleRaw) : null;
+
+      /* Some Android WebViews keep reporting 0 degrees after fullscreen enters
+         landscape. Prefer the legacy value when it is useful, then force a
+         landscape quarter-turn as the final fallback. */
+      if (viewportLandscape) {
+        if (Number.isFinite(legacyAngle) && Math.abs(legacyAngle) === 90) return legacyAngle;
+        if (screenAngle === 90) return 90;
+        if (screenAngle === 270) return -90;
+        const orientationType = String(screen.orientation?.type || '');
+        return orientationType.includes('secondary') ? -90 : 90;
+      }
+
+      if (screenAngle === 180) return 180;
+      return 0;
     }
 
     function deviceOrientationQuaternion(alphaDeg, betaDeg, gammaDeg, screenDeg) {
@@ -2007,6 +2202,7 @@
       state.referenceQuaternion = [...state.currentQuaternion];
       state.headYaw = 0;
       state.headPitch = 0;
+      state.orbVisibility = 0;
       closeMenu();
       showToast('Head tracking recentered.');
     }
@@ -2093,20 +2289,20 @@
       const otherRole = state.activeRole === 'ultra' ? 'normal' : 'ultra';
       const otherAvailable = Boolean(prefs.assignments[otherRole]);
       return `
-        <div class="menu-title"><span>Visor menu</span><small>look + hold</small></div>
+        <div class="menu-title"><span>Copilot</span><small>look + hold</small></div>
         <div class="gaze-grid basic-menu">
           <button class="gaze-btn" data-action="mode-cycle">Vision<small>${escapeHtml(MODE_NAMES[prefs.mode])}</small></button>
-          <button class="gaze-btn" data-action="lens-switch" ${otherAvailable ? '' : 'disabled'}>Lens<small>${otherAvailable ? (otherRole === 'ultra' ? 'switch to 0.5×' : 'switch to 1×') : 'not assigned'}</small></button>
-          <button class="gaze-btn" data-action="fit-cycle">View<small>${escapeHtml(FIT_NAMES[prefs.fit])}</small></button>
-          <button class="gaze-btn good" data-action="recenter">Recenter<small>forward view</small></button>
-          <button class="gaze-btn" data-action="more-page">More<small>advanced settings</small></button>
-          <button class="gaze-btn" data-action="close-menu">Close</button>
+          <button class="gaze-btn" data-action="lens-switch" ${otherAvailable ? '' : 'disabled'}>Camera lens<small>${otherAvailable ? (otherRole === 'ultra' ? 'change to 0.5×' : 'change to 1×') : 'one lens assigned'}</small></button>
+          <button class="gaze-btn" data-action="fit-cycle">World view<small>${escapeHtml(FIT_NAMES[prefs.fit])}</small></button>
+          <button class="gaze-btn good" data-action="recenter">Face forward<small>recenter platform</small></button>
+          <button class="gaze-btn" data-action="more-page">System<small>camera · image · comfort</small></button>
+          <button class="gaze-btn" data-action="close-menu">Dismiss<small>return to camera world</small></button>
         </div>`;
     }
 
     function moreMenuMarkup() {
       return `
-        <div class="menu-title"><span>More settings</span><small>${prefs.dwellMs / 1000}s dwell</small></div>
+        <div class="menu-title"><span>Copilot system</span><small>${prefs.dwellMs / 1000}s dwell</small></div>
         <div class="gaze-grid">
           <button class="gaze-btn" data-action="motion-cycle">Motion<small>${prefs.motion.enabled ? escapeHtml(prefs.motion.sensitivity) : 'off'}</small></button>
           <button class="gaze-btn" data-action="quality-cycle">Performance<small>${escapeHtml(qualityDisplayName())}</small></button>
@@ -2194,6 +2390,7 @@
       if (!action) return;
       const keepCalibrationOpen = state.menuPage === 'calibration';
       switch (action) {
+        case 'open-copilot': openMenu('main'); break;
         case 'mode-cycle':
           prefs.mode = (prefs.mode + 1) % MODE_NAMES.length;
           savePrefs(); updateHUD(); showToast(`Vision mode: ${MODE_NAMES[prefs.mode]}`); closeMenu(); break;
@@ -2357,6 +2554,30 @@
       $$('.hud-heading').forEach(element => { element.textContent = headingText; });
     }
 
+    function updateWorldStage(now) {
+      const downAmount = state.pointerFallback ? 0 : clamp((-state.headPitch - 3) / 24, 0, 1);
+      state.orbVisibility = lerp(state.orbVisibility, state.menuOpen ? 0 : downAmount, 0.2);
+
+      const worldX = clamp(-state.headYaw * 1.35, -34, 34);
+      const worldY = clamp(state.headPitch * 0.72, -24, 18);
+      const orbLeft = clamp(50 - state.headYaw * 1.5, 24, 76);
+      const orbTop = clamp(91 - state.orbVisibility * 41, 48, 94);
+      const orbScale = 0.72 + state.orbVisibility * 0.3;
+      const orbVisible = !state.menuOpen && state.orbVisibility > 0.08 && performance.now() - state.menuCloseTime > 650;
+
+      $$('.world-stage').forEach(stage => {
+        stage.style.setProperty('--world-x', `${worldX.toFixed(2)}px`);
+        stage.style.setProperty('--world-y', `${worldY.toFixed(2)}px`);
+      });
+      $$('.copilot-orb').forEach(orb => {
+        orb.style.setProperty('--orb-left', `${orbLeft.toFixed(2)}%`);
+        orb.style.setProperty('--orb-top', `${orbTop.toFixed(2)}%`);
+        orb.style.setProperty('--orb-scale', orbScale.toFixed(3));
+        orb.classList.toggle('orb-visible', orbVisible);
+      });
+      $$('.lens-safe').forEach(lens => lens.classList.toggle('orb-visible', orbVisible));
+    }
+
     function updateGaze(now) {
       const leftLens = $('[data-eye-ui="left"] .lens-safe');
       if (!leftLens) return;
@@ -2371,7 +2592,6 @@
 
       if (state.menuOpen) {
         if (state.pointerFallback) {
-          /* Desktop fallback: the mouse moves the cursor while the menu stays centered. */
           state.menuOffsetX = lerp(state.menuOffsetX, 0, 0.35);
           state.menuOffsetY = lerp(state.menuOffsetY, 0, 0.35);
           setMenuTranslation(state.menuOffsetX, state.menuOffsetY);
@@ -2380,7 +2600,8 @@
           hitX = lensRect.left + displayX * lensRect.width;
           hitY = lensRect.top + displayY * lensRect.height;
         } else if (state.orientationAvailable) {
-          /* Hub-style gaze: cursor stays centered and the world-locked menu moves under it. */
+          /* The panel is world-locked. The centered cursor behaves like The Hub:
+             head movement brings a control under the cursor. */
           if (now < state.menuSettleUntil) {
             state.menuAnchorYaw = state.headYaw;
             state.menuAnchorPitch = state.headPitch;
@@ -2388,67 +2609,63 @@
             state.menuTargetOffsetY = 0;
           } else {
             const card = $('[data-eye-ui="left"] .menu-card');
-            const cardWidth = Math.max(1, card?.offsetWidth || 320);
+            const cardWidth = Math.max(1, card?.offsetWidth || 310);
             const cardHeight = Math.max(1, card?.offsetHeight || 220);
-            const yawDelta = applyGazeDeadzone(shortestAngleDelta(state.menuAnchorYaw, state.headYaw), 0.35);
-            const pitchDelta = applyGazeDeadzone(state.headPitch - state.menuAnchorPitch, 0.35);
-
-            const maxOffsetX = Math.min(lensRect.width * 0.39, Math.max(48, cardWidth * 0.36));
-            const maxOffsetY = Math.min(lensRect.height * 0.44, Math.max(54, cardHeight * 0.46));
-            const horizontalDegrees = 11;
-            const verticalDegrees = 10;
-
-            state.menuTargetOffsetX = clamp(-yawDelta * (maxOffsetX / horizontalDegrees), -maxOffsetX, maxOffsetX);
-            state.menuTargetOffsetY = clamp(pitchDelta * (maxOffsetY / verticalDegrees), -maxOffsetY, maxOffsetY);
+            const yawDelta = applyGazeDeadzone(shortestAngleDelta(state.menuAnchorYaw, state.headYaw), 0.38);
+            const pitchDelta = applyGazeDeadzone(state.headPitch - state.menuAnchorPitch, 0.38);
+            const maxOffsetX = Math.min(lensRect.width * 0.4, Math.max(52, cardWidth * 0.4));
+            const maxOffsetY = Math.min(lensRect.height * 0.42, Math.max(50, cardHeight * 0.42));
+            state.menuTargetOffsetX = clamp(-yawDelta * (maxOffsetX / 12), -maxOffsetX, maxOffsetX);
+            state.menuTargetOffsetY = clamp(pitchDelta * (maxOffsetY / 11), -maxOffsetY, maxOffsetY);
           }
-
-          const smoothing = now < state.menuSettleUntil ? 0.32 : 0.22;
-          state.menuOffsetX = lerp(state.menuOffsetX, state.menuTargetOffsetX, smoothing);
-          state.menuOffsetY = lerp(state.menuOffsetY, state.menuTargetOffsetY, smoothing);
+          state.menuOffsetX = lerp(state.menuOffsetX, state.menuTargetOffsetX, now < state.menuSettleUntil ? 0.32 : 0.2);
+          state.menuOffsetY = lerp(state.menuOffsetY, state.menuTargetOffsetY, now < state.menuSettleUntil ? 0.32 : 0.2);
           setMenuTranslation(state.menuOffsetX, state.menuOffsetY);
         }
       } else {
-        state.gazeX = state.gazeTargetX = 0.5;
-        state.gazeY = state.gazeTargetY = 0.5;
         state.menuOffsetX = state.menuTargetOffsetX = 0;
         state.menuOffsetY = state.menuTargetOffsetY = 0;
         setMenuTranslation(0, 0);
+        if (state.pointerFallback) {
+          displayX = state.gazeX;
+          displayY = state.gazeY;
+          hitX = lensRect.left + displayX * lensRect.width;
+          hitY = lensRect.top + displayY * lensRect.height;
+        }
       }
 
       let target = null;
+      let candidates = [];
       if (state.menuOpen && now >= state.menuSettleUntil) {
-        const buttons = $$('[data-eye-ui="left"] .gaze-btn[data-action]').filter(button => !button.disabled);
-        let bestDistance = Infinity;
+        candidates = $$('[data-eye-ui="left"] .gaze-btn[data-action]').filter(button => !button.disabled);
+      } else if (!state.menuOpen && now - state.menuCloseTime > 650) {
+        candidates = $$('[data-eye-ui="left"] .copilot-orb.orb-visible[data-action]');
+      }
 
-        for (const button of buttons) {
-          const rect = button.getBoundingClientRect();
-          const hitPadding = 7;
-          const inside = hitX >= rect.left - hitPadding && hitX <= rect.right + hitPadding &&
-                         hitY >= rect.top - hitPadding && hitY <= rect.bottom + hitPadding;
-          if (!inside) continue;
-          const centerX = (rect.left + rect.right) * 0.5;
-          const centerY = (rect.top + rect.bottom) * 0.5;
-          const distance = Math.hypot(hitX - centerX, hitY - centerY);
-          if (distance < bestDistance) {
-            bestDistance = distance;
-            target = button;
-          }
+      let bestDistance = Infinity;
+      for (const candidate of candidates) {
+        const rect = candidate.getBoundingClientRect();
+        const hitPadding = candidate.classList.contains('copilot-orb') ? 10 : 7;
+        const inside = hitX >= rect.left - hitPadding && hitX <= rect.right + hitPadding &&
+                       hitY >= rect.top - hitPadding && hitY <= rect.bottom + hitPadding;
+        if (!inside) continue;
+        const distance = Math.hypot(hitX - (rect.left + rect.right) * 0.5, hitY - (rect.top + rect.bottom) * 0.5);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          target = candidate;
         }
+      }
 
-        /* A small sticky region keeps sensor jitter from restarting the fuse timer. */
-        if (!target && state.dwellTarget) {
-          const [action, value = ''] = state.dwellTarget.split('|');
-          const previous = buttons.find(button =>
-            (button.dataset.action || '') === action && (button.dataset.value || '') === value
-          );
-          if (previous) {
-            const rect = previous.getBoundingClientRect();
-            const stickyPadding = 15;
-            if (hitX >= rect.left - stickyPadding && hitX <= rect.right + stickyPadding &&
-                hitY >= rect.top - stickyPadding && hitY <= rect.bottom + stickyPadding) {
-              target = previous;
-            }
-          }
+      if (!target && state.dwellTarget && candidates.length) {
+        const [action, value = ''] = state.dwellTarget.split('|');
+        const previous = candidates.find(candidate =>
+          (candidate.dataset.action || '') === action && (candidate.dataset.value || '') === value
+        );
+        if (previous) {
+          const rect = previous.getBoundingClientRect();
+          const stickyPadding = previous.classList.contains('copilot-orb') ? 17 : 15;
+          if (hitX >= rect.left - stickyPadding && hitX <= rect.right + stickyPadding &&
+              hitY >= rect.top - stickyPadding && hitY <= rect.bottom + stickyPadding) target = previous;
         }
       }
 
@@ -2458,7 +2675,7 @@
         pointer.classList.toggle('on-target', Boolean(target));
       });
 
-      if (!state.menuOpen || now < state.menuSettleUntil || now < state.dwellCooldownUntil) {
+      if (now < state.dwellCooldownUntil || (state.menuOpen && now < state.menuSettleUntil)) {
         state.dwellTarget = null;
         state.dwellStart = 0;
         state.gazeLostAt = 0;
@@ -2471,9 +2688,9 @@
         const action = target.dataset.action || '';
         const value = target.dataset.value || '';
         const key = `${action}|${value}`;
-        $$('.gaze-btn').filter(button =>
-          button.dataset.action === action && (button.dataset.value || '') === value
-        ).forEach(button => button.classList.add('gaze-active'));
+        $$('.gaze-btn, .copilot-orb').filter(element =>
+          element.dataset.action === action && (element.dataset.value || '') === value
+        ).forEach(element => element.classList.add('gaze-active'));
 
         state.gazeLostAt = 0;
         if (state.dwellTarget !== key) {
@@ -2481,7 +2698,8 @@
           state.dwellStart = now;
           setDwellProgress(0);
         } else {
-          const progress = clamp((now - state.dwellStart) / prefs.dwellMs, 0, 1);
+          const duration = action === 'open-copilot' ? Math.min(900, prefs.dwellMs) : prefs.dwellMs;
+          const progress = clamp((now - state.dwellStart) / duration, 0, 1);
           setDwellProgress(progress);
           if (progress >= 1) {
             state.dwellCooldownUntil = now + 650;
@@ -2493,7 +2711,7 @@
         }
       } else if (state.dwellTarget) {
         if (!state.gazeLostAt) state.gazeLostAt = now;
-        if (now - state.gazeLostAt <= 150) {
+        if (now - state.gazeLostAt <= 170) {
           const progress = clamp((now - state.dwellStart) / prefs.dwellMs, 0, 1);
           setDwellProgress(progress);
         } else {
@@ -2554,13 +2772,17 @@
     }
 
     window.addEventListener('pointermove', event => {
-      if (!state.running || !state.menuOpen || event.pointerType === 'touch') return;
+      if (!state.running || event.pointerType === 'touch') return;
       state.pointerFallback = true;
       const leftEye = $('[data-eye-ui="left"] .lens-safe');
       const rect = leftEye.getBoundingClientRect();
       state.gazeX = state.gazeTargetX = clamp((event.clientX - rect.left) / rect.width, 0.03, 0.97);
       state.gazeY = state.gazeTargetY = clamp((event.clientY - rect.top) / rect.height, 0.03, 0.97);
     });
+
+    $$('.copilot-orb').forEach(orb => orb.addEventListener('click', () => {
+      if (state.running) openMenu('main');
+    }));
 
     window.addEventListener('keydown', event => {
       if (!state.running) return;
@@ -2573,8 +2795,18 @@
       if (state.running) queueStableResize();
       if (!document.fullscreenElement && state.running) showToast('Fullscreen exited. The visor remains active until Exit is selected.');
     });
-    window.addEventListener('orientationchange', queueStableResize);
-    screen.orientation?.addEventListener?.('change', queueStableResize);
+    function handleScreenOrientationChange() {
+      if (state.running) {
+        state.referenceQuaternion = null;
+        state.headYaw = 0;
+        state.headPitch = 0;
+        closeMenu();
+        showToast('Landscape tracking recalibrated. Face forward.');
+      }
+      queueStableResize();
+    }
+    window.addEventListener('orientationchange', handleScreenOrientationChange);
+    screen.orientation?.addEventListener?.('change', handleScreenOrientationChange);
     window.visualViewport?.addEventListener('resize', queueStableResize);
     window.visualViewport?.addEventListener('scroll', queueStableResize);
     window.addEventListener('resize', queueStableResize);
