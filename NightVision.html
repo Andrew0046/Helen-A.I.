@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Cardboard Camera 180 — Hub Vision Stereo</title>
+  <title>Cardboard Camera 180 — Fixed Cardboard Stereo</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -118,54 +118,148 @@
       where A-Frame cannot start an immersive session, this component redraws
       the scene into two equal eye viewports after A-Frame's normal render.
     */
-    AFRAME.registerComponent('cardboard-stereo-fallback', {
+    /*
+      Deterministic Cardboard renderer.
+
+      This does not depend on WebXR. A-Frame still supplies device-orientation
+      tracking, raycasting, animation, materials, and scene management, but the
+      normal render call is intercepted and drawn into two exact 50/50 eye
+      viewports. That makes the result usable in a basic phone Cardboard viewer
+      even when the browser has no immersive-vr session provider.
+    */
+    AFRAME.registerComponent('cardboard-fixed-stereo', {
       schema: {
         enabled: { default: false },
-        eyeSeparation: { type: 'number', default: 0.064 }
+        eyeSeparation: { type: 'number', default: 0.064 },
+        fov: { type: 'number', default: 82 },
+        maxPixelRatio: { type: 'number', default: 1.5 }
       },
+
       init: function () {
         this.stereo = new THREE.StereoCamera();
-        this.size = new THREE.Vector2();
+        this.bufferSize = new THREE.Vector2();
+        this.cssWidth = 0;
+        this.cssHeight = 0;
+        this.patched = false;
+        this.rendering = false;
+        this.originalRender = null;
+        this.boundSync = () => this.syncViewport(true);
+
+        window.addEventListener('resize', this.boundSync, { passive: true });
+        window.addEventListener('orientationchange', this.boundSync, { passive: true });
+        window.visualViewport?.addEventListener('resize', this.boundSync, { passive: true });
+
+        if (this.el.renderer) this.patchRenderer();
+        else this.el.addEventListener('renderstart', () => this.patchRenderer(), { once: true });
       },
-      tock: function () {
-        if (!this.data.enabled) return;
-        const sceneEl = this.el;
-        const renderer = sceneEl.renderer;
-        const baseCamera = sceneEl.camera;
-        if (!renderer || !baseCamera || renderer.xr?.isPresenting) return;
 
+      update: function () {
+        if (this.el.renderer) {
+          this.el.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.data.maxPixelRatio));
+          this.syncViewport(true);
+        }
+      },
+
+      patchRenderer: function () {
+        if (this.patched || !this.el.renderer) return;
+        const renderer = this.el.renderer;
+        this.originalRender = renderer.render.bind(renderer);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.data.maxPixelRatio));
+
+        renderer.render = (threeScene, camera) => {
+          if (!this.data.enabled || this.rendering || renderer.xr?.isPresenting) {
+            return this.originalRender(threeScene, camera);
+          }
+          return this.renderStereo(threeScene, camera);
+        };
+
+        this.patched = true;
+        this.syncViewport(true);
+      },
+
+      getCssSize: function () {
+        const viewport = window.visualViewport;
+        const width = Math.max(2, Math.round(viewport?.width || document.documentElement.clientWidth || window.innerWidth));
+        const height = Math.max(2, Math.round(viewport?.height || document.documentElement.clientHeight || window.innerHeight));
+        return { width, height };
+      },
+
+      syncViewport: function (force = false) {
+        const renderer = this.el.renderer;
+        if (!renderer) return;
+        const { width, height } = this.getCssSize();
+        if (!force && width === this.cssWidth && height === this.cssHeight) return;
+
+        this.cssWidth = width;
+        this.cssHeight = height;
         const canvas = renderer.domElement;
-        const width = canvas.width;
-        const height = canvas.height;
-        if (width < 2 || height < 1) return;
+        canvas.style.position = 'fixed';
+        canvas.style.inset = '0';
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        canvas.style.maxWidth = 'none';
+        canvas.style.maxHeight = 'none';
+        canvas.style.transform = 'none';
+        renderer.setSize(width, height, false);
+      },
 
-        const half = Math.floor(width * 0.5);
-        const oldAspect = baseCamera.aspect;
-        const oldAutoClear = renderer.autoClear;
+      renderStereo: function (threeScene, baseCamera) {
+        const renderer = this.el.renderer;
+        if (!renderer || !baseCamera) return;
+        this.rendering = true;
 
-        baseCamera.aspect = Math.max(0.1, half / height);
-        baseCamera.updateProjectionMatrix();
-        this.stereo.eyeSep = this.data.eyeSeparation;
-        this.stereo.update(baseCamera);
+        try {
+          this.syncViewport(false);
+          renderer.getDrawingBufferSize(this.bufferSize);
+          const bufferWidth = Math.max(2, Math.floor(this.bufferSize.x));
+          const bufferHeight = Math.max(2, Math.floor(this.bufferSize.y));
+          const leftWidth = Math.floor(bufferWidth / 2);
+          const rightWidth = bufferWidth - leftWidth;
 
-        renderer.autoClear = false;
-        renderer.setScissorTest(true);
+          const cssHalfWidth = Math.max(1, this.cssWidth / 2);
+          const oldAspect = baseCamera.aspect;
+          const oldFov = baseCamera.fov;
+          const oldAutoClear = renderer.autoClear;
 
-        renderer.setViewport(0, 0, half, height);
-        renderer.setScissor(0, 0, half, height);
-        renderer.clear(true, true, true);
-        renderer.render(sceneEl.object3D, this.stereo.cameraL);
+          baseCamera.aspect = cssHalfWidth / Math.max(1, this.cssHeight);
+          baseCamera.fov = this.data.fov;
+          baseCamera.updateProjectionMatrix();
+          baseCamera.updateMatrixWorld(true);
 
-        renderer.setViewport(half, 0, width - half, height);
-        renderer.setScissor(half, 0, width - half, height);
-        renderer.clear(true, true, true);
-        renderer.render(sceneEl.object3D, this.stereo.cameraR);
+          this.stereo.eyeSep = this.data.eyeSeparation;
+          this.stereo.update(baseCamera);
 
-        renderer.setScissorTest(false);
-        renderer.setViewport(0, 0, width, height);
-        renderer.autoClear = oldAutoClear;
-        baseCamera.aspect = oldAspect;
-        baseCamera.updateProjectionMatrix();
+          renderer.autoClear = false;
+          renderer.setScissorTest(true);
+
+          renderer.setViewport(0, 0, leftWidth, bufferHeight);
+          renderer.setScissor(0, 0, leftWidth, bufferHeight);
+          renderer.clear(true, true, true);
+          this.originalRender(threeScene, this.stereo.cameraL);
+
+          renderer.setViewport(leftWidth, 0, rightWidth, bufferHeight);
+          renderer.setScissor(leftWidth, 0, rightWidth, bufferHeight);
+          renderer.clear(true, true, true);
+          this.originalRender(threeScene, this.stereo.cameraR);
+
+          renderer.setScissorTest(false);
+          renderer.setViewport(0, 0, bufferWidth, bufferHeight);
+          renderer.autoClear = oldAutoClear;
+          baseCamera.aspect = oldAspect;
+          baseCamera.fov = oldFov;
+          baseCamera.updateProjectionMatrix();
+        } finally {
+          this.rendering = false;
+        }
+      },
+
+      remove: function () {
+        window.removeEventListener('resize', this.boundSync);
+        window.removeEventListener('orientationchange', this.boundSync);
+        window.visualViewport?.removeEventListener('resize', this.boundSync);
+        if (this.patched && this.el.renderer && this.originalRender) {
+          this.el.renderer.render = this.originalRender;
+        }
       }
     });
 
@@ -344,6 +438,43 @@
 
     .a-enter-vr, .a-orientation-modal { display: none !important; }
 
+
+    html.cardboard-active,
+    html.cardboard-active body {
+      width: 100% !important;
+      height: 100% !important;
+      overflow: hidden !important;
+      background: #000 !important;
+    }
+
+    html.cardboard-active a-scene,
+    html.cardboard-active .a-canvas,
+    html.cardboard-active canvas {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      transform: none !important;
+    }
+
+    #stereo-divider {
+      position: fixed;
+      z-index: 8500;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      display: none;
+      transform: translateX(-0.5px);
+      background: rgba(120, 235, 255, 0.16);
+      pointer-events: none;
+    }
+    html.cardboard-active #stereo-divider { display: block; }
+
     #fallback-message {
       position: fixed;
       z-index: 9000;
@@ -373,8 +504,8 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Camera 180 Copilot Vision</h1>
-      <p>The rear camera becomes a forward-facing 180° curved wall with selectable observation vision modes. Native WebXR stereo is used when available, with an automatic dual-eye fallback for Cardboard.</p>
+      <h1>Camera 180 Copilot — Cardboard Fixed</h1>
+      <p>The rear camera becomes a forward-facing 180° curved wall with selectable observation vision modes. A fixed dual-eye renderer divides the landscape screen into two exact Cardboard viewports without depending on WebXR.</p>
 
       <div class="preview">
         <video id="setup-preview" autoplay muted playsinline></video>
@@ -396,12 +527,13 @@
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
       <div class="instructions">
-        Hold the phone sideways before launch. Face forward while the scene enters fullscreen. The Copilot orb rests on the floor directly in front of you. The live camera occupies only the forward 180° wall, so nothing is projected behind your head. Look down, center the circular cursor on the orb, and hold your gaze to open the physical menu. The launch always attempts a true left/right Cardboard view.
+        Hold the phone sideways before launch. Face forward while the scene enters fullscreen. The Copilot orb rests on the floor directly in front of you. The live camera occupies only the forward 180° wall, so nothing is projected behind your head. Look down, center the circular cursor on the orb, and hold your gaze to open the physical menu. The launch always uses a fixed left/right Cardboard view, even on browsers without WebXR.
       </div>
     </div>
   </section>
 
   <div id="fallback-message"></div>
+  <div id="stereo-divider" aria-hidden="true"></div>
   <canvas id="analysis-canvas" width="64" height="36" hidden></canvas>
 
   <a-scene
@@ -412,7 +544,7 @@
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
     loading-screen="enabled: false"
-    cardboard-stereo-fallback="enabled: false; eyeSeparation: 0.064"
+    cardboard-fixed-stereo="enabled: false; eyeSeparation: 0.064; fov: 82; maxPixelRatio: 1.5"
   >
     <a-assets timeout="15000">
       <video id="camera-video" autoplay muted playsinline webkit-playsinline crossorigin="anonymous"></video>
@@ -673,7 +805,7 @@
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
         >
-          <a-text id="txt-stereo" value="STEREO: AUTO" align="center" anchor="center" width="2.35" color="#00d2ff"></a-text>
+          <a-text id="txt-stereo" value="CARDBOARD: ON" align="center" anchor="center" width="2.35" color="#00d2ff"></a-text>
         </a-plane>
         <a-plane
           id="btn-hide"
@@ -705,7 +837,7 @@
     <a-entity id="rig" position="0 1.6 0">
       <a-camera
         id="vr-camera"
-        look-controls="reverseMouseDrag: true; touchEnabled: true; magicWindowTrackingEnabled: true"
+        look-controls="reverseMouseDrag: true; touchEnabled: false; mouseEnabled: true; pointerLockEnabled: false; magicWindowTrackingEnabled: true"
         wasd-controls="enabled: false"
         near="0.03"
         far="100"
@@ -782,8 +914,8 @@
       enhanceIndex: 0,
       autoGain: 1,
       analysisTimer: 0,
-      stereoMode: 'AUTO',
-      stereoFallback: false,
+      stereoMode: 'FIXED',
+      cardboardActive: false,
       platformVisible: true,
       wakeLock: null,
       menuAnimationToken: 0
@@ -1055,17 +1187,31 @@
 
     async function enterFullscreen() {
       const target = document.documentElement;
-      try {
-        if (!document.fullscreenElement && target.requestFullscreen) {
-          await target.requestFullscreen({ navigationUI: 'hide' });
+      if (!document.fullscreenElement) {
+        try {
+          if (target.requestFullscreen) {
+            try {
+              await target.requestFullscreen({ navigationUI: 'hide' });
+            } catch (_) {
+              await target.requestFullscreen();
+            }
+          } else if (target.webkitRequestFullscreen) {
+            target.webkitRequestFullscreen();
+          }
+        } catch (error) {
+          console.warn('Fullscreen request failed:', error);
+          showTemporaryMessage('Fullscreen was blocked. Stereo will still run, but browser bars may reduce the headset view.');
         }
-      } catch (error) {
-        console.warn('Fullscreen request failed:', error);
       }
+
       try {
-        await screen.orientation?.lock?.('landscape');
-      } catch (error) {
-        console.warn('Landscape lock was unavailable:', error);
+        await screen.orientation?.lock?.('landscape-primary');
+      } catch (_) {
+        try {
+          await screen.orientation?.lock?.('landscape');
+        } catch (error) {
+          console.warn('Landscape lock was unavailable:', error);
+        }
       }
     }
 
@@ -1077,26 +1223,42 @@
       }
     }
 
-    function setStereoFallback(enabled) {
-      state.stereoFallback = Boolean(enabled);
-      scene.setAttribute('cardboard-stereo-fallback', 'enabled', state.stereoFallback);
+    function getStereoComponent() {
+      return scene.components['cardboard-fixed-stereo'];
+    }
+
+    function setCardboardStereo(enabled) {
+      state.cardboardActive = Boolean(enabled);
+      scene.setAttribute('cardboard-fixed-stereo', 'enabled', state.cardboardActive);
+      document.documentElement.classList.toggle('cardboard-active', state.cardboardActive);
+      state.stereoMode = state.cardboardActive ? 'FIXED' : 'OFF';
+      $('#txt-stereo').setAttribute('value', state.cardboardActive ? 'CARDBOARD: ON' : 'CARDBOARD: OFF');
+      getStereoComponent()?.syncViewport(true);
+    }
+
+    async function settleLandscapeViewport() {
+      let previous = '';
+      let stableFrames = 0;
+      for (let i = 0; i < 30 && stableFrames < 5; i += 1) {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const viewport = window.visualViewport;
+        const width = Math.round(viewport?.width || window.innerWidth);
+        const height = Math.round(viewport?.height || window.innerHeight);
+        const key = `${width}x${height}`;
+        stableFrames = key === previous ? stableFrames + 1 : 0;
+        previous = key;
+      }
+      scene.resize?.();
+      getStereoComponent()?.syncViewport(true);
     }
 
     async function ensureStereoMode(announce = false) {
-      await new Promise(resolve => setTimeout(resolve, 260));
-      const xrPresenting = Boolean(scene.renderer?.xr?.isPresenting);
-      if (xrPresenting) {
-        setStereoFallback(false);
-        state.stereoMode = 'WEBXR';
-        $('#txt-stereo').setAttribute('value', 'STEREO: XR');
-        hudText.setAttribute('value', state.menuOpen ? 'COPILOT HUB · XR STEREO' : 'LOOK DOWN · XR STEREO');
-        if (announce) menuStatus.setAttribute('value', 'NATIVE WEBXR DUAL-EYE ACTIVE');
-      } else {
-        setStereoFallback(true);
-        state.stereoMode = 'DUAL';
-        $('#txt-stereo').setAttribute('value', 'STEREO: DUAL');
-        hudText.setAttribute('value', state.menuOpen ? 'COPILOT HUB · DUAL EYE' : 'LOOK DOWN · DUAL EYE');
-        if (announce) menuStatus.setAttribute('value', 'FORCED 50 / 50 CARDBOARD SPLIT');
+      setCardboardStereo(true);
+      await settleLandscapeViewport();
+      hudText.setAttribute('value', state.menuOpen ? 'COPILOT HUB · CARDBOARD' : 'LOOK DOWN · CARDBOARD');
+      if (announce) {
+        menuStatus.setAttribute('value', 'FIXED 50 / 50 CARDBOARD STEREO');
+        showTemporaryMessage('Cardboard stereo refreshed: left and right eyes are each exactly half of the screen.');
       }
       return state.stereoMode;
     }
@@ -1107,29 +1269,24 @@
         await requestMotionPermission();
         await ensureSceneLoaded();
         if (!state.stream) await openSelectedCamera({ preview: false });
+
+        // Fullscreen and landscape are requested from the launch tap, then the
+        // renderer waits for Android's viewport to stop changing before split.
         await enterFullscreen();
+        await settleLandscapeViewport();
         await acquireWakeLock();
 
         startup.classList.add('hidden');
-        hudText.setAttribute('value', 'LOOK DOWN FOR COPILOT');
+        setCardboardStereo(true);
+        await settleLandscapeViewport();
 
-        let nativeVrStarted = false;
-        if (typeof scene.enterVR === 'function') {
-          try {
-            await scene.enterVR();
-            nativeVrStarted = Boolean(scene.renderer?.xr?.isPresenting);
-          } catch (error) {
-            console.warn('A-Frame VR entry failed; enabling dual-eye fallback:', error);
-          }
-        }
-
-        await ensureStereoMode(false);
-        if (!nativeVrStarted && state.stereoFallback) {
-          showTemporaryMessage('Native WebXR was unavailable. Forced 50 / 50 Cardboard stereo is active.');
-        }
-        setTimeout(recenterScene, 650);
+        hudText.setAttribute('value', 'LOOK DOWN · CARDBOARD');
+        $('#txt-stereo').setAttribute('value', 'CARDBOARD: ON');
+        showTemporaryMessage('Fixed Cardboard stereo active. Each eye uses exactly 50% of the landscape screen.');
+        setTimeout(recenterScene, 700);
       } catch (error) {
         console.error(error);
+        setCardboardStereo(false);
         startup.classList.remove('hidden');
         setStatus(error.message || 'The Cardboard scene could not start.', 'bad');
       } finally {
@@ -1194,7 +1351,7 @@
       }, 205);
 
       hudText.setAttribute('value', 'COPILOT HUB ACTIVE');
-      menuStatus.setAttribute('value', `${visionModes[state.visionIndex].label} · ${state.stereoMode} STEREO`);
+      menuStatus.setAttribute('value', `${visionModes[state.visionIndex].label} · CARDBOARD STEREO`);
     }
 
     function closeMenu() {
@@ -1296,7 +1453,7 @@
       $('#txt-vision').setAttribute('value', `VISION: ${vision.label}`);
       applyVisionMaterial();
       menuStatus.setAttribute('value', `${vision.label} VISION ACTIVE`);
-      hudText.setAttribute('value', `${vision.label} · ${state.stereoMode} STEREO`);
+      hudText.setAttribute('value', `${vision.label} · CARDBOARD STEREO`);
     }
 
     function cycleLight() {
@@ -1328,14 +1485,13 @@
 
     async function exitScene() {
       closeMenu();
-      try { if (scene.is('vr-mode') && scene.exitVR) await scene.exitVR(); } catch (error) { console.warn(error); }
       try { if (document.fullscreenElement) await document.exitFullscreen(); } catch (error) { console.warn(error); }
       try { await screen.orientation?.unlock?.(); } catch (_) {}
       try { await state.wakeLock?.release?.(); } catch (_) {}
       state.wakeLock = null;
-      setStereoFallback(false);
-      state.stereoMode = 'AUTO';
-      $('#txt-stereo').setAttribute('value', 'STEREO: AUTO');
+      setCardboardStereo(false);
+      state.stereoMode = 'OFF';
+      $('#txt-stereo').setAttribute('value', 'CARDBOARD: OFF');
       startup.classList.remove('hidden');
       setStatus('Exited Cardboard mode. The current camera remains available for preview.', 'good');
     }
@@ -1375,15 +1531,16 @@
 
     window.addEventListener('beforeunload', stopStream);
 
-    scene.addEventListener('enter-vr', () => {
-      setTimeout(() => {
-        recenterScene();
-        ensureStereoMode(false).catch(error => console.warn(error));
-      }, 450);
+    document.addEventListener('fullscreenchange', () => {
+      if (state.cardboardActive) {
+        settleLandscapeViewport().catch(error => console.warn(error));
+      }
     });
 
-    scene.addEventListener('exit-vr', () => {
-      if (startup.classList.contains('hidden')) startup.classList.remove('hidden');
+    window.addEventListener('orientationchange', () => {
+      if (state.cardboardActive) {
+        setTimeout(() => settleLandscapeViewport().catch(error => console.warn(error)), 180);
+      }
     });
 
     if (!window.isSecureContext) {
