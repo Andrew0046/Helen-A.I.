@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Cardboard Camera 180 — Pixel-Locked Motion Vision</title>
+  <title>Cardboard Camera 180 — Adaptive Vision Motion Scene</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -25,6 +25,12 @@
         contrast: { type: 'number', default: 1.0, is: 'uniform' },
         shadowBoost: { type: 'number', default: 0.0, is: 'uniform' },
         highlightProtect: { type: 'number', default: 0.12, is: 'uniform' },
+        sharpness: { type: 'number', default: 0.20, is: 'uniform' },
+        denoise: { type: 'number', default: 0.0, is: 'uniform' },
+        localContrast: { type: 'number', default: 0.0, is: 'uniform' },
+        gamma: { type: 'number', default: 1.0, is: 'uniform' },
+        blackLevel: { type: 'number', default: 0.0, is: 'uniform' },
+        colorBalance: { type: 'vec3', default: { x: 1.0, y: 1.0, z: 1.0 }, is: 'uniform' },
         sourceSize: { type: 'vec2', default: { x: 1920, y: 1080 }, is: 'uniform' },
         motionMap: { type: 'map', is: 'uniform' },
         motionSize: { type: 'vec2', default: { x: 128, y: 72 }, is: 'uniform' },
@@ -39,7 +45,7 @@
         }
       `,
       fragmentShader: `
-        precision mediump float;
+        precision highp float;
         uniform sampler2D src;
         uniform float gain;
         uniform float autoGain;
@@ -49,6 +55,12 @@
         uniform float contrast;
         uniform float shadowBoost;
         uniform float highlightProtect;
+        uniform float sharpness;
+        uniform float denoise;
+        uniform float localContrast;
+        uniform float gamma;
+        uniform float blackLevel;
+        uniform vec3 colorBalance;
         uniform vec2 sourceSize;
         uniform sampler2D motionMap;
         uniform vec2 motionSize;
@@ -71,22 +83,30 @@
           }
 
           vec2 texel = 1.0 / max(sourceSize, vec2(1.0));
-          vec3 base = texture2D(src, uv).rgb;
+          vec3 original = texture2D(src, uv).rgb;
           vec3 soft = (
             texture2D(src, uv + vec2(texel.x, 0.0)).rgb +
             texture2D(src, uv - vec2(texel.x, 0.0)).rgb +
             texture2D(src, uv + vec2(0.0, texel.y)).rgb +
             texture2D(src, uv - vec2(0.0, texel.y)).rgb
           ) * 0.25;
-          base = mix(base, soft, 0.10);
+
+          // Adaptive spatial cleanup reduces low-light sensor noise. Detail is
+          // restored only when the analysis loop reports that the phone is steady.
+          vec3 base = mix(original, soft, clamp(denoise, 0.0, 0.82));
+          base = clamp(base + (base - soft) * sharpness, 0.0, 1.0);
 
           float rawY = luma(base);
-          vec3 color = base * gain * autoGain;
+          float softY = luma(soft);
+          vec3 color = base * colorBalance * gain * autoGain;
+          color += vec3((rawY - softY) * localContrast);
           color = (color - 0.5) * contrast + 0.5;
           float shadowMask = 1.0 - smoothstep(0.08, 0.62, rawY);
           color += vec3(shadowBoost * shadowMask);
-          vec3 over = max(color - 0.72, 0.0);
-          color -= over * highlightProtect * 0.70;
+          vec3 over = max(color - 0.70, 0.0);
+          color -= over * highlightProtect * 0.78;
+          color = max(color - vec3(blackLevel), vec3(0.0));
+          color = pow(max(color, vec3(0.0)), vec3(1.0 / max(gamma, 0.20)));
 
           float leftY = luma(texture2D(src, uv - vec2(texel.x, 0.0)).rgb);
           float rightY = luma(texture2D(src, uv + vec2(texel.x, 0.0)).rgb);
@@ -170,7 +190,7 @@
       schema: {
         enabled: { default: false },
         fov: { type: 'number', default: 82 },
-        maxPixelRatio: { type: 'number', default: 1.35 }
+        maxPixelRatio: { type: 'number', default: 1.65 }
       },
 
       init: function () {
@@ -187,7 +207,10 @@
           alpha: false,
           desynchronized: true
         }) || null;
-        if (this.mirrorContext) this.mirrorContext.imageSmoothingEnabled = true;
+        if (this.mirrorContext) {
+          this.mirrorContext.imageSmoothingEnabled = true;
+          this.mirrorContext.imageSmoothingQuality = 'high';
+        }
 
         this.boundSync = () => this.syncViewport(true);
         window.addEventListener('resize', this.boundSync, { passive: true });
@@ -633,8 +656,8 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Camera 180 Copilot — Cardboard Fixed</h1>
-      <p>The rear camera becomes a forward-facing 180° curved wall with selectable observation vision modes and adaptive motion highlighting. A pixel-locked Cardboard renderer makes one correctly centered eye frame and copies those exact pixels into the second 50% viewport, preventing unequal zoom or crop.</p>
+      <h1>Camera 180 Copilot — Adaptive Cardboard</h1>
+      <p>The rear camera becomes a forward-facing 180° observation environment with adaptive image recovery, smarter movement analysis, and smoothly animated Wide, Natural, and Focused scene presets. The pixel-locked Cardboard renderer remains unchanged so both eyes stay identical.</p>
 
       <div class="preview">
         <video id="setup-preview" autoplay muted playsinline></video>
@@ -649,6 +672,15 @@
       </div>
 
       <div class="row">
+        <select id="quality-select" aria-label="View quality">
+          <option value="balanced">Balanced · 1080p request</option>
+          <option value="high" selected>High · 1440p request</option>
+          <option value="ultra">Ultra · 4K request</option>
+        </select>
+        <button id="apply-quality-button">Apply quality</button>
+      </div>
+
+      <div class="row">
         <button id="preview-button">Preview selected camera</button>
         <button id="launch-button" class="primary">Enter Cardboard scene</button>
       </div>
@@ -656,7 +688,7 @@
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
       <div class="instructions">
-        Hold the phone sideways before launch. Face forward while the scene enters fullscreen. The Copilot orb rests on the floor directly in front of you. The live camera occupies only the forward 180° wall, so nothing is projected behind your head. Look down, center the circular cursor on the orb, and hold your gaze to open the physical menu. The launch uses two exact 50% Cardboard panels; the second panel is a pixel-for-pixel copy, so neither eye can become larger or more cropped than the other. In the Copilot Hub, use MOTION to cycle Off, Glow, Trail, and Scan. Fast head turns temporarily pause detection so the whole scene is not mistaken for movement.
+        Hold the phone sideways before launch. Start with High quality. DETAIL now includes AUTO, which adapts shadow recovery, denoising, white balance, highlight protection, and sharpening to the scene. MOTION uses adaptive noise thresholds, shadow-change rejection, size classification, direction estimates, and head-turn suppression. VIEW smoothly changes between Wide, Natural, and Focused while the pixel-locked stereo core remains untouched.
       </div>
     </div>
   </section>
@@ -671,11 +703,11 @@
     id="vr-scene"
     embedded
     background="color: #000"
-    renderer="antialias: true; colorManagement: true; highRefreshRate: true; foveationLevel: 1; precision: mediump; preserveDrawingBuffer: true;"
+    renderer="antialias: true; colorManagement: true; highRefreshRate: true; foveationLevel: 1; precision: highp; powerPreference: high-performance; preserveDrawingBuffer: true;"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
     loading-screen="enabled: false"
-    cardboard-fixed-stereo="enabled: false; fov: 82; maxPixelRatio: 1.35"
+    cardboard-fixed-stereo="enabled: false; fov: 82; maxPixelRatio: 1.65"
   >
     <a-assets timeout="15000">
       <video id="camera-video" autoplay muted playsinline webkit-playsinline crossorigin="anonymous"></video>
@@ -827,12 +859,21 @@
         ></a-text>
         <a-text
           id="menu-status"
-          value="180 CAMERA WALL ONLINE"
-          position="-1.22 0.50 0.035"
+          value="ADAPTIVE CAMERA WALL ONLINE"
+          position="-1.22 0.51 0.035"
           align="left"
           anchor="left"
           width="2.10"
           color="#00d2ff"
+        ></a-text>
+        <a-text
+          id="motion-readout"
+          value="MOTION READY · SCENE NATURAL"
+          position="-1.22 0.405 0.035"
+          align="left"
+          anchor="left"
+          width="1.72"
+          color="#75ff9f"
         ></a-text>
 
         <!-- The Hub-style red circular close control. -->
@@ -879,7 +920,7 @@
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
         >
-          <a-text id="txt-view" value="180 FULL" align="center" anchor="center" width="2.50" color="#00d2ff"></a-text>
+          <a-text id="txt-view" value="VIEW: NATURAL" align="center" anchor="center" width="2.50" color="#00d2ff"></a-text>
         </a-plane>
 
         <a-plane
@@ -913,7 +954,7 @@
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
         >
-          <a-text id="txt-enhance" value="DETAIL: CLEAN" align="center" anchor="center" width="2.30" color="#ffffff"></a-text>
+          <a-text id="txt-enhance" value="DETAIL: AUTO" align="center" anchor="center" width="2.30" color="#ffffff"></a-text>
         </a-plane>
 
         <a-plane
@@ -977,9 +1018,10 @@
       >
         <a-entity
           id="camera-wall-180"
-          geometry="primitive: cylinder; radius: 45; height: 80; thetaLength: 180; openEnded: true; segmentsRadial: 96; segmentsHeight: 1"
-          material="shader: camera-wall-180; src: #camera-video; motionMap: #motion-canvas; gain: 1.0; autoGain: 1.0; zoom: 1.0; edgeFade: 0.018; mode: 0; contrast: 1.0; shadowBoost: 0.0; highlightProtect: 0.12; sourceSize: 1920 1080; motionSize: 128 72; motionMode: 0; motionStrength: 1.0; side: back"
+          geometry="primitive: cylinder; radius: 18; height: 32; thetaLength: 180; openEnded: true; segmentsRadial: 112; segmentsHeight: 1"
+          material="shader: camera-wall-180; src: #camera-video; motionMap: #motion-canvas; gain: 1.0; autoGain: 1.0; zoom: 1.08; edgeFade: 0.018; mode: 0; contrast: 1.04; shadowBoost: 0.04; highlightProtect: 0.20; sharpness: 0.16; denoise: 0.08; localContrast: 0.10; gamma: 1.02; blackLevel: 0.0; colorBalance: 1 1 1; sourceSize: 1920 1080; motionSize: 128 72; motionMode: 0; motionStrength: 1.0; side: back"
           rotation="0 -270 0"
+          scale="1 1 0.82"
         ></a-entity>
 
         <a-cursor
@@ -1015,6 +1057,8 @@
     const cameraSelect = $('#camera-select');
     const scanButton = $('#scan-button');
     const previewButton = $('#preview-button');
+    const qualitySelect = $('#quality-select');
+    const applyQualityButton = $('#apply-quality-button');
     const launchButton = $('#launch-button');
     const setupStatus = $('#setup-status');
     const scene = $('#vr-scene');
@@ -1027,6 +1071,7 @@
     const orbAssembly = $('#orb-assembly');
     const menuPanel = $('#menu-panel');
     const menuStatus = $('#menu-status');
+    const motionReadout = $('#motion-readout');
     const hudText = $('#hud-text');
     const platformRoot = $('#platform-root');
     const fallbackMessage = $('#fallback-message');
@@ -1041,7 +1086,7 @@
       previewOnly: false,
       menuOpen: false,
       currentDeviceIndex: -1,
-      viewIndex: 0,
+      viewIndex: 1,
       lightIndex: 0,
       visionIndex: 0,
       enhanceIndex: 0,
@@ -1051,24 +1096,74 @@
       lastAnalysisAt: 0,
       motionModeIndex: 0,
       motionPrevious: null,
+      motionPreviousR: null,
+      motionPreviousG: null,
+      motionPreviousB: null,
+      motionCurrent: null,
       motionRaw: null,
       motionTrail: null,
       motionImage: null,
       motionLevel: 0,
+      motionChangedRatio: 0,
+      motionNoiseFloor: 10,
+      motionThreshold: 22,
+      motionDirection: 'STILL',
+      motionSizeClass: 'IDLE',
+      motionCentroidX: null,
+      motionCentroidY: null,
       motionSuppressedUntil: 0,
       lastMotionQuaternion: null,
       motionTexture: null,
+      adaptiveLuma: 0.45,
+      adaptiveShadowShare: 0.20,
+      adaptiveHighlightShare: 0.05,
+      adaptiveNoise: 0.05,
+      adaptiveContrast: 1.04,
+      adaptiveShadow: 0.04,
+      adaptiveHighlight: 0.20,
+      adaptiveSharpness: 0.16,
+      adaptiveDenoise: 0.08,
+      adaptiveLocalContrast: 0.10,
+      adaptiveGamma: 1.02,
+      adaptiveBlackLevel: 0.0,
+      balanceR: 1.0,
+      balanceG: 1.0,
+      balanceB: 1.0,
+      currentHeadTurn: 0,
+      viewAnimationToken: 0,
       stereoMode: 'ALIGNED',
       cardboardActive: false,
       platformVisible: true,
       wakeLock: null,
-      menuAnimationToken: 0
+      menuAnimationToken: 0,
+      qualityKey: 'high'
     };
 
-    const wallZooms = [
-      { zoom: 1.0, label: '180 FULL' },
-      { zoom: 1.12, label: '180 NATURAL' },
-      { zoom: 1.26, label: '180 CLOSE' }
+    const qualityPresets = {
+      balanced: { label: 'BALANCED', width: 1920, height: 1080, dpr: 1.35, sharpness: 0.12 },
+      high: { label: 'HIGH', width: 2560, height: 1440, dpr: 1.65, sharpness: 0.18 },
+      ultra: { label: 'ULTRA', width: 3840, height: 2160, dpr: 1.85, sharpness: 0.22 }
+    };
+
+    function currentQuality() {
+      const key = qualitySelect?.value || state.qualityKey || 'high';
+      state.qualityKey = qualityPresets[key] ? key : 'high';
+      return qualityPresets[state.qualityKey];
+    }
+
+    const viewPresets = [
+      {
+        label: 'VIEW: WIDE', status: 'WIDE 180 ENVIRONMENT', zoom: 0.98, edgeFade: 0.012,
+        scale: { x: 1.10, y: 1.02, z: 1.00 }, positionZ: 0.0, platformScale: 1.06
+      },
+      {
+        label: 'VIEW: NATURAL', status: 'NATURAL 180 ENVIRONMENT', zoom: 1.08, edgeFade: 0.018,
+        scale: { x: 1.00, y: 1.00, z: 0.82 }, positionZ: -0.18, platformScale: 1.00
+      },
+      {
+        label: 'VIEW: FOCUSED', status: 'FOCUSED FORWARD ENVIRONMENT', zoom: 1.24, edgeFade: 0.028,
+        scale: { x: 0.94, y: 0.96, z: 0.62 }, positionZ: -0.62, platformScale: 0.92
+      }
     ];
     const gains = [1.0, 1.18, 1.38, 1.62];
     const visionModes = [
@@ -1081,9 +1176,10 @@
       { label: 'FUSION', mode: 6, auto: true }
     ];
     const enhancementModes = [
-      { label: 'CLEAN', contrast: 1.0, shadow: 0.00, highlight: 0.12 },
-      { label: 'DETAIL', contrast: 1.10, shadow: 0.07, highlight: 0.20 },
-      { label: 'DEEP', contrast: 1.20, shadow: 0.15, highlight: 0.30 }
+      { label: 'AUTO', auto: true },
+      { label: 'CLEAN', auto: false, contrast: 1.00, shadow: 0.00, highlight: 0.12, denoise: 0.04, localContrast: 0.04, gamma: 1.00, blackLevel: 0.0, sharpnessScale: 0.72 },
+      { label: 'DETAIL', auto: false, contrast: 1.10, shadow: 0.07, highlight: 0.22, denoise: 0.07, localContrast: 0.15, gamma: 1.02, blackLevel: 0.002, sharpnessScale: 1.00 },
+      { label: 'DEEP', auto: false, contrast: 1.18, shadow: 0.16, highlight: 0.34, denoise: 0.14, localContrast: 0.22, gamma: 1.08, blackLevel: 0.004, sharpnessScale: 0.82 }
     ];
     const motionModes = [
       { label: 'OFF', shaderMode: 0, decay: 0.35, strength: 0.0 },
@@ -1180,11 +1276,13 @@
 
     function selectedConstraints() {
       const deviceId = cameraSelect.value;
+      const quality = currentQuality();
       const video = {
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        frameRate: { ideal: 30, max: 60 },
-        aspectRatio: { ideal: 16 / 9 }
+        width: { ideal: quality.width },
+        height: { ideal: quality.height },
+        frameRate: { ideal: 30, max: 30 },
+        aspectRatio: { ideal: 16 / 9 },
+        resizeMode: 'none'
       };
       if (deviceId) video.deviceId = { exact: deviceId };
       else video.facingMode = { ideal: 'environment' };
@@ -1204,8 +1302,9 @@
             audio: false,
             video: {
               facingMode: { ideal: 'environment' },
-              width: { ideal: 1920 },
-              height: { ideal: 1080 }
+              width: { ideal: currentQuality().width },
+              height: { ideal: currentQuality().height },
+              frameRate: { ideal: 30, max: 30 }
             }
           });
         } else {
@@ -1222,12 +1321,16 @@
       const track = stream.getVideoTracks()[0];
       const settings = track?.getSettings?.() || {};
       const label = track?.label || 'Rear camera';
-      previewBadge.textContent = `${label} · ${settings.width || liveVideo.videoWidth || '—'}×${settings.height || liveVideo.videoHeight || '—'}`;
-      setStatus(`Camera ready: ${label}`, 'good');
+      const actualWidth = settings.width || liveVideo.videoWidth || '—';
+      const actualHeight = settings.height || liveVideo.videoHeight || '—';
+      const quality = currentQuality();
+      previewBadge.textContent = `${label} · ${actualWidth}×${actualHeight} · ${quality.label}`;
+      setStatus(`Camera ready: ${label} · actual ${actualWidth}×${actualHeight}`, 'good');
       updateLensText(label);
 
       liveVideo.addEventListener('loadedmetadata', updateCameraAspect, { once: true });
       updateCameraAspect();
+      applyViewPreset(false);
       startLightAnalysis();
       return stream;
     }
@@ -1240,7 +1343,7 @@
       // The curved wall's physical width is its half-circle arc: PI * radius.
       // Matching arc-width / height to the video aspect keeps the camera feed
       // proportionate while retaining a true 180-degree horizontal wall.
-      const radius = 45;
+      const radius = 18;
       const wallHeight = Math.max(62, Math.min(112, Math.PI * radius / aspect));
       cameraWall.setAttribute('geometry', 'height', wallHeight);
 
@@ -1253,28 +1356,71 @@
       }
     }
 
+    function setWallUniform(name, value) {
+      const uniform = cameraWall.getObject3D('mesh')?.material?.uniforms?.[name];
+      if (uniform) {
+        if (uniform.value?.isVector2 && Array.isArray(value)) uniform.value.set(value[0], value[1]);
+        else if (uniform.value?.isVector3 && Array.isArray(value)) uniform.value.set(value[0], value[1], value[2]);
+        else uniform.value = value;
+        return;
+      }
+      cameraWall.setAttribute('material', name, Array.isArray(value) ? value.join(' ') : value);
+    }
+
     function applyVisionMaterial() {
       const vision = visionModes[state.visionIndex];
       const enhance = enhancementModes[state.enhanceIndex];
-      cameraWall.setAttribute('material', 'mode', vision.mode);
-      cameraWall.setAttribute('material', 'gain', gains[state.lightIndex]);
-      cameraWall.setAttribute('material', 'autoGain', state.autoGain);
-      cameraWall.setAttribute('material', 'contrast', enhance.contrast);
-      cameraWall.setAttribute('material', 'shadowBoost', enhance.shadow);
-      cameraWall.setAttribute('material', 'highlightProtect', enhance.highlight);
+      const quality = currentQuality();
+      const isAuto = Boolean(enhance.auto);
+
+      const contrast = isAuto ? state.adaptiveContrast : enhance.contrast;
+      const shadow = isAuto ? state.adaptiveShadow : enhance.shadow;
+      const highlight = isAuto ? state.adaptiveHighlight : enhance.highlight;
+      const denoise = isAuto ? state.adaptiveDenoise : enhance.denoise;
+      const localContrast = isAuto ? state.adaptiveLocalContrast : enhance.localContrast;
+      const gamma = isAuto ? state.adaptiveGamma : enhance.gamma;
+      const blackLevel = isAuto ? state.adaptiveBlackLevel : enhance.blackLevel;
+      const sharpness = isAuto
+        ? state.adaptiveSharpness
+        : quality.sharpness * enhance.sharpnessScale;
+
+      setWallUniform('mode', vision.mode);
+      setWallUniform('gain', gains[state.lightIndex]);
+      setWallUniform('autoGain', state.autoGain);
+      setWallUniform('contrast', contrast);
+      setWallUniform('shadowBoost', shadow);
+      setWallUniform('highlightProtect', highlight);
+      setWallUniform('sharpness', sharpness);
+      setWallUniform('denoise', denoise);
+      setWallUniform('localContrast', localContrast);
+      setWallUniform('gamma', gamma);
+      setWallUniform('blackLevel', blackLevel);
+      setWallUniform('colorBalance', [state.balanceR, state.balanceG, state.balanceB]);
+
       const motion = motionModes[state.motionModeIndex];
-      cameraWall.setAttribute('material', 'motionMode', motion.shaderMode);
-      cameraWall.setAttribute('material', 'motionStrength', motion.strength);
-      cameraWall.setAttribute('material', 'motionSize', `${motionCanvas.width} ${motionCanvas.height}`);
+      setWallUniform('motionMode', motion.shaderMode);
+      setWallUniform('motionStrength', motion.strength);
+      setWallUniform('motionSize', [motionCanvas.width, motionCanvas.height]);
       updateMotionTexture();
     }
 
     function resetMotionAnalysis() {
       state.motionPrevious = null;
+      state.motionPreviousR = null;
+      state.motionPreviousG = null;
+      state.motionPreviousB = null;
+      state.motionCurrent = null;
       state.motionRaw = null;
       state.motionTrail = null;
       state.motionImage = null;
       state.motionLevel = 0;
+      state.motionChangedRatio = 0;
+      state.motionNoiseFloor = 10;
+      state.motionThreshold = 22;
+      state.motionDirection = 'STILL';
+      state.motionSizeClass = 'IDLE';
+      state.motionCentroidX = null;
+      state.motionCentroidY = null;
       state.motionSuppressedUntil = performance.now() + 350;
       state.lastMotionQuaternion = null;
       motionContext.fillStyle = '#000';
@@ -1312,17 +1458,125 @@
       return angle;
     }
 
-    function analyzeMotionFrame(data, now) {
+    function smoothValue(current, target, amount) {
+      return current + (target - current) * amount;
+    }
+
+    function analyzeAdaptiveFrame(data, turn) {
+      let total = 0;
+      let totalR = 0;
+      let totalG = 0;
+      let totalB = 0;
+      let dark = 0;
+      let bright = 0;
+      let spatialNoise = 0;
+      let samples = 0;
+      const width = analysisCanvas.width;
+      const height = analysisCanvas.height;
+
+      for (let y = 0; y < height; y += 2) {
+        for (let x = 0; x < width; x += 2) {
+          const p = (y * width + x) * 4;
+          const r = data[p];
+          const g = data[p + 1];
+          const b = data[p + 2];
+          const lum = r * 0.2126 + g * 0.7152 + b * 0.0722;
+          total += lum;
+          totalR += r;
+          totalG += g;
+          totalB += b;
+          if (lum < 52) dark += 1;
+          if (lum > 218) bright += 1;
+          if (x + 2 < width) {
+            const q = p + 8;
+            const neighbor = data[q] * 0.2126 + data[q + 1] * 0.7152 + data[q + 2] * 0.0722;
+            const difference = Math.abs(lum - neighbor);
+            if (difference < 24) spatialNoise += difference;
+          }
+          samples += 1;
+        }
+      }
+
+      const safeSamples = Math.max(1, samples);
+      const average = total / safeSamples / 255;
+      const shadowShare = dark / safeSamples;
+      const highlightShare = bright / safeSamples;
+      const spatial = spatialNoise / safeSamples / 255;
+      const temporalNoise = Math.min(0.22, state.motionNoiseFloor / 255);
+      const noise = Math.min(0.28, spatial * 0.55 + temporalNoise * 0.72);
+
+      state.adaptiveLuma = smoothValue(state.adaptiveLuma, average, 0.16);
+      state.adaptiveShadowShare = smoothValue(state.adaptiveShadowShare, shadowShare, 0.14);
+      state.adaptiveHighlightShare = smoothValue(state.adaptiveHighlightShare, highlightShare, 0.14);
+      state.adaptiveNoise = smoothValue(state.adaptiveNoise, noise, 0.18);
+
+      const gray = (totalR + totalG + totalB) / Math.max(1, safeSamples * 3);
+      const targetR = Math.max(0.84, Math.min(1.16, gray / Math.max(18, totalR / safeSamples)));
+      const targetG = Math.max(0.88, Math.min(1.12, gray / Math.max(18, totalG / safeSamples)));
+      const targetB = Math.max(0.84, Math.min(1.16, gray / Math.max(18, totalB / safeSamples)));
+      state.balanceR = smoothValue(state.balanceR, targetR, 0.06);
+      state.balanceG = smoothValue(state.balanceG, targetG, 0.06);
+      state.balanceB = smoothValue(state.balanceB, targetB, 0.06);
+
+      const darkness = Math.max(0, 0.48 - state.adaptiveLuma) / 0.48;
+      const steady = turn < 0.010 && state.motionLevel < 0.045;
+      const qualitySharpness = currentQuality().sharpness;
+      const targetDenoise = Math.min(0.52, 0.025 + darkness * 0.22 + state.adaptiveNoise * 1.45);
+      const targetSharpness = qualitySharpness * (steady ? (1.05 - targetDenoise * 0.42) : 0.28);
+      const targetContrast = 1.02 + Math.min(0.14, darkness * 0.08 + state.adaptiveShadowShare * 0.10);
+      const targetShadow = Math.min(0.25, darkness * 0.14 + state.adaptiveShadowShare * 0.12);
+      const targetHighlight = Math.min(0.48, 0.16 + state.adaptiveHighlightShare * 0.88);
+      const targetLocal = Math.min(0.27, 0.08 + darkness * 0.09 + (steady ? 0.055 : 0.015));
+      const targetGamma = 1.0 + darkness * 0.16;
+      const targetBlack = state.adaptiveLuma > 0.58 ? 0.008 : 0.0;
+
+      state.adaptiveDenoise = smoothValue(state.adaptiveDenoise, targetDenoise, 0.14);
+      state.adaptiveSharpness = smoothValue(state.adaptiveSharpness, targetSharpness, 0.16);
+      state.adaptiveContrast = smoothValue(state.adaptiveContrast, targetContrast, 0.12);
+      state.adaptiveShadow = smoothValue(state.adaptiveShadow, targetShadow, 0.12);
+      state.adaptiveHighlight = smoothValue(state.adaptiveHighlight, targetHighlight, 0.12);
+      state.adaptiveLocalContrast = smoothValue(state.adaptiveLocalContrast, targetLocal, 0.12);
+      state.adaptiveGamma = smoothValue(state.adaptiveGamma, targetGamma, 0.10);
+      state.adaptiveBlackLevel = smoothValue(state.adaptiveBlackLevel, targetBlack, 0.10);
+    }
+
+    function directionFromDelta(dx, dy) {
+      if (Math.abs(dx) < 0.035 && Math.abs(dy) < 0.035) return 'STILL';
+      if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'RIGHT' : 'LEFT';
+      return dy > 0 ? 'DOWN' : 'UP';
+    }
+
+    function percentileFromHistogram(histogram, count, percentile) {
+      const target = Math.max(1, Math.floor(count * percentile));
+      let running = 0;
+      for (let i = 0; i < histogram.length; i += 1) {
+        running += histogram[i];
+        if (running >= target) return i;
+      }
+      return histogram.length - 1;
+    }
+
+    function analyzeMotionFrame(data, now, turn) {
       const width = analysisCanvas.width;
       const height = analysisCanvas.height;
       const count = width * height;
       if (!state.motionPrevious || state.motionPrevious.length !== count) {
         state.motionPrevious = new Uint8Array(count);
+        state.motionPreviousR = new Uint8Array(count);
+        state.motionPreviousG = new Uint8Array(count);
+        state.motionPreviousB = new Uint8Array(count);
+        state.motionCurrent = new Uint8Array(count);
         state.motionRaw = new Float32Array(count);
         state.motionTrail = new Float32Array(count);
         state.motionImage = motionContext.createImageData(width, height);
         for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
-          state.motionPrevious[p] = Math.round(data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722);
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          state.motionPreviousR[p] = r;
+          state.motionPreviousG[p] = g;
+          state.motionPreviousB[p] = b;
+          state.motionPrevious[p] = Math.round(r * 0.2126 + g * 0.7152 + b * 0.0722);
         }
         motionContext.putImageData(state.motionImage, 0, 0);
         updateMotionTexture();
@@ -1330,35 +1584,105 @@
       }
 
       const motion = motionModes[state.motionModeIndex];
-      const turn = headTurnAmount();
-      if (turn > 0.045) state.motionSuppressedUntil = now + 320;
+      if (turn > 0.040) state.motionSuppressedUntil = now + 340;
+
+      let globalShiftSum = 0;
+      for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+        const luminance = Math.round(data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722);
+        state.motionCurrent[p] = luminance;
+        globalShiftSum += luminance - state.motionPrevious[p];
+      }
+      const globalShift = globalShiftSum / Math.max(1, count);
+      const histogram = new Uint32Array(256);
+      const correctedDifferences = new Uint8Array(count);
+
+      for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+        const currentLum = state.motionCurrent[p];
+        const previousLum = state.motionPrevious[p];
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const pr = state.motionPreviousR[p];
+        const pg = state.motionPreviousG[p];
+        const pb = state.motionPreviousB[p];
+
+        const luminanceDifference = Math.abs((currentLum - previousLum) - globalShift);
+        const chromaDifference = (
+          Math.abs((r - currentLum) - (pr - previousLum)) +
+          Math.abs((g - currentLum) - (pg - previousLum)) +
+          Math.abs((b - currentLum) - (pb - previousLum))
+        ) / 3;
+
+        // Pure brightness changes are commonly shadows or exposure pumping.
+        // Color/edge changes receive more weight because they are more likely
+        // to represent an actual moving object.
+        const shadowWeight = chromaDifference < 5.5 ? 0.48 : 0.82;
+        const corrected = Math.max(0, Math.min(255, luminanceDifference * shadowWeight + chromaDifference * 0.72));
+        const byte = Math.round(corrected);
+        correctedDifferences[p] = byte;
+        histogram[byte] += 1;
+      }
+
+      const noiseFloor = percentileFromHistogram(histogram, count, 0.64);
+      state.motionNoiseFloor = smoothValue(state.motionNoiseFloor, noiseFloor, 0.20);
+      const darknessPenalty = Math.max(0, 0.45 - state.adaptiveLuma) * 16;
+      const threshold = Math.max(12, Math.min(46, 9 + state.motionNoiseFloor * 2.20 + darknessPenalty));
+      state.motionThreshold = smoothValue(state.motionThreshold, threshold, 0.20);
 
       let changed = 0;
       let totalDifference = 0;
-      const threshold = 22;
-      for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
-        const luminance = Math.round(data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722);
-        const difference = Math.abs(luminance - state.motionPrevious[p]);
-        state.motionPrevious[p] = luminance;
+      let weightedX = 0;
+      let weightedY = 0;
+      let weightTotal = 0;
+      for (let p = 0; p < count; p += 1) {
+        const difference = correctedDifferences[p];
         totalDifference += difference;
-        const value = Math.max(0, Math.min(1, (difference - threshold) / 62));
+        const value = Math.max(0, Math.min(1, (difference - state.motionThreshold) / Math.max(22, state.motionThreshold * 1.9)));
         state.motionRaw[p] = value;
-        if (value > 0.18) changed += 1;
+        if (value > 0.16) {
+          changed += 1;
+          const x = p % width;
+          const y = Math.floor(p / width);
+          weightedX += x * value;
+          weightedY += y * value;
+          weightTotal += value;
+        }
       }
 
       const changedRatio = changed / Math.max(1, count);
       const averageDifference = totalDifference / Math.max(1, count);
-      if (changedRatio > 0.54 || averageDifference > 30) {
-        state.motionSuppressedUntil = now + 280;
-      }
+      state.motionChangedRatio = smoothValue(state.motionChangedRatio, changedRatio, 0.28);
+      if (changedRatio > 0.58 || averageDifference > 37) state.motionSuppressedUntil = now + 300;
       const suppressed = now < state.motionSuppressedUntil || motion.shaderMode === 0;
+
+      let direction = 'STILL';
+      if (weightTotal > 0.5) {
+        const centroidX = weightedX / weightTotal / Math.max(1, width - 1);
+        const centroidY = weightedY / weightTotal / Math.max(1, height - 1);
+        if (state.motionCentroidX != null && state.motionCentroidY != null) {
+          direction = directionFromDelta(centroidX - state.motionCentroidX, centroidY - state.motionCentroidY);
+        }
+        state.motionCentroidX = centroidX;
+        state.motionCentroidY = centroidY;
+      }
+
+      let sizeClass = 'IDLE';
+      if (changedRatio >= 0.006 && changedRatio < 0.025) sizeClass = 'SMALL';
+      else if (changedRatio < 0.095 && changedRatio >= 0.025) sizeClass = 'MEDIUM';
+      else if (changedRatio >= 0.095) sizeClass = 'LARGE';
+      if (suppressed) {
+        direction = 'PAUSED';
+        sizeClass = turn > 0.040 ? 'HEAD TURN' : 'SCENE SHIFT';
+      }
+      state.motionDirection = direction;
+      state.motionSizeClass = sizeClass;
 
       let levelTotal = 0;
       const output = state.motionImage.data;
       for (let y = 0; y < height; y += 1) {
         for (let x = 0; x < width; x += 1) {
           const p = y * width + x;
-          let local = state.motionRaw[p] * 0.45;
+          let local = state.motionRaw[p] * 0.42;
           if (x > 0) local += state.motionRaw[p - 1] * 0.14;
           if (x + 1 < width) local += state.motionRaw[p + 1] * 0.14;
           if (y > 0) local += state.motionRaw[p - width] * 0.14;
@@ -1377,13 +1701,24 @@
         }
       }
 
-      state.motionLevel += ((levelTotal / Math.max(1, count)) - state.motionLevel) * 0.28;
+      for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+        state.motionPrevious[p] = state.motionCurrent[p];
+        state.motionPreviousR[p] = data[i];
+        state.motionPreviousG[p] = data[i + 1];
+        state.motionPreviousB[p] = data[i + 2];
+      }
+
+      state.motionLevel = smoothValue(state.motionLevel, levelTotal / Math.max(1, count), 0.28);
       motionContext.putImageData(state.motionImage, 0, 0);
       updateMotionTexture();
 
+      const percent = Math.round(Math.min(1, state.motionLevel * 3.4) * 100);
+      const readout = motion.shaderMode === 0
+        ? `MOTION OFF · THRESH ${Math.round(state.motionThreshold)}`
+        : `${sizeClass} · ${direction} · ${percent}%`;
+      motionReadout?.setAttribute('value', `${readout} · SCENE ${viewPresets[state.viewIndex].label.replace('VIEW: ', '')}`);
       if (state.menuOpen && motion.shaderMode > 0) {
-        const percent = Math.round(Math.min(1, state.motionLevel * 3.2) * 100);
-        menuStatus.setAttribute('value', suppressed ? 'HEAD TURN · MOTION PAUSED' : `MOTION ${motion.label} · ${percent}%`);
+        menuStatus.setAttribute('value', suppressed ? `${sizeClass} · MOTION PAUSED` : `MOTION ${motion.label} · ${percent}% · ${direction}`);
       }
     }
 
@@ -1403,22 +1738,18 @@
           const frame = analysisContext.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
           const data = frame.data;
           const vision = visionModes[state.visionIndex];
+          const turn = headTurnAmount();
+          state.currentHeadTurn = turn;
+          analyzeAdaptiveFrame(data, turn);
 
           if (vision.auto) {
-            let total = 0;
-            let samples = 0;
-            for (let i = 0; i < data.length; i += 16) {
-              total += data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722;
-              samples += 1;
-            }
-            const average = total / Math.max(1, samples) / 255;
-            const desired = Math.min(2.45, Math.max(1.0, 0.43 / Math.max(0.06, average)));
-            state.autoGain += (desired - state.autoGain) * 0.20;
+            const desired = Math.min(2.45, Math.max(1.0, 0.43 / Math.max(0.06, state.adaptiveLuma)));
+            state.autoGain += (desired - state.autoGain) * 0.18;
           } else {
             state.autoGain += (1 - state.autoGain) * 0.20;
           }
 
-          analyzeMotionFrame(data, now);
+          analyzeMotionFrame(data, now, turn);
         } catch (error) {
           state.autoGain += (1 - state.autoGain) * 0.15;
         }
@@ -1539,6 +1870,8 @@
 
     function setCardboardStereo(enabled) {
       state.cardboardActive = Boolean(enabled);
+      const quality = currentQuality();
+      scene.setAttribute('cardboard-fixed-stereo', 'maxPixelRatio', quality.dpr);
       scene.setAttribute('cardboard-fixed-stereo', 'enabled', state.cardboardActive);
       document.documentElement.classList.toggle('cardboard-active', state.cardboardActive);
       state.stereoMode = state.cardboardActive ? 'PIXEL-LOCKED' : 'OFF';
@@ -1592,7 +1925,8 @@
 
         hudText.setAttribute('value', 'LOOK DOWN · CARDBOARD');
         $('#txt-stereo')?.setAttribute('value', 'CARDBOARD: LOCKED');
-        showTemporaryMessage('Pixel-locked Cardboard view active. Open Copilot and select MOTION: GLOW to highlight movement.');
+        const quality = currentQuality();
+        showTemporaryMessage(`${quality.label} pixel-locked view active. DETAIL: AUTO, adaptive motion analysis, and the Natural 180 environment are ready.`);
         setTimeout(recenterScene, 700);
       } catch (error) {
         console.error(error);
@@ -1661,7 +1995,7 @@
       }, 205);
 
       hudText.setAttribute('value', 'COPILOT HUB ACTIVE');
-      menuStatus.setAttribute('value', `${visionModes[state.visionIndex].label} · CARDBOARD STEREO`);
+      menuStatus.setAttribute('value', `${visionModes[state.visionIndex].label} · ${enhancementModes[state.enhanceIndex].label} DETAIL · CARDBOARD`);
     }
 
     function closeMenu() {
@@ -1748,12 +2082,58 @@
       }
     }
 
+    function applyViewPreset(animate = true) {
+      const preset = viewPresets[state.viewIndex];
+      const token = ++state.viewAnimationToken;
+      const wallObject = cameraWall.object3D;
+      const platformObject = platformRoot.object3D;
+      const startScale = wallObject.scale.clone();
+      const startPositionZ = wallObject.position.z;
+      const startPlatformScale = platformObject.scale.x;
+      const material = cameraWall.getObject3D('mesh')?.material;
+      const startZoom = material?.uniforms?.zoom?.value ?? Number(cameraWall.getAttribute('material')?.zoom || 1.0);
+      const startFade = material?.uniforms?.edgeFade?.value ?? Number(cameraWall.getAttribute('material')?.edgeFade || 0.018);
+      const duration = animate ? 560 : 0;
+      const started = performance.now();
+
+      $('#txt-view').setAttribute('value', preset.label);
+      menuStatus.setAttribute('value', `${preset.status} · TRANSITION`);
+
+      const frame = (now) => {
+        if (token !== state.viewAnimationToken) return;
+        const raw = duration ? Math.min(1, (now - started) / duration) : 1;
+        const eased = 1 - Math.pow(1 - raw, 3);
+        wallObject.scale.set(
+          startScale.x + (preset.scale.x - startScale.x) * eased,
+          startScale.y + (preset.scale.y - startScale.y) * eased,
+          startScale.z + (preset.scale.z - startScale.z) * eased
+        );
+        wallObject.position.z = startPositionZ + (preset.positionZ - startPositionZ) * eased;
+        const platformScale = startPlatformScale + (preset.platformScale - startPlatformScale) * eased;
+        platformObject.scale.set(platformScale, platformScale, platformScale);
+
+        const zoom = startZoom + (preset.zoom - startZoom) * eased;
+        const edgeFade = startFade + (preset.edgeFade - startFade) * eased;
+        const meshMaterial = cameraWall.getObject3D('mesh')?.material;
+        if (meshMaterial?.uniforms?.zoom) meshMaterial.uniforms.zoom.value = zoom;
+        if (meshMaterial?.uniforms?.edgeFade) meshMaterial.uniforms.edgeFade.value = edgeFade;
+
+        if (raw < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          cameraWall.setAttribute('material', 'zoom', preset.zoom);
+          cameraWall.setAttribute('material', 'edgeFade', preset.edgeFade);
+          menuStatus.setAttribute('value', preset.status);
+          motionReadout?.setAttribute('value', `MOTION ${state.motionSizeClass} · SCENE ${preset.label.replace('VIEW: ', '')}`);
+          hudText.setAttribute('value', `${preset.label.replace('VIEW: ', '')} 180 · LOOK DOWN FOR HUB`);
+        }
+      };
+      requestAnimationFrame(frame);
+    }
+
     function cycleView() {
-      state.viewIndex = (state.viewIndex + 1) % wallZooms.length;
-      const option = wallZooms[state.viewIndex];
-      cameraWall.setAttribute('material', 'zoom', option.zoom);
-      $('#txt-view').setAttribute('value', option.label);
-      menuStatus.setAttribute('value', `${option.label} CAMERA CROP`);
+      state.viewIndex = (state.viewIndex + 1) % viewPresets.length;
+      applyViewPreset(true);
     }
 
     function cycleVision() {
@@ -1779,7 +2159,10 @@
       const option = enhancementModes[state.enhanceIndex];
       $('#txt-enhance').setAttribute('value', `DETAIL: ${option.label}`);
       applyVisionMaterial();
-      menuStatus.setAttribute('value', `${option.label} IMAGE ENHANCEMENT`);
+      menuStatus.setAttribute('value', option.auto ? 'ADAPTIVE IMAGE RECOVERY ACTIVE' : `${option.label} IMAGE ENHANCEMENT`);
+      if (option.auto) {
+        showTemporaryMessage('Adaptive detail now changes denoising, shadow recovery, white balance, highlight protection, and sharpening with the scene.');
+      }
     }
 
     function confirmStereo() {
@@ -1793,7 +2176,8 @@
       state.motionSuppressedUntil = performance.now() + 240;
       if (motion.shaderMode === 0 && state.motionTrail) state.motionTrail.fill(0);
       applyVisionMaterial();
-      menuStatus.setAttribute('value', motion.shaderMode === 0 ? 'MOTION DETECTION OFF' : `${motion.label} · HEAD-TURN SUPPRESSION ON`);
+      menuStatus.setAttribute('value', motion.shaderMode === 0 ? 'MOTION DETECTION OFF' : `${motion.label} · ADAPTIVE THRESHOLD ON`);
+      motionReadout?.setAttribute('value', motion.shaderMode === 0 ? 'MOTION OFF · SCENE READY' : 'ANALYZING SIZE · DIRECTION · NOISE');
       hudText.setAttribute('value', motion.shaderMode === 0 ? `${visionModes[state.visionIndex].label} · CARDBOARD` : `MOTION ${motion.label} · LOOK DOWN FOR HUB`);
     }
 
@@ -1817,8 +2201,33 @@
       setStatus('Exited Cardboard mode. The current camera remains available for preview.', 'good');
     }
 
+    async function applySelectedQuality() {
+      const quality = currentQuality();
+      scene.setAttribute('cardboard-fixed-stereo', 'maxPixelRatio', quality.dpr);
+      getStereoComponent()?.syncViewport(true);
+      applyVisionMaterial();
+      if (state.stream) {
+        const preview = state.previewOnly;
+        try {
+          await openSelectedCamera({ preview });
+          showTemporaryMessage(`${quality.label} quality applied. Actual camera resolution is shown in the preview badge.`);
+        } catch (error) {
+          console.error(error);
+          setStatus(`Could not reopen the camera at ${quality.label} quality.`, 'bad');
+        }
+      } else {
+        setStatus(`${quality.label} quality selected. It will apply when the camera opens.`, 'good');
+      }
+    }
+
     scanButton.addEventListener('click', scanCameras);
     previewButton.addEventListener('click', previewCamera);
+    applyQualityButton.addEventListener('click', applySelectedQuality);
+    qualitySelect.addEventListener('change', () => {
+      state.qualityKey = qualitySelect.value;
+      const quality = currentQuality();
+      setStatus(`${quality.label} selected · ${quality.width}×${quality.height} request · ${quality.dpr.toFixed(2)}× eye buffer · adaptive detail available`, 'good');
+    });
     launchButton.addEventListener('click', launchScene);
     cameraSelect.addEventListener('change', () => {
       const index = state.devices.findIndex(device => device.deviceId === cameraSelect.value);
@@ -1862,6 +2271,15 @@
       if (state.cardboardActive) {
         setTimeout(() => settleLandscapeViewport().catch(error => console.warn(error)), 180);
       }
+    });
+
+    try {
+      const savedQuality = localStorage.getItem('cardboard-quality');
+      if (savedQuality && qualityPresets[savedQuality]) qualitySelect.value = savedQuality;
+    } catch (_) {}
+    state.qualityKey = qualitySelect.value;
+    qualitySelect.addEventListener('change', () => {
+      try { localStorage.setItem('cardboard-quality', qualitySelect.value); } catch (_) {}
     });
 
     if (!window.isSecureContext) {
