@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Comfort Soundwave</title>
+  <title>Observer 180 — Comfort Soundwave Plus</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -37,6 +37,7 @@
         motionMode: { type: 'number', default: 0.0, is: 'uniform' },
         motionStrength: { type: 'number', default: 1.0, is: 'uniform' },
         soundLevel: { type: 'number', default: 0.0, is: 'uniform' },
+        soundColor: { type: 'vec3', default: { x: 1.0, y: 0.88, z: 0.18 }, is: 'uniform' },
         comfortVignette: { type: 'number', default: 0.16, is: 'uniform' },
         turnVignette: { type: 'number', default: 0.0, is: 'uniform' }
       },
@@ -70,6 +71,7 @@
         uniform float motionMode;
         uniform float motionStrength;
         uniform float soundLevel;
+        uniform vec3 soundColor;
         uniform float comfortVignette;
         uniform float turnVignette;
         varying vec2 vUv;
@@ -143,7 +145,8 @@
             // Soundwave keeps the live camera visible and fades contour mode in only when sound is heard.
             float soundTrigger = smoothstep(0.08, 0.34, clamp(soundLevel, 0.0, 1.0));
             vec3 edgeOnly = vec3(edge * 0.85, edge, edge);
-            color = clamp(mix(color, edgeOnly, soundTrigger), 0.0, 1.0);
+            vec3 coloredEdge = mix(edgeOnly, soundColor * edge, 0.74);
+            color = clamp(mix(color, coloredEdge, soundTrigger), 0.0, 1.0);
           }
 
           // CPU-generated motion mask. It is deliberately low resolution and
@@ -725,7 +728,7 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Comfort Soundwave</h1>
+      <h1>Observer 180 — Comfort Soundwave Plus</h1>
       <p>A comfort-first passthrough mode built on the stable pixel-locked Cardboard renderer. It uses a shallower forward camera surface, lower-latency capture, softer image processing, and movement-aware peripheral dimming.</p>
 
       <div id="setup-preview-frame" class="preview">
@@ -761,7 +764,7 @@
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
       <div class="instructions">
-        Hold the phone sideways before launch. The VISION cycle now includes Soundwave: the Comfort camera stays visible, and the Edge / Contour effect only rises when the microphone hears sound. Stop immediately if you feel headache, eye strain, dizziness, nausea, blurred vision, or double vision.
+        Hold the phone sideways before launch. The VISION cycle now includes Soundwave Plus: automatic ambient-noise calibration, sensitivity presets, frequency-reactive colors, pulse or trail behavior, and a live sound meter. Stop immediately if you feel headache, eye strain, dizziness, nausea, blurred vision, or double vision.
       </div>
     </div>
   </section>
@@ -1036,9 +1039,9 @@
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
         
-        visible="false"
+        visible="true"
         >
-          <a-text id="txt-light" value="LIGHT: 1.0X" align="center" anchor="center" width="2.45" color="#ffffff"></a-text>
+          <a-text id="txt-light" value="SOUND: NORMAL" align="center" anchor="center" width="2.45" color="#ffffff"></a-text>
         </a-plane>
         <a-plane
           id="btn-enhance"
@@ -1049,9 +1052,9 @@
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
         
-        visible="false"
+        visible="true"
         >
-          <a-text id="txt-enhance" value="DETAIL: AUTO" align="center" anchor="center" width="2.30" color="#ffffff"></a-text>
+          <a-text id="txt-enhance" value="WAVE: TRAIL" align="center" anchor="center" width="2.30" color="#ffffff"></a-text>
         </a-plane>
 
         <a-plane
@@ -1195,11 +1198,21 @@
           <a-text
             id="hud-field-status"
             value="CAM WAIT · BAT -- · -- FPS"
-            position="0 -0.055 0.007"
+            position="0 -0.045 0.007"
             align="center"
             anchor="center"
             width="1.95"
             color="#75ff9f"
+          ></a-text>
+          <a-text
+            id="hud-soundwave-status"
+            value=""
+            position="0 -0.108 0.007"
+            align="center"
+            anchor="center"
+            width="2.05"
+            color="#ffe07b"
+            visible="false"
           ></a-text>
         </a-entity>
       </a-camera>
@@ -1236,6 +1249,7 @@
     const performanceReadout = $('#performance-readout');
     const fieldCameraReadout = $('#field-camera-readout');
     const hudFieldStatus = $('#hud-field-status');
+    const hudSoundwaveStatus = $('#hud-soundwave-status');
     const hudText = $('#hud-text');
     const platformRoot = $('#platform-root');
     const fallbackMessage = $('#fallback-message');
@@ -1261,6 +1275,15 @@
       soundwaveEnabled: false,
       soundwaveReady: false,
       soundwavePermissionDenied: false,
+      soundwaveFreqData: null,
+      soundwaveColor: { r: 1.0, g: 0.88, b: 0.18 },
+      soundwaveAmbient: 0.025,
+      soundwaveThreshold: 0.085,
+      soundwaveSensitivityIndex: 1,
+      soundwaveStyleIndex: 1,
+      soundwaveCalibratedAt: 0,
+      soundwaveIsCalibrating: false,
+      soundwaveStatus: 'IDLE',
       currentDeviceIndex: -1,
       viewIndex: 0,
       lightIndex: 0,
@@ -1385,6 +1408,16 @@
       { label: 'SOUNDWAVE', mode: 7, auto: false }
     ];
     const fieldVisionOrder = [0, 1, 2, 5, 6, 7];
+    const soundwaveSensitivities = [
+      { label: 'LOW', multiplier: 1.42 },
+      { label: 'NORMAL', multiplier: 1.16 },
+      { label: 'HIGH', multiplier: 0.92 }
+    ];
+    const soundwaveStyles = [
+      { label: 'PULSE', decay: 0.76, boost: 1.05 },
+      { label: 'TRAIL', decay: 0.90, boost: 1.00 },
+      { label: 'HOLD', decay: 0.95, boost: 0.92 }
+    ];
     const previewNightModes = [
       { label: 'Natural', buttonMode: 'natural', className: '', visionIndex: 0 },
       { label: 'Low Light', buttonMode: 'low', className: 'preview-low-light', visionIndex: 1 },
@@ -1463,6 +1496,83 @@
       return `${state.batteryCharging ? 'CHG' : 'BAT'} ${percent}%`;
     }
 
+    function currentSoundwaveSensitivity() {
+      return soundwaveSensitivities[state.soundwaveSensitivityIndex] || soundwaveSensitivities[1];
+    }
+
+    function currentSoundwaveStyle() {
+      return soundwaveStyles[state.soundwaveStyleIndex] || soundwaveStyles[1];
+    }
+
+    function updateSoundwaveButtons() {
+      $('#txt-light')?.setAttribute('value', `SOUND: ${currentSoundwaveSensitivity().label}`);
+      $('#txt-enhance')?.setAttribute('value', `WAVE: ${currentSoundwaveStyle().label}`);
+    }
+
+    function soundwaveBarString(level) {
+      const bars = Math.max(0, Math.min(5, Math.round(level * 5)));
+      return '▮'.repeat(bars) + '▯'.repeat(5 - bars);
+    }
+
+    function updateSoundwaveHud() {
+      if (!hudSoundwaveStatus) return;
+      const visible = state.visionIndex === 7 && !state.menuOpen;
+      hudSoundwaveStatus.setAttribute('visible', visible);
+      if (!visible) return;
+      const label = state.soundwaveIsCalibrating ? 'CAL' : state.soundwaveStatus;
+      hudSoundwaveStatus.setAttribute('value', `SOUND ${soundwaveBarString(state.soundwaveLevel)} · ${label}`);
+    }
+
+    function setSoundwaveColor(r, g, b) {
+      state.soundwaveColor = { r, g, b };
+      setWallUniform('soundColor', `${r} ${g} ${b}`);
+    }
+
+    function computeSoundwaveThreshold(ambient) {
+      return Math.max(0.06, Math.min(0.36, ambient * currentSoundwaveSensitivity().multiplier + 0.02));
+    }
+
+    function sampleSoundwaveRms() {
+      if (!state.soundwaveAnalyser || !state.soundwaveData) return 0;
+      state.soundwaveAnalyser.getByteTimeDomainData(state.soundwaveData);
+      let sum = 0;
+      let peak = 0;
+      for (let i = 0; i < state.soundwaveData.length; i += 1) {
+        const centered = (state.soundwaveData[i] - 128) / 128;
+        const absVal = Math.abs(centered);
+        sum += centered * centered;
+        if (absVal > peak) peak = absVal;
+      }
+      const rms = Math.sqrt(sum / state.soundwaveData.length);
+      return Math.min(1, rms * 4.0 + peak * 0.68);
+    }
+
+    async function calibrateSoundwaveAmbient(durationMs = 1500) {
+      if (!state.soundwaveAnalyser || !state.soundwaveData) return;
+      state.soundwaveIsCalibrating = true;
+      state.soundwaveStatus = 'CAL';
+      updateSoundwaveHud();
+      menuStatus?.setAttribute('value', 'SOUNDWAVE · CALIBRATING ROOM NOISE');
+      hudText?.setAttribute('value', 'SOUNDWAVE · CALIBRATING');
+      const started = performance.now();
+      const samples = [];
+      while (performance.now() - started < durationMs) {
+        samples.push(sampleSoundwaveRms());
+        await new Promise(resolve => requestAnimationFrame(resolve));
+      }
+      samples.sort((a, b) => a - b);
+      const from = Math.floor(samples.length * 0.15);
+      const to = Math.max(Math.floor(samples.length * 0.85), from + 1);
+      const slice = samples.slice(from, to);
+      const average = (slice.reduce((sum, value) => sum + value, 0) / Math.max(1, slice.length)) || 0.025;
+      state.soundwaveAmbient = average;
+      state.soundwaveThreshold = computeSoundwaveThreshold(average);
+      state.soundwaveCalibratedAt = performance.now();
+      state.soundwaveIsCalibrating = false;
+      state.soundwaveStatus = 'LISTENING';
+      updateSoundwaveHud();
+    }
+
     function updateFieldReadouts() {
       const fps = Math.max(0, Math.round(state.performanceFps || 0));
       const profile = currentPerformanceProfile();
@@ -1472,6 +1582,7 @@
       fieldCameraReadout?.setAttribute('value', `CAM ${cameraStatus} · ${resolution}`);
       performanceReadout?.setAttribute('value', `${battery} · ${fps} FPS · ${profile.label}`);
       hudFieldStatus?.setAttribute('value', `CAM ${cameraStatus} · ${battery} · ${fps} FPS`);
+      updateSoundwaveHud();
     }
 
     function handleBatteryUpdate() {
@@ -1632,7 +1743,10 @@
                 : `${vision.label} · COMFORT MODE`
       );
       if (vision.mode === 7) activateSoundwaveMode();
-      else updateSoundwaveUniform(0);
+      else {
+        updateSoundwaveUniform(0);
+        releaseSoundwaveAudio();
+      }
       speakFeedback(`${vision.label.toLowerCase()} vision`);
       noteMenuActivity();
     }
@@ -1641,26 +1755,45 @@
     function updateSoundwaveUniform(level) {
       state.soundwaveLevel = Math.max(0, Math.min(1, level || 0));
       setWallUniform('soundLevel', state.soundwaveLevel);
+      updateSoundwaveHud();
     }
 
     function soundwaveLoop() {
-      if (!state.soundwaveAnalyser || !state.soundwaveData) {
+      if (!state.soundwaveAnalyser || !state.soundwaveData || !state.soundwaveFreqData) {
         state.soundwaveLoopHandle = 0;
         return;
       }
-      state.soundwaveAnalyser.getByteTimeDomainData(state.soundwaveData);
-      let sum = 0;
-      let peak = 0;
-      for (let i = 0; i < state.soundwaveData.length; i += 1) {
-        const centered = (state.soundwaveData[i] - 128) / 128;
-        const absVal = Math.abs(centered);
-        sum += centered * centered;
-        if (absVal > peak) peak = absVal;
+      const rawLevel = sampleSoundwaveRms();
+      state.soundwaveAnalyser.getByteFrequencyData(state.soundwaveFreqData);
+      const bins = state.soundwaveFreqData.length;
+      let low = 0, mid = 0, high = 0, lowCount = 0, midCount = 0, highCount = 0;
+      for (let i = 2; i < bins; i += 1) {
+        const value = state.soundwaveFreqData[i] / 255;
+        if (i < 18) { low += value; lowCount += 1; }
+        else if (i < 70) { mid += value; midCount += 1; }
+        else { high += value; highCount += 1; }
       }
-      const rms = Math.sqrt(sum / state.soundwaveData.length);
-      const rawLevel = Math.min(1, rms * 4.2 + peak * 0.7);
-      const smoothed = Math.max(rawLevel, state.soundwaveLevel * 0.86);
-      updateSoundwaveUniform(smoothed < 0.025 ? 0 : smoothed);
+      low = low / Math.max(1, lowCount);
+      mid = mid / Math.max(1, midCount);
+      high = high / Math.max(1, highCount);
+      const lowW = Math.max(0.001, low);
+      const midW = Math.max(0.001, mid);
+      const highW = Math.max(0.001, high);
+      const totalW = lowW + midW + highW;
+      setSoundwaveColor(
+        (1.00 * lowW + 1.00 * midW + 0.30 * highW) / totalW,
+        (0.55 * lowW + 0.90 * midW + 0.92 * highW) / totalW,
+        (0.12 * lowW + 0.18 * midW + 1.00 * highW) / totalW
+      );
+      const threshold = state.soundwaveThreshold;
+      const normalized = Math.max(0, Math.min(1, (rawLevel - threshold) / Math.max(0.10, 1 - threshold)));
+      const style = currentSoundwaveStyle();
+      const turnComfort = Math.max(0.0, 1.0 - Math.min(1.0, (state.currentHeadTurn || 0) * 34.0));
+      const target = normalized * style.boost * turnComfort;
+      const smoothed = Math.max(target, state.soundwaveLevel * style.decay);
+      updateSoundwaveUniform(smoothed < 0.02 ? 0 : smoothed);
+      state.soundwaveStatus = state.soundwaveIsCalibrating ? 'CAL' : (smoothed > 0.14 ? 'ACTIVE' : 'LISTENING');
+      updateSoundwaveHud();
       state.soundwaveLoopHandle = requestAnimationFrame(soundwaveLoop);
     }
 
@@ -1703,8 +1836,10 @@
       state.soundwaveSource = source;
       state.soundwaveAnalyser = analyser;
       state.soundwaveData = new Uint8Array(analyser.fftSize);
+      state.soundwaveFreqData = new Uint8Array(analyser.frequencyBinCount);
       state.soundwaveReady = true;
       state.soundwaveEnabled = true;
+      updateSoundwaveButtons();
       if (!state.soundwaveLoopHandle) state.soundwaveLoopHandle = requestAnimationFrame(soundwaveLoop);
       return true;
     }
@@ -1712,9 +1847,14 @@
     async function activateSoundwaveMode() {
       try {
         await ensureSoundwaveAudio();
-        menuStatus?.setAttribute('value', 'SOUNDWAVE · CONTOURS RESPOND TO SOUND');
+        if (!state.soundwaveCalibratedAt || performance.now() - state.soundwaveCalibratedAt > 45000) {
+          await calibrateSoundwaveAmbient();
+        }
+        menuStatus?.setAttribute('value', `SOUNDWAVE · ${currentSoundwaveSensitivity().label} · ${currentSoundwaveStyle().label}`);
         hudText?.setAttribute('value', 'SOUNDWAVE · LISTENING');
-        showTemporaryMessage('Soundwave active. The contour effect will rise only when sound is heard.');
+        state.soundwaveStatus = 'LISTENING';
+        updateSoundwaveHud();
+        showTemporaryMessage('Soundwave Plus active. It calibrates room noise, reacts to sound, and colors contours by frequency.');
         speakFeedback('Soundwave listening');
       } catch (error) {
         console.warn('Soundwave microphone unavailable:', error);
@@ -1737,6 +1877,8 @@
       }
       updateSoundwaveUniform(0);
       state.soundwaveEnabled = false;
+      state.soundwaveStatus = 'IDLE';
+      updateSoundwaveHud();
       try { state.soundwaveSource?.disconnect?.(); } catch (_) {}
       try { state.soundwaveStream?.getTracks?.().forEach(track => track.stop()); } catch (_) {}
       try {
@@ -1749,6 +1891,7 @@
       state.soundwaveSource = null;
       state.soundwaveAnalyser = null;
       state.soundwaveData = null;
+      state.soundwaveFreqData = null;
       state.soundwaveReady = false;
     }
 
@@ -2041,6 +2184,8 @@
       const motion = motionModes[state.motionModeIndex];
       setWallUniform('motionMode', motion.shaderMode);
       setWallUniform('soundLevel', vision.mode === 7 ? state.soundwaveLevel : 0.0);
+      const soundColor = state.soundwaveColor || { r: 1.0, g: 0.88, b: 0.18 };
+      setWallUniform('soundColor', `${soundColor.r} ${soundColor.g} ${soundColor.b}`);
       const motionComfortScale = Math.max(0.0, 1.0 - Math.min(1.0, (state.currentHeadTurn || 0) * 26.0));
       setWallUniform('motionStrength', motion.strength * motionComfortScale);
       setWallUniform('motionSize', [motionCanvas.width, motionCanvas.height]);
@@ -2700,7 +2845,7 @@
         applyVisionMaterial();
         markCameraStatus('READY');
         updateFieldReadouts();
-        showTemporaryMessage(`${quality.label} Comfort Mode active. Soundwave is now in the VISION cycle.`);
+        showTemporaryMessage(`${quality.label} Comfort Mode active. Soundwave Plus adds auto calibration, sensitivity, pulse and trail response.`);
         setTimeout(recenterScene, 700);
         setTimeout(() => speakFeedback('Comfort Mode ready. Look down for Copilot', { force: true }), 900);
       } catch (error) {
@@ -2958,25 +3103,22 @@
     }
 
     function cycleLight() {
-      state.lightIndex = (state.lightIndex + 1) % gains.length;
-      const gain = gains[state.lightIndex];
-      applyVisionMaterial();
-      $('#txt-light').setAttribute('value', `LIGHT: ${gain.toFixed(2)}X`);
-      menuStatus.setAttribute('value', `CAMERA GAIN ${gain.toFixed(2)}X`);
-      speakFeedback(`Light ${gain.toFixed(2)}`);
+      state.soundwaveSensitivityIndex = (state.soundwaveSensitivityIndex + 1) % soundwaveSensitivities.length;
+      state.soundwaveThreshold = computeSoundwaveThreshold(state.soundwaveAmbient);
+      updateSoundwaveButtons();
+      menuStatus.setAttribute('value', `SOUNDWAVE SENSITIVITY ${currentSoundwaveSensitivity().label}`);
+      showTemporaryMessage(`Soundwave sensitivity set to ${currentSoundwaveSensitivity().label.toLowerCase()}.`);
+      if (state.visionIndex === 7 && state.soundwaveReady) calibrateSoundwaveAmbient(1100);
+      speakFeedback(`Sound ${currentSoundwaveSensitivity().label.toLowerCase()}`);
       noteMenuActivity();
     }
 
     function cycleEnhancement() {
-      state.enhanceIndex = (state.enhanceIndex + 1) % enhancementModes.length;
-      const option = enhancementModes[state.enhanceIndex];
-      $('#txt-enhance').setAttribute('value', `DETAIL: ${option.label}`);
-      applyVisionMaterial();
-      menuStatus.setAttribute('value', option.auto ? 'ADAPTIVE IMAGE RECOVERY ACTIVE' : `${option.label} IMAGE ENHANCEMENT`);
-      if (option.auto) {
-        showTemporaryMessage('Adaptive detail now changes denoising, shadow recovery, white balance, highlight protection, and sharpening with the scene.');
-      }
-      speakFeedback(`${option.label.toLowerCase()} detail`);
+      state.soundwaveStyleIndex = (state.soundwaveStyleIndex + 1) % soundwaveStyles.length;
+      updateSoundwaveButtons();
+      menuStatus.setAttribute('value', `SOUNDWAVE STYLE ${currentSoundwaveStyle().label}`);
+      showTemporaryMessage(`Soundwave style set to ${currentSoundwaveStyle().label.toLowerCase()}.`);
+      speakFeedback(`Wave ${currentSoundwaveStyle().label.toLowerCase()}`);
       noteMenuActivity();
     }
 
@@ -3165,6 +3307,7 @@
     updatePreviewNightUi();
     $('#txt-voice')?.setAttribute('value', `VOICE: ${state.voiceEnabled ? 'ON' : 'OFF'}`);
     $('#txt-auto-hide')?.setAttribute('value', autoHideSeconds() > 0 ? `AUTO HIDE: ${autoHideSeconds()}S` : 'AUTO HIDE: OFF');
+    updateSoundwaveButtons();
     setPerformanceMode(0, false);
     updatePerformanceUi();
     updateFieldReadouts();
