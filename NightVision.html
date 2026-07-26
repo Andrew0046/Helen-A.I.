@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Comfort Mode</title>
+  <title>Observer 180 — Comfort Edge + Fusion</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -134,7 +134,7 @@
             color = vec3(edge * 0.85, edge, edge);
           } else if (mode > 5.5) {
             // Fusion retains the camera image and adds cyan contour detail.
-            color = clamp(color * 0.56 + vec3(0.10, 0.86, 1.0) * edge, 0.0, 1.0);
+            color = clamp(color * 0.72 + vec3(0.08, 0.82, 1.0) * edge * 0.82, 0.0, 1.0);
           }
 
           // CPU-generated motion mask. It is deliberately low resolution and
@@ -526,7 +526,48 @@
       border-radius: 16px;
       background: #000;
     }
-    .preview video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: filter 180ms ease, opacity 180ms ease;
+      transform: translateZ(0);
+    }
+    .preview::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 180ms ease;
+    }
+    .preview.preview-low-light video {
+      filter: brightness(1.32) contrast(1.13) saturate(.82);
+    }
+    .preview.preview-low-light::after {
+      opacity: .20;
+      background: radial-gradient(circle at center, transparent 54%, rgba(0, 10, 14, .36) 100%);
+    }
+    .preview.preview-night-green video {
+      filter: grayscale(1) sepia(1) hue-rotate(72deg) saturate(5.4) brightness(1.24) contrast(1.32);
+    }
+    .preview.preview-night-green::after {
+      opacity: .32;
+      background:
+        repeating-linear-gradient(180deg, rgba(160,255,185,.045) 0 1px, transparent 1px 4px),
+        radial-gradient(circle at center, rgba(38, 255, 102, .07), rgba(0, 12, 4, .42) 100%);
+      mix-blend-mode: screen;
+    }
+    #preview-night-button[data-mode="night"] {
+      border-color: rgba(117, 255, 159, .82);
+      color: #9dffb8;
+      box-shadow: 0 0 18px rgba(60, 255, 120, .12);
+    }
+    #preview-night-button[data-mode="low"] {
+      border-color: rgba(255, 212, 119, .72);
+      color: #ffe0a0;
+    }
     .preview-badge {
       position: absolute;
       left: 12px;
@@ -675,10 +716,10 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Comfort Mode</h1>
+      <h1>Observer 180 — Comfort Edge + Fusion</h1>
       <p>A comfort-first passthrough mode built on the stable pixel-locked Cardboard renderer. It uses a shallower forward camera surface, lower-latency capture, softer image processing, and movement-aware peripheral dimming.</p>
 
-      <div class="preview">
+      <div id="setup-preview-frame" class="preview">
         <video id="setup-preview" autoplay muted playsinline></video>
         <div id="preview-badge" class="preview-badge">Camera access has not started.</div>
       </div>
@@ -701,13 +742,17 @@
 
       <div class="row">
         <button id="preview-button">Preview selected camera</button>
+        <button id="preview-night-button" data-mode="natural">Night Preview: Natural</button>
+      </div>
+
+      <div class="row">
         <button id="launch-button" class="primary">Start Comfort Mode</button>
       </div>
 
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
       <div class="instructions">
-        Hold the phone sideways before launch. Start with Comfort 720p/60. The camera image stays forward, nearly flat, and pixel-identical in both eyes. Stop immediately if you feel headache, eye strain, dizziness, nausea, blurred vision, or double vision.
+        Hold the phone sideways before launch. The headset VISION control now includes Fusion Lines: the live camera remains visible while cyan contour detail is layered over real objects. Stop immediately if you feel headache, eye strain, dizziness, nausea, blurred vision, or double vision.
       </div>
     </div>
   </section>
@@ -1158,7 +1203,9 @@
     const $ = (selector) => document.querySelector(selector);
     const startup = $('#startup');
     const setupPreview = $('#setup-preview');
+    const setupPreviewFrame = $('#setup-preview-frame');
     const previewBadge = $('#preview-badge');
+    const previewNightButton = $('#preview-night-button');
     const cameraSelect = $('#camera-select');
     const scanButton = $('#scan-button');
     const previewButton = $('#preview-button');
@@ -1192,6 +1239,8 @@
       devices: [],
       stream: null,
       previewOnly: false,
+      previewNightIndex: 0,
+      previewBadgeBase: 'Camera access has not started.',
       menuOpen: false,
       currentDeviceIndex: -1,
       viewIndex: 0,
@@ -1313,9 +1362,56 @@
       { label: 'NIGHT AMBER', mode: 3, auto: true },
       { label: 'MONO', mode: 4, auto: false },
       { label: 'EDGE', mode: 5, auto: false },
-      { label: 'FUSION', mode: 6, auto: true }
+      { label: 'FUSION LINES', mode: 6, auto: true }
     ];
-    const fieldVisionOrder = [0, 1, 2];
+    const fieldVisionOrder = [0, 1, 2, 5, 6];
+    const previewNightModes = [
+      { label: 'Natural', buttonMode: 'natural', className: '', visionIndex: 0 },
+      { label: 'Low Light', buttonMode: 'low', className: 'preview-low-light', visionIndex: 1 },
+      { label: 'Night Green', buttonMode: 'night', className: 'preview-night-green', visionIndex: 2 }
+    ];
+
+    function currentPreviewNightMode() {
+      return previewNightModes[state.previewNightIndex] || previewNightModes[0];
+    }
+
+    function updatePreviewNightUi() {
+      const mode = currentPreviewNightMode();
+      setupPreviewFrame?.classList.remove('preview-low-light', 'preview-night-green');
+      if (mode.className) setupPreviewFrame?.classList.add(mode.className);
+      previewNightButton?.setAttribute('data-mode', mode.buttonMode);
+      if (previewNightButton) previewNightButton.textContent = `Night Preview: ${mode.label}`;
+      if (previewBadge) {
+        const base = state.previewBadgeBase || 'Camera access has not started.';
+        previewBadge.textContent = `${base} · ${mode.label.toUpperCase()} PREVIEW`;
+      }
+    }
+
+    async function cyclePreviewNight() {
+      if (!state.stream) {
+        try {
+          previewNightButton.disabled = true;
+          if (!state.devices.length) await enumerateCameras();
+          await openSelectedCamera({ preview: true });
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message || 'Night preview could not start the camera.', 'bad');
+          return;
+        } finally {
+          previewNightButton.disabled = false;
+        }
+      }
+      state.previewNightIndex = (state.previewNightIndex + 1) % previewNightModes.length;
+      const mode = currentPreviewNightMode();
+      state.visionIndex = mode.visionIndex;
+      state.fieldVisionStep = fieldVisionOrder.indexOf(mode.visionIndex);
+      if (state.fieldVisionStep < 0) state.fieldVisionStep = 0;
+      state.autoGain = 1;
+      updatePreviewNightUi();
+      applyVisionMaterial();
+      $('#txt-vision')?.setAttribute('value', `VISION: ${visionModes[state.visionIndex].label}`);
+      setStatus(`${mode.label} preview active. This mode will be used when Comfort Mode starts.`, 'good');
+    }
 
     const enhancementModes = [
       { label: 'AUTO', auto: true },
@@ -1491,8 +1587,22 @@
       const vision = visionModes[state.visionIndex];
       $('#txt-vision')?.setAttribute('value', `VISION: ${vision.label}`);
       applyVisionMaterial();
-      menuStatus?.setAttribute('value', `${vision.label} COMFORT VISION`);
-      hudText?.setAttribute('value', `${vision.label} · COMFORT MODE`);
+      menuStatus?.setAttribute(
+        'value',
+        vision.mode === 6
+          ? 'LIVE CAMERA + CYAN CONTOUR LINES'
+          : vision.mode === 5
+            ? 'EDGE / CONTOUR LINES ONLY'
+            : `${vision.label} COMFORT VISION`
+      );
+      hudText?.setAttribute(
+        'value',
+        vision.mode === 6
+          ? 'FUSION LINES · LIVE CAMERA'
+          : vision.mode === 5
+            ? 'EDGE / CONTOUR MODE'
+            : `${vision.label} · COMFORT MODE`
+      );
       speakFeedback(`${vision.label.toLowerCase()} vision`);
       noteMenuActivity();
     }
@@ -1703,7 +1813,8 @@
       const resolutionLabel = `${actualWidth}×${actualHeight} · ${actualFps} FPS`;
       markCameraStatus('READY', resolutionLabel);
       attachCameraHealth(track);
-      previewBadge.textContent = `${label} · ${resolutionLabel} · ${quality.label}`;
+      state.previewBadgeBase = `${label} · ${resolutionLabel} · ${quality.label}`;
+      updatePreviewNightUi();
       setStatus(`Camera ready: ${label} · actual ${resolutionLabel}`, 'good');
       updateLensText(label);
 
@@ -2435,11 +2546,15 @@
         state.autoHideIndex = 1;
         $('#txt-comfort')?.setAttribute('value', 'VIEW: COMFORT');
         state.performanceModeIndex = 0;
+        const launchPreviewMode = currentPreviewNightMode();
+        state.visionIndex = launchPreviewMode.visionIndex;
+        state.fieldVisionStep = Math.max(0, fieldVisionOrder.indexOf(state.visionIndex));
+        $('#txt-vision')?.setAttribute('value', `VISION: ${visionModes[state.visionIndex].label}`);
         applyViewPreset(false);
         applyVisionMaterial();
         markCameraStatus('READY');
         updateFieldReadouts();
-        showTemporaryMessage(`${quality.label} Comfort Mode active. Forward passthrough, peripheral dimming, camera recovery, and performance protection are online.`);
+        showTemporaryMessage(`${quality.label} Comfort Mode active. Edge / Contour and Fusion Lines are both available in the VISION cycle.`);
         setTimeout(recenterScene, 700);
         setTimeout(() => speakFeedback('Comfort Mode ready. Look down for Copilot', { force: true }), 900);
       } catch (error) {
@@ -2812,6 +2927,7 @@
 
     scanButton.addEventListener('click', scanCameras);
     previewButton.addEventListener('click', previewCamera);
+    previewNightButton.addEventListener('click', cyclePreviewNight);
     applyQualityButton.addEventListener('click', applySelectedQuality);
     qualitySelect.addEventListener('change', () => {
       state.qualityKey = qualitySelect.value || 'balanced';
@@ -2898,6 +3014,7 @@
       }
     } catch (_) {}
 
+    updatePreviewNightUi();
     $('#txt-voice')?.setAttribute('value', `VOICE: ${state.voiceEnabled ? 'ON' : 'OFF'}`);
     $('#txt-auto-hide')?.setAttribute('value', autoHideSeconds() > 0 ? `AUTO HIDE: ${autoHideSeconds()}S` : 'AUTO HIDE: OFF');
     setPerformanceMode(0, false);
