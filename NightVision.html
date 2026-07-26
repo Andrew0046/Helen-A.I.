@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Cardboard Camera 180 — Adaptive Vision Motion Scene</title>
+  <title>Cardboard Camera 180 — Copilot Voice Performance</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -656,8 +656,8 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Camera 180 Copilot — Adaptive Cardboard</h1>
-      <p>The rear camera becomes a forward-facing 180° observation environment with adaptive image recovery, smarter movement analysis, and smoothly animated Wide, Natural, and Focused scene presets. The pixel-locked Cardboard renderer remains unchanged so both eyes stay identical.</p>
+      <h1>Camera 180 Copilot — Voice & Performance</h1>
+      <p>The stable pixel-locked Cardboard view now adds short spoken Copilot confirmations, an automatic menu return timer, and a frame-pressure manager that protects smoothness by reducing only render and analysis load—not stereo alignment.</p>
 
       <div class="preview">
         <video id="setup-preview" autoplay muted playsinline></video>
@@ -688,7 +688,7 @@
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
       <div class="instructions">
-        Hold the phone sideways before launch. Start with High quality. DETAIL now includes AUTO, which adapts shadow recovery, denoising, white balance, highlight protection, and sharpening to the scene. MOTION uses adaptive noise thresholds, shadow-change rejection, size classification, direction estimates, and head-turn suppression. VIEW smoothly changes between Wide, Natural, and Focused while the pixel-locked stereo core remains untouched.
+        Hold the phone sideways before launch. Start with High quality. VOICE gives short confirmations while the phone is inside the headset. AUTO HIDE returns the panel to the physical Copilot orb after inactivity. PERF AUTO watches sustained frame pressure and lowers only the eye-buffer scale and analysis rate when needed; both eyes remain exact pixel copies.
       </div>
     </div>
   </section>
@@ -835,14 +835,14 @@
         <!-- Translucent board and the bright top rail follow The Hub layout. -->
         <a-box
           id="menu-board"
-          position="0 -0.08 0"
+          position="0 -0.10 0"
           width="2.80"
-          height="1.62"
+          height="2.20"
           depth="0.018"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .105"
         ></a-box>
         <a-box
-          position="0 0.72 0.018"
+          position="0 0.98 0.018"
           width="2.80"
           height="0.025"
           depth="0.012"
@@ -851,7 +851,7 @@
 
         <a-text
           value="COPILOT HUB"
-          position="-1.22 0.62 0.035"
+          position="-1.22 0.86 0.035"
           align="left"
           anchor="left"
           width="2.70"
@@ -860,7 +860,7 @@
         <a-text
           id="menu-status"
           value="ADAPTIVE CAMERA WALL ONLINE"
-          position="-1.22 0.51 0.035"
+          position="-1.22 0.73 0.035"
           align="left"
           anchor="left"
           width="2.10"
@@ -869,11 +869,20 @@
         <a-text
           id="motion-readout"
           value="MOTION READY · SCENE NATURAL"
-          position="-1.22 0.405 0.035"
+          position="-1.22 0.60 0.035"
           align="left"
           anchor="left"
           width="1.72"
           color="#75ff9f"
+        ></a-text>
+        <a-text
+          id="performance-readout"
+          value="PERF AUTO · MEASURING"
+          position="-1.22 0.48 0.035"
+          align="left"
+          anchor="left"
+          width="1.72"
+          color="#ffd477"
         ></a-text>
 
         <!-- The Hub-style red circular close control. -->
@@ -881,7 +890,7 @@
           id="btn-close"
           class="clickable"
           hub-button="normal: #ff4444; hover: #ff7777; active: #ffffff"
-          position="1.28 0.62 0.040"
+          position="1.28 0.86 0.040"
           radius="0.085"
           material="shader: flat; color: #ff4444; transparent: true; opacity: .90"
         >
@@ -893,7 +902,7 @@
           id="btn-recenter"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="-0.92 0.24 0.040"
+          position="-0.92 0.25 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -904,7 +913,7 @@
           id="btn-lens"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0 0.24 0.040"
+          position="0 0.25 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -915,7 +924,7 @@
           id="btn-view"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0.92 0.24 0.040"
+          position="0.92 0.25 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -927,7 +936,7 @@
           id="btn-vision"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="-0.92 -0.08 0.040"
+          position="-0.92 -0.07 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -938,7 +947,7 @@
           id="btn-light"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0 -0.08 0.040"
+          position="0 -0.07 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -949,7 +958,7 @@
           id="btn-enhance"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0.92 -0.08 0.040"
+          position="0.92 -0.07 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -961,7 +970,7 @@
           id="btn-grid"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="-0.92 -0.40 0.040"
+          position="-0.92 -0.39 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -972,7 +981,7 @@
           id="btn-motion"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0 -0.40 0.040"
+          position="0 -0.39 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -983,7 +992,7 @@
           id="btn-hide"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0.92 -0.40 0.040"
+          position="0.92 -0.39 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -992,10 +1001,44 @@
         </a-plane>
 
         <a-plane
+          id="btn-voice"
+          class="clickable"
+          hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
+          position="-0.92 -0.71 0.040"
+          width="0.78"
+          height="0.24"
+          material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
+        >
+          <a-text id="txt-voice" value="VOICE: ON" align="center" anchor="center" width="2.35" color="#ffd477"></a-text>
+        </a-plane>
+        <a-plane
+          id="btn-auto-hide"
+          class="clickable"
+          hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
+          position="0 -0.71 0.040"
+          width="0.78"
+          height="0.24"
+          material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
+        >
+          <a-text id="txt-auto-hide" value="AUTO HIDE: 12S" align="center" anchor="center" width="2.10" color="#ffffff"></a-text>
+        </a-plane>
+        <a-plane
+          id="btn-performance"
+          class="clickable"
+          hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
+          position="0.92 -0.71 0.040"
+          width="0.78"
+          height="0.24"
+          material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
+        >
+          <a-text id="txt-performance" value="PERF: AUTO" align="center" anchor="center" width="2.30" color="#ffd477"></a-text>
+        </a-plane>
+
+        <a-plane
           id="btn-exit"
           class="clickable"
           hub-button="normal: #4b2429; hover: #963e49; active: #ff9b9b"
-          position="0 -0.72 0.040"
+          position="0 -1.04 0.040"
           width="2.62"
           height="0.20"
           material="shader: flat; color: #4b2429; transparent: true; opacity: .90"
@@ -1072,6 +1115,7 @@
     const menuPanel = $('#menu-panel');
     const menuStatus = $('#menu-status');
     const motionReadout = $('#motion-readout');
+    const performanceReadout = $('#performance-readout');
     const hudText = $('#hud-text');
     const platformRoot = $('#platform-root');
     const fallbackMessage = $('#fallback-message');
@@ -1136,7 +1180,25 @@
       platformVisible: true,
       wakeLock: null,
       menuAnimationToken: 0,
-      qualityKey: 'high'
+      qualityKey: 'high',
+      voiceEnabled: true,
+      voicePrimed: false,
+      lastSpokenAt: 0,
+      autoHideOptions: [0, 8, 12, 18],
+      autoHideIndex: 2,
+      autoHideTimer: 0,
+      performanceModeIndex: 0,
+      performanceTier: 0,
+      performanceFrameMs: 16.7,
+      performanceFps: 60,
+      performanceBadMs: 0,
+      performanceSevereMs: 0,
+      performanceGoodMs: 0,
+      performanceLastFrame: 0,
+      performanceLastUiAt: 0,
+      performanceLastTierChange: 0,
+      performanceFrameHandle: 0,
+      analysisIntervalMs: 95
     };
 
     const qualityPresets = {
@@ -1187,6 +1249,28 @@
       { label: 'TRAIL', shaderMode: 2, decay: 0.91, strength: 1.0 },
       { label: 'SCAN', shaderMode: 3, decay: 0.58, strength: 0.92 }
     ];
+    const performanceModes = [
+      { label: 'AUTO', forcedTier: null },
+      { label: 'QUALITY', forcedTier: 0 },
+      { label: 'COOL', forcedTier: 2 }
+    ];
+    const performanceProfiles = [
+      { label: 'QUALITY', pixelScale: 1.00, analysisMs: 95, detailScale: 1.00 },
+      { label: 'BALANCED', pixelScale: 0.84, analysisMs: 135, detailScale: 0.88 },
+      { label: 'PROTECT', pixelScale: 0.68, analysisMs: 190, detailScale: 0.72 }
+    ];
+
+    function currentPerformanceMode() {
+      return performanceModes[state.performanceModeIndex] || performanceModes[0];
+    }
+
+    function currentPerformanceProfile() {
+      return performanceProfiles[state.performanceTier] || performanceProfiles[0];
+    }
+
+    function effectivePixelRatio() {
+      return Math.max(1.0, currentQuality().dpr * currentPerformanceProfile().pixelScale);
+    }
 
     function setStatus(message, kind = '') {
       setupStatus.textContent = message;
@@ -1198,6 +1282,57 @@
       fallbackMessage.classList.add('show');
       clearTimeout(showTemporaryMessage.timer);
       showTemporaryMessage.timer = setTimeout(() => fallbackMessage.classList.remove('show'), milliseconds);
+    }
+
+    function preferredVoice() {
+      const voices = window.speechSynthesis?.getVoices?.() || [];
+      return voices.find(voice => /^en-US/i.test(voice.lang))
+        || voices.find(voice => /^en/i.test(voice.lang))
+        || voices[0]
+        || null;
+    }
+
+    function speakFeedback(message, { force = false } = {}) {
+      if (!state.voiceEnabled || !('speechSynthesis' in window) || !message) return;
+      const now = performance.now();
+      if (!force && now - state.lastSpokenAt < 420) return;
+      state.lastSpokenAt = now;
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(message);
+        const voice = preferredVoice();
+        if (voice) utterance.voice = voice;
+        utterance.lang = voice?.lang || 'en-US';
+        utterance.rate = 1.08;
+        utterance.pitch = 0.96;
+        utterance.volume = 0.82;
+        window.speechSynthesis.speak(utterance);
+        state.voicePrimed = true;
+      } catch (error) {
+        console.warn('Voice feedback unavailable:', error);
+      }
+    }
+
+    function clearMenuAutoHide() {
+      clearTimeout(state.autoHideTimer);
+      state.autoHideTimer = 0;
+    }
+
+    function autoHideSeconds() {
+      return state.autoHideOptions[state.autoHideIndex] ?? 12;
+    }
+
+    function scheduleMenuAutoHide() {
+      clearMenuAutoHide();
+      const seconds = autoHideSeconds();
+      if (!state.menuOpen || seconds <= 0) return;
+      state.autoHideTimer = window.setTimeout(() => {
+        if (state.menuOpen) closeMenu('auto');
+      }, seconds * 1000);
+    }
+
+    function noteMenuActivity() {
+      if (state.menuOpen) scheduleMenuAutoHide();
     }
 
     function cameraRank(label) {
@@ -1380,9 +1515,11 @@
       const localContrast = isAuto ? state.adaptiveLocalContrast : enhance.localContrast;
       const gamma = isAuto ? state.adaptiveGamma : enhance.gamma;
       const blackLevel = isAuto ? state.adaptiveBlackLevel : enhance.blackLevel;
-      const sharpness = isAuto
+      const performanceProfile = currentPerformanceProfile();
+      const sharpness = (isAuto
         ? state.adaptiveSharpness
-        : quality.sharpness * enhance.sharpnessScale;
+        : quality.sharpness * enhance.sharpnessScale) * performanceProfile.detailScale;
+      const adjustedLocalContrast = localContrast * performanceProfile.detailScale;
 
       setWallUniform('mode', vision.mode);
       setWallUniform('gain', gains[state.lightIndex]);
@@ -1392,7 +1529,7 @@
       setWallUniform('highlightProtect', highlight);
       setWallUniform('sharpness', sharpness);
       setWallUniform('denoise', denoise);
-      setWallUniform('localContrast', localContrast);
+      setWallUniform('localContrast', adjustedLocalContrast);
       setWallUniform('gamma', gamma);
       setWallUniform('blackLevel', blackLevel);
       setWallUniform('colorBalance', [state.balanceR, state.balanceG, state.balanceB]);
@@ -1760,7 +1897,7 @@
         if (!state.stream) return;
         if (liveVideo.requestVideoFrameCallback) {
           state.analysisFrameHandle = liveVideo.requestVideoFrameCallback((now) => {
-            if (now - state.lastAnalysisAt >= 95) {
+            if (now - state.lastAnalysisAt >= state.analysisIntervalMs) {
               state.lastAnalysisAt = now;
               analyze(now);
             }
@@ -1772,7 +1909,7 @@
             state.lastAnalysisAt = now;
             analyze(now);
             schedule();
-          }, 110);
+          }, state.analysisIntervalMs + 15);
         }
       };
       schedule();
@@ -1864,6 +2001,112 @@
       }
     }
 
+    function updatePerformanceUi() {
+      const mode = currentPerformanceMode();
+      const profile = currentPerformanceProfile();
+      const fps = Math.max(0, Math.round(state.performanceFps));
+      $('#txt-performance')?.setAttribute('value', `PERF: ${mode.label}`);
+      performanceReadout?.setAttribute('value', `${profile.label} · ${fps} FPS · ${effectivePixelRatio().toFixed(2)}X`);
+    }
+
+    function applyPerformanceTier(nextTier, reason = '', announce = false) {
+      const clamped = Math.max(0, Math.min(performanceProfiles.length - 1, nextTier));
+      const changed = clamped !== state.performanceTier;
+      state.performanceTier = clamped;
+      const profile = currentPerformanceProfile();
+      state.analysisIntervalMs = profile.analysisMs;
+      scene.setAttribute('cardboard-fixed-stereo', 'maxPixelRatio', effectivePixelRatio());
+      getStereoComponent()?.syncViewport(true);
+      applyVisionMaterial();
+      updatePerformanceUi();
+
+      if (changed) {
+        state.performanceLastTierChange = performance.now();
+        const explanation = reason ? ` · ${reason}` : '';
+        showTemporaryMessage(`Performance ${profile.label.toLowerCase()} mode${explanation}. Stereo alignment remains pixel-locked.`);
+        if (announce) {
+          const spoken = profile.label === 'PROTECT'
+            ? 'Performance protection active'
+            : profile.label === 'BALANCED'
+              ? 'Performance balanced'
+              : 'Full image quality restored';
+          speakFeedback(spoken);
+        }
+      }
+    }
+
+    function setPerformanceMode(index, announce = true) {
+      state.performanceModeIndex = (index + performanceModes.length) % performanceModes.length;
+      const mode = currentPerformanceMode();
+      state.performanceBadMs = 0;
+      state.performanceSevereMs = 0;
+      state.performanceGoodMs = 0;
+      if (mode.forcedTier !== null) {
+        applyPerformanceTier(mode.forcedTier, mode.label === 'COOL' ? 'manual cool mode' : 'manual quality mode', false);
+      } else {
+        applyPerformanceTier(Math.min(state.performanceTier, 1), 'automatic control enabled', false);
+      }
+      updatePerformanceUi();
+      if (announce) speakFeedback(`Performance ${mode.label.toLowerCase()}`);
+      menuStatus.setAttribute('value', `PERFORMANCE ${mode.label} · ${currentPerformanceProfile().label}`);
+    }
+
+    function performanceMonitorFrame(now) {
+      const previous = state.performanceLastFrame;
+      state.performanceLastFrame = now;
+      if (previous > 0) {
+        const delta = Math.min(100, Math.max(4, now - previous));
+        state.performanceFrameMs += (delta - state.performanceFrameMs) * 0.055;
+        state.performanceFps = 1000 / Math.max(1, state.performanceFrameMs);
+
+        if (state.cardboardActive && currentPerformanceMode().forcedTier === null) {
+          const elapsedSinceChange = now - state.performanceLastTierChange;
+          if (state.performanceFrameMs > 34) {
+            state.performanceSevereMs += delta;
+            state.performanceBadMs += delta;
+            state.performanceGoodMs = 0;
+          } else if (state.performanceFrameMs > 24.5) {
+            state.performanceBadMs += delta;
+            state.performanceSevereMs = Math.max(0, state.performanceSevereMs - delta * 0.4);
+            state.performanceGoodMs = 0;
+          } else if (state.performanceFrameMs < 18.5) {
+            state.performanceGoodMs += delta;
+            state.performanceBadMs = Math.max(0, state.performanceBadMs - delta * 0.5);
+            state.performanceSevereMs = Math.max(0, state.performanceSevereMs - delta);
+          } else {
+            state.performanceGoodMs = Math.max(0, state.performanceGoodMs - delta * 0.5);
+            state.performanceBadMs = Math.max(0, state.performanceBadMs - delta * 0.25);
+            state.performanceSevereMs = Math.max(0, state.performanceSevereMs - delta * 0.5);
+          }
+
+          if (elapsedSinceChange > 6500 && state.performanceTier < 2
+              && (state.performanceSevereMs > 1500 || state.performanceBadMs > 4200)) {
+            applyPerformanceTier(state.performanceTier + 1, 'sustained frame pressure', true);
+            state.performanceBadMs = 0;
+            state.performanceSevereMs = 0;
+            state.performanceGoodMs = 0;
+          } else if (elapsedSinceChange > 10000 && state.performanceTier > 0
+              && state.performanceGoodMs > 12000) {
+            applyPerformanceTier(state.performanceTier - 1, 'frame rate recovered', true);
+            state.performanceBadMs = 0;
+            state.performanceSevereMs = 0;
+            state.performanceGoodMs = 0;
+          }
+        }
+      }
+
+      if (now - state.performanceLastUiAt > 900) {
+        state.performanceLastUiAt = now;
+        updatePerformanceUi();
+      }
+      state.performanceFrameHandle = requestAnimationFrame(performanceMonitorFrame);
+    }
+
+    function startPerformanceMonitor() {
+      if (state.performanceFrameHandle) return;
+      state.performanceFrameHandle = requestAnimationFrame(performanceMonitorFrame);
+    }
+
     function getStereoComponent() {
       return scene.components['cardboard-fixed-stereo'];
     }
@@ -1871,7 +2114,7 @@
     function setCardboardStereo(enabled) {
       state.cardboardActive = Boolean(enabled);
       const quality = currentQuality();
-      scene.setAttribute('cardboard-fixed-stereo', 'maxPixelRatio', quality.dpr);
+      scene.setAttribute('cardboard-fixed-stereo', 'maxPixelRatio', effectivePixelRatio());
       scene.setAttribute('cardboard-fixed-stereo', 'enabled', state.cardboardActive);
       document.documentElement.classList.toggle('cardboard-active', state.cardboardActive);
       state.stereoMode = state.cardboardActive ? 'PIXEL-LOCKED' : 'OFF';
@@ -1909,6 +2152,9 @@
     async function launchScene() {
       launchButton.disabled = true;
       try {
+        // This call originates from the launch tap, which gives mobile browsers
+        // the best chance to unlock speech synthesis for later headset feedback.
+        if (state.voiceEnabled) speakFeedback('Copilot starting', { force: true });
         await requestMotionPermission();
         await ensureSceneLoaded();
         if (!state.stream) await openSelectedCamera({ preview: false });
@@ -1926,8 +2172,10 @@
         hudText.setAttribute('value', 'LOOK DOWN · CARDBOARD');
         $('#txt-stereo')?.setAttribute('value', 'CARDBOARD: LOCKED');
         const quality = currentQuality();
-        showTemporaryMessage(`${quality.label} pixel-locked view active. DETAIL: AUTO, adaptive motion analysis, and the Natural 180 environment are ready.`);
+        applyPerformanceTier(currentPerformanceMode().forcedTier ?? state.performanceTier, 'launch profile', false);
+        showTemporaryMessage(`${quality.label} pixel-locked view active. Voice, auto hide, and performance protection are ready.`);
         setTimeout(recenterScene, 700);
+        setTimeout(() => speakFeedback('Copilot ready. Look down for the menu', { force: true }), 900);
       } catch (error) {
         console.error(error);
         setCardboardStereo(false);
@@ -1947,8 +2195,12 @@
     }
 
     function openMenu() {
-      if (state.menuOpen) return;
+      if (state.menuOpen) {
+        noteMenuActivity();
+        return;
+      }
       state.menuOpen = true;
+      clearMenuAutoHide();
       const token = ++state.menuAnimationToken;
       clearMenuAnimations();
 
@@ -1996,11 +2248,15 @@
 
       hudText.setAttribute('value', 'COPILOT HUB ACTIVE');
       menuStatus.setAttribute('value', `${visionModes[state.visionIndex].label} · ${enhancementModes[state.enhanceIndex].label} DETAIL · CARDBOARD`);
+      updatePerformanceUi();
+      scheduleMenuAutoHide();
+      speakFeedback('Copilot menu open');
     }
 
-    function closeMenu() {
+    function closeMenu(reason = 'manual') {
       if (!state.menuOpen) return;
       state.menuOpen = false;
+      clearMenuAutoHide();
       const token = ++state.menuAnimationToken;
       clearMenuAnimations();
 
@@ -2046,6 +2302,8 @@
       }, 285);
 
       hudText.setAttribute('value', 'LOOK DOWN FOR COPILOT');
+      if (reason === 'auto') speakFeedback('Menu returned to Copilot');
+      else if (reason === 'manual') speakFeedback('Menu hidden');
     }
 
     function recenterScene() {
@@ -2058,6 +2316,8 @@
       rigObject.rotation.y -= euler.y;
       menuStatus.setAttribute('value', 'FORWARD DIRECTION RECENTERED');
       showTemporaryMessage('Forward direction recentered.');
+      speakFeedback('Forward direction recentered');
+      noteMenuActivity();
     }
 
     async function cycleCamera() {
@@ -2075,6 +2335,7 @@
         menuStatus.setAttribute('value', 'SWITCHING CAMERA LENS…');
         await openSelectedCamera({ preview: false });
         menuStatus.setAttribute('value', `ACTIVE: ${shortLensLabel(currentDeviceLabel()).toUpperCase()}`);
+        speakFeedback('Camera switched');
       } catch (error) {
         console.error(error);
         menuStatus.setAttribute('value', 'CAMERA SWITCH FAILED');
@@ -2134,6 +2395,8 @@
     function cycleView() {
       state.viewIndex = (state.viewIndex + 1) % viewPresets.length;
       applyViewPreset(true);
+      speakFeedback(`${viewPresets[state.viewIndex].label.replace('VIEW: ', '').toLowerCase()} view`);
+      noteMenuActivity();
     }
 
     function cycleVision() {
@@ -2144,6 +2407,8 @@
       applyVisionMaterial();
       menuStatus.setAttribute('value', `${vision.label} VISION ACTIVE`);
       hudText.setAttribute('value', `${vision.label} · CARDBOARD STEREO`);
+      speakFeedback(`${vision.label.toLowerCase()} vision`);
+      noteMenuActivity();
     }
 
     function cycleLight() {
@@ -2152,6 +2417,8 @@
       applyVisionMaterial();
       $('#txt-light').setAttribute('value', `LIGHT: ${gain.toFixed(2)}X`);
       menuStatus.setAttribute('value', `CAMERA GAIN ${gain.toFixed(2)}X`);
+      speakFeedback(`Light ${gain.toFixed(2)}`);
+      noteMenuActivity();
     }
 
     function cycleEnhancement() {
@@ -2163,6 +2430,8 @@
       if (option.auto) {
         showTemporaryMessage('Adaptive detail now changes denoising, shadow recovery, white balance, highlight protection, and sharpening with the scene.');
       }
+      speakFeedback(`${option.label.toLowerCase()} detail`);
+      noteMenuActivity();
     }
 
     function confirmStereo() {
@@ -2179,6 +2448,8 @@
       menuStatus.setAttribute('value', motion.shaderMode === 0 ? 'MOTION DETECTION OFF' : `${motion.label} · ADAPTIVE THRESHOLD ON`);
       motionReadout?.setAttribute('value', motion.shaderMode === 0 ? 'MOTION OFF · SCENE READY' : 'ANALYZING SIZE · DIRECTION · NOISE');
       hudText.setAttribute('value', motion.shaderMode === 0 ? `${visionModes[state.visionIndex].label} · CARDBOARD` : `MOTION ${motion.label} · LOOK DOWN FOR HUB`);
+      speakFeedback(motion.shaderMode === 0 ? 'Motion detection off' : `Motion ${motion.label.toLowerCase()}`);
+      noteMenuActivity();
     }
 
     function togglePlatform() {
@@ -2186,10 +2457,42 @@
       platformRoot.setAttribute('visible', state.platformVisible);
       $('#txt-grid').setAttribute('value', `PLATFORM: ${state.platformVisible ? 'ON' : 'OFF'}`);
       menuStatus.setAttribute('value', state.platformVisible ? 'OBSERVATION PLATFORM ENABLED' : 'OBSERVATION PLATFORM HIDDEN');
+      speakFeedback(state.platformVisible ? 'Platform enabled' : 'Platform hidden');
+      noteMenuActivity();
+    }
+
+    function toggleVoice() {
+      state.voiceEnabled = !state.voiceEnabled;
+      $('#txt-voice').setAttribute('value', `VOICE: ${state.voiceEnabled ? 'ON' : 'OFF'}`);
+      try { localStorage.setItem('cardboard-voice-enabled', state.voiceEnabled ? '1' : '0'); } catch (_) {}
+      menuStatus.setAttribute('value', state.voiceEnabled ? 'COPILOT VOICE ENABLED' : 'COPILOT VOICE MUTED');
+      if (state.voiceEnabled) speakFeedback('Voice feedback enabled', { force: true });
+      else {
+        try { window.speechSynthesis?.cancel?.(); } catch (_) {}
+        showTemporaryMessage('Copilot voice muted.');
+      }
+      noteMenuActivity();
+    }
+
+    function cycleAutoHide() {
+      state.autoHideIndex = (state.autoHideIndex + 1) % state.autoHideOptions.length;
+      const seconds = autoHideSeconds();
+      $('#txt-auto-hide').setAttribute('value', seconds > 0 ? `AUTO HIDE: ${seconds}S` : 'AUTO HIDE: OFF');
+      try { localStorage.setItem('cardboard-auto-hide-index', String(state.autoHideIndex)); } catch (_) {}
+      menuStatus.setAttribute('value', seconds > 0 ? `MENU RETURNS AFTER ${seconds} SECONDS` : 'AUTOMATIC MENU RETURN DISABLED');
+      speakFeedback(seconds > 0 ? `Auto hide ${seconds} seconds` : 'Auto hide off');
+      scheduleMenuAutoHide();
+    }
+
+    function cyclePerformanceMode() {
+      const next = (state.performanceModeIndex + 1) % performanceModes.length;
+      setPerformanceMode(next, true);
+      try { localStorage.setItem('cardboard-performance-mode', String(state.performanceModeIndex)); } catch (_) {}
+      noteMenuActivity();
     }
 
     async function exitScene() {
-      closeMenu();
+      closeMenu('exit');
       try { if (document.fullscreenElement) await document.exitFullscreen(); } catch (error) { console.warn(error); }
       try { await screen.orientation?.unlock?.(); } catch (_) {}
       try { await state.wakeLock?.release?.(); } catch (_) {}
@@ -2203,8 +2506,9 @@
 
     async function applySelectedQuality() {
       const quality = currentQuality();
-      scene.setAttribute('cardboard-fixed-stereo', 'maxPixelRatio', quality.dpr);
+      scene.setAttribute('cardboard-fixed-stereo', 'maxPixelRatio', effectivePixelRatio());
       getStereoComponent()?.syncViewport(true);
+      applyPerformanceTier(currentPerformanceMode().forcedTier ?? state.performanceTier, 'quality selection', false);
       applyVisionMaterial();
       if (state.stream) {
         const preview = state.previewOnly;
@@ -2245,7 +2549,15 @@
     $('#btn-enhance').addEventListener('click', cycleEnhancement);
     $('#btn-motion').addEventListener('click', cycleMotion);
     $('#btn-grid').addEventListener('click', togglePlatform);
+    $('#btn-voice').addEventListener('click', toggleVoice);
+    $('#btn-auto-hide').addEventListener('click', cycleAutoHide);
+    $('#btn-performance').addEventListener('click', cyclePerformanceMode);
     $('#btn-exit').addEventListener('click', exitScene);
+
+    document.querySelectorAll('#menu-panel .clickable').forEach(control => {
+      control.addEventListener('mouseenter', noteMenuActivity);
+      control.addEventListener('click', noteMenuActivity);
+    });
 
     document.addEventListener('keydown', event => {
       if (event.key.toLowerCase() === 'm') state.menuOpen ? closeMenu() : openMenu();
@@ -2281,6 +2593,25 @@
     qualitySelect.addEventListener('change', () => {
       try { localStorage.setItem('cardboard-quality', qualitySelect.value); } catch (_) {}
     });
+
+    try {
+      const savedVoice = localStorage.getItem('cardboard-voice-enabled');
+      if (savedVoice !== null) state.voiceEnabled = savedVoice !== '0';
+      const savedAutoHide = Number(localStorage.getItem('cardboard-auto-hide-index'));
+      if (Number.isInteger(savedAutoHide) && savedAutoHide >= 0 && savedAutoHide < state.autoHideOptions.length) {
+        state.autoHideIndex = savedAutoHide;
+      }
+      const savedPerformance = Number(localStorage.getItem('cardboard-performance-mode'));
+      if (Number.isInteger(savedPerformance) && savedPerformance >= 0 && savedPerformance < performanceModes.length) {
+        state.performanceModeIndex = savedPerformance;
+      }
+    } catch (_) {}
+
+    $('#txt-voice')?.setAttribute('value', `VOICE: ${state.voiceEnabled ? 'ON' : 'OFF'}`);
+    $('#txt-auto-hide')?.setAttribute('value', autoHideSeconds() > 0 ? `AUTO HIDE: ${autoHideSeconds()}S` : 'AUTO HIDE: OFF');
+    setPerformanceMode(state.performanceModeIndex, false);
+    updatePerformanceUi();
+    startPerformanceMonitor();
 
     if (!window.isSecureContext) {
       setStatus('Camera access requires HTTPS or localhost. A downloaded file may need to be served from a secure local web server.', 'warn');
