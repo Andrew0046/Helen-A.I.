@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Comfort Soundwave Plus</title>
+  <title>Observer 180 — Comfort Soundwave Android Fixed</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -728,7 +728,7 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Comfort Soundwave Plus</h1>
+      <h1>Observer 180 — Comfort Soundwave Android Fixed</h1>
       <p>A comfort-first passthrough mode built on the stable pixel-locked Cardboard renderer. It uses a shallower forward camera surface, lower-latency capture, softer image processing, and movement-aware peripheral dimming.</p>
 
       <div id="setup-preview-frame" class="preview">
@@ -764,7 +764,7 @@
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
       <div class="instructions">
-        Hold the phone sideways before launch. The VISION cycle now includes Soundwave Plus: automatic ambient-noise calibration, sensitivity presets, frequency-reactive colors, pulse or trail behavior, and a live sound meter. Stop immediately if you feel headache, eye strain, dizziness, nausea, blurred vision, or double vision.
+        Hold the phone sideways before launch. The VISION cycle now includes Soundwave Plus: automatic ambient-noise calibration, sensitivity presets, frequency-reactive colors, pulse or trail behavior, and a live sound meter. Android will request microphone access during the launch tap. Stop immediately if you feel headache, eye strain, dizziness, nausea, blurred vision, or double vision.
       </div>
     </div>
   </section>
@@ -1525,7 +1525,7 @@
 
     function setSoundwaveColor(r, g, b) {
       state.soundwaveColor = { r, g, b };
-      setWallUniform('soundColor', `${r} ${g} ${b}`);
+      setWallUniform('soundColor', [r, g, b]);
     }
 
     function computeSoundwaveThreshold(ambient) {
@@ -1745,7 +1745,8 @@
       if (vision.mode === 7) activateSoundwaveMode();
       else {
         updateSoundwaveUniform(0);
-        releaseSoundwaveAudio();
+        state.soundwaveStatus = state.soundwaveReady ? 'READY' : 'IDLE';
+        updateSoundwaveHud();
       }
       speakFeedback(`${vision.label.toLowerCase()} vision`);
       noteMenuActivity();
@@ -1804,7 +1805,12 @@
       if (state.soundwaveContext && state.soundwaveReady) {
         try {
           if (state.soundwaveContext.state === 'suspended') await state.soundwaveContext.resume();
-        } catch (_) {}
+        } catch (error) {
+          console.warn('AudioContext resume failed:', error);
+        }
+        if (state.soundwaveContext.state === 'suspended') {
+          throw new Error('Soundwave audio is suspended. Relaunch and allow microphone access from the launch button.');
+        }
         if (!state.soundwaveLoopHandle) state.soundwaveLoopHandle = requestAnimationFrame(soundwaveLoop);
         state.soundwaveEnabled = true;
         return true;
@@ -1825,7 +1831,7 @@
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) throw new Error('This browser does not support microphone analysis.');
       const context = new AudioCtx();
-      await context.resume().catch(() => {});
+      try { await context.resume(); } catch (error) { console.warn('Initial AudioContext resume failed:', error); }
       const source = context.createMediaStreamSource(stream);
       const analyser = context.createAnalyser();
       analyser.fftSize = 512;
@@ -1842,6 +1848,21 @@
       updateSoundwaveButtons();
       if (!state.soundwaveLoopHandle) state.soundwaveLoopHandle = requestAnimationFrame(soundwaveLoop);
       return true;
+    }
+
+    async function prepareSoundwaveFromLaunchTap() {
+      try {
+        await ensureSoundwaveAudio();
+        state.soundwaveStatus = 'READY';
+        updateSoundwaveHud();
+        return true;
+      } catch (error) {
+        console.warn('Soundwave preparation skipped:', error);
+        state.soundwaveStatus = 'MIC OFF';
+        state.soundwaveReady = false;
+        updateSoundwaveHud();
+        return false;
+      }
     }
 
     async function activateSoundwaveMode() {
@@ -1865,7 +1886,7 @@
         applyVisionMaterial();
         menuStatus?.setAttribute('value', 'MICROPHONE NEEDED · RETURNED TO EDGE');
         hudText?.setAttribute('value', 'EDGE / CONTOUR MODE');
-        showTemporaryMessage('Soundwave needs microphone access. Edge mode was restored instead.');
+        showTemporaryMessage('Soundwave microphone is unavailable. Exit and relaunch, then allow microphone access when Android asks. Edge mode was restored.');
         speakFeedback('Microphone needed for soundwave');
       }
     }
@@ -2185,7 +2206,7 @@
       setWallUniform('motionMode', motion.shaderMode);
       setWallUniform('soundLevel', vision.mode === 7 ? state.soundwaveLevel : 0.0);
       const soundColor = state.soundwaveColor || { r: 1.0, g: 0.88, b: 0.18 };
-      setWallUniform('soundColor', `${soundColor.r} ${soundColor.g} ${soundColor.b}`);
+      setWallUniform('soundColor', [soundColor.r, soundColor.g, soundColor.b]);
       const motionComfortScale = Math.max(0.0, 1.0 - Math.min(1.0, (state.currentHeadTurn || 0) * 26.0));
       setWallUniform('motionStrength', motion.strength * motionComfortScale);
       setWallUniform('motionSize', [motionCanvas.width, motionCanvas.height]);
@@ -2814,6 +2835,9 @@
         // the best chance to unlock speech synthesis for later headset feedback.
         if (state.voiceEnabled) speakFeedback('Copilot starting', { force: true });
         await requestMotionPermission();
+        // Android Chrome is most reliable when microphone permission and AudioContext
+        // are created from this physical launch tap, not later from a gaze event.
+        const soundwavePrepared = await prepareSoundwaveFromLaunchTap();
         await ensureSceneLoaded();
         if (!state.stream) await openSelectedCamera({ preview: false });
 
@@ -2845,7 +2869,9 @@
         applyVisionMaterial();
         markCameraStatus('READY');
         updateFieldReadouts();
-        showTemporaryMessage(`${quality.label} Comfort Mode active. Soundwave Plus adds auto calibration, sensitivity, pulse and trail response.`);
+        showTemporaryMessage(soundwavePrepared
+          ? `${quality.label} Comfort Mode active. Soundwave microphone is ready.`
+          : `${quality.label} Comfort Mode active. Camera works, but Soundwave microphone is unavailable.`);
         setTimeout(recenterScene, 700);
         setTimeout(() => speakFeedback('Comfort Mode ready. Look down for Copilot', { force: true }), 900);
       } catch (error) {
