@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Comfort Edge + Fusion</title>
+  <title>Observer 180 — Comfort Soundwave</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -36,6 +36,7 @@
         motionSize: { type: 'vec2', default: { x: 128, y: 72 }, is: 'uniform' },
         motionMode: { type: 'number', default: 0.0, is: 'uniform' },
         motionStrength: { type: 'number', default: 1.0, is: 'uniform' },
+        soundLevel: { type: 'number', default: 0.0, is: 'uniform' },
         comfortVignette: { type: 'number', default: 0.16, is: 'uniform' },
         turnVignette: { type: 'number', default: 0.0, is: 'uniform' }
       },
@@ -68,6 +69,7 @@
         uniform vec2 motionSize;
         uniform float motionMode;
         uniform float motionStrength;
+        uniform float soundLevel;
         uniform float comfortVignette;
         uniform float turnVignette;
         varying vec2 vUv;
@@ -123,8 +125,10 @@
             // Natural low-light eye vision.
             color = mix(color, vec3(y * 0.82, y * 0.94, y), 0.18);
           } else if (mode > 1.5 && mode < 2.5) {
-            // Green night observation mode.
-            color = vec3(y * 0.12, y, y * 0.26) + vec3(edge * 0.06, edge * 0.18, edge * 0.08);
+            // Green night observation mode with warm yellow fusion lines.
+            vec3 greenBase = vec3(y * 0.11, y * 0.96, y * 0.24);
+            vec3 yellowLines = vec3(1.00, 0.88, 0.18) * edge * 0.82;
+            color = clamp(greenBase * 0.82 + yellowLines, 0.0, 1.0);
           } else if (mode > 2.5 && mode < 3.5) {
             // Amber night observation mode.
             color = vec3(y, y * 0.55, y * 0.10) + vec3(edge * 0.12, edge * 0.06, 0.0);
@@ -132,9 +136,14 @@
             color = vec3(y);
           } else if (mode > 4.5 && mode < 5.5) {
             color = vec3(edge * 0.85, edge, edge);
-          } else if (mode > 5.5) {
+          } else if (mode > 5.5 && mode < 6.5) {
             // Fusion retains the camera image and adds cyan contour detail.
             color = clamp(color * 0.72 + vec3(0.08, 0.82, 1.0) * edge * 0.82, 0.0, 1.0);
+          } else if (mode > 6.5) {
+            // Soundwave keeps the live camera visible and fades contour mode in only when sound is heard.
+            float soundTrigger = smoothstep(0.08, 0.34, clamp(soundLevel, 0.0, 1.0));
+            vec3 edgeOnly = vec3(edge * 0.85, edge, edge);
+            color = clamp(mix(color, edgeOnly, soundTrigger), 0.0, 1.0);
           }
 
           // CPU-generated motion mask. It is deliberately low resolution and
@@ -716,7 +725,7 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Comfort Edge + Fusion</h1>
+      <h1>Observer 180 — Comfort Soundwave</h1>
       <p>A comfort-first passthrough mode built on the stable pixel-locked Cardboard renderer. It uses a shallower forward camera surface, lower-latency capture, softer image processing, and movement-aware peripheral dimming.</p>
 
       <div id="setup-preview-frame" class="preview">
@@ -752,7 +761,7 @@
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
       <div class="instructions">
-        Hold the phone sideways before launch. The headset VISION control now includes Fusion Lines: the live camera remains visible while cyan contour detail is layered over real objects. Stop immediately if you feel headache, eye strain, dizziness, nausea, blurred vision, or double vision.
+        Hold the phone sideways before launch. The VISION cycle now includes Soundwave: the Comfort camera stays visible, and the Edge / Contour effect only rises when the microphone hears sound. Stop immediately if you feel headache, eye strain, dizziness, nausea, blurred vision, or double vision.
       </div>
     </div>
   </section>
@@ -1242,6 +1251,16 @@
       previewNightIndex: 0,
       previewBadgeBase: 'Camera access has not started.',
       menuOpen: false,
+      soundwaveContext: null,
+      soundwaveStream: null,
+      soundwaveSource: null,
+      soundwaveAnalyser: null,
+      soundwaveData: null,
+      soundwaveLoopHandle: 0,
+      soundwaveLevel: 0,
+      soundwaveEnabled: false,
+      soundwaveReady: false,
+      soundwavePermissionDenied: false,
       currentDeviceIndex: -1,
       viewIndex: 0,
       lightIndex: 0,
@@ -1362,9 +1381,10 @@
       { label: 'NIGHT AMBER', mode: 3, auto: true },
       { label: 'MONO', mode: 4, auto: false },
       { label: 'EDGE', mode: 5, auto: false },
-      { label: 'FUSION LINES', mode: 6, auto: true }
+      { label: 'FUSION LINES', mode: 6, auto: true },
+      { label: 'SOUNDWAVE', mode: 7, auto: false }
     ];
-    const fieldVisionOrder = [0, 1, 2, 5, 6];
+    const fieldVisionOrder = [0, 1, 2, 5, 6, 7];
     const previewNightModes = [
       { label: 'Natural', buttonMode: 'natural', className: '', visionIndex: 0 },
       { label: 'Low Light', buttonMode: 'low', className: 'preview-low-light', visionIndex: 1 },
@@ -1589,22 +1609,147 @@
       applyVisionMaterial();
       menuStatus?.setAttribute(
         'value',
-        vision.mode === 6
-          ? 'LIVE CAMERA + CYAN CONTOUR LINES'
-          : vision.mode === 5
-            ? 'EDGE / CONTOUR LINES ONLY'
-            : `${vision.label} COMFORT VISION`
+        vision.mode === 7
+          ? 'SOUNDWAVE · CONTOURS RESPOND TO SOUND'
+          : vision.mode === 6
+            ? 'LIVE CAMERA + CYAN CONTOUR LINES'
+            : vision.mode === 5
+              ? 'EDGE / CONTOUR LINES ONLY'
+              : vision.mode === 2
+                ? 'NIGHT GREEN + YELLOW FUSION LINES'
+                : `${vision.label} COMFORT VISION`
       );
       hudText?.setAttribute(
         'value',
-        vision.mode === 6
-          ? 'FUSION LINES · LIVE CAMERA'
-          : vision.mode === 5
-            ? 'EDGE / CONTOUR MODE'
-            : `${vision.label} · COMFORT MODE`
+        vision.mode === 7
+          ? 'SOUNDWAVE · LISTENING'
+          : vision.mode === 6
+            ? 'FUSION LINES · LIVE CAMERA'
+            : vision.mode === 5
+              ? 'EDGE / CONTOUR MODE'
+              : vision.mode === 2
+                ? 'NIGHT GREEN · YELLOW LINES'
+                : `${vision.label} · COMFORT MODE`
       );
+      if (vision.mode === 7) activateSoundwaveMode();
+      else updateSoundwaveUniform(0);
       speakFeedback(`${vision.label.toLowerCase()} vision`);
       noteMenuActivity();
+    }
+
+
+    function updateSoundwaveUniform(level) {
+      state.soundwaveLevel = Math.max(0, Math.min(1, level || 0));
+      setWallUniform('soundLevel', state.soundwaveLevel);
+    }
+
+    function soundwaveLoop() {
+      if (!state.soundwaveAnalyser || !state.soundwaveData) {
+        state.soundwaveLoopHandle = 0;
+        return;
+      }
+      state.soundwaveAnalyser.getByteTimeDomainData(state.soundwaveData);
+      let sum = 0;
+      let peak = 0;
+      for (let i = 0; i < state.soundwaveData.length; i += 1) {
+        const centered = (state.soundwaveData[i] - 128) / 128;
+        const absVal = Math.abs(centered);
+        sum += centered * centered;
+        if (absVal > peak) peak = absVal;
+      }
+      const rms = Math.sqrt(sum / state.soundwaveData.length);
+      const rawLevel = Math.min(1, rms * 4.2 + peak * 0.7);
+      const smoothed = Math.max(rawLevel, state.soundwaveLevel * 0.86);
+      updateSoundwaveUniform(smoothed < 0.025 ? 0 : smoothed);
+      state.soundwaveLoopHandle = requestAnimationFrame(soundwaveLoop);
+    }
+
+    async function ensureSoundwaveAudio() {
+      if (state.soundwavePermissionDenied) {
+        throw new Error('Microphone permission was denied for Soundwave mode.');
+      }
+      if (state.soundwaveContext && state.soundwaveReady) {
+        try {
+          if (state.soundwaveContext.state === 'suspended') await state.soundwaveContext.resume();
+        } catch (_) {}
+        if (!state.soundwaveLoopHandle) state.soundwaveLoopHandle = requestAnimationFrame(soundwaveLoop);
+        state.soundwaveEnabled = true;
+        return true;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        },
+        video: false
+      }).catch((error) => {
+        if (error && (error.name === 'NotAllowedError' || error.name === 'SecurityError')) {
+          state.soundwavePermissionDenied = true;
+        }
+        throw error;
+      });
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) throw new Error('This browser does not support microphone analysis.');
+      const context = new AudioCtx();
+      await context.resume().catch(() => {});
+      const source = context.createMediaStreamSource(stream);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.72;
+      source.connect(analyser);
+      state.soundwaveContext = context;
+      state.soundwaveStream = stream;
+      state.soundwaveSource = source;
+      state.soundwaveAnalyser = analyser;
+      state.soundwaveData = new Uint8Array(analyser.fftSize);
+      state.soundwaveReady = true;
+      state.soundwaveEnabled = true;
+      if (!state.soundwaveLoopHandle) state.soundwaveLoopHandle = requestAnimationFrame(soundwaveLoop);
+      return true;
+    }
+
+    async function activateSoundwaveMode() {
+      try {
+        await ensureSoundwaveAudio();
+        menuStatus?.setAttribute('value', 'SOUNDWAVE · CONTOURS RESPOND TO SOUND');
+        hudText?.setAttribute('value', 'SOUNDWAVE · LISTENING');
+        showTemporaryMessage('Soundwave active. The contour effect will rise only when sound is heard.');
+        speakFeedback('Soundwave listening');
+      } catch (error) {
+        console.warn('Soundwave microphone unavailable:', error);
+        updateSoundwaveUniform(0);
+        state.visionIndex = 5;
+        state.fieldVisionStep = Math.max(0, fieldVisionOrder.indexOf(state.visionIndex));
+        $('#txt-vision')?.setAttribute('value', `VISION: ${visionModes[state.visionIndex].label}`);
+        applyVisionMaterial();
+        menuStatus?.setAttribute('value', 'MICROPHONE NEEDED · RETURNED TO EDGE');
+        hudText?.setAttribute('value', 'EDGE / CONTOUR MODE');
+        showTemporaryMessage('Soundwave needs microphone access. Edge mode was restored instead.');
+        speakFeedback('Microphone needed for soundwave');
+      }
+    }
+
+    async function releaseSoundwaveAudio() {
+      if (state.soundwaveLoopHandle) {
+        cancelAnimationFrame(state.soundwaveLoopHandle);
+        state.soundwaveLoopHandle = 0;
+      }
+      updateSoundwaveUniform(0);
+      state.soundwaveEnabled = false;
+      try { state.soundwaveSource?.disconnect?.(); } catch (_) {}
+      try { state.soundwaveStream?.getTracks?.().forEach(track => track.stop()); } catch (_) {}
+      try {
+        if (state.soundwaveContext && state.soundwaveContext.state !== 'closed') {
+          await state.soundwaveContext.close();
+        }
+      } catch (_) {}
+      state.soundwaveContext = null;
+      state.soundwaveStream = null;
+      state.soundwaveSource = null;
+      state.soundwaveAnalyser = null;
+      state.soundwaveData = null;
+      state.soundwaveReady = false;
     }
 
     function currentPerformanceMode() {
@@ -1895,6 +2040,7 @@
 
       const motion = motionModes[state.motionModeIndex];
       setWallUniform('motionMode', motion.shaderMode);
+      setWallUniform('soundLevel', vision.mode === 7 ? state.soundwaveLevel : 0.0);
       const motionComfortScale = Math.max(0.0, 1.0 - Math.min(1.0, (state.currentHeadTurn || 0) * 26.0));
       setWallUniform('motionStrength', motion.strength * motionComfortScale);
       setWallUniform('motionSize', [motionCanvas.width, motionCanvas.height]);
@@ -2554,7 +2700,7 @@
         applyVisionMaterial();
         markCameraStatus('READY');
         updateFieldReadouts();
-        showTemporaryMessage(`${quality.label} Comfort Mode active. Edge / Contour and Fusion Lines are both available in the VISION cycle.`);
+        showTemporaryMessage(`${quality.label} Comfort Mode active. Soundwave is now in the VISION cycle.`);
         setTimeout(recenterScene, 700);
         setTimeout(() => speakFeedback('Comfort Mode ready. Look down for Copilot', { force: true }), 900);
       } catch (error) {
@@ -2893,6 +3039,7 @@
 
     async function exitScene() {
       closeMenu('exit');
+      await releaseSoundwaveAudio();
       try { if (document.fullscreenElement) await document.exitFullscreen(); } catch (error) { console.warn(error); }
       try { await screen.orientation?.unlock?.(); } catch (_) {}
       try { await state.wakeLock?.release?.(); } catch (_) {}
@@ -2977,6 +3124,7 @@
     window.addEventListener('beforeunload', () => {
       state.cardboardActive = false;
       state.suppressCameraRecoveryUntil = Number.POSITIVE_INFINITY;
+      releaseSoundwaveAudio();
       stopStream();
     });
 
