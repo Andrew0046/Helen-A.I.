@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Comfort Soundwave Android Fixed</title>
+  <title>Observer 180 — Soundwave + Mono View</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -345,30 +345,31 @@
 
         const { width, height } = this.getCssSize();
         const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, this.data.maxPixelRatio));
-        const eyeBufferWidth = Math.max(2, Math.round((width * 0.5) * dpr));
+        const targetCssWidth = this.data.enabled ? Math.max(1, width * 0.5) : width;
+        const targetBufferWidth = Math.max(2, Math.round(targetCssWidth * dpr));
         const bufferHeight = Math.max(2, Math.round(height * dpr));
 
         const unchanged =
           width === this.cssWidth &&
           height === this.cssHeight &&
-          eyeBufferWidth === this.eyeBufferWidth &&
+          targetBufferWidth === this.eyeBufferWidth &&
           bufferHeight === this.bufferHeight;
         if (!force && unchanged) return;
 
         this.cssWidth = width;
         this.cssHeight = height;
-        this.eyeBufferWidth = eyeBufferWidth;
+        this.eyeBufferWidth = targetBufferWidth;
         this.bufferHeight = bufferHeight;
 
         /* Pixel ratio is folded into the explicit drawing-buffer dimensions. */
         renderer.setPixelRatio(1);
-        renderer.setSize(eyeBufferWidth, bufferHeight, false);
+        renderer.setSize(targetBufferWidth, bufferHeight, false);
 
         source.style.position = 'fixed';
         source.style.inset = 'auto';
         source.style.left = '0';
         source.style.top = '0';
-        source.style.width = '50%';
+        source.style.width = this.data.enabled ? '50%' : '100%';
         source.style.height = '100%';
         source.style.maxWidth = 'none';
         source.style.maxHeight = 'none';
@@ -376,15 +377,19 @@
         source.style.padding = '0';
         source.style.transform = 'none';
 
-        if (mirror.width !== eyeBufferWidth) mirror.width = eyeBufferWidth;
-        if (mirror.height !== bufferHeight) mirror.height = bufferHeight;
-        mirror.style.left = '50%';
-        mirror.style.top = '0';
-        mirror.style.width = '50%';
-        mirror.style.height = '100%';
-        mirror.style.transform = 'none';
-
-        this.copyEyePixels();
+        if (this.data.enabled) {
+          if (mirror.width !== targetBufferWidth) mirror.width = targetBufferWidth;
+          if (mirror.height !== bufferHeight) mirror.height = bufferHeight;
+          mirror.style.display = 'block';
+          mirror.style.left = '50%';
+          mirror.style.top = '0';
+          mirror.style.width = '50%';
+          mirror.style.height = '100%';
+          mirror.style.transform = 'none';
+          this.copyEyePixels();
+        } else {
+          mirror.style.display = 'none';
+        }
       },
 
       copyEyePixels: function () {
@@ -685,6 +690,19 @@
 
     html.cardboard-active #right-eye-canvas { display: block; }
 
+    html:not(.cardboard-active) .a-canvas {
+      position: fixed !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      transform: none !important;
+    }
+
     #stereo-divider {
       position: fixed;
       z-index: 8500;
@@ -728,7 +746,7 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Comfort Soundwave Android Fixed</h1>
+      <h1>Observer 180 — Soundwave + Mono View</h1>
       <p>A comfort-first passthrough mode built on the stable pixel-locked Cardboard renderer. It uses a shallower forward camera surface, lower-latency capture, softer image processing, and movement-aware peripheral dimming.</p>
 
       <div id="setup-preview-frame" class="preview">
@@ -1010,13 +1028,12 @@
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
           position="0.92 0.25 0.040"
-          width="0.78"
-          height="0.24"
+          width="0.80"
+          height="0.29"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
-        
-        visible="false"
+          visible="true"
         >
-          <a-text id="txt-view" value="VIEW: NATURAL" align="center" anchor="center" width="2.50" color="#00d2ff"></a-text>
+          <a-text id="txt-view" value="MODE: CARDBOARD" align="center" anchor="center" width="2.10" color="#00d2ff"></a-text>
         </a-plane>
 
         <a-plane
@@ -2792,13 +2809,14 @@
 
     function setCardboardStereo(enabled) {
       state.cardboardActive = Boolean(enabled);
-      const quality = currentQuality();
       scene.setAttribute('cardboard-fixed-stereo', 'maxPixelRatio', effectivePixelRatio());
       scene.setAttribute('cardboard-fixed-stereo', 'enabled', state.cardboardActive);
       document.documentElement.classList.toggle('cardboard-active', state.cardboardActive);
-      state.stereoMode = state.cardboardActive ? 'PIXEL-LOCKED' : 'OFF';
-      $('#txt-stereo')?.setAttribute('value', state.cardboardActive ? 'CARDBOARD: LOCKED' : 'CARDBOARD: OFF');
+      state.stereoMode = state.cardboardActive ? 'PIXEL-LOCKED' : 'MONO';
+      $('#txt-stereo')?.setAttribute('value', state.cardboardActive ? 'CARDBOARD: LOCKED' : 'DISPLAY: MONO');
+      $('#txt-view')?.setAttribute('value', state.cardboardActive ? 'MODE: CARDBOARD' : 'MODE: MONO');
       getStereoComponent()?.syncViewport(true);
+      scene.resize?.();
     }
 
     async function settleLandscapeViewport() {
@@ -2815,6 +2833,25 @@
       }
       scene.resize?.();
       getStereoComponent()?.syncViewport(true);
+    }
+
+    async function toggleDisplayMode() {
+      const useCardboard = !state.cardboardActive;
+      setCardboardStereo(useCardboard);
+      await settleLandscapeViewport();
+
+      if (useCardboard) {
+        menuStatus?.setAttribute('value', 'CARDBOARD · PIXEL-LOCKED 50 / 50');
+        hudText?.setAttribute('value', state.menuOpen ? 'COPILOT HUB · CARDBOARD' : 'LOOK DOWN · CARDBOARD');
+        showTemporaryMessage('Cardboard display enabled. Both eye windows show the same pixel-locked image.');
+        speakFeedback('Cardboard view enabled');
+      } else {
+        menuStatus?.setAttribute('value', 'MONO · FULL-SCREEN SINGLE VIEW');
+        hudText?.setAttribute('value', state.menuOpen ? 'COPILOT HUB · MONO' : 'LOOK DOWN · MONO VIEW');
+        showTemporaryMessage('Mono display enabled. The mirrored right-eye window is disabled and the camera now fills the full screen.');
+        speakFeedback('Mono view enabled');
+      }
+      noteMenuActivity();
     }
 
     async function ensureStereoMode(announce = false) {
@@ -3214,7 +3251,8 @@
       state.wakeLock = null;
       setCardboardStereo(false);
       state.stereoMode = 'OFF';
-      $('#txt-stereo')?.setAttribute('value', 'CARDBOARD: OFF');
+      $('#txt-stereo')?.setAttribute('value', 'DISPLAY: MONO');
+      $('#txt-view')?.setAttribute('value', 'MODE: MONO');
       startup.classList.remove('hidden');
       markCameraStatus(state.stream ? 'PREVIEW' : 'WAIT');
       setStatus('Exited Comfort Mode. The current camera remains available for preview.', 'good');
@@ -3261,7 +3299,7 @@
     $('#btn-field-recover').addEventListener('click', () => recoverFieldCamera({ manual: true }));
     $('#btn-recenter').addEventListener('click', recenterScene);
     $('#btn-lens').addEventListener('click', cycleCamera);
-    $('#btn-view').addEventListener('click', cycleView);
+    $('#btn-view').addEventListener('click', toggleDisplayMode);
     $('#btn-vision').addEventListener('click', cycleFieldVision);
     $('#btn-light').addEventListener('click', cycleLight);
     $('#btn-enhance').addEventListener('click', cycleEnhancement);
