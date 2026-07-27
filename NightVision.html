@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Soundwave + Mono View</title>
+  <title>Observer 180 — Soundwave + Stable Mono View</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -272,7 +272,15 @@
           scale, crop, field of view, or optical center.
         */
         renderer.render = (threeScene, camera) => {
-          if (!this.data.enabled || this.rendering || renderer.xr?.isPresenting) {
+          if (this.rendering || renderer.xr?.isPresenting) {
+            return this.originalRender(threeScene, camera);
+          }
+
+          // Android/A-Frame can resize the canvas after fullscreen or a mode
+          // switch. Reassert the real mono/stereo buffer before every render.
+          this.syncViewport(false);
+
+          if (!this.data.enabled) {
             return this.originalRender(threeScene, camera);
           }
 
@@ -349,11 +357,27 @@
         const targetBufferWidth = Math.max(2, Math.round(targetCssWidth * dpr));
         const bufferHeight = Math.max(2, Math.round(height * dpr));
 
+        const sourceCssWidth = this.data.enabled ? '50%' : '100%';
+        const mirrorShouldShow = Boolean(this.data.enabled);
+        const actualCanvasMatches =
+          source.width === targetBufferWidth &&
+          source.height === bufferHeight &&
+          source.style.width === sourceCssWidth &&
+          source.style.height === '100%';
+        const actualMirrorMatches = !mirrorShouldShow || (
+          mirror.width === targetBufferWidth &&
+          mirror.height === bufferHeight &&
+          mirror.style.display === 'block' &&
+          mirror.style.width === '50%' &&
+          mirror.style.height === '100%'
+        );
         const unchanged =
           width === this.cssWidth &&
           height === this.cssHeight &&
           targetBufferWidth === this.eyeBufferWidth &&
-          bufferHeight === this.bufferHeight;
+          bufferHeight === this.bufferHeight &&
+          actualCanvasMatches &&
+          actualMirrorMatches;
         if (!force && unchanged) return;
 
         this.cssWidth = width;
@@ -369,7 +393,7 @@
         source.style.inset = 'auto';
         source.style.left = '0';
         source.style.top = '0';
-        source.style.width = this.data.enabled ? '50%' : '100%';
+        source.style.width = sourceCssWidth;
         source.style.height = '100%';
         source.style.maxWidth = 'none';
         source.style.maxHeight = 'none';
@@ -389,6 +413,9 @@
           this.copyEyePixels();
         } else {
           mirror.style.display = 'none';
+          try {
+            this.mirrorContext?.clearRect(0, 0, mirror.width, mirror.height);
+          } catch (_) {}
         }
       },
 
@@ -746,7 +773,7 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Soundwave + Mono View</h1>
+      <h1>Observer 180 — Soundwave + Stable Mono View</h1>
       <p>A comfort-first passthrough mode built on the stable pixel-locked Cardboard renderer. It uses a shallower forward camera surface, lower-latency capture, softer image processing, and movement-aware peripheral dimming.</p>
 
       <div id="setup-preview-frame" class="preview">
@@ -2809,14 +2836,23 @@
 
     function setCardboardStereo(enabled) {
       state.cardboardActive = Boolean(enabled);
+      document.documentElement.classList.toggle('cardboard-active', state.cardboardActive);
       scene.setAttribute('cardboard-fixed-stereo', 'maxPixelRatio', effectivePixelRatio());
       scene.setAttribute('cardboard-fixed-stereo', 'enabled', state.cardboardActive);
-      document.documentElement.classList.toggle('cardboard-active', state.cardboardActive);
       state.stereoMode = state.cardboardActive ? 'PIXEL-LOCKED' : 'MONO';
       $('#txt-stereo')?.setAttribute('value', state.cardboardActive ? 'CARDBOARD: LOCKED' : 'DISPLAY: MONO');
       $('#txt-view')?.setAttribute('value', state.cardboardActive ? 'MODE: CARDBOARD' : 'MODE: MONO');
-      getStereoComponent()?.syncViewport(true);
+
+      // Let A-Frame update its camera aspect first, then make the fixed-display
+      // component the final owner of the actual canvas dimensions.
       scene.resize?.();
+      const component = getStereoComponent();
+      component?.syncViewport(true);
+      requestAnimationFrame(() => {
+        scene.resize?.();
+        component?.syncViewport(true);
+        requestAnimationFrame(() => component?.syncViewport(true));
+      });
     }
 
     async function settleLandscapeViewport() {
@@ -2832,7 +2868,10 @@
         previous = key;
       }
       scene.resize?.();
-      getStereoComponent()?.syncViewport(true);
+      const component = getStereoComponent();
+      component?.syncViewport(true);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      component?.syncViewport(true);
     }
 
     async function toggleDisplayMode() {
