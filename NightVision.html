@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Soundwave + Stable Mono View</title>
+  <title>Observer 180 — Menu and Vision Cycle Fix</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -773,7 +773,7 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Soundwave + Stable Mono View</h1>
+      <h1>Observer 180 — Menu and Vision Cycle Fix</h1>
       <p>A comfort-first passthrough mode built on the stable pixel-locked Cardboard renderer. It uses a shallower forward camera surface, lower-latency capture, softer image processing, and movement-aware peripheral dimming.</p>
 
       <div id="setup-preview-frame" class="preview">
@@ -956,9 +956,9 @@
         <!-- Translucent board and the bright top rail follow The Hub layout. -->
         <a-box
           id="menu-board"
-          position="0 -0.10 0"
+          position="0 -0.22 0"
           width="2.80"
-          height="2.20"
+          height="2.48"
           depth="0.018"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .105"
         ></a-box>
@@ -1032,7 +1032,7 @@
           id="btn-recenter"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="-0.92 -0.35 0.040"
+          position="-0.92 -0.64 0.040"
           width="0.80"
           height="0.29"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -1043,7 +1043,7 @@
           id="btn-lens"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0.92 0.00 0.040"
+          position="0.92 0.10 0.040"
           width="0.80"
           height="0.29"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -1051,23 +1051,23 @@
           <a-text id="txt-lens" value="LENS: AUTO" align="center" anchor="center" width="2.45" color="#00d2ff"></a-text>
         </a-plane>
         <a-plane
-          id="btn-view"
+          id="btn-display"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0.92 0.25 0.040"
-          width="0.80"
-          height="0.29"
-          material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
+          position="0 0.10 0.045"
+          width="0.90"
+          height="0.31"
+          material="shader: flat; color: #00d2ff; transparent: true; opacity: .32"
           visible="true"
         >
-          <a-text id="txt-view" value="MODE: CARDBOARD" align="center" anchor="center" width="2.10" color="#00d2ff"></a-text>
+          <a-text id="txt-display" value="DISPLAY: CARDBOARD" align="center" anchor="center" width="2.00" color="#ffffff"></a-text>
         </a-plane>
 
         <a-plane
           id="btn-vision"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="-0.92 0.00 0.040"
+          position="-0.92 0.10 0.040"
           width="0.80"
           height="0.29"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -1078,7 +1078,7 @@
           id="btn-light"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0 -0.07 0.040"
+          position="-0.92 -0.27 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -1091,7 +1091,7 @@
           id="btn-enhance"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0.92 -0.07 0.040"
+          position="0 -0.27 0.040"
           width="0.78"
           height="0.24"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -1118,7 +1118,7 @@
           id="btn-motion"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0 0.00 0.040"
+          position="0.92 -0.27 0.040"
           width="0.80"
           height="0.29"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -1129,7 +1129,7 @@
           id="btn-field-recover"
           class="clickable"
           hub-button="normal: #73541f; hover: #ffb83f; active: #ffffff"
-          position="0 -0.35 0.040"
+          position="0 -0.64 0.040"
           width="0.80"
           height="0.29"
           material="shader: flat; color: #73541f; transparent: true; opacity: .92"
@@ -1140,7 +1140,7 @@
           id="btn-comfort"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0.92 -0.35 0.040"
+          position="0.92 -0.64 0.040"
           width="0.80"
           height="0.29"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -1192,7 +1192,7 @@
           id="btn-exit"
           class="clickable"
           hub-button="normal: #4b2429; hover: #963e49; active: #ff9b9b"
-          position="0 -0.76 0.040"
+          position="0 -1.00 0.040"
           width="2.64"
           height="0.25"
           material="shader: flat; color: #4b2429; transparent: true; opacity: .90"
@@ -1756,6 +1756,10 @@
     }
 
     function cycleFieldVision() {
+      if (!Number.isInteger(state.fieldVisionStep) || state.fieldVisionStep < 0 || state.fieldVisionStep >= fieldVisionOrder.length) {
+        const detectedStep = fieldVisionOrder.indexOf(state.visionIndex);
+        state.fieldVisionStep = detectedStep >= 0 ? detectedStep : 0;
+      }
       state.fieldVisionStep = (state.fieldVisionStep + 1) % fieldVisionOrder.length;
       state.visionIndex = fieldVisionOrder[state.fieldVisionStep];
       state.autoGain = 1;
@@ -1925,12 +1929,12 @@
         console.warn('Soundwave microphone unavailable:', error);
         updateSoundwaveUniform(0);
         state.visionIndex = 5;
-        state.fieldVisionStep = Math.max(0, fieldVisionOrder.indexOf(state.visionIndex));
-        $('#txt-vision')?.setAttribute('value', `VISION: ${visionModes[state.visionIndex].label}`);
+        // Preserve the Soundwave cycle slot so the next press wraps to Natural.
+        $('#txt-vision')?.setAttribute('value', 'VISION: EDGE · MIC OFF');
         applyVisionMaterial();
-        menuStatus?.setAttribute('value', 'MICROPHONE NEEDED · RETURNED TO EDGE');
+        menuStatus?.setAttribute('value', 'MIC OFF · EDGE FALLBACK · NEXT: NATURAL');
         hudText?.setAttribute('value', 'EDGE / CONTOUR MODE');
-        showTemporaryMessage('Soundwave microphone is unavailable. Exit and relaunch, then allow microphone access when Android asks. Edge mode was restored.');
+        showTemporaryMessage('Soundwave microphone is unavailable. Edge is shown temporarily; press VISION again to return to Natural.');
         speakFeedback('Microphone needed for soundwave');
       }
     }
@@ -2841,7 +2845,7 @@
       scene.setAttribute('cardboard-fixed-stereo', 'enabled', state.cardboardActive);
       state.stereoMode = state.cardboardActive ? 'PIXEL-LOCKED' : 'MONO';
       $('#txt-stereo')?.setAttribute('value', state.cardboardActive ? 'CARDBOARD: LOCKED' : 'DISPLAY: MONO');
-      $('#txt-view')?.setAttribute('value', state.cardboardActive ? 'MODE: CARDBOARD' : 'MODE: MONO');
+      $('#txt-display')?.setAttribute('value', state.cardboardActive ? 'DISPLAY: CARDBOARD' : 'DISPLAY: MONO');
 
       // Let A-Frame update its camera aspect first, then make the fixed-display
       // component the final owner of the actual canvas dimensions.
@@ -2880,12 +2884,12 @@
       await settleLandscapeViewport();
 
       if (useCardboard) {
-        menuStatus?.setAttribute('value', 'CARDBOARD · PIXEL-LOCKED 50 / 50');
+        menuStatus?.setAttribute('value', 'DISPLAY: CARDBOARD · PIXEL-LOCKED 50 / 50');
         hudText?.setAttribute('value', state.menuOpen ? 'COPILOT HUB · CARDBOARD' : 'LOOK DOWN · CARDBOARD');
         showTemporaryMessage('Cardboard display enabled. Both eye windows show the same pixel-locked image.');
         speakFeedback('Cardboard view enabled');
       } else {
-        menuStatus?.setAttribute('value', 'MONO · FULL-SCREEN SINGLE VIEW');
+        menuStatus?.setAttribute('value', 'DISPLAY: MONO · ONE FULL-SCREEN WINDOW');
         hudText?.setAttribute('value', state.menuOpen ? 'COPILOT HUB · MONO' : 'LOOK DOWN · MONO VIEW');
         showTemporaryMessage('Mono display enabled. The mirrored right-eye window is disabled and the camera now fills the full screen.');
         speakFeedback('Mono view enabled');
@@ -2946,7 +2950,7 @@
         markCameraStatus('READY');
         updateFieldReadouts();
         showTemporaryMessage(soundwavePrepared
-          ? `${quality.label} Comfort Mode active. Soundwave microphone is ready.`
+          ? `${quality.label} Comfort Mode active. Use DISPLAY in the center menu button for Mono or Cardboard.`
           : `${quality.label} Comfort Mode active. Camera works, but Soundwave microphone is unavailable.`);
         setTimeout(recenterScene, 700);
         setTimeout(() => speakFeedback('Comfort Mode ready. Look down for Copilot', { force: true }), 900);
@@ -3137,7 +3141,7 @@
       const duration = animate ? 560 : 0;
       const started = performance.now();
 
-      $('#txt-view').setAttribute('value', preset.label);
+      $('#txt-comfort')?.setAttribute('value', preset.label);
       menuStatus.setAttribute('value', `${preset.status} · TRANSITION`);
 
       const frame = (now) => {
@@ -3291,7 +3295,7 @@
       setCardboardStereo(false);
       state.stereoMode = 'OFF';
       $('#txt-stereo')?.setAttribute('value', 'DISPLAY: MONO');
-      $('#txt-view')?.setAttribute('value', 'MODE: MONO');
+      $('#txt-display')?.setAttribute('value', 'DISPLAY: MONO');
       startup.classList.remove('hidden');
       markCameraStatus(state.stream ? 'PREVIEW' : 'WAIT');
       setStatus('Exited Comfort Mode. The current camera remains available for preview.', 'good');
@@ -3338,7 +3342,7 @@
     $('#btn-field-recover').addEventListener('click', () => recoverFieldCamera({ manual: true }));
     $('#btn-recenter').addEventListener('click', recenterScene);
     $('#btn-lens').addEventListener('click', cycleCamera);
-    $('#btn-view').addEventListener('click', toggleDisplayMode);
+    $('#btn-display').addEventListener('click', toggleDisplayMode);
     $('#btn-vision').addEventListener('click', cycleFieldVision);
     $('#btn-light').addEventListener('click', cycleLight);
     $('#btn-enhance').addEventListener('click', cycleEnhancement);
