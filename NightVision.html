@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Menu and Vision Cycle Fix</title>
+  <title>Observer 180 — Stable Core</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -645,6 +645,26 @@
     .status.warn { color: var(--warn); }
     .status.bad { color: var(--bad); }
 
+    .permission-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .permission-chip {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 6px;
+      background: rgba(3, 17, 23, 0.75);
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+    }
+    .permission-chip.ready { color: var(--good); border-color: rgba(135, 243, 181, 0.55); }
+    .permission-chip.warn { color: var(--warn); border-color: rgba(255, 212, 119, 0.55); }
+    .permission-chip.bad { color: var(--bad); border-color: rgba(255, 150, 150, 0.55); }
+
     .instructions {
       margin-top: 18px;
       padding: 13px 15px;
@@ -764,6 +784,7 @@
     #fallback-message.show { display: block; }
 
     @media (max-width: 620px) {
+      .permission-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .row { grid-template-columns: 1fr; }
       .row button { width: 100%; }
       .preview { min-height: 160px; }
@@ -773,8 +794,8 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Menu and Vision Cycle Fix</h1>
-      <p>A comfort-first passthrough mode built on the stable pixel-locked Cardboard renderer. It uses a shallower forward camera surface, lower-latency capture, softer image processing, and movement-aware peripheral dimming.</p>
+      <h1>Observer 180 — Stable Core</h1>
+      <p>A consolidated Android-browser build with independent display, vision, Soundwave, diagnostics, comfort calibration, camera recovery, and estimated network-quality systems.</p>
 
       <div id="setup-preview-frame" class="preview">
         <video id="setup-preview" autoplay muted playsinline></video>
@@ -808,8 +829,24 @@
 
       <div id="setup-status" class="status">Use HTTPS or localhost so the browser can access the camera and orientation sensor.</div>
 
+      <div class="permission-grid" aria-label="Permission readiness">
+        <div id="perm-camera" class="permission-chip">CAMERA: CHECKING</div>
+        <div id="perm-mic" class="permission-chip">MIC: CHECKING</div>
+        <div id="perm-motion" class="permission-chip">MOTION: CHECKING</div>
+        <div id="perm-fullscreen" class="permission-chip">FULLSCREEN: CHECKING</div>
+      </div>
+
+      <div class="row">
+        <select id="calibration-select" aria-label="Comfort calibration profile">
+          <option value="default" selected>Calibration: Comfort Default</option>
+          <option value="low-motion">Calibration: Low Motion</option>
+          <option value="open">Calibration: Open View</option>
+        </select>
+        <button id="apply-calibration-button">Apply calibration</button>
+      </div>
+
       <div class="instructions">
-        Hold the phone sideways before launch. The VISION cycle now includes Soundwave Plus: automatic ambient-noise calibration, sensitivity presets, frequency-reactive colors, pulse or trail behavior, and a live sound meter. Android will request microphone access during the launch tap. Stop immediately if you feel headache, eye strain, dizziness, nausea, blurred vision, or double vision.
+        Hold the phone sideways before launch. Camera, microphone, motion, fullscreen, and wake-lock preparation are handled from the launch tap. Network quality is an estimate based on browser-visible connection performance, not exact Wi-Fi radio strength. Stop immediately if you feel headache, eye strain, dizziness, nausea, blurred vision, or double vision.
       </div>
     </div>
   </section>
@@ -956,23 +993,23 @@
         <!-- Translucent board and the bright top rail follow The Hub layout. -->
         <a-box
           id="menu-board"
-          position="0 -0.22 0"
-          width="2.80"
-          height="2.48"
+          position="0 -0.38 0"
+          width="2.92"
+          height="3.16"
           depth="0.018"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .105"
         ></a-box>
         <a-box
-          position="0 0.98 0.018"
-          width="2.80"
+          position="0 1.17 0.018"
+          width="2.92"
           height="0.025"
           depth="0.012"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .88"
         ></a-box>
 
         <a-text
-          value="COMFORT COPILOT"
-          position="-1.22 0.86 0.035"
+          value="STABLE CORE COPILOT"
+          position="-1.27 1.06 0.035"
           align="left"
           anchor="left"
           width="2.70"
@@ -980,8 +1017,8 @@
         ></a-text>
         <a-text
           id="menu-status"
-          value="COMFORT SYSTEM STARTING"
-          position="-1.22 0.73 0.035"
+          value="STABLE CORE STARTING"
+          position="-1.27 0.92 0.035"
           align="left"
           anchor="left"
           width="2.10"
@@ -990,7 +1027,7 @@
                 <a-text
           id="field-camera-readout"
           value="CAMERA WAIT · RESOLUTION --"
-          position="-1.22 0.60 0.035"
+          position="-1.27 0.78 0.035"
           align="left"
           anchor="left"
           width="1.72"
@@ -999,7 +1036,7 @@
 <a-text
           id="motion-readout"
           value="MOTION OFF · HEAD SUPPRESSION READY"
-          position="-1.22 0.47 0.035"
+          position="-1.27 0.64 0.035"
           align="left"
           anchor="left"
           width="1.72"
@@ -1008,7 +1045,7 @@
         <a-text
           id="performance-readout"
           value="BAT -- · FPS -- · PERF AUTO"
-          position="-1.22 0.34 0.035"
+          position="-1.27 0.50 0.035"
           align="left"
           anchor="left"
           width="1.72"
@@ -1020,7 +1057,7 @@
           id="btn-close"
           class="clickable"
           hub-button="normal: #ff4444; hover: #ff7777; active: #ffffff"
-          position="1.28 0.86 0.040"
+          position="1.34 1.06 0.040"
           radius="0.085"
           material="shader: flat; color: #ff4444; transparent: true; opacity: .90"
         >
@@ -1032,7 +1069,7 @@
           id="btn-recenter"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="-0.92 -0.64 0.040"
+          position="-0.92 -0.59 0.040"
           width="0.80"
           height="0.29"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -1129,7 +1166,7 @@
           id="btn-field-recover"
           class="clickable"
           hub-button="normal: #73541f; hover: #ffb83f; active: #ffffff"
-          position="0 -0.64 0.040"
+          position="0 -0.59 0.040"
           width="0.80"
           height="0.29"
           material="shader: flat; color: #73541f; transparent: true; opacity: .92"
@@ -1140,7 +1177,7 @@
           id="btn-comfort"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0.92 -0.64 0.040"
+          position="0.92 -0.59 0.040"
           width="0.80"
           height="0.29"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
@@ -1149,50 +1186,47 @@
         </a-plane>
 
         <a-plane
-          id="btn-voice"
+          id="btn-sound-cal"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="-0.92 -0.71 0.040"
-          width="0.78"
-          height="0.24"
+          position="-0.92 -0.95 0.040"
+          width="0.80"
+          height="0.28"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
-        
-        visible="false"
+          visible="true"
         >
-          <a-text id="txt-voice" value="VOICE: ON" align="center" anchor="center" width="2.35" color="#ffd477"></a-text>
+          <a-text id="txt-sound-cal" value="MIC CALIBRATE" align="center" anchor="center" width="2.15" color="#ffd477"></a-text>
         </a-plane>
         <a-plane
-          id="btn-auto-hide"
+          id="btn-diagnostics"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0 -0.71 0.040"
-          width="0.78"
-          height="0.24"
+          position="0 -0.95 0.040"
+          width="0.80"
+          height="0.28"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
-        
-        visible="false"
+          visible="true"
         >
-          <a-text id="txt-auto-hide" value="AUTO HIDE: 12S" align="center" anchor="center" width="2.10" color="#ffffff"></a-text>
+          <a-text id="txt-diagnostics" value="DIAGNOSTICS: OFF" align="center" anchor="center" width="1.92" color="#ffffff"></a-text>
         </a-plane>
         <a-plane
-          id="btn-performance"
+          id="btn-network"
           class="clickable"
           hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
-          position="0.92 -0.71 0.040"
-          width="0.78"
-          height="0.24"
+          position="0.92 -0.95 0.040"
+          width="0.80"
+          height="0.28"
           material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
-        
-        visible="false"
+          visible="true"
         >
-          <a-text id="txt-performance" value="PERF: AUTO" align="center" anchor="center" width="2.30" color="#ffd477"></a-text>
+          <a-text id="txt-network" value="NETWORK ORB: ON" align="center" anchor="center" width="1.92" color="#75ff9f"></a-text>
         </a-plane>
 
         <a-plane
           id="btn-exit"
           class="clickable"
           hub-button="normal: #4b2429; hover: #963e49; active: #ff9b9b"
-          position="0 -1.00 0.040"
+          position="0 -1.31 0.040"
           width="2.64"
           height="0.25"
           material="shader: flat; color: #4b2429; transparent: true; opacity: .90"
@@ -1238,7 +1272,7 @@
 
         <a-entity id="micro-hud" position="0 -0.47 -1.30">
           <a-plane width="1.16" height="0.105" material="shader: flat; color: #03141a; transparent: true; opacity: .52"></a-plane>
-          <a-text id="hud-text" value="LOOK DOWN FOR COMFORT COPILOT" position="0 0.018 0.006" align="center" anchor="center" width="2.25" color="#bff9ff"></a-text>
+          <a-text id="hud-text" value="LOOK DOWN FOR STABLE CORE COPILOT" position="0 0.018 0.006" align="center" anchor="center" width="2.25" color="#bff9ff"></a-text>
           <a-text
             id="hud-field-status"
             value="CAM WAIT · BAT -- · -- FPS"
@@ -1259,6 +1293,21 @@
             visible="false"
           ></a-text>
         </a-entity>
+
+        <a-entity id="network-orb" position="0.50 -0.22 -1.28" visible="true">
+          <a-sphere id="network-orb-ball" radius="0.050" segments-width="32" segments-height="20"
+            material="shader: standard; color: #7d8b91; emissive: #273238; emissiveIntensity: .65; metalness: .28; roughness: .35"
+            animation__networkpulse="property: scale; dir: alternate; dur: 1500; easing: easeInOutSine; loop: true; from: 1 1 1; to: 1.07 1.07 1.07"></a-sphere>
+          <a-ring radius-inner="0.070" radius-outer="0.074" rotation="0 0 0"
+            material="shader: flat; color: #bff9ff; transparent: true; opacity: .48"></a-ring>
+          <a-text id="network-orb-text" value="NETWORK --% EST." position="0 -0.095 0" align="center" anchor="center" width="0.82" color="#d8faff"></a-text>
+          <a-text id="network-orb-detail" value="CHECKING · LOW CONF." position="0 -0.135 0" align="center" anchor="center" width="0.68" color="#91b7c0"></a-text>
+        </a-entity>
+
+        <a-entity id="diagnostics-panel" position="-0.48 0.10 -1.25" visible="false">
+          <a-plane width="0.82" height="0.68" material="shader: flat; color: #020b10; transparent: true; opacity: .88"></a-plane>
+          <a-text id="diagnostics-text" value="DIAGNOSTICS" position="-0.36 0.28 0.006" align="left" anchor="left" width="0.78" color="#bff9ff"></a-text>
+        </a-entity>
       </a-camera>
     </a-entity>
   </a-scene>
@@ -1277,6 +1326,8 @@
     const previewButton = $('#preview-button');
     const qualitySelect = $('#quality-select');
     const applyQualityButton = $('#apply-quality-button');
+    const calibrationSelect = $('#calibration-select');
+    const applyCalibrationButton = $('#apply-calibration-button');
     const launchButton = $('#launch-button');
     const setupStatus = $('#setup-status');
     const scene = $('#vr-scene');
@@ -1295,6 +1346,12 @@
     const hudFieldStatus = $('#hud-field-status');
     const hudSoundwaveStatus = $('#hud-soundwave-status');
     const hudText = $('#hud-text');
+    const diagnosticsPanel = $('#diagnostics-panel');
+    const diagnosticsText = $('#diagnostics-text');
+    const networkOrb = $('#network-orb');
+    const networkOrbBall = $('#network-orb-ball');
+    const networkOrbText = $('#network-orb-text');
+    const networkOrbDetail = $('#network-orb-detail');
     const platformRoot = $('#platform-root');
     const fallbackMessage = $('#fallback-message');
     const analysisCanvas = $('#analysis-canvas');
@@ -1411,7 +1468,30 @@
       batterySupported: false,
       batteryLevel: null,
       batteryCharging: false,
-      lowBatteryWarned: false
+      lowBatteryWarned: false,
+      diagnosticsVisible: false,
+      diagnosticsTimer: 0,
+      calibrationKey: 'default',
+      networkOrbEnabled: true,
+      networkScore: null,
+      networkSmoothedScore: null,
+      networkPreviousScore: null,
+      networkTrend: 'STABLE',
+      networkLatencyMs: null,
+      networkConfidence: 'LOW',
+      networkTimer: 0,
+      networkLastVoiceBand: null,
+      networkLastVoiceAt: 0,
+      permissionCamera: 'CHECKING',
+      permissionMic: 'CHECKING',
+      permissionMotion: 'CHECKING',
+      permissionFullscreen: 'CHECKING'
+    };
+
+    const calibrationProfiles = {
+      default: { label: 'COMFORT DEFAULT', fovOffset: 0, vignetteOffset: 0.00, dwell: 1050, wallYOffset: 0.00 },
+      'low-motion': { label: 'LOW MOTION', fovOffset: -4, vignetteOffset: 0.07, dwell: 1150, wallYOffset: 0.00 },
+      open: { label: 'OPEN VIEW', fovOffset: 3, vignetteOffset: -0.04, dwell: 950, wallYOffset: 0.00 }
     };
 
     const qualityPresets = {
@@ -1419,6 +1499,73 @@
       high: { label: 'CLEAR', width: 1920, height: 1080, fps: 60, dpr: 1.40, sharpness: 0.07 },
       ultra: { label: 'DETAIL', width: 2560, height: 1440, fps: 45, dpr: 1.55, sharpness: 0.10 }
     };
+
+    function currentCalibration() {
+      return calibrationProfiles[state.calibrationKey] || calibrationProfiles.default;
+    }
+
+    function setPermissionChip(id, label, stateClass) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = label;
+      el.classList.remove('ready', 'warn', 'bad');
+      if (stateClass) el.classList.add(stateClass);
+    }
+
+    async function refreshPermissionIndicators() {
+      state.permissionFullscreen = document.fullscreenEnabled ? 'READY' : 'UNAVAILABLE';
+      setPermissionChip('perm-fullscreen', `FULLSCREEN: ${state.permissionFullscreen}`, document.fullscreenEnabled ? 'ready' : 'warn');
+
+      const motionNeedsPrompt = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+      state.permissionMotion = motionNeedsPrompt ? 'TAP TO ALLOW' : (typeof DeviceOrientationEvent !== 'undefined' ? 'AVAILABLE' : 'UNAVAILABLE');
+      setPermissionChip('perm-motion', `MOTION: ${state.permissionMotion}`, state.permissionMotion === 'UNAVAILABLE' ? 'warn' : 'ready');
+
+      if (!navigator.permissions?.query) {
+        setPermissionChip('perm-camera', 'CAMERA: ASK ON USE', 'warn');
+        setPermissionChip('perm-mic', 'MIC: ASK ON LAUNCH', 'warn');
+        return;
+      }
+      for (const [name, id, prefix] of [['camera', 'perm-camera', 'CAMERA'], ['microphone', 'perm-mic', 'MIC']]) {
+        try {
+          const result = await navigator.permissions.query({ name });
+          const update = () => {
+            const value = String(result.state || 'prompt').toUpperCase();
+            if (name === 'camera') state.permissionCamera = value;
+            else state.permissionMic = value;
+            setPermissionChip(id, `${prefix}: ${value}`, value === 'GRANTED' ? 'ready' : value === 'DENIED' ? 'bad' : 'warn');
+          };
+          update();
+          result.addEventListener?.('change', update);
+        } catch (_) {
+          setPermissionChip(id, `${prefix}: ASK ON USE`, 'warn');
+        }
+      }
+    }
+
+    function applyCalibrationProfile(key = calibrationSelect?.value || state.calibrationKey, announce = true) {
+      state.calibrationKey = calibrationProfiles[key] ? key : 'default';
+      if (calibrationSelect) calibrationSelect.value = state.calibrationKey;
+      const profile = currentCalibration();
+      const preset = viewPresets[state.viewIndex] || viewPresets[0];
+      const targetFov = Math.max(58, Math.min(80, preset.fov + profile.fovOffset));
+      scene.setAttribute('cardboard-fixed-stereo', 'fov', targetFov);
+      vrCamera.setAttribute('fov', targetFov);
+      const cursor = $('#gaze-cursor');
+      cursor?.setAttribute('fuse-timeout', profile.dwell);
+      cursor?.setAttribute('animation__fusing', 'dur', profile.dwell);
+      if (cameraWall.object3D) cameraWall.object3D.position.y = profile.wallYOffset;
+      const targetVignette = Math.max(0.04, Math.min(0.34, preset.comfortVignette + profile.vignetteOffset));
+      setWallUniform('comfortVignette', targetVignette);
+      getStereoComponent()?.syncViewport(true);
+      updateCameraAspect();
+      try { localStorage.setItem('observer180-calibration', state.calibrationKey); } catch (_) {}
+      if (announce) {
+        setStatus(`${profile.label} calibration applied.`, 'good');
+        showTemporaryMessage(`${profile.label} calibration applied.`);
+        speakFeedback(`${profile.label.toLowerCase()} calibration`);
+      }
+      updateDiagnostics();
+    }
 
     function currentQuality() {
       const key = qualitySelect?.value || state.qualityKey || 'balanced';
@@ -1627,6 +1774,7 @@
       performanceReadout?.setAttribute('value', `${battery} · ${fps} FPS · ${profile.label}`);
       hudFieldStatus?.setAttribute('value', `CAM ${cameraStatus} · ${battery} · ${fps} FPS`);
       updateSoundwaveHud();
+      if (state.diagnosticsVisible) updateDiagnostics();
     }
 
     function handleBatteryUpdate() {
@@ -1719,6 +1867,12 @@
         try {
           cameraSelect.value = '';
           await openSelectedCamera({ preview: false });
+          // Keep the user's preferred lens selected for the next recovery attempt,
+          // while the current automatic fallback stream continues running.
+          if (previousDevice && state.devices.some(device => device.deviceId === previousDevice)) {
+            cameraSelect.value = previousDevice;
+            state.currentDeviceIndex = state.devices.findIndex(device => device.deviceId === previousDevice);
+          }
           state.cameraRecoveryAttempts = 0;
           markCameraStatus('READY');
           menuStatus?.setAttribute('value', 'CAMERA RECOVERED WITH AUTOMATIC LENS');
@@ -1863,23 +2017,33 @@
         state.soundwaveEnabled = true;
         return true;
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false
-        },
-        video: false
-      }).catch((error) => {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) throw new Error('This browser does not support microphone analysis.');
+      // Construct and resume immediately when this function is entered from the
+      // physical launch tap. Waiting for getUserMedia first can lose Android's
+      // user-activation window and leave the AudioContext suspended.
+      const context = new AudioCtx();
+      const resumePromise = context.resume().catch((error) => {
+        console.warn('Initial AudioContext resume failed:', error);
+      });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          },
+          video: false
+        });
+      } catch (error) {
         if (error && (error.name === 'NotAllowedError' || error.name === 'SecurityError')) {
           state.soundwavePermissionDenied = true;
         }
+        try { await context.close(); } catch (_) {}
         throw error;
-      });
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) throw new Error('This browser does not support microphone analysis.');
-      const context = new AudioCtx();
-      try { await context.resume(); } catch (error) { console.warn('Initial AudioContext resume failed:', error); }
+      }
+      await resumePromise;
       const source = context.createMediaStreamSource(stream);
       const analyser = context.createAnalyser();
       analyser.fftSize = 512;
@@ -1928,14 +2092,14 @@
       } catch (error) {
         console.warn('Soundwave microphone unavailable:', error);
         updateSoundwaveUniform(0);
-        state.visionIndex = 5;
-        // Preserve the Soundwave cycle slot so the next press wraps to Natural.
-        $('#txt-vision')?.setAttribute('value', 'VISION: EDGE · MIC OFF');
+        state.soundwaveStatus = 'MIC OFF';
+        $('#txt-vision')?.setAttribute('value', 'VISION: SOUNDWAVE · MIC OFF');
         applyVisionMaterial();
-        menuStatus?.setAttribute('value', 'MIC OFF · EDGE FALLBACK · NEXT: NATURAL');
-        hudText?.setAttribute('value', 'EDGE / CONTOUR MODE');
-        showTemporaryMessage('Soundwave microphone is unavailable. Edge is shown temporarily; press VISION again to return to Natural.');
-        speakFeedback('Microphone needed for soundwave');
+        menuStatus?.setAttribute('value', 'SOUNDWAVE SELECTED · MICROPHONE UNAVAILABLE');
+        hudText?.setAttribute('value', 'SOUNDWAVE · MIC OFF');
+        updateSoundwaveHud();
+        showTemporaryMessage('Soundwave is selected, but microphone access is unavailable. Press VISION again to continue to Natural.');
+        speakFeedback('Microphone unavailable for soundwave');
       }
     }
 
@@ -1962,6 +2126,208 @@
       state.soundwaveData = null;
       state.soundwaveFreqData = null;
       state.soundwaveReady = false;
+    }
+
+    function networkBand(score) {
+      if (score === null || !Number.isFinite(score)) return 'UNKNOWN';
+      if (score >= 82) return 'EXCELLENT';
+      if (score >= 64) return 'GOOD';
+      if (score >= 42) return 'FAIR';
+      if (score > 0) return 'WEAK';
+      return 'OFFLINE';
+    }
+
+    function networkColor(score) {
+      if (score === null || !Number.isFinite(score)) return { color: '#7d8b91', emissive: '#273238' };
+      if (score >= 82) return { color: '#65f29b', emissive: '#197a45' };
+      if (score >= 64) return { color: '#b8ef67', emissive: '#587b22' };
+      if (score >= 42) return { color: '#ffd166', emissive: '#8a5c12' };
+      if (score > 0) return { color: '#ff944d', emissive: '#8a3518' };
+      return { color: '#ff5c67', emissive: '#821c28' };
+    }
+
+    async function measureNetworkLatency() {
+      if (!navigator.onLine || !/^https?:$/i.test(location.protocol)) return null;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2600);
+      const started = performance.now();
+      try {
+        await fetch(`${location.href.split('#')[0]}${location.href.includes('?') ? '&' : '?'}observerPing=${Date.now()}`, {
+          method: 'HEAD', cache: 'no-store', credentials: 'same-origin', signal: controller.signal
+        });
+        return Math.max(1, Math.round(performance.now() - started));
+      } catch (_) {
+        return null;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    async function updateNetworkQuality() {
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+      const latency = await measureNetworkLatency();
+      state.networkLatencyMs = latency;
+      if (!navigator.onLine) {
+        state.networkScore = 0;
+        state.networkConfidence = 'HIGH';
+      } else {
+        let score = 58;
+        let evidence = 0;
+        const effective = String(connection?.effectiveType || '').toLowerCase();
+        if (effective) {
+          evidence += 1;
+          if (effective === '4g') score += 18;
+          else if (effective === '3g') score += 2;
+          else if (effective === '2g') score -= 24;
+          else if (effective === 'slow-2g') score -= 42;
+        }
+        const rtt = Number(connection?.rtt);
+        if (Number.isFinite(rtt) && rtt > 0) {
+          evidence += 1;
+          if (rtt < 90) score += 12;
+          else if (rtt < 180) score += 6;
+          else if (rtt > 700) score -= 28;
+          else if (rtt > 350) score -= 15;
+        }
+        const downlink = Number(connection?.downlink);
+        if (Number.isFinite(downlink) && downlink > 0) {
+          evidence += 1;
+          if (downlink >= 12) score += 14;
+          else if (downlink >= 4) score += 8;
+          else if (downlink < 0.5) score -= 24;
+          else if (downlink < 1.2) score -= 10;
+        }
+        if (latency !== null) {
+          evidence += 1;
+          if (latency < 110) score += 10;
+          else if (latency < 260) score += 3;
+          else if (latency > 900) score -= 28;
+          else if (latency > 520) score -= 15;
+        }
+        state.networkScore = evidence > 0 ? Math.max(1, Math.min(100, Math.round(score))) : null;
+        state.networkConfidence = evidence >= 3 ? 'HIGH' : evidence >= 1 ? 'MED' : 'LOW';
+      }
+
+      const previous = state.networkSmoothedScore;
+      if (state.networkScore === null || !Number.isFinite(state.networkScore)) {
+        state.networkSmoothedScore = null;
+        state.networkTrend = 'UNKNOWN';
+        state.networkPreviousScore = null;
+      } else {
+        state.networkSmoothedScore = previous === null || previous === undefined
+          ? state.networkScore
+          : Math.round(previous * 0.72 + state.networkScore * 0.28);
+        const delta = state.networkPreviousScore === null ? 0 : state.networkSmoothedScore - state.networkPreviousScore;
+        state.networkTrend = delta >= 5 ? 'IMPROVING' : delta <= -5 ? 'WEAKENING' : 'STABLE';
+        state.networkPreviousScore = state.networkSmoothedScore;
+      }
+      updateNetworkOrb();
+      updateDiagnostics();
+    }
+
+    function updateNetworkOrb() {
+      if (!networkOrb) return;
+      networkOrb.setAttribute('visible', state.networkOrbEnabled);
+      $('#txt-network')?.setAttribute('value', `NETWORK ORB: ${state.networkOrbEnabled ? 'ON' : 'OFF'}`);
+      if (!state.networkOrbEnabled) return;
+      const score = Number.isFinite(state.networkSmoothedScore) ? state.networkSmoothedScore : null;
+      const band = networkBand(score);
+      const colors = networkColor(score);
+      networkOrbBall?.setAttribute('material', 'color', colors.color);
+      networkOrbBall?.setAttribute('material', 'emissive', colors.emissive);
+      const scale = score === null ? 1 : 0.82 + (score / 100) * 0.42;
+      networkOrb?.object3D.scale.set(scale, scale, scale);
+      networkOrbText?.setAttribute('value', score === null ? 'NETWORK --% EST.' : `NETWORK ${score}% EST.`);
+      const latency = state.networkLatencyMs === null ? '-- MS' : `${state.networkLatencyMs} MS`;
+      networkOrbDetail?.setAttribute('value', `${band} · ${latency} · ${state.networkTrend}`);
+
+      const voiceBand = band === 'OFFLINE' ? 'OFFLINE' : (band === 'WEAK' ? 'WEAK' : (band === 'EXCELLENT' || band === 'GOOD' ? 'STRONG' : 'FAIR'));
+      const now = performance.now();
+      if (voiceBand !== state.networkLastVoiceBand && now - state.networkLastVoiceAt > 30000) {
+        state.networkLastVoiceBand = voiceBand;
+        state.networkLastVoiceAt = now;
+        if (voiceBand === 'OFFLINE') speakFeedback('Network connection lost');
+        else if (voiceBand === 'WEAK') speakFeedback('Network connection weakening');
+        else if (voiceBand === 'STRONG') speakFeedback('Network connection strong');
+      }
+    }
+
+    function toggleNetworkOrb() {
+      state.networkOrbEnabled = !state.networkOrbEnabled;
+      updateNetworkOrb();
+      menuStatus?.setAttribute('value', `NETWORK ORB ${state.networkOrbEnabled ? 'ENABLED' : 'HIDDEN'}`);
+      speakFeedback(`Network orb ${state.networkOrbEnabled ? 'on' : 'off'}`);
+      try { localStorage.setItem('observer180-network-orb', state.networkOrbEnabled ? '1' : '0'); } catch (_) {}
+      noteMenuActivity();
+    }
+
+    function updateDiagnostics() {
+      if (!diagnosticsText) return;
+      const stereo = getStereoComponent();
+      const rendererCanvas = scene.renderer?.domElement;
+      const cssSize = stereo?.getCssSize?.() || { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
+      const vision = visionModes[state.visionIndex] || visionModes[0];
+      const track = state.stream?.getVideoTracks?.()[0];
+      const settings = track?.getSettings?.() || {};
+      const mic = state.soundwaveReady ? 'READY' : (state.soundwavePermissionDenied ? 'DENIED' : 'OFF');
+      const networkScore = Number.isFinite(state.networkSmoothedScore) ? `${state.networkSmoothedScore}%` : '--%';
+      const lines = [
+        `DISPLAY  ${state.cardboardActive ? 'CARDBOARD 50/50' : 'MONO 100%'}`,
+        `VISION   ${vision.label}`,
+        `CAMERA   ${state.cameraStatus} ${state.cameraResolution}`,
+        `TRACK    ${settings.frameRate ? `${Math.round(settings.frameRate)} FPS` : '-- FPS'} ${settings.facingMode || ''}`,
+        `CSS      ${cssSize.width}×${cssSize.height}`,
+        `BUFFER   ${rendererCanvas?.width || 0}×${rendererCanvas?.height || 0}`,
+        `MIC      ${mic}`,
+        `FULL     ${document.fullscreenElement ? 'YES' : 'NO'} · ANGLE ${screen.orientation?.angle ?? window.orientation ?? '--'}`,
+        `NETWORK  ${networkScore} ${state.networkConfidence} CONF.`,
+        `FPS      ${Math.round(state.performanceFps || 0)} · ${currentPerformanceProfile().label}`
+      ];
+      diagnosticsText.setAttribute('value', lines.join('\n'));
+    }
+
+    function toggleDiagnostics() {
+      state.diagnosticsVisible = !state.diagnosticsVisible;
+      diagnosticsPanel?.setAttribute('visible', state.diagnosticsVisible);
+      $('#txt-diagnostics')?.setAttribute('value', `DIAGNOSTICS: ${state.diagnosticsVisible ? 'ON' : 'OFF'}`);
+      if (state.diagnosticsVisible) updateDiagnostics();
+      menuStatus?.setAttribute('value', `DIAGNOSTICS ${state.diagnosticsVisible ? 'OPEN' : 'CLOSED'}`);
+      speakFeedback(`Diagnostics ${state.diagnosticsVisible ? 'on' : 'off'}`);
+      noteMenuActivity();
+    }
+
+    async function manualSoundwaveCalibration() {
+      $('#txt-sound-cal')?.setAttribute('value', 'CALIBRATING…');
+      try {
+        await ensureSoundwaveAudio();
+        await calibrateSoundwaveAmbient(1500);
+        menuStatus?.setAttribute('value', 'MICROPHONE CALIBRATION COMPLETE');
+        showTemporaryMessage('Soundwave room-noise calibration complete.');
+        speakFeedback('Microphone calibrated');
+      } catch (error) {
+        console.warn(error);
+        menuStatus?.setAttribute('value', 'MICROPHONE CALIBRATION UNAVAILABLE');
+        showTemporaryMessage('Microphone calibration is unavailable. Check browser permission.');
+      } finally {
+        $('#txt-sound-cal')?.setAttribute('value', 'MIC CALIBRATE');
+        noteMenuActivity();
+      }
+    }
+
+    function startStableCoreMonitors() {
+      if (!state.diagnosticsTimer) {
+        state.diagnosticsTimer = window.setInterval(() => {
+          if (state.diagnosticsVisible) updateDiagnostics();
+        }, 900);
+      }
+      if (!state.networkTimer) {
+        updateNetworkQuality();
+        state.networkTimer = window.setInterval(updateNetworkQuality, 10000);
+      }
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      connection?.addEventListener?.('change', updateNetworkQuality);
+      window.addEventListener('online', updateNetworkQuality);
+      window.addEventListener('offline', updateNetworkQuality);
     }
 
     function currentPerformanceMode() {
@@ -2068,13 +2434,16 @@
 
     async function requestMotionPermission() {
       try {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        if (typeof DeviceOrientationEvent === 'undefined') return false;
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
           const result = await DeviceOrientationEvent.requestPermission();
           if (result !== 'granted') throw new Error('Orientation permission was not granted.');
         }
+        return true;
       } catch (error) {
         console.warn(error);
         showTemporaryMessage('Orientation permission was not granted. Head tracking may be unavailable.');
+        return false;
       }
     }
 
@@ -2106,10 +2475,14 @@
         cameraSelect.appendChild(option);
       });
 
+      let savedCamera = '';
+      try { savedCamera = localStorage.getItem('observer180-camera-device') || ''; } catch (_) {}
+      const savedIndex = devices.findIndex(device => device.deviceId === savedCamera);
       const firstRear = devices.findIndex(device => cameraRank(device.label) < 100);
-      if (firstRear >= 0) {
-        cameraSelect.value = devices[firstRear].deviceId;
-        state.currentDeviceIndex = firstRear;
+      const selectedIndex = savedIndex >= 0 ? savedIndex : firstRear;
+      if (selectedIndex >= 0) {
+        cameraSelect.value = devices[selectedIndex].deviceId;
+        state.currentDeviceIndex = selectedIndex;
       }
 
       return devices;
@@ -2156,6 +2529,8 @@
 
       state.stream = stream;
       state.previewOnly = preview;
+      state.permissionCamera = 'GRANTED';
+      setPermissionChip('perm-camera', 'CAMERA: GRANTED', 'ready');
       setupPreview.srcObject = stream;
       liveVideo.srcObject = stream;
       await Promise.allSettled([setupPreview.play(), liveVideo.play()]);
@@ -2237,7 +2612,8 @@
         : quality.sharpness * enhance.sharpnessScale) * performanceProfile.detailScale;
       const adjustedLocalContrast = localContrast * performanceProfile.detailScale;
 
-      setWallUniform('mode', vision.mode);
+      const effectiveVisionMode = (vision.mode === 7 && !state.soundwaveReady) ? 0 : vision.mode;
+      setWallUniform('mode', effectiveVisionMode);
       setWallUniform('gain', gains[state.lightIndex]);
       setWallUniform('autoGain', state.autoGain);
       setWallUniform('contrast', contrast);
@@ -2894,6 +3270,7 @@
         showTemporaryMessage('Mono display enabled. The mirrored right-eye window is disabled and the camera now fills the full screen.');
         speakFeedback('Mono view enabled');
       }
+      updateDiagnostics();
       noteMenuActivity();
     }
 
@@ -2914,16 +3291,27 @@
         // This call originates from the launch tap, which gives mobile browsers
         // the best chance to unlock speech synthesis for later headset feedback.
         if (state.voiceEnabled) speakFeedback('Copilot starting', { force: true });
-        await requestMotionPermission();
-        // Android Chrome is most reliable when microphone permission and AudioContext
-        // are created from this physical launch tap, not later from a gaze event.
-        const soundwavePrepared = await prepareSoundwaveFromLaunchTap();
+        // Start fullscreen, orientation permission, and microphone preparation in
+        // the same physical click task. Awaiting one before starting another can
+        // cause Android browsers to reject the later gesture-gated operation.
+        const fullscreenPromise = enterFullscreen();
+        const motionPromise = requestMotionPermission();
+        const soundwavePromise = prepareSoundwaveFromLaunchTap();
+        const [motionReady, soundwavePrepared] = await Promise.all([motionPromise, soundwavePromise]);
+        state.permissionMotion = motionReady ? 'GRANTED' : 'UNAVAILABLE';
+        setPermissionChip('perm-motion', `MOTION: ${state.permissionMotion}`, motionReady ? 'ready' : 'warn');
+        state.permissionMic = soundwavePrepared ? 'GRANTED' : 'UNAVAILABLE';
+        setPermissionChip('perm-mic', `MIC: ${state.permissionMic}`, soundwavePrepared ? 'ready' : 'warn');
         await ensureSceneLoaded();
         if (!state.stream) await openSelectedCamera({ preview: false });
+        state.permissionCamera = 'GRANTED';
+        setPermissionChip('perm-camera', 'CAMERA: GRANTED', 'ready');
 
-        // Fullscreen and landscape are requested from the launch tap, then the
-        // renderer waits for Android's viewport to stop changing before split.
-        await enterFullscreen();
+        // Wait for the fullscreen request that was already started from the tap,
+        // then wait for Android's landscape viewport to settle.
+        await fullscreenPromise;
+        state.permissionFullscreen = document.fullscreenElement ? 'ACTIVE' : (document.fullscreenEnabled ? 'AVAILABLE' : 'UNAVAILABLE');
+        setPermissionChip('perm-fullscreen', `FULLSCREEN: ${state.permissionFullscreen}`, document.fullscreenElement ? 'ready' : 'warn');
         await settleLandscapeViewport();
         await acquireWakeLock();
 
@@ -2931,7 +3319,7 @@
         setCardboardStereo(true);
         await settleLandscapeViewport();
 
-        hudText.setAttribute('value', 'LOOK DOWN · COMFORT COPILOT');
+        hudText.setAttribute('value', 'LOOK DOWN · STABLE CORE COPILOT');
         $('#txt-stereo')?.setAttribute('value', 'CARDBOARD: LOCKED');
         const quality = currentQuality();
         applyPerformanceTier(currentPerformanceMode().forcedTier ?? state.performanceTier, 'launch profile', false);
@@ -2946,6 +3334,7 @@
         state.fieldVisionStep = Math.max(0, fieldVisionOrder.indexOf(state.visionIndex));
         $('#txt-vision')?.setAttribute('value', `VISION: ${visionModes[state.visionIndex].label}`);
         applyViewPreset(false);
+        applyCalibrationProfile(state.calibrationKey, false);
         applyVisionMaterial();
         markCameraStatus('READY');
         updateFieldReadouts();
@@ -3024,8 +3413,8 @@
         }
       }, 205);
 
-      hudText.setAttribute('value', 'COMFORT COPILOT ACTIVE');
-      menuStatus.setAttribute('value', `${visionModes[state.visionIndex].label} · ${enhancementModes[state.enhanceIndex].label} DETAIL · CARDBOARD`);
+      hudText.setAttribute('value', 'STABLE CORE COPILOT ACTIVE');
+      menuStatus.setAttribute('value', `${visionModes[state.visionIndex].label} · ${state.cardboardActive ? 'CARDBOARD' : 'MONO'} · ${currentCalibration().label}`);
       updatePerformanceUi();
       scheduleMenuAutoHide();
       speakFeedback('Copilot menu open');
@@ -3079,7 +3468,7 @@
         }
       }, 285);
 
-      hudText.setAttribute('value', 'LOOK DOWN FOR COMFORT COPILOT');
+      hudText.setAttribute('value', 'LOOK DOWN FOR STABLE CORE COPILOT');
       if (reason === 'auto') speakFeedback('Menu returned to Copilot');
       else if (reason === 'manual') speakFeedback('Menu hidden');
     }
@@ -3127,8 +3516,10 @@
       cameraWall.setAttribute('geometry', 'radius', preset.radius);
       cameraWall.setAttribute('geometry', 'thetaLength', preset.thetaLength);
       cameraWall.setAttribute('rotation', `0 ${preset.rotationY} 0`);
-      scene.setAttribute('cardboard-fixed-stereo', 'fov', preset.fov);
-      vrCamera.setAttribute('fov', preset.fov);
+      const calibration = currentCalibration();
+      const calibratedFov = Math.max(58, Math.min(80, preset.fov + calibration.fovOffset));
+      scene.setAttribute('cardboard-fixed-stereo', 'fov', calibratedFov);
+      vrCamera.setAttribute('fov', calibratedFov);
       updateCameraAspect();
       const wallObject = cameraWall.object3D;
       const platformObject = platformRoot.object3D;
@@ -3162,14 +3553,16 @@
         const meshMaterial = cameraWall.getObject3D('mesh')?.material;
         if (meshMaterial?.uniforms?.zoom) meshMaterial.uniforms.zoom.value = zoom;
         if (meshMaterial?.uniforms?.edgeFade) meshMaterial.uniforms.edgeFade.value = edgeFade;
-        if (meshMaterial?.uniforms?.comfortVignette) meshMaterial.uniforms.comfortVignette.value = preset.comfortVignette;
+        const calibratedVignette = Math.max(0.04, Math.min(0.34, preset.comfortVignette + calibration.vignetteOffset));
+        if (meshMaterial?.uniforms?.comfortVignette) meshMaterial.uniforms.comfortVignette.value = calibratedVignette;
 
         if (raw < 1) {
           requestAnimationFrame(frame);
         } else {
           cameraWall.setAttribute('material', 'zoom', preset.zoom);
           cameraWall.setAttribute('material', 'edgeFade', preset.edgeFade);
-          cameraWall.setAttribute('material', 'comfortVignette', preset.comfortVignette);
+          const calibratedVignette = Math.max(0.04, Math.min(0.34, preset.comfortVignette + calibration.vignetteOffset));
+          cameraWall.setAttribute('material', 'comfortVignette', calibratedVignette);
           getStereoComponent()?.syncViewport(true);
           menuStatus.setAttribute('value', preset.status);
           motionReadout?.setAttribute('value', `MOTION ${state.motionSizeClass} · SCENE ${preset.label.replace('VIEW: ', '')}`);
@@ -3325,6 +3718,8 @@
     previewButton.addEventListener('click', previewCamera);
     previewNightButton.addEventListener('click', cyclePreviewNight);
     applyQualityButton.addEventListener('click', applySelectedQuality);
+    applyCalibrationButton.addEventListener('click', () => applyCalibrationProfile(calibrationSelect.value, true));
+    calibrationSelect.addEventListener('change', () => applyCalibrationProfile(calibrationSelect.value, false));
     qualitySelect.addEventListener('change', () => {
       state.qualityKey = qualitySelect.value || 'balanced';
       const quality = currentQuality();
@@ -3334,6 +3729,7 @@
     cameraSelect.addEventListener('change', () => {
       const index = state.devices.findIndex(device => device.deviceId === cameraSelect.value);
       state.currentDeviceIndex = index;
+      try { localStorage.setItem('observer180-camera-device', cameraSelect.value || ''); } catch (_) {}
     });
 
     menuOrb.addEventListener('click', openMenu);
@@ -3348,9 +3744,9 @@
     $('#btn-enhance').addEventListener('click', cycleEnhancement);
     $('#btn-motion').addEventListener('click', cycleMotion);
     $('#btn-grid').addEventListener('click', togglePlatform);
-    $('#btn-voice').addEventListener('click', toggleVoice);
-    $('#btn-auto-hide').addEventListener('click', cycleAutoHide);
-    $('#btn-performance').addEventListener('click', cyclePerformanceMode);
+    $('#btn-sound-cal').addEventListener('click', manualSoundwaveCalibration);
+    $('#btn-diagnostics').addEventListener('click', toggleDiagnostics);
+    $('#btn-network').addEventListener('click', toggleNetworkOrb);
     $('#btn-exit').addEventListener('click', exitScene);
 
     document.querySelectorAll('#menu-panel .clickable').forEach(control => {
@@ -3392,6 +3788,13 @@
     try {
       const savedQuality = localStorage.getItem('cardboard-comfort-quality');
       if (savedQuality && qualityPresets[savedQuality]) qualitySelect.value = savedQuality;
+      const savedCalibration = localStorage.getItem('observer180-calibration');
+      if (savedCalibration && calibrationProfiles[savedCalibration]) {
+        state.calibrationKey = savedCalibration;
+        calibrationSelect.value = savedCalibration;
+      }
+      const savedNetworkOrb = localStorage.getItem('observer180-network-orb');
+      if (savedNetworkOrb !== null) state.networkOrbEnabled = savedNetworkOrb !== '0';
     } catch (_) {}
     state.qualityKey = qualitySelect.value;
     qualitySelect.addEventListener('change', () => {
@@ -3412,15 +3815,17 @@
     } catch (_) {}
 
     updatePreviewNightUi();
-    $('#txt-voice')?.setAttribute('value', `VOICE: ${state.voiceEnabled ? 'ON' : 'OFF'}`);
-    $('#txt-auto-hide')?.setAttribute('value', autoHideSeconds() > 0 ? `AUTO HIDE: ${autoHideSeconds()}S` : 'AUTO HIDE: OFF');
     updateSoundwaveButtons();
+    applyCalibrationProfile(state.calibrationKey, false);
+    updateNetworkOrb();
+    refreshPermissionIndicators();
     setPerformanceMode(0, false);
     updatePerformanceUi();
     updateFieldReadouts();
     startPerformanceMonitor();
     startCameraHealthMonitor();
     initBatteryMonitor();
+    startStableCoreMonitors();
 
     if (!window.isSecureContext) {
       setStatus('Camera access requires HTTPS or localhost. A downloaded file may need to be served from a secure local web server.', 'warn');
