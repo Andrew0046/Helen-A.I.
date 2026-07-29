@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Reference Game Helmet</title>
+  <title>Observer 180 — Field Survival Pack</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -823,7 +823,7 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Reference Game Helmet</h1>
+      <h1>Observer 180 — Field Survival Pack</h1>
       <p>A consolidated Android-browser build with independent display, vision, Soundwave, diagnostics, comfort calibration, camera recovery, and estimated network-quality systems.</p>
 
       <div id="setup-preview-frame" class="preview">
@@ -1252,10 +1252,47 @@
         </a-plane>
 
         <a-plane
+          id="btn-waypoint"
+          class="clickable"
+          hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
+          position="-0.92 -1.28 0.040"
+          width="0.80"
+          height="0.28"
+          material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
+          visible="true"
+        >
+          <a-text id="txt-waypoint" value="WAYPOINT: HOME" align="center" anchor="center" width="2.05" color="#ffd477"></a-text>
+        </a-plane>
+        <a-plane
+          id="btn-lighttool"
+          class="clickable"
+          hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
+          position="0 -1.28 0.040"
+          width="0.80"
+          height="0.28"
+          material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
+          visible="true"
+        >
+          <a-text id="txt-lighttool" value="LIGHT: OFF" align="center" anchor="center" width="2.05" color="#fff7b8"></a-text>
+        </a-plane>
+        <a-plane
+          id="btn-capture"
+          class="clickable"
+          hub-button="normal: #ffffff; hover: #00d2ff; active: #ffffff"
+          position="0.92 -1.28 0.040"
+          width="0.80"
+          height="0.28"
+          material="shader: flat; color: #ffffff; transparent: true; opacity: .15"
+          visible="true"
+        >
+          <a-text id="txt-capture" value="CAPTURE" align="center" anchor="center" width="2.15" color="#d6fbff"></a-text>
+        </a-plane>
+
+        <a-plane
           id="btn-exit"
           class="clickable"
           hub-button="normal: #4b2429; hover: #963e49; active: #ff9b9b"
-          position="0 -1.31 0.040"
+          position="0 -1.60 0.040"
           width="2.64"
           height="0.25"
           material="shader: flat; color: #4b2429; transparent: true; opacity: .90"
@@ -1301,7 +1338,7 @@
 
         <a-entity id="micro-hud" position="0 -0.47 -1.30">
           <a-plane width="1.16" height="0.105" material="shader: flat; color: #03141a; transparent: true; opacity: .52"></a-plane>
-          <a-text id="hud-text" value="LOOK DOWN FOR STABLE CORE COPILOT" position="0 0.018 0.006" align="center" anchor="center" width="2.25" color="#bff9ff"></a-text>
+          <a-text id="hud-text" value="" visible="false" position="0 0.018 0.006" align="center" anchor="center" width="2.25" color="#bff9ff"></a-text>
           <a-text
             id="hud-field-status"
             value="CAM WAIT · BAT -- · -- FPS"
@@ -1429,7 +1466,9 @@
             </a-entity>
 
             <a-text id="helmet-top-status" value="OBSERVER 180 // GAME VISOR" position="0 0.62 -1.32" align="center" anchor="center" width="1.54" color="#ffffff"></a-text>
-            <a-text id="helmet-bottom-readout" value="READY // LOOK DOWN FOR COPILOT" position="0 -0.62 -1.31" align="center" anchor="center" width="1.42" color="#ffd477"></a-text>
+            <a-text id="helmet-compass-strip" value="W · NW · N · NE · E" position="0 0.50 -1.32" align="center" anchor="center" width="1.52" color="#9cefff"></a-text>
+            <a-text id="helmet-heading-readout" value="N 000°" position="0 0.43 -1.32" align="center" anchor="center" width="0.76" color="#ffd477"></a-text>
+            <a-text id="helmet-bottom-readout" value="READY // FIELD SURVIVAL PACK" position="0 -0.62 -1.31" align="center" anchor="center" width="1.52" color="#ffd477"></a-text>
           </a-entity>
         </a-entity>
 
@@ -1442,6 +1481,9 @@
           <a-text id="network-orb-text" value="NETWORK --% EST." position="0 -0.095 0" align="center" anchor="center" width="0.82" color="#d8faff"></a-text>
           <a-text id="network-orb-detail" value="CHECKING · LOW CONF." position="0 -0.135 0" align="center" anchor="center" width="0.68" color="#91b7c0"></a-text>
         </a-entity>
+
+        <a-plane id="quick-light-screen" position="0 0 -1.24" width="2.35" height="1.70" visible="false"
+          material="shader: flat; color: #fffbe6; transparent: true; opacity: .26; depthTest: false; depthWrite: false"></a-plane>
 
         <a-entity id="diagnostics-panel" position="-0.48 0.10 -1.25" visible="false">
           <a-plane width="0.82" height="0.68" material="shader: flat; color: #020b10; transparent: true; opacity: .88"></a-plane>
@@ -1485,6 +1527,8 @@
     const hudFieldStatus = $('#hud-field-status');
     const hudSoundwaveStatus = $('#hud-soundwave-status');
     const hudText = $('#hud-text');
+    hudText?.setAttribute('visible', false);
+    hudFieldStatus?.setAttribute('visible', false);
     const visorHudRoot = $('#visor-hud-root');
     const visorMinimal = $('#visor-minimal');
     const visorHelmet = $('#visor-helmet');
@@ -1509,6 +1553,9 @@
     const helmetBottomLeft = $('#helmet-bottom-left');
     const helmetBottomRight = $('#helmet-bottom-right');
     const helmetBottomReadout = $('#helmet-bottom-readout');
+    const helmetCompassStrip = $('#helmet-compass-strip');
+    const helmetHeadingReadout = $('#helmet-heading-readout');
+    const quickLightScreen = $('#quick-light-screen');
     const diagnosticsPanel = $('#diagnostics-panel');
     const diagnosticsText = $('#diagnostics-text');
     const networkOrb = $('#network-orb');
@@ -1649,7 +1696,30 @@
       permissionCamera: 'CHECKING',
       permissionMic: 'CHECKING',
       permissionMotion: 'CHECKING',
-      permissionFullscreen: 'CHECKING'
+      permissionFullscreen: 'CHECKING',
+      locationWatchId: 0,
+      locationPermission: 'CHECKING',
+      latitude: null,
+      longitude: null,
+      altitude: null,
+      geoAccuracy: null,
+      geoHeading: null,
+      geoSpeed: null,
+      locationUpdatedAt: 0,
+      waypointLat: null,
+      waypointLon: null,
+      waypointName: 'HOME',
+      waypointDistanceM: null,
+      waypointBearingDeg: null,
+      compassHeadingDeg: null,
+      tiltPitchDeg: 0,
+      tiltRollDeg: 0,
+      quickLightMode: 0,
+      torchSupported: false,
+      torchEnabled: false,
+      lastCaptureAt: 0,
+      sessionStartedAt: Date.now(),
+      daylightLabel: 'UNKNOWN'
     };
 
     const calibrationProfiles = {
@@ -1937,6 +2007,243 @@
       return hudStyles[state.hudStyleIndex] || hudStyles[2];
     }
 
+
+    function pad2(v) {
+      return String(v).padStart(2, '0');
+    }
+
+    function formatClock(date = new Date()) {
+      return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    }
+
+    function formatElapsed(ms) {
+      const total = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+    }
+
+    function cardinalFromDegrees(deg) {
+      if (!Number.isFinite(deg)) return '--';
+      const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+      return dirs[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+    }
+
+    function buildCompassStrip(centerDeg) {
+      if (!Number.isFinite(centerDeg)) return 'W · NW · N · NE · E';
+      const offsets = [-90, -45, 0, 45, 90];
+      return offsets.map(offset => {
+        const angle = (((centerDeg + offset) % 360) + 360) % 360;
+        const card = cardinalFromDegrees(angle);
+        if (offset === 0) return `[${card} ${Math.round(centerDeg).toString().padStart(3, '0')}°]`;
+        return card;
+      }).join('  ·  ');
+    }
+
+    function toRadians(deg) { return deg * Math.PI / 180; }
+    function toDegrees(rad) { return rad * 180 / Math.PI; }
+
+    function haversineMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const dLat = toRadians(lat2 - lat1);
+      const dLon = toRadians(lon2 - lon1);
+      const a = Math.sin(dLat/2) ** 2 + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon/2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    function bearingDegrees(lat1, lon1, lat2, lon2) {
+      const y = Math.sin(toRadians(lon2 - lon1)) * Math.cos(toRadians(lat2));
+      const x = Math.cos(toRadians(lat1)) * Math.sin(toRadians(lat2)) - Math.sin(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.cos(toRadians(lon2 - lon1));
+      return (((toDegrees(Math.atan2(y, x))) % 360) + 360) % 360;
+    }
+
+    function approxDaylightLabel() {
+      const h = new Date().getHours();
+      if (h >= 5 && h < 7) return 'DAWN';
+      if (h >= 7 && h < 18) return 'DAY';
+      if (h >= 18 && h < 20) return 'DUSK';
+      return 'NIGHT';
+    }
+
+    function formatCoord(value, lat = true) {
+      if (!Number.isFinite(value)) return lat ? '--.----' : '---.----';
+      return `${Math.abs(value).toFixed(4)}${lat ? (value >= 0 ? 'N' : 'S') : (value >= 0 ? 'E' : 'W')}`;
+    }
+
+    function waypointDistanceLabel() {
+      if (!Number.isFinite(state.waypointDistanceM)) return '--';
+      if (state.waypointDistanceM >= 1000) return `${(state.waypointDistanceM / 1000).toFixed(2)}KM`;
+      return `${Math.round(state.waypointDistanceM)}M`;
+    }
+
+    function lastCaptureLabel() {
+      if (!state.lastCaptureAt) return 'NONE';
+      const d = new Date(state.lastCaptureAt);
+      return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+    }
+
+    function quickLightLabel() {
+      return state.quickLightMode === 2 ? 'TORCH' : (state.quickLightMode === 1 ? 'SCREEN' : 'OFF');
+    }
+
+    function updateQuickLightUi() {
+      $('#txt-lighttool')?.setAttribute('value', `LIGHT: ${quickLightLabel()}`);
+      if (quickLightScreen) {
+        quickLightScreen.setAttribute('visible', state.quickLightMode === 1);
+        quickLightScreen.setAttribute('material', 'opacity', state.quickLightMode === 1 ? 0.26 : 0.0);
+      }
+    }
+
+    function updateWaypointMetrics() {
+      if (Number.isFinite(state.latitude) && Number.isFinite(state.longitude) && Number.isFinite(state.waypointLat) && Number.isFinite(state.waypointLon)) {
+        state.waypointDistanceM = haversineMeters(state.latitude, state.longitude, state.waypointLat, state.waypointLon);
+        state.waypointBearingDeg = bearingDegrees(state.latitude, state.longitude, state.waypointLat, state.waypointLon);
+      } else {
+        state.waypointDistanceM = null;
+        state.waypointBearingDeg = null;
+      }
+      $('#txt-waypoint')?.setAttribute('value', `WAYPOINT: ${Number.isFinite(state.waypointLat) ? 'SET' : 'HOME'}`);
+    }
+
+    function applyGeoFix(position) {
+      const coords = position?.coords || {};
+      state.latitude = Number.isFinite(coords.latitude) ? coords.latitude : state.latitude;
+      state.longitude = Number.isFinite(coords.longitude) ? coords.longitude : state.longitude;
+      state.altitude = Number.isFinite(coords.altitude) ? coords.altitude : null;
+      state.geoAccuracy = Number.isFinite(coords.accuracy) ? coords.accuracy : null;
+      state.geoHeading = Number.isFinite(coords.heading) ? coords.heading : null;
+      state.geoSpeed = Number.isFinite(coords.speed) ? coords.speed : null;
+      state.locationUpdatedAt = Date.now();
+      state.locationPermission = 'GRANTED';
+      if (!Number.isFinite(state.waypointLat) && Number.isFinite(state.latitude) && Number.isFinite(state.longitude)) {
+        state.waypointLat = state.latitude;
+        state.waypointLon = state.longitude;
+      }
+      updateWaypointMetrics();
+      updateHelmetHudReadouts();
+    }
+
+    function startLocationWatch() {
+      if (!('geolocation' in navigator)) {
+        state.locationPermission = 'UNAVAILABLE';
+        return false;
+      }
+      if (state.locationWatchId) return true;
+      try {
+        state.locationPermission = 'REQUESTED';
+        state.locationWatchId = navigator.geolocation.watchPosition(
+          (position) => applyGeoFix(position),
+          (error) => {
+            console.warn('Geolocation error', error);
+            state.locationPermission = error?.code === 1 ? 'DENIED' : 'UNAVAILABLE';
+            updateHelmetHudReadouts();
+          },
+          { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 }
+        );
+        return true;
+      } catch (error) {
+        console.warn(error);
+        state.locationPermission = 'UNAVAILABLE';
+        return false;
+      }
+    }
+
+    function stopLocationWatch() {
+      if (state.locationWatchId && navigator.geolocation?.clearWatch) {
+        try { navigator.geolocation.clearWatch(state.locationWatchId); } catch (_) {}
+      }
+      state.locationWatchId = 0;
+    }
+
+    function updateSurvivalStatus() {
+      state.daylightLabel = approxDaylightLabel();
+      updateWaypointMetrics();
+    }
+
+    function updateHeadingFromOrientation(event) {
+      let heading = null;
+      if (typeof event.webkitCompassHeading === 'number') heading = event.webkitCompassHeading;
+      else if (typeof event.alpha === 'number') heading = (360 - event.alpha + (screen.orientation?.angle || 0)) % 360;
+      if (Number.isFinite(heading)) state.compassHeadingDeg = (((heading % 360) + 360) % 360);
+      if (typeof event.beta === 'number') state.tiltPitchDeg = event.beta;
+      if (typeof event.gamma === 'number') state.tiltRollDeg = event.gamma;
+      updateHelmetHudReadouts();
+    }
+
+    async function toggleQuickLight() {
+      const track = state.stream?.getVideoTracks?.()[0];
+      const caps = track?.getCapabilities?.() || {};
+      state.torchSupported = !!caps.torch;
+      try {
+        if (state.quickLightMode === 0) {
+          if (state.torchSupported) {
+            await track.applyConstraints({ advanced: [{ torch: true }] });
+            state.quickLightMode = 2;
+            state.torchEnabled = true;
+          } else {
+            state.quickLightMode = 1;
+          }
+        } else {
+          if (state.torchSupported && state.torchEnabled) {
+            await track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+          }
+          state.quickLightMode = 0;
+          state.torchEnabled = false;
+        }
+      } catch (error) {
+        console.warn('Quick light toggle failed', error);
+        state.quickLightMode = state.quickLightMode === 1 ? 0 : 1;
+        state.torchEnabled = false;
+      }
+      updateQuickLightUi();
+      updateHelmetHudReadouts();
+      menuStatus?.setAttribute('value', `QUICK LIGHT ${quickLightLabel()}`);
+      noteMenuActivity();
+    }
+
+    function toggleWaypoint() {
+      if (Number.isFinite(state.latitude) && Number.isFinite(state.longitude)) {
+        if (Number.isFinite(state.waypointLat)) {
+          state.waypointLat = null;
+          state.waypointLon = null;
+          menuStatus?.setAttribute('value', 'WAYPOINT CLEARED');
+        } else {
+          state.waypointLat = state.latitude;
+          state.waypointLon = state.longitude;
+          menuStatus?.setAttribute('value', 'WAYPOINT SET TO CURRENT POSITION');
+        }
+        updateWaypointMetrics();
+        updateHelmetHudReadouts();
+      } else {
+        showTemporaryMessage('GPS fix not ready yet.');
+      }
+      noteMenuActivity();
+    }
+
+    function captureSnapshot() {
+      try {
+        const canvas = scene.renderer?.domElement;
+        if (!canvas) throw new Error('Renderer not ready');
+        const link = document.createElement('a');
+        const stamp = new Date();
+        const filename = `observer180_${stamp.getFullYear()}${pad2(stamp.getMonth()+1)}${pad2(stamp.getDate())}_${pad2(stamp.getHours())}${pad2(stamp.getMinutes())}${pad2(stamp.getSeconds())}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.download = filename;
+        link.click();
+        state.lastCaptureAt = Date.now();
+        $('#txt-capture')?.setAttribute('value', 'CAPTURED');
+        window.setTimeout(() => $('#txt-capture')?.setAttribute('value', 'CAPTURE'), 1200);
+        menuStatus?.setAttribute('value', 'SNAPSHOT SAVED');
+        showTemporaryMessage('Snapshot captured from the visor view.');
+        updateHelmetHudReadouts();
+      } catch (error) {
+        console.warn(error);
+        showTemporaryMessage('Snapshot capture is unavailable in this browser session.');
+      }
+      noteMenuActivity();
+    }
+
     function updateHelmetHudLayout() {
       const mono = !state.cardboardActive;
       const sideX = mono ? 1.13 : 0.61;
@@ -1956,6 +2263,7 @@
     }
 
     function updateHelmetHudReadouts() {
+      updateSurvivalStatus();
       const visionLabel = visionModes[state.visionIndex]?.label || 'NATURAL';
       const displayLabel = state.cardboardActive ? 'CARDBOARD' : 'MONO';
       const viewLabel = (viewPresets[state.viewIndex]?.label || 'VIEW: COMFORT').replace('VIEW: ', '');
@@ -1966,17 +2274,46 @@
       const motionLabel = motionModes[state.motionModeIndex]?.label || 'OFF';
       const soundStatus = state.visionIndex === 7 ? state.soundwaveStatus : 'STANDBY';
       const profile = currentPerformanceProfile()?.label || 'AUTO';
+      const heading = Number.isFinite(state.compassHeadingDeg) ? state.compassHeadingDeg : state.geoHeading;
+      const headingLabel = Number.isFinite(heading) ? `${cardinalFromDegrees(heading)} ${Math.round(heading).toString().padStart(3, '0')}°` : 'HDG --';
+      const coordsLabel = `${formatCoord(state.latitude, true)} ${formatCoord(state.longitude, false)}`;
+      const altitudeLabel = Number.isFinite(state.altitude) ? `${Math.round(state.altitude)}M` : '--';
+      const accuracyLabel = Number.isFinite(state.geoAccuracy) ? `${Math.round(state.geoAccuracy)}M` : '--';
+      const waypointLabel = Number.isFinite(state.waypointLat) ? `${waypointDistanceLabel()} ${Number.isFinite(state.waypointBearingDeg) ? cardinalFromDegrees(state.waypointBearingDeg) : '--'}` : 'NOT SET';
+      const speedLabel = Number.isFinite(state.geoSpeed) ? `${(state.geoSpeed * 3.6).toFixed(1)}KMH` : '--';
+      const captureLabel = lastCaptureLabel();
+      const emergency = [];
+      if (state.batteryLevel != null && state.batteryLevel <= 0.18 && !state.batteryCharging) emergency.push('LOW BATTERY');
+      if (state.networkTrend === 'WEAKENING' || (state.networkSmoothedScore != null && state.networkSmoothedScore < 35)) emergency.push('SIGNAL LOW');
+      if (state.locationPermission === 'DENIED' || !Number.isFinite(state.latitude)) emergency.push('GPS LIMITED');
+      if (!state.soundwaveReady) emergency.push('MIC OFF');
+      if (state.quickLightMode > 0) emergency.push(`LIGHT ${quickLightLabel()}`);
+      if (!emergency.length) emergency.push(`${state.daylightLabel} · ${headingLabel}`);
       hudChipLeft?.setAttribute('value', `VISION ${visionLabel}`);
       hudChipRight?.setAttribute('value', `DISPLAY ${displayLabel}`);
       helmetTopStatus?.setAttribute('value', `OBSERVER 180 // ${currentHudStyle().label} VISOR`);
-      helmetTopLeft?.setAttribute('value', `SYS O-180\nVIEW ${viewLabel}`);
-      helmetTopRight?.setAttribute('value', `${battery}\nNET ${networkLabel}`);
-      helmetLeftReadout?.setAttribute('value', `VISION ${visionLabel}\nDISPLAY ${displayLabel}\nVIEW ${viewLabel}\nSOUND ${soundStatus}`);
-      helmetRightReadout?.setAttribute('value', `CAM ${state.cameraStatus}\nRES ${resolution}\nFPS ${fps}\nPERF ${profile}`);
-      helmetCenterTag?.setAttribute('value', state.visionIndex === 7 ? 'AUDIO OBSERVATION' : 'OBSERVATION LINK');
-      helmetBottomLeft?.setAttribute('value', `NET ${state.networkTrend}\nCONF ${state.networkConfidence}`);
-      helmetBottomRight?.setAttribute('value', `MIC ${state.soundwaveReady ? 'READY' : 'OFF'}\nMOTION ${motionLabel}`);
-      helmetBottomReadout?.setAttribute('value', `${state.cameraStatus} // ${state.networkTrend} // LOOK DOWN FOR COPILOT`);
+      helmetCompassStrip?.setAttribute('value', buildCompassStrip(heading));
+      helmetHeadingReadout?.setAttribute('value', headingLabel);
+      helmetTopLeft?.setAttribute('value', `TIME ${formatClock()}
+ELAP ${formatElapsed(Date.now() - state.sessionStartedAt)}`);
+      helmetTopRight?.setAttribute('value', `${battery}
+NET ${networkLabel}`);
+      helmetLeftReadout?.setAttribute('value', `GPS ${coordsLabel}
+ACC ${accuracyLabel}
+HOME ${waypointLabel}
+SPEED ${speedLabel}`);
+      helmetRightReadout?.setAttribute('value', `CAM ${state.cameraStatus}
+RES ${resolution}
+ALT ${altitudeLabel}
+PERF ${profile}`);
+      helmetCenterTag?.setAttribute('value', state.visionIndex === 7 ? `SOUND ${soundStatus}` : `${state.daylightLabel} OBSERVATION`);
+      helmetBottomLeft?.setAttribute('value', `WAYPOINT ${Number.isFinite(state.waypointLat) ? 'LOCKED' : 'CLEAR'}
+BRG ${Number.isFinite(state.waypointBearingDeg) ? Math.round(state.waypointBearingDeg).toString().padStart(3, '0') + '°' : '--'} · ${Number.isFinite(heading) && Number.isFinite(state.waypointBearingDeg) ? (((state.waypointBearingDeg - heading + 540) % 360) - 180).toFixed(0) + '°' : '--'}`);
+      helmetBottomRight?.setAttribute('value', `MIC ${state.soundwaveReady ? 'READY' : 'OFF'}
+MOVE ${motionLabel}
+TILT P${Math.round(state.tiltPitchDeg)} R${Math.round(state.tiltRollDeg)}
+CAP ${captureLabel}`);
+      helmetBottomReadout?.setAttribute('value', emergency.join(' // '));
       updateHelmetHudLayout();
     }
 
@@ -2021,7 +2358,7 @@
       const battery = batteryLabel();
       fieldCameraReadout?.setAttribute('value', `CAM ${cameraStatus} · ${resolution}`);
       performanceReadout?.setAttribute('value', `${battery} · ${fps} FPS · ${profile.label}`);
-      hudFieldStatus?.setAttribute('value', `CAM ${cameraStatus} · ${battery} · ${fps} FPS`);
+      hudFieldStatus?.setAttribute('value', '');
       updateSoundwaveHud();
       if (state.diagnosticsVisible) updateDiagnostics();
     }
@@ -2533,6 +2870,10 @@
         `MIC      ${mic}`,
         `FULL     ${document.fullscreenElement ? 'YES' : 'NO'} · ANGLE ${screen.orientation?.angle ?? window.orientation ?? '--'}`,
         `NETWORK  ${networkScore} ${state.networkConfidence} CONF.`,
+        `GPS      ${Number.isFinite(state.latitude) ? `${state.latitude.toFixed(4)}, ${state.longitude.toFixed(4)}` : 'UNAVAILABLE'}`,
+        `WAYPT    ${Number.isFinite(state.waypointDistanceM) ? Math.round(state.waypointDistanceM) + ' M' : '--'} · ${Number.isFinite(state.waypointBearingDeg) ? Math.round(state.waypointBearingDeg) + '°' : '--'}`,
+        `HEADING  ${Number.isFinite(state.compassHeadingDeg) ? Math.round(state.compassHeadingDeg) + '°' : '--'} · TILT ${Math.round(state.tiltPitchDeg)}/${Math.round(state.tiltRollDeg)}`,
+        `LIGHT    ${quickLightLabel()} · CAP ${lastCaptureLabel()}`,
         `FPS      ${Math.round(state.performanceFps || 0)} · ${currentPerformanceProfile().label}`
       ];
       diagnosticsText.setAttribute('value', lines.join('\n'));
@@ -2580,6 +2921,9 @@
       connection?.addEventListener?.('change', updateNetworkQuality);
       window.addEventListener('online', updateNetworkQuality);
       window.addEventListener('offline', updateNetworkQuality);
+      window.addEventListener('deviceorientationabsolute', updateHeadingFromOrientation, true);
+      window.addEventListener('deviceorientation', updateHeadingFromOrientation, true);
+      window.setInterval(updateHelmetHudReadouts, 1000);
     }
 
     function currentPerformanceMode() {
@@ -3530,7 +3874,7 @@
     async function ensureStereoMode(announce = false) {
       setCardboardStereo(true);
       await settleLandscapeViewport();
-      hudText.setAttribute('value', state.menuOpen ? 'COPILOT HUB · CARDBOARD' : 'LOOK DOWN · CARDBOARD');
+      hudText.setAttribute('value', '');
       if (announce) {
         menuStatus.setAttribute('value', 'PIXEL-LOCKED 50 / 50 CARDBOARD VIEW');
         showTemporaryMessage('Cardboard alignment refreshed: both eye panels now receive the exact same pixel image.');
@@ -3550,6 +3894,7 @@
         const fullscreenPromise = enterFullscreen();
         const motionPromise = requestMotionPermission();
         const soundwavePromise = prepareSoundwaveFromLaunchTap();
+        startLocationWatch();
         const [motionReady, soundwavePrepared] = await Promise.all([motionPromise, soundwavePromise]);
         state.permissionMotion = motionReady ? 'GRANTED' : 'UNAVAILABLE';
         setPermissionChip('perm-motion', `MOTION: ${state.permissionMotion}`, motionReady ? 'ready' : 'warn');
@@ -3568,11 +3913,12 @@
         await settleLandscapeViewport();
         await acquireWakeLock();
 
+        state.sessionStartedAt = Date.now();
         startup.classList.add('hidden');
         setCardboardStereo(true);
         await settleLandscapeViewport();
 
-        hudText.setAttribute('value', 'LOOK DOWN · STABLE CORE COPILOT');
+        hudText.setAttribute('value', '');
         $('#txt-stereo')?.setAttribute('value', 'CARDBOARD: LOCKED');
         const quality = currentQuality();
         applyPerformanceTier(currentPerformanceMode().forcedTier ?? state.performanceTier, 'launch profile', false);
@@ -3667,7 +4013,7 @@
         }
       }, 205);
 
-      hudText.setAttribute('value', 'STABLE CORE COPILOT ACTIVE');
+      hudText.setAttribute('value', '');
       menuStatus.setAttribute('value', `${visionModes[state.visionIndex].label} · ${state.cardboardActive ? 'CARDBOARD' : 'MONO'} · ${currentCalibration().label}`);
       updatePerformanceUi();
       scheduleMenuAutoHide();
@@ -3723,7 +4069,7 @@
         }
       }, 285);
 
-      hudText.setAttribute('value', 'LOOK DOWN FOR STABLE CORE COPILOT');
+      hudText.setAttribute('value', '');
       if (reason === 'auto') speakFeedback('Menu returned to Copilot');
       else if (reason === 'manual') speakFeedback('Menu hidden');
     }
@@ -3821,7 +4167,7 @@
           getStereoComponent()?.syncViewport(true);
           menuStatus.setAttribute('value', preset.status);
           motionReadout?.setAttribute('value', `MOTION ${state.motionSizeClass} · SCENE ${preset.label.replace('VIEW: ', '')}`);
-          hudText.setAttribute('value', `${preset.label.replace('VIEW: ', '')} 180 · LOOK DOWN FOR HUB`);
+          hudText.setAttribute('value', '');
           updateHelmetHudReadouts();
         }
       };
@@ -3852,7 +4198,7 @@
       $('#txt-vision').setAttribute('value', `VISION: ${vision.label}`);
       applyVisionMaterial();
       menuStatus.setAttribute('value', `${vision.label} VISION ACTIVE`);
-      hudText.setAttribute('value', `${vision.label} · CARDBOARD STEREO`);
+      hudText.setAttribute('value', '');
       speakFeedback(`${vision.label.toLowerCase()} vision`);
       noteMenuActivity();
     }
@@ -3890,7 +4236,7 @@
       applyVisionMaterial();
       menuStatus.setAttribute('value', motion.shaderMode === 0 ? 'MOTION DETECTION OFF' : `${motion.label} · ADAPTIVE THRESHOLD ON`);
       motionReadout?.setAttribute('value', motion.shaderMode === 0 ? 'MOTION OFF · SCENE READY' : 'ANALYZING SIZE · DIRECTION · NOISE');
-      hudText.setAttribute('value', motion.shaderMode === 0 ? `${visionModes[state.visionIndex].label} · CARDBOARD` : `MOTION ${motion.label} · LOOK DOWN FOR HUB`);
+      hudText.setAttribute('value', '');
       speakFeedback(motion.shaderMode === 0 ? 'Motion detection off' : `Motion ${motion.label.toLowerCase()}`);
       noteMenuActivity();
     }
@@ -4003,6 +4349,9 @@
     $('#btn-sound-cal').addEventListener('click', manualSoundwaveCalibration);
     $('#btn-diagnostics').addEventListener('click', toggleDiagnostics);
     $('#btn-network').addEventListener('click', toggleNetworkOrb);
+    $('#btn-waypoint').addEventListener('click', toggleWaypoint);
+    $('#btn-lighttool').addEventListener('click', toggleQuickLight);
+    $('#btn-capture').addEventListener('click', captureSnapshot);
     $('#btn-exit').addEventListener('click', exitScene);
 
     document.querySelectorAll('#menu-panel .clickable').forEach(control => {
@@ -4074,6 +4423,7 @@
 
     updatePreviewNightUi();
     updateSoundwaveButtons();
+    updateQuickLightUi();
     applyCalibrationProfile(state.calibrationKey, false);
     applyHudStyle(false);
     updateNetworkOrb();
