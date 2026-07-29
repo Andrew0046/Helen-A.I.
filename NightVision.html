@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Stable Core Game Helmet Overlay</title>
+  <title>Observer 180 — Reference Game Helmet</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -217,6 +217,35 @@
       viewports with one shared optical center. That makes the result usable in a basic phone Cardboard viewer
       even when the browser has no immersive-vr session provider.
     */
+    AFRAME.registerComponent('hud-front-layer', {
+      init: function () {
+        this.lastApplyAt = 0;
+        this.applyFrontLayer = () => {
+          this.el.object3D.traverse((node) => {
+            if (!node?.isMesh || !node.material) return;
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach((material) => {
+              material.depthTest = false;
+              material.depthWrite = false;
+              material.transparent = true;
+              material.needsUpdate = true;
+            });
+            node.renderOrder = 10000;
+          });
+        };
+        this.el.addEventListener('object3dset', this.applyFrontLayer);
+        requestAnimationFrame(this.applyFrontLayer);
+      },
+      tick: function (time) {
+        if (time - this.lastApplyAt < 900) return;
+        this.lastApplyAt = time;
+        this.applyFrontLayer();
+      },
+      remove: function () {
+        this.el.removeEventListener('object3dset', this.applyFrontLayer);
+      }
+    });
+
     AFRAME.registerComponent('cardboard-fixed-stereo', {
       schema: {
         enabled: { default: false },
@@ -794,7 +823,7 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Stable Core Game Helmet Overlay</h1>
+      <h1>Observer 180 — Reference Game Helmet</h1>
       <p>A consolidated Android-browser build with independent display, vision, Soundwave, diagnostics, comfort calibration, camera recovery, and estimated network-quality systems.</p>
 
       <div id="setup-preview-frame" class="preview">
@@ -1149,7 +1178,7 @@
         
         visible="true"
         >
-          <a-text id="txt-grid" value="HUD: MINIMAL" align="center" anchor="center" width="2.40" color="#ffffff"></a-text>
+          <a-text id="txt-grid" value="HUD: GAME" align="center" anchor="center" width="2.40" color="#ffffff"></a-text>
         </a-plane>
         <a-plane
           id="btn-motion"
@@ -1292,62 +1321,117 @@
             color="#ffe07b"
             visible="false"
           ></a-text>
-        </a-entity>        <a-entity id="visor-hud-root" position="0 0 0">
-          <a-entity id="visor-minimal" visible="true">
-            <a-plane position="0 0.45 -1.30" width="1.40" height="0.022" material="shader: flat; color: #8cecff; transparent: true; opacity: .38"></a-plane>
-            <a-plane position="-0.53 0.37 -1.30" width="0.20" height="0.018" material="shader: flat; color: #8cecff; transparent: true; opacity: .55"></a-plane>
-            <a-plane position="0.53 0.37 -1.30" width="0.20" height="0.018" material="shader: flat; color: #8cecff; transparent: true; opacity: .55"></a-plane>
-            <a-plane position="-0.65 0.08 -1.30" width="0.014" height="0.54" material="shader: flat; color: #8cecff; transparent: true; opacity: .26"></a-plane>
-            <a-plane position="0.65 0.08 -1.30" width="0.014" height="0.54" material="shader: flat; color: #8cecff; transparent: true; opacity: .26"></a-plane>
-            <a-text id="hud-chip-left" value="VISION NATURAL" position="-0.50 0.34 -1.29" align="left" anchor="left" width="0.86" color="#d8faff"></a-text>
-            <a-text id="hud-chip-right" value="DISPLAY CARDBOARD" position="0.50 0.34 -1.29" align="right" anchor="right" width="0.96" color="#d8faff"></a-text>
+        </a-entity>        <a-entity id="visor-hud-root" hud-front-layer position="0 0 0">
+          <a-entity id="visor-minimal" visible="false">
+            <a-plane position="0 0.45 -1.30" width="1.48" height="0.020" material="shader: flat; color: #9beeff; transparent: true; opacity: .48; depthTest: false; depthWrite: false"></a-plane>
+            <a-plane position="-0.68 0.02 -1.30" width="0.014" height="0.72" material="shader: flat; color: #9beeff; transparent: true; opacity: .32; depthTest: false; depthWrite: false"></a-plane>
+            <a-plane position="0.68 0.02 -1.30" width="0.014" height="0.72" material="shader: flat; color: #9beeff; transparent: true; opacity: .32; depthTest: false; depthWrite: false"></a-plane>
+            <a-text id="hud-chip-left" value="VISION NATURAL" position="-0.58 0.38 -1.29" align="left" anchor="left" width="0.94" color="#d8faff"></a-text>
+            <a-text id="hud-chip-right" value="DISPLAY CARDBOARD" position="0.58 0.38 -1.29" align="right" anchor="right" width="1.02" color="#d8faff"></a-text>
           </a-entity>
 
           <a-entity id="visor-helmet" visible="false">
-            <a-plane position="0 0.57 -1.42" width="1.92" height="0.19" material="shader: flat; color: #071116; transparent: true; opacity: .38"></a-plane>
-            <a-plane position="0 -0.59 -1.42" width="1.92" height="0.23" material="shader: flat; color: #071116; transparent: true; opacity: .40"></a-plane>
-            <a-plane position="-0.83 0 -1.42" width="0.27" height="1.14" material="shader: flat; color: #071116; transparent: true; opacity: .24"></a-plane>
-            <a-plane position="0.83 0 -1.42" width="0.27" height="1.14" material="shader: flat; color: #071116; transparent: true; opacity: .24"></a-plane>
+            <!-- Dark visor tint only around the outside; the central camera remains clear. -->
+            <a-entity id="helmet-shell">
+              <a-plane position="0 0.60 -1.46" width="2.24" height="0.25" material="shader: flat; color: #061018; transparent: true; opacity: .60; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0 -0.60 -1.46" width="2.24" height="0.28" material="shader: flat; color: #061018; transparent: true; opacity: .62; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="-0.94 0 -1.46" width="0.34" height="1.24" material="shader: flat; color: #061018; transparent: true; opacity: .43; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0.94 0 -1.46" width="0.34" height="1.24" material="shader: flat; color: #061018; transparent: true; opacity: .43; depthTest: false; depthWrite: false"></a-plane>
 
-            <a-plane position="0 0.47 -1.36" width="1.74" height="0.018" material="shader: flat; color: #7de7ff; transparent: true; opacity: .72"></a-plane>
-            <a-plane position="0 -0.40 -1.36" width="1.14" height="0.020" material="shader: flat; color: #7de7ff; transparent: true; opacity: .38"></a-plane>
-            <a-plane position="-0.69 0.02 -1.36" width="0.018" height="0.84" material="shader: flat; color: #7de7ff; transparent: true; opacity: .50"></a-plane>
-            <a-plane position="0.69 0.02 -1.36" width="0.018" height="0.84" material="shader: flat; color: #7de7ff; transparent: true; opacity: .50"></a-plane>
+              <!-- Large angular crown inspired by the reference, built as independent planes. -->
+              <a-plane position="0 0.535 -1.39" width="0.50" height="0.145" material="shader: flat; color: #e9f6ff; transparent: true; opacity: .72; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="-0.56 0.535 -1.39" width="0.64" height="0.105" rotation="0 0 -8" material="shader: flat; color: #d9f1ff; transparent: true; opacity: .58; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0.56 0.535 -1.39" width="0.64" height="0.105" rotation="0 0 8" material="shader: flat; color: #d9f1ff; transparent: true; opacity: .58; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="-0.82 0.43 -1.39" width="0.38" height="0.070" rotation="0 0 16" material="shader: flat; color: #a8d8ef; transparent: true; opacity: .46; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0.82 0.43 -1.39" width="0.38" height="0.070" rotation="0 0 -16" material="shader: flat; color: #a8d8ef; transparent: true; opacity: .46; depthTest: false; depthWrite: false"></a-plane>
 
-            <a-plane position="-0.72 0.44 -1.35" width="0.24" height="0.016" material="shader: flat; color: #7de7ff; transparent: true; opacity: .88"></a-plane>
-            <a-plane position="-0.82 0.34 -1.35" width="0.016" height="0.22" material="shader: flat; color: #7de7ff; transparent: true; opacity: .88"></a-plane>
-            <a-plane position="0.72 0.44 -1.35" width="0.24" height="0.016" material="shader: flat; color: #7de7ff; transparent: true; opacity: .88"></a-plane>
-            <a-plane position="0.82 0.34 -1.35" width="0.016" height="0.22" material="shader: flat; color: #7de7ff; transparent: true; opacity: .88"></a-plane>
-            <a-plane position="-0.72 -0.34 -1.35" width="0.24" height="0.016" material="shader: flat; color: #7de7ff; transparent: true; opacity: .72"></a-plane>
-            <a-plane position="-0.82 -0.24 -1.35" width="0.016" height="0.22" material="shader: flat; color: #7de7ff; transparent: true; opacity: .72"></a-plane>
-            <a-plane position="0.72 -0.34 -1.35" width="0.24" height="0.016" material="shader: flat; color: #7de7ff; transparent: true; opacity: .72"></a-plane>
-            <a-plane position="0.82 -0.24 -1.35" width="0.016" height="0.22" material="shader: flat; color: #7de7ff; transparent: true; opacity: .72"></a-plane>
+              <!-- Lower jaw and cheek armor. -->
+              <a-plane position="0 -0.535 -1.39" width="0.48" height="0.145" material="shader: flat; color: #dcefff; transparent: true; opacity: .63; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="-0.58 -0.535 -1.39" width="0.68" height="0.110" rotation="0 0 9" material="shader: flat; color: #dcefff; transparent: true; opacity: .56; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0.58 -0.535 -1.39" width="0.68" height="0.110" rotation="0 0 -9" material="shader: flat; color: #dcefff; transparent: true; opacity: .56; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="-0.86 -0.39 -1.39" width="0.30" height="0.075" rotation="0 0 -18" material="shader: flat; color: #a8d8ef; transparent: true; opacity: .44; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0.86 -0.39 -1.39" width="0.30" height="0.075" rotation="0 0 18" material="shader: flat; color: #a8d8ef; transparent: true; opacity: .44; depthTest: false; depthWrite: false"></a-plane>
 
-            <a-plane position="-0.50 0.17 -1.37" width="0.28" height="0.32" material="shader: flat; color: #0a1921; transparent: true; opacity: .34"></a-plane>
-            <a-plane position="0.50 0.17 -1.37" width="0.28" height="0.32" material="shader: flat; color: #0a1921; transparent: true; opacity: .34"></a-plane>
-            <a-plane position="-0.50 -0.24 -1.37" width="0.32" height="0.18" material="shader: flat; color: #0a1921; transparent: true; opacity: .26"></a-plane>
-            <a-plane position="0.50 -0.24 -1.37" width="0.32" height="0.18" material="shader: flat; color: #0a1921; transparent: true; opacity: .26"></a-plane>
+              <!-- Bright frame rails. -->
+              <a-plane position="0 0.675 -1.37" width="2.02" height="0.016" material="shader: flat; color: #eefaff; transparent: true; opacity: .94; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0 -0.675 -1.37" width="2.02" height="0.016" material="shader: flat; color: #eefaff; transparent: true; opacity: .88; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="-1.02 0 -1.37" width="0.016" height="1.18" material="shader: flat; color: #eefaff; transparent: true; opacity: .72; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="1.02 0 -1.37" width="0.016" height="1.18" material="shader: flat; color: #eefaff; transparent: true; opacity: .72; depthTest: false; depthWrite: false"></a-plane>
 
-            <a-plane position="-0.11 0.02 -1.34" width="0.10" height="0.008" material="shader: flat; color: #ffd37a; transparent: true; opacity: .92"></a-plane>
-            <a-plane position="0.11 0.02 -1.34" width="0.10" height="0.008" material="shader: flat; color: #ffd37a; transparent: true; opacity: .92"></a-plane>
-            <a-plane position="0 0.07 -1.34" width="0.008" height="0.09" material="shader: flat; color: #ffd37a; transparent: true; opacity: .64"></a-plane>
-            <a-plane position="0 -0.08 -1.34" width="0.008" height="0.09" material="shader: flat; color: #ffd37a; transparent: true; opacity: .64"></a-plane>
+              <!-- Corner brackets. -->
+              <a-plane position="-0.82 0.43 -1.35" width="0.30" height="0.014" material="shader: flat; color: #78e5ff; transparent: true; opacity: .92; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="-0.96 0.31 -1.35" width="0.014" height="0.25" material="shader: flat; color: #78e5ff; transparent: true; opacity: .92; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0.82 0.43 -1.35" width="0.30" height="0.014" material="shader: flat; color: #78e5ff; transparent: true; opacity: .92; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0.96 0.31 -1.35" width="0.014" height="0.25" material="shader: flat; color: #78e5ff; transparent: true; opacity: .92; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="-0.82 -0.43 -1.35" width="0.30" height="0.014" material="shader: flat; color: #78e5ff; transparent: true; opacity: .76; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="-0.96 -0.31 -1.35" width="0.014" height="0.25" material="shader: flat; color: #78e5ff; transparent: true; opacity: .76; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0.82 -0.43 -1.35" width="0.30" height="0.014" material="shader: flat; color: #78e5ff; transparent: true; opacity: .76; depthTest: false; depthWrite: false"></a-plane>
+              <a-plane position="0.96 -0.31 -1.35" width="0.014" height="0.25" material="shader: flat; color: #78e5ff; transparent: true; opacity: .76; depthTest: false; depthWrite: false"></a-plane>
 
-            <a-text id="helmet-top-status" value="OBSERVER 180 // GAME HELMET" position="0 0.56 -1.33" align="center" anchor="center" width="1.68" color="#effcff"></a-text>
-            <a-text id="helmet-top-left" value="SYS A-17&#10;TRACK LOCKED" position="-0.76 0.54 -1.33" align="left" anchor="left" width="0.52" color="#8cecff"></a-text>
-            <a-text id="helmet-top-right" value="BAT --&#10;NET --%" position="0.76 0.54 -1.33" align="right" anchor="right" width="0.52" color="#8cecff"></a-text>
+              <!-- Segmented side meters. -->
+              <a-entity position="-0.91 0.02 -1.34">
+                <a-plane position="0 0.20 0" width="0.055" height="0.020" material="shader: flat; color: #dff8ff; transparent: true; opacity: .92; depthTest: false; depthWrite: false"></a-plane>
+                <a-plane position="0 0.15 0" width="0.055" height="0.020" material="shader: flat; color: #b6eaff; transparent: true; opacity: .84; depthTest: false; depthWrite: false"></a-plane>
+                <a-plane position="0 0.10 0" width="0.055" height="0.020" material="shader: flat; color: #8cddf6; transparent: true; opacity: .76; depthTest: false; depthWrite: false"></a-plane>
+                <a-plane position="0 0.05 0" width="0.055" height="0.020" material="shader: flat; color: #65cce8; transparent: true; opacity: .68; depthTest: false; depthWrite: false"></a-plane>
+                <a-plane position="0 0.00 0" width="0.055" height="0.020" material="shader: flat; color: #4bbbd8; transparent: true; opacity: .60; depthTest: false; depthWrite: false"></a-plane>
+                <a-plane position="0 -0.05 0" width="0.055" height="0.020" material="shader: flat; color: #369db8; transparent: true; opacity: .52; depthTest: false; depthWrite: false"></a-plane>
+              </a-entity>
+              <a-entity position="0.91 0.02 -1.34">
+                <a-plane position="0 0.20 0" width="0.055" height="0.020" material="shader: flat; color: #dff8ff; transparent: true; opacity: .92; depthTest: false; depthWrite: false"></a-plane>
+                <a-plane position="0 0.15 0" width="0.055" height="0.020" material="shader: flat; color: #b6eaff; transparent: true; opacity: .84; depthTest: false; depthWrite: false"></a-plane>
+                <a-plane position="0 0.10 0" width="0.055" height="0.020" material="shader: flat; color: #8cddf6; transparent: true; opacity: .76; depthTest: false; depthWrite: false"></a-plane>
+                <a-plane position="0 0.05 0" width="0.055" height="0.020" material="shader: flat; color: #65cce8; transparent: true; opacity: .68; depthTest: false; depthWrite: false"></a-plane>
+                <a-plane position="0 0.00 0" width="0.055" height="0.020" material="shader: flat; color: #4bbbd8; transparent: true; opacity: .60; depthTest: false; depthWrite: false"></a-plane>
+                <a-plane position="0 -0.05 0" width="0.055" height="0.020" material="shader: flat; color: #369db8; transparent: true; opacity: .52; depthTest: false; depthWrite: false"></a-plane>
+              </a-entity>
 
-            <a-text id="helmet-left-readout" value="VISION NATURAL&#10;DISPLAY CARDBOARD&#10;VIEW COMFORT&#10;SOUND IDLE" position="-0.60 0.18 -1.33" align="left" anchor="left" width="0.60" color="#8cecff"></a-text>
-            <a-text id="helmet-right-readout" value="CAM WAIT&#10;RES --&#10;FPS --&#10;PERF AUTO" position="0.60 0.18 -1.33" align="right" anchor="right" width="0.60" color="#8cecff"></a-text>
+              <!-- Slow glass scan line. -->
+              <a-plane position="0 0.35 -1.33" width="1.62" height="0.006" material="shader: flat; color: #a8efff; transparent: true; opacity: .10; depthTest: false; depthWrite: false"
+                animation__scan="property: position; from: 0 0.35 -1.33; to: 0 -0.34 -1.33; dur: 6200; easing: linear; loop: true"></a-plane>
+            </a-entity>
 
-            <a-text id="helmet-center-tag" value="VISOR LINK" position="0 0.13 -1.33" align="center" anchor="center" width="0.48" color="#ffd477"></a-text>
-            <a-text id="helmet-bottom-left" value="NET STABLE&#10;CONF LOW" position="-0.54 -0.24 -1.33" align="left" anchor="left" width="0.52" color="#7de7ff"></a-text>
-            <a-text id="helmet-bottom-right" value="MIC READY&#10;MOTION OFF" position="0.54 -0.24 -1.33" align="right" anchor="right" width="0.52" color="#7de7ff"></a-text>
-            <a-text id="helmet-bottom-readout" value="READY // LOOK DOWN FOR COPILOT" position="0 -0.42 -1.31" align="center" anchor="center" width="1.36" color="#ffd477"></a-text>
+            <!-- Non-combat observation ring: no crosshair, no targeting marks. -->
+            <a-entity id="helmet-observation-ring" position="0 0.015 -1.31">
+              <a-entity animation__ringspin="property: rotation; to: 0 0 360; dur: 24000; easing: linear; loop: true">
+                <a-ring class="sound-reactive-ring" radius-inner="0.160" radius-outer="0.178" theta-start="12" theta-length="64" material="shader: flat; color: #eafaff; transparent: true; opacity: .62; side: double; depthTest: false; depthWrite: false"></a-ring>
+                <a-ring class="sound-reactive-ring" radius-inner="0.160" radius-outer="0.178" theta-start="102" theta-length="64" material="shader: flat; color: #eafaff; transparent: true; opacity: .62; side: double; depthTest: false; depthWrite: false"></a-ring>
+                <a-ring class="sound-reactive-ring" radius-inner="0.160" radius-outer="0.178" theta-start="192" theta-length="64" material="shader: flat; color: #eafaff; transparent: true; opacity: .62; side: double; depthTest: false; depthWrite: false"></a-ring>
+                <a-ring class="sound-reactive-ring" radius-inner="0.160" radius-outer="0.178" theta-start="282" theta-length="64" material="shader: flat; color: #eafaff; transparent: true; opacity: .62; side: double; depthTest: false; depthWrite: false"></a-ring>
+              </a-entity>
+              <a-ring radius-inner="0.235" radius-outer="0.244" material="shader: flat; color: #75dcf4; transparent: true; opacity: .28; side: double; depthTest: false; depthWrite: false"></a-ring>
+              <a-ring id="helmet-observation-pulse" radius-inner="0.115" radius-outer="0.122" material="shader: flat; color: #ffd477; transparent: true; opacity: .48; side: double; depthTest: false; depthWrite: false"></a-ring>
+              <a-text id="helmet-center-tag" value="OBSERVATION LINK" position="0 -0.285 0.002" align="center" anchor="center" width="0.68" color="#ffd477"></a-text>
+            </a-entity>
+
+            <!-- Corner telemetry clusters move farther outward automatically in Mono mode. -->
+            <a-entity id="helmet-top-left-cluster" position="-0.70 0.53 -1.32">
+              <a-text id="helmet-top-left" value="SYS O-180&#10;VIEW COMFORT" align="left" anchor="left" width="0.54" color="#dffaff"></a-text>
+            </a-entity>
+            <a-entity id="helmet-top-right-cluster" position="0.70 0.53 -1.32">
+              <a-text id="helmet-top-right" value="BAT --&#10;NET --%" align="right" anchor="right" width="0.54" color="#dffaff"></a-text>
+            </a-entity>
+
+            <a-entity id="helmet-left-cluster" position="-0.61 0.16 -1.32">
+              <a-plane position="0.12 -0.015 -0.012" width="0.42" height="0.36" material="shader: flat; color: #081923; transparent: true; opacity: .40; depthTest: false; depthWrite: false"></a-plane>
+              <a-text id="helmet-left-readout" value="VISION NATURAL&#10;DISPLAY CARDBOARD&#10;VIEW COMFORT&#10;SOUND STANDBY" align="left" anchor="left" width="0.62" color="#92eaff"></a-text>
+            </a-entity>
+            <a-entity id="helmet-right-cluster" position="0.61 0.16 -1.32">
+              <a-plane position="-0.12 -0.015 -0.012" width="0.42" height="0.36" material="shader: flat; color: #081923; transparent: true; opacity: .40; depthTest: false; depthWrite: false"></a-plane>
+              <a-text id="helmet-right-readout" value="CAM WAIT&#10;RES --&#10;FPS --&#10;PERF AUTO" align="right" anchor="right" width="0.62" color="#92eaff"></a-text>
+            </a-entity>
+
+            <a-entity id="helmet-bottom-left-cluster" position="-0.61 -0.31 -1.32">
+              <a-text id="helmet-bottom-left" value="NET STABLE&#10;CONF LOW" align="left" anchor="left" width="0.54" color="#82dff5"></a-text>
+            </a-entity>
+            <a-entity id="helmet-bottom-right-cluster" position="0.61 -0.31 -1.32">
+              <a-text id="helmet-bottom-right" value="MIC READY&#10;MOTION OFF" align="right" anchor="right" width="0.54" color="#82dff5"></a-text>
+            </a-entity>
+
+            <a-text id="helmet-top-status" value="OBSERVER 180 // GAME VISOR" position="0 0.62 -1.32" align="center" anchor="center" width="1.54" color="#ffffff"></a-text>
+            <a-text id="helmet-bottom-readout" value="READY // LOOK DOWN FOR COPILOT" position="0 -0.62 -1.31" align="center" anchor="center" width="1.42" color="#ffd477"></a-text>
           </a-entity>
         </a-entity>
-
-
 
         <a-entity id="network-orb" position="0.50 -0.22 -1.28" visible="true">
           <a-sphere id="network-orb-ball" radius="0.050" segments-width="32" segments-height="20"
@@ -1401,11 +1485,22 @@
     const hudFieldStatus = $('#hud-field-status');
     const hudSoundwaveStatus = $('#hud-soundwave-status');
     const hudText = $('#hud-text');
+    const visorHudRoot = $('#visor-hud-root');
     const visorMinimal = $('#visor-minimal');
     const visorHelmet = $('#visor-helmet');
+    const helmetShell = $('#helmet-shell');
+    const helmetObservationRing = $('#helmet-observation-ring');
+    const helmetObservationPulse = $('#helmet-observation-pulse');
+    const soundReactiveRings = [...document.querySelectorAll('.sound-reactive-ring')];
     const hudChipLeft = $('#hud-chip-left');
     const hudChipRight = $('#hud-chip-right');
     const helmetTopStatus = $('#helmet-top-status');
+    const helmetTopLeftCluster = $('#helmet-top-left-cluster');
+    const helmetTopRightCluster = $('#helmet-top-right-cluster');
+    const helmetLeftCluster = $('#helmet-left-cluster');
+    const helmetRightCluster = $('#helmet-right-cluster');
+    const helmetBottomLeftCluster = $('#helmet-bottom-left-cluster');
+    const helmetBottomRightCluster = $('#helmet-bottom-right-cluster');
     const helmetTopLeft = $('#helmet-top-left');
     const helmetTopRight = $('#helmet-top-right');
     const helmetLeftReadout = $('#helmet-left-readout');
@@ -1681,7 +1776,7 @@
     const hudStyles = [
       { label: 'OFF' },
       { label: 'MINIMAL' },
-      { label: 'HELMET' }
+      { label: 'GAME' }
     ];
     const previewNightModes = [
       { label: 'Natural', buttonMode: 'natural', className: '', visionIndex: 0 },
@@ -1839,7 +1934,25 @@
     }
 
     function currentHudStyle() {
-      return hudStyles[state.hudStyleIndex] || hudStyles[1];
+      return hudStyles[state.hudStyleIndex] || hudStyles[2];
+    }
+
+    function updateHelmetHudLayout() {
+      const mono = !state.cardboardActive;
+      const sideX = mono ? 1.13 : 0.61;
+      const topX = mono ? 1.25 : 0.70;
+      const bottomX = mono ? 1.10 : 0.61;
+      if (helmetShell) helmetShell.object3D.scale.set(mono ? 1.62 : 1.0, 1.0, 1.0);
+      if (helmetTopLeftCluster) helmetTopLeftCluster.object3D.position.x = -topX;
+      if (helmetTopRightCluster) helmetTopRightCluster.object3D.position.x = topX;
+      if (helmetLeftCluster) helmetLeftCluster.object3D.position.x = -sideX;
+      if (helmetRightCluster) helmetRightCluster.object3D.position.x = sideX;
+      if (helmetBottomLeftCluster) helmetBottomLeftCluster.object3D.position.x = -bottomX;
+      if (helmetBottomRightCluster) helmetBottomRightCluster.object3D.position.x = bottomX;
+      if (networkOrb) {
+        networkOrb.object3D.position.x = mono ? 1.30 : 0.78;
+        networkOrb.object3D.position.y = mono ? 0.23 : 0.24;
+      }
     }
 
     function updateHelmetHudReadouts() {
@@ -1850,39 +1963,43 @@
       const battery = batteryLabel();
       const fps = Math.round(state.performanceFps || 0);
       const resolution = state.cameraResolution || '--';
-      const motionLabel = motionModes[state.motionIndex]?.label || 'OFF';
+      const motionLabel = motionModes[state.motionModeIndex]?.label || 'OFF';
       const soundStatus = state.visionIndex === 7 ? state.soundwaveStatus : 'STANDBY';
-      const profile = performanceProfiles[state.performanceProfileIndex]?.label || 'AUTO';
+      const profile = currentPerformanceProfile()?.label || 'AUTO';
       hudChipLeft?.setAttribute('value', `VISION ${visionLabel}`);
       hudChipRight?.setAttribute('value', `DISPLAY ${displayLabel}`);
       helmetTopStatus?.setAttribute('value', `OBSERVER 180 // ${currentHudStyle().label} VISOR`);
-      helmetTopLeft?.setAttribute('value', `SYS A-17
-VIEW ${viewLabel}`);
-      helmetTopRight?.setAttribute('value', `${battery}
-NET ${networkLabel}`);
-      helmetLeftReadout?.setAttribute('value', `VISION ${visionLabel}
-DISPLAY ${displayLabel}
-VIEW ${viewLabel}
-SOUND ${soundStatus}`);
-      helmetRightReadout?.setAttribute('value', `CAM ${state.cameraStatus}
-RES ${resolution}
-FPS ${fps}
-PERF ${profile}`);
-      helmetCenterTag?.setAttribute('value', state.visionIndex === 7 ? 'AUDIO REACTIVE VISOR' : 'TACTICAL VISOR LINK');
-      helmetBottomLeft?.setAttribute('value', `NET ${state.networkTrend}
-CONF ${state.networkConfidence}`);
-      helmetBottomRight?.setAttribute('value', `MIC ${state.soundwaveReady ? 'READY' : 'OFF'}
-MOTION ${motionLabel}`);
+      helmetTopLeft?.setAttribute('value', `SYS O-180\nVIEW ${viewLabel}`);
+      helmetTopRight?.setAttribute('value', `${battery}\nNET ${networkLabel}`);
+      helmetLeftReadout?.setAttribute('value', `VISION ${visionLabel}\nDISPLAY ${displayLabel}\nVIEW ${viewLabel}\nSOUND ${soundStatus}`);
+      helmetRightReadout?.setAttribute('value', `CAM ${state.cameraStatus}\nRES ${resolution}\nFPS ${fps}\nPERF ${profile}`);
+      helmetCenterTag?.setAttribute('value', state.visionIndex === 7 ? 'AUDIO OBSERVATION' : 'OBSERVATION LINK');
+      helmetBottomLeft?.setAttribute('value', `NET ${state.networkTrend}\nCONF ${state.networkConfidence}`);
+      helmetBottomRight?.setAttribute('value', `MIC ${state.soundwaveReady ? 'READY' : 'OFF'}\nMOTION ${motionLabel}`);
       helmetBottomReadout?.setAttribute('value', `${state.cameraStatus} // ${state.networkTrend} // LOOK DOWN FOR COPILOT`);
+      updateHelmetHudLayout();
+    }
+
+    function updateObservationRing() {
+      const level = state.visionIndex === 7 ? Math.max(0, Math.min(1, state.soundwaveLevel || 0)) : 0;
+      const pulseScale = 1 + level * 0.28;
+      helmetObservationPulse?.object3D.scale.set(pulseScale, pulseScale, pulseScale);
+      if (helmetObservationPulse) {
+        helmetObservationPulse.setAttribute('material', 'opacity', 0.34 + level * 0.54);
+      }
+      soundReactiveRings.forEach((ring, index) => {
+        ring.setAttribute('material', 'opacity', 0.52 + level * (0.24 + index * 0.025));
+      });
     }
 
     function applyHudStyle(announce = false) {
       const style = currentHudStyle();
       visorMinimal?.setAttribute('visible', state.hudStyleIndex === 1);
-      visorHelmet?.setAttribute('visible', state.hudStyleIndex === 2);
+      visorHelmet?.setAttribute('visible', state.hudStyleIndex === 2 && !state.menuOpen);
       $('#txt-grid')?.setAttribute('value', `HUD: ${style.label}`);
       updateHelmetHudReadouts();
-      try { localStorage.setItem('observer180-game-hud-style', String(state.hudStyleIndex)); } catch (_) {}
+      updateObservationRing();
+      try { localStorage.setItem('observer180-reference-hud-style', String(state.hudStyleIndex)); } catch (_) {}
       if (announce) {
         menuStatus?.setAttribute('value', `HUD STYLE ${style.label}`);
         showTemporaryMessage(`HUD style set to ${style.label.toLowerCase()}.`);
@@ -2093,6 +2210,7 @@ MOTION ${motionLabel}`);
       setWallUniform('soundLevel', state.soundwaveLevel);
       updateSoundwaveHud();
       updateHelmetHudReadouts();
+      updateObservationRing();
     }
 
     function soundwaveLoop() {
@@ -3502,6 +3620,7 @@ MOTION ${motionLabel}`);
         return;
       }
       state.menuOpen = true;
+      if (state.hudStyleIndex === 2) visorHelmet?.setAttribute('visible', false);
       clearMenuAutoHide();
       const token = ++state.menuAnimationToken;
       clearMenuAnimations();
@@ -3558,6 +3677,7 @@ MOTION ${motionLabel}`);
     function closeMenu(reason = 'manual') {
       if (!state.menuOpen) return;
       state.menuOpen = false;
+      applyHudStyle(false);
       clearMenuAutoHide();
       const token = ++state.menuAnimationToken;
       clearMenuAnimations();
@@ -3931,7 +4051,7 @@ MOTION ${motionLabel}`);
       }
       const savedNetworkOrb = localStorage.getItem('observer180-network-orb');
       if (savedNetworkOrb !== null) state.networkOrbEnabled = savedNetworkOrb !== '0';
-      const savedHudStyle = Number(localStorage.getItem('observer180-game-hud-style'));
+      const savedHudStyle = Number(localStorage.getItem('observer180-reference-hud-style'));
       if (Number.isInteger(savedHudStyle) && savedHudStyle >= 0 && savedHudStyle < hudStyles.length) state.hudStyleIndex = savedHudStyle;
     } catch (_) {}
     state.qualityKey = qualitySelect.value;
