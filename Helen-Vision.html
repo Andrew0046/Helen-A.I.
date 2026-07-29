@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#02080d">
-  <title>Observer 180 — Stable Core Helmet HUD</title>
+  <title>Observer 180 — Stable Core Game Helmet Overlay</title>
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script>
     /*
@@ -794,7 +794,7 @@
 <body>
   <section id="startup">
     <div class="setup-card">
-      <h1>Observer 180 — Stable Core Helmet HUD</h1>
+      <h1>Observer 180 — Stable Core Game Helmet Overlay</h1>
       <p>A consolidated Android-browser build with independent display, vision, Soundwave, diagnostics, comfort calibration, camera recovery, and estimated network-quality systems.</p>
 
       <div id="setup-preview-frame" class="preview">
@@ -1304,16 +1304,46 @@
           </a-entity>
 
           <a-entity id="visor-helmet" visible="false">
-            <a-plane position="0 0.50 -1.34" width="1.70" height="0.11" material="shader: flat; color: #071319; transparent: true; opacity: .30"></a-plane>
-            <a-plane position="-0.70 0.32 -1.34" width="0.16" height="0.60" rotation="0 0 -16" material="shader: flat; color: #071319; transparent: true; opacity: .18"></a-plane>
-            <a-plane position="0.70 0.32 -1.34" width="0.16" height="0.60" rotation="0 0 16" material="shader: flat; color: #071319; transparent: true; opacity: .18"></a-plane>
-            <a-plane position="-0.66 -0.04 -1.33" width="0.018" height="0.68" material="shader: flat; color: #6bdcff; transparent: true; opacity: .42"></a-plane>
-            <a-plane position="0.66 -0.04 -1.33" width="0.018" height="0.68" material="shader: flat; color: #6bdcff; transparent: true; opacity: .42"></a-plane>
-            <a-plane position="0 -0.30 -1.33" width="0.92" height="0.034" material="shader: flat; color: #6bdcff; transparent: true; opacity: .18"></a-plane>
-            <a-text id="helmet-top-status" value="OBSERVER 180 · HELMET HUD" position="0 0.50 -1.32" align="center" anchor="center" width="1.42" color="#e4fcff"></a-text>
-            <a-text id="helmet-left-readout" value="VISION NATURAL&#10;VIEW COMFORT&#10;NET --" position="-0.60 0.21 -1.32" align="left" anchor="left" width="0.54" color="#8cecff"></a-text>
-            <a-text id="helmet-right-readout" value="DISPLAY CARDBOARD&#10;SOUND IDLE&#10;FPS --" position="0.60 0.21 -1.32" align="right" anchor="right" width="0.54" color="#8cecff"></a-text>
-            <a-text id="helmet-bottom-readout" value="STABLE CORE READY" position="0 -0.30 -1.31" align="center" anchor="center" width="1.18" color="#ffd477"></a-text>
+            <a-plane position="0 0.57 -1.42" width="1.92" height="0.19" material="shader: flat; color: #071116; transparent: true; opacity: .38"></a-plane>
+            <a-plane position="0 -0.59 -1.42" width="1.92" height="0.23" material="shader: flat; color: #071116; transparent: true; opacity: .40"></a-plane>
+            <a-plane position="-0.83 0 -1.42" width="0.27" height="1.14" material="shader: flat; color: #071116; transparent: true; opacity: .24"></a-plane>
+            <a-plane position="0.83 0 -1.42" width="0.27" height="1.14" material="shader: flat; color: #071116; transparent: true; opacity: .24"></a-plane>
+
+            <a-plane position="0 0.47 -1.36" width="1.74" height="0.018" material="shader: flat; color: #7de7ff; transparent: true; opacity: .72"></a-plane>
+            <a-plane position="0 -0.40 -1.36" width="1.14" height="0.020" material="shader: flat; color: #7de7ff; transparent: true; opacity: .38"></a-plane>
+            <a-plane position="-0.69 0.02 -1.36" width="0.018" height="0.84" material="shader: flat; color: #7de7ff; transparent: true; opacity: .50"></a-plane>
+            <a-plane position="0.69 0.02 -1.36" width="0.018" height="0.84" material="shader: flat; color: #7de7ff; transparent: true; opacity: .50"></a-plane>
+
+            <a-plane position="-0.72 0.44 -1.35" width="0.24" height="0.016" material="shader: flat; color: #7de7ff; transparent: true; opacity: .88"></a-plane>
+            <a-plane position="-0.82 0.34 -1.35" width="0.016" height="0.22" material="shader: flat; color: #7de7ff; transparent: true; opacity: .88"></a-plane>
+            <a-plane position="0.72 0.44 -1.35" width="0.24" height="0.016" material="shader: flat; color: #7de7ff; transparent: true; opacity: .88"></a-plane>
+            <a-plane position="0.82 0.34 -1.35" width="0.016" height="0.22" material="shader: flat; color: #7de7ff; transparent: true; opacity: .88"></a-plane>
+            <a-plane position="-0.72 -0.34 -1.35" width="0.24" height="0.016" material="shader: flat; color: #7de7ff; transparent: true; opacity: .72"></a-plane>
+            <a-plane position="-0.82 -0.24 -1.35" width="0.016" height="0.22" material="shader: flat; color: #7de7ff; transparent: true; opacity: .72"></a-plane>
+            <a-plane position="0.72 -0.34 -1.35" width="0.24" height="0.016" material="shader: flat; color: #7de7ff; transparent: true; opacity: .72"></a-plane>
+            <a-plane position="0.82 -0.24 -1.35" width="0.016" height="0.22" material="shader: flat; color: #7de7ff; transparent: true; opacity: .72"></a-plane>
+
+            <a-plane position="-0.50 0.17 -1.37" width="0.28" height="0.32" material="shader: flat; color: #0a1921; transparent: true; opacity: .34"></a-plane>
+            <a-plane position="0.50 0.17 -1.37" width="0.28" height="0.32" material="shader: flat; color: #0a1921; transparent: true; opacity: .34"></a-plane>
+            <a-plane position="-0.50 -0.24 -1.37" width="0.32" height="0.18" material="shader: flat; color: #0a1921; transparent: true; opacity: .26"></a-plane>
+            <a-plane position="0.50 -0.24 -1.37" width="0.32" height="0.18" material="shader: flat; color: #0a1921; transparent: true; opacity: .26"></a-plane>
+
+            <a-plane position="-0.11 0.02 -1.34" width="0.10" height="0.008" material="shader: flat; color: #ffd37a; transparent: true; opacity: .92"></a-plane>
+            <a-plane position="0.11 0.02 -1.34" width="0.10" height="0.008" material="shader: flat; color: #ffd37a; transparent: true; opacity: .92"></a-plane>
+            <a-plane position="0 0.07 -1.34" width="0.008" height="0.09" material="shader: flat; color: #ffd37a; transparent: true; opacity: .64"></a-plane>
+            <a-plane position="0 -0.08 -1.34" width="0.008" height="0.09" material="shader: flat; color: #ffd37a; transparent: true; opacity: .64"></a-plane>
+
+            <a-text id="helmet-top-status" value="OBSERVER 180 // GAME HELMET" position="0 0.56 -1.33" align="center" anchor="center" width="1.68" color="#effcff"></a-text>
+            <a-text id="helmet-top-left" value="SYS A-17&#10;TRACK LOCKED" position="-0.76 0.54 -1.33" align="left" anchor="left" width="0.52" color="#8cecff"></a-text>
+            <a-text id="helmet-top-right" value="BAT --&#10;NET --%" position="0.76 0.54 -1.33" align="right" anchor="right" width="0.52" color="#8cecff"></a-text>
+
+            <a-text id="helmet-left-readout" value="VISION NATURAL&#10;DISPLAY CARDBOARD&#10;VIEW COMFORT&#10;SOUND IDLE" position="-0.60 0.18 -1.33" align="left" anchor="left" width="0.60" color="#8cecff"></a-text>
+            <a-text id="helmet-right-readout" value="CAM WAIT&#10;RES --&#10;FPS --&#10;PERF AUTO" position="0.60 0.18 -1.33" align="right" anchor="right" width="0.60" color="#8cecff"></a-text>
+
+            <a-text id="helmet-center-tag" value="VISOR LINK" position="0 0.13 -1.33" align="center" anchor="center" width="0.48" color="#ffd477"></a-text>
+            <a-text id="helmet-bottom-left" value="NET STABLE&#10;CONF LOW" position="-0.54 -0.24 -1.33" align="left" anchor="left" width="0.52" color="#7de7ff"></a-text>
+            <a-text id="helmet-bottom-right" value="MIC READY&#10;MOTION OFF" position="0.54 -0.24 -1.33" align="right" anchor="right" width="0.52" color="#7de7ff"></a-text>
+            <a-text id="helmet-bottom-readout" value="READY // LOOK DOWN FOR COPILOT" position="0 -0.42 -1.31" align="center" anchor="center" width="1.36" color="#ffd477"></a-text>
           </a-entity>
         </a-entity>
 
@@ -1376,8 +1406,13 @@
     const hudChipLeft = $('#hud-chip-left');
     const hudChipRight = $('#hud-chip-right');
     const helmetTopStatus = $('#helmet-top-status');
+    const helmetTopLeft = $('#helmet-top-left');
+    const helmetTopRight = $('#helmet-top-right');
     const helmetLeftReadout = $('#helmet-left-readout');
     const helmetRightReadout = $('#helmet-right-readout');
+    const helmetCenterTag = $('#helmet-center-tag');
+    const helmetBottomLeft = $('#helmet-bottom-left');
+    const helmetBottomRight = $('#helmet-bottom-right');
     const helmetBottomReadout = $('#helmet-bottom-readout');
     const diagnosticsPanel = $('#diagnostics-panel');
     const diagnosticsText = $('#diagnostics-text');
@@ -1505,7 +1540,7 @@
       diagnosticsVisible: false,
       diagnosticsTimer: 0,
       calibrationKey: 'default',
-      hudStyleIndex: 1,
+      hudStyleIndex: 2,
       networkOrbEnabled: true,
       networkScore: null,
       networkSmoothedScore: null,
@@ -1812,13 +1847,33 @@
       const displayLabel = state.cardboardActive ? 'CARDBOARD' : 'MONO';
       const viewLabel = (viewPresets[state.viewIndex]?.label || 'VIEW: COMFORT').replace('VIEW: ', '');
       const networkLabel = state.networkSmoothedScore == null ? '--%' : `${Math.round(state.networkSmoothedScore)}%`;
-      const soundLabel = state.visionIndex === 7 ? `SOUND ${state.soundwaveStatus}` : `MODE ${visionLabel}`;
+      const battery = batteryLabel();
+      const fps = Math.round(state.performanceFps || 0);
+      const resolution = state.cameraResolution || '--';
+      const motionLabel = motionModes[state.motionIndex]?.label || 'OFF';
+      const soundStatus = state.visionIndex === 7 ? state.soundwaveStatus : 'STANDBY';
+      const profile = performanceProfiles[state.performanceProfileIndex]?.label || 'AUTO';
       hudChipLeft?.setAttribute('value', `VISION ${visionLabel}`);
       hudChipRight?.setAttribute('value', `DISPLAY ${displayLabel}`);
-      helmetTopStatus?.setAttribute('value', `OBSERVER 180 · ${currentHudStyle().label} HUD`);
-      helmetLeftReadout?.setAttribute('value', `VISION ${visionLabel}\nVIEW ${viewLabel}\nNET ${networkLabel}`);
-      helmetRightReadout?.setAttribute('value', `DISPLAY ${displayLabel}\n${soundLabel}\nFPS ${Math.round(state.performanceFps || 0)}`);
-      helmetBottomReadout?.setAttribute('value', `${state.cameraStatus} · ${state.networkTrend} · ${state.networkConfidence} CONF.`);
+      helmetTopStatus?.setAttribute('value', `OBSERVER 180 // ${currentHudStyle().label} VISOR`);
+      helmetTopLeft?.setAttribute('value', `SYS A-17
+VIEW ${viewLabel}`);
+      helmetTopRight?.setAttribute('value', `${battery}
+NET ${networkLabel}`);
+      helmetLeftReadout?.setAttribute('value', `VISION ${visionLabel}
+DISPLAY ${displayLabel}
+VIEW ${viewLabel}
+SOUND ${soundStatus}`);
+      helmetRightReadout?.setAttribute('value', `CAM ${state.cameraStatus}
+RES ${resolution}
+FPS ${fps}
+PERF ${profile}`);
+      helmetCenterTag?.setAttribute('value', state.visionIndex === 7 ? 'AUDIO REACTIVE VISOR' : 'TACTICAL VISOR LINK');
+      helmetBottomLeft?.setAttribute('value', `NET ${state.networkTrend}
+CONF ${state.networkConfidence}`);
+      helmetBottomRight?.setAttribute('value', `MIC ${state.soundwaveReady ? 'READY' : 'OFF'}
+MOTION ${motionLabel}`);
+      helmetBottomReadout?.setAttribute('value', `${state.cameraStatus} // ${state.networkTrend} // LOOK DOWN FOR COPILOT`);
     }
 
     function applyHudStyle(announce = false) {
@@ -1827,7 +1882,7 @@
       visorHelmet?.setAttribute('visible', state.hudStyleIndex === 2);
       $('#txt-grid')?.setAttribute('value', `HUD: ${style.label}`);
       updateHelmetHudReadouts();
-      try { localStorage.setItem('observer180-hud-style', String(state.hudStyleIndex)); } catch (_) {}
+      try { localStorage.setItem('observer180-game-hud-style', String(state.hudStyleIndex)); } catch (_) {}
       if (announce) {
         menuStatus?.setAttribute('value', `HUD STYLE ${style.label}`);
         showTemporaryMessage(`HUD style set to ${style.label.toLowerCase()}.`);
@@ -3876,7 +3931,7 @@
       }
       const savedNetworkOrb = localStorage.getItem('observer180-network-orb');
       if (savedNetworkOrb !== null) state.networkOrbEnabled = savedNetworkOrb !== '0';
-      const savedHudStyle = Number(localStorage.getItem('observer180-hud-style'));
+      const savedHudStyle = Number(localStorage.getItem('observer180-game-hud-style'));
       if (Number.isInteger(savedHudStyle) && savedHudStyle >= 0 && savedHudStyle < hudStyles.length) state.hudStyleIndex = savedHudStyle;
     } catch (_) {}
     state.qualityKey = qualitySelect.value;
