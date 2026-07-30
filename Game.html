@@ -1,441 +1,541 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Helen's Epic Adventure: Whispering Woods</title>
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Helen AR: Phone + Gamepad Controller</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; touch-action: none; user-select: none; -webkit-user-select: none; }
-        canvas { width: 100vw; height: 100vh; touch-action: none; display: block; outline: none; }
-        #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #aaffaa; font-family: monospace; font-size: 1.2rem; z-index: 10; pointer-events: none; text-shadow: 0px 2px 4px rgba(0,0,0,0.8);}
-        
-        #interaction-prompt {
-            position: absolute; top: 60px; width: 100%; text-align: center; 
-            color: #ffaa00; font-family: monospace; font-size: 1.5rem; font-weight: bold;
-            z-index: 10; pointer-events: none; text-shadow: 0px 0px 15px rgba(255,85,0,0.9);
-            opacity: 0; transition: opacity 0.3s ease-in-out;
+        /* --- CORE STYLES --- */
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; touch-action: none; }
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050505; color: #00ffff; display: flex; 
+            flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999;
         }
+        h1 { text-shadow: 0 0 10px #00ffff; letter-spacing: 2px; }
+        button {
+            padding: 15px 30px; font-size: 18px; margin-top: 20px;
+            background: transparent; color: #00ffff; border: 2px solid #00ffff; 
+            font-weight: bold; cursor: pointer; transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(0,255,255,0.2);
+        }
+        button:hover { background: #00ffff; color: #000; box-shadow: 0 0 30px rgba(0,255,255,0.6); }
 
-        /* --- MOBILE UI --- */
-        #mobile-controls { display: none; }
-        #joystick-base {
-            position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px;
-            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.4);
-            border-radius: 50%; z-index: 100; touch-action: none; display: none; pointer-events: none;
+        #vr-container { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .vr-eye { position: absolute; top: 0; width: 50%; height: 100%; overflow: hidden; border-right: 2px solid #000; box-sizing: border-box; }
+        #eye-left { left: 0; } #eye-right { left: 50%; }
+        .lens-vignette {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 60%, rgba(0,0,0,0.9) 90%, black 100%);
+            z-index: 30; pointer-events: none;
         }
-        #joystick-stick {
-            position: absolute; top: 35px; left: 35px; width: 50px; height: 50px;
-            background: rgba(255, 255, 255, 0.7); border-radius: 50%; pointer-events: none; 
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.5); transition: transform 0.05s ease-out;
+        .camera-feed {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; transform: scale(1.0); z-index: 0; will-change: transform; 
         }
-        
-        .action-button {
-            position: absolute; background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 50%; z-index: 100; color: white; font-family: monospace; font-weight: bold;
-            display: flex; justify-content: center; align-items: center; touch-action: none; user-select: none;
+        .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; }
+        .reticle { 
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; 
+            border: 2px solid #00ffff; border-radius: 50%; transform: translate(-50%, -50%); 
+            opacity: 0.6; box-shadow: 0 0 5px #00ffff; transition: all 0.2s;
         }
-        #run-button { bottom: 40px; right: 120px; width: 70px; height: 70px; }
-        #jump-button { bottom: 100px; right: 40px; width: 80px; height: 80px; font-size: 18px; background: rgba(255, 255, 255, 0.3); }
+        .reticle.grab { border-color: #00ff00; background: rgba(0,255,0,0.2); width: 30px; height: 30px; }
+        .hud-text { position: absolute; top: 20px; left: 20px; color: #00ffff; text-shadow: 0 0 5px #00ffff; font-size: 14px; font-weight: bold; }
+        #status-msg {
+            position: absolute; bottom: 100px; left: 0; width: 100%; text-align: center;
+            color: #00ff00; font-size: 16px; font-weight: bold; display: none; text-shadow: 0 0 5px #00ff00;
+        }
+        .window-container { backface-visibility: hidden; transform-style: preserve-3d; will-change: transform; }
+        .browser-bar { display: flex; padding: 5px; background: #222; border-bottom: 1px solid #00ffff; }
+        .browser-input { flex: 1; background: #000; color: #fff; border: 1px solid #555; padding: 5px; font-family: monospace; font-size: 14px; }
+        .browser-btn { background: #00ffff; color: #000; border: none; padding: 0 15px; font-weight: bold; cursor: pointer; margin-left: 5px; }
+        .file-upload-btn { background: #00ffff; color: #000; padding: 15px; text-align: center; font-weight: bold; cursor: pointer; margin: 20px; border: 2px dashed #00ffff; }
+
+        /* --- PHONE GAME CONTROLLER --- */
+        #phone-pad-pref {
+            padding: 9px 18px; margin-top: 12px; font-size: 13px;
+            border-width: 1px; opacity: 0.9;
+        }
+        #touch-controller {
+            display: none; position: fixed; inset: 0; z-index: 9000;
+            pointer-events: none; user-select: none; -webkit-user-select: none;
+            touch-action: none;
+        }
+        #touch-controller.active { display: block; }
+        #controller-toggle {
+            display: none; position: fixed; top: max(10px, env(safe-area-inset-top));
+            left: 50%; transform: translateX(-50%); z-index: 9100;
+            width: 76px; height: 34px; padding: 0; margin: 0;
+            border: 1px solid rgba(0,255,255,0.75); border-radius: 18px;
+            background: rgba(0,12,18,0.72); color: #00ffff; font-size: 11px;
+            letter-spacing: 1px; pointer-events: auto;
+            box-shadow: 0 0 12px rgba(0,255,255,0.25);
+        }
+        #controller-toggle.visible { display: block; }
+        .controller-label {
+            position: fixed; left: 50%; bottom: max(12px, env(safe-area-inset-bottom));
+            transform: translateX(-50%); color: rgba(0,255,255,0.7);
+            font-size: 10px; letter-spacing: 2px; text-shadow: 0 0 6px #00ffff;
+        }
+        .stick {
+            position: fixed; bottom: max(18px, env(safe-area-inset-bottom));
+            width: clamp(112px, 22vw, 160px); aspect-ratio: 1;
+            border: 2px solid rgba(0,255,255,0.62); border-radius: 50%;
+            background:
+                linear-gradient(rgba(0,255,255,0.12), rgba(0,255,255,0.03)),
+                radial-gradient(circle, rgba(0,255,255,0.08) 0 3%, transparent 4%);
+            box-shadow: inset 0 0 24px rgba(0,255,255,0.12), 0 0 18px rgba(0,255,255,0.12);
+            pointer-events: auto; touch-action: none;
+        }
+        .stick::before, .stick::after {
+            content: ''; position: absolute; background: rgba(0,255,255,0.18);
+        }
+        .stick::before { left: 50%; top: 9%; bottom: 9%; width: 1px; }
+        .stick::after { top: 50%; left: 9%; right: 9%; height: 1px; }
+        #move-stick { left: max(18px, env(safe-area-inset-left)); }
+        #look-stick { right: max(18px, env(safe-area-inset-right)); }
+        .stick-thumb {
+            position: absolute; left: 50%; top: 50%; width: 42%; aspect-ratio: 1;
+            transform: translate(-50%, -50%); border-radius: 50%;
+            border: 2px solid #00ffff; background: rgba(0,25,35,0.82);
+            box-shadow: 0 0 16px rgba(0,255,255,0.48), inset 0 0 12px rgba(0,255,255,0.16);
+            pointer-events: none;
+        }
+        .stick-name {
+            position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%);
+            color: rgba(0,255,255,0.72); font-size: 9px; letter-spacing: 1.5px;
+        }
+        .shoulder-row {
+            position: fixed; left: 50%; top: max(54px, calc(env(safe-area-inset-top) + 44px));
+            transform: translateX(-50%); display: flex; gap: clamp(70px, 24vw, 210px);
+            pointer-events: none;
+        }
+        .face-buttons {
+            position: fixed; right: max(28px, calc(env(safe-area-inset-right) + 10px));
+            bottom: max(160px, calc(env(safe-area-inset-bottom) + 145px));
+            width: 132px; height: 132px; pointer-events: none;
+        }
+        .pad-btn {
+            width: 54px; height: 54px; padding: 0; margin: 0;
+            border: 2px solid #00ffff; border-radius: 50%;
+            background: rgba(0,12,18,0.78); color: #dfffff;
+            font-size: 15px; line-height: 1; pointer-events: auto;
+            box-shadow: 0 0 14px rgba(0,255,255,0.28);
+            touch-action: none; -webkit-tap-highlight-color: transparent;
+        }
+        .pad-btn:active, .pad-btn.pressed {
+            background: rgba(0,255,255,0.72); color: #001014;
+            transform: scale(0.92); box-shadow: 0 0 24px rgba(0,255,255,0.75);
+        }
+        .shoulder-btn {
+            width: 86px; height: 42px; border-radius: 12px; font-size: 12px;
+        }
+        .face-buttons .pad-btn { position: absolute; }
+        .face-y { left: 39px; top: 0; }
+        .face-x { left: 0; top: 39px; }
+        .face-b { right: 0; top: 39px; }
+        .face-a { left: 39px; bottom: 0; }
+        .button-caption { display: block; font-size: 8px; opacity: 0.75; margin-top: 3px; }
+
+        @media (max-height: 430px) {
+            .stick { width: min(124px, 22vw); }
+            .face-buttons { bottom: max(100px, calc(env(safe-area-inset-bottom) + 88px)); transform: scale(0.82); transform-origin: bottom right; }
+            .shoulder-row { top: max(42px, calc(env(safe-area-inset-top) + 36px)); }
+            .controller-label { display: none; }
+        }
     </style>
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.162.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/" } }
+    </script>
 </head>
 <body>
-    <div id="ui">Explore the Whispering Woods</div>
-    <div id="interaction-prompt">The campfire is warm...</div>
-    <canvas id="renderCanvas"></canvas>
-
-    <div id="mobile-controls">
-        <div id="joystick-base"><div id="joystick-stick"></div></div>
-        <div id="run-button" class="action-button">SPRINT</div>
-        <div id="jump-button" class="action-button">JUMP</div>
+    <div id="start-screen">
+        <h1>HELEN AR: FULL CONTROL</h1>
+        <p>BUTTONS MAPPED</p>
+        <div style="text-align:left; font-size:14px; color:#aaa; margin-top:20px; line-height:1.6;">
+            ❌(A): GRAB &bull; ⭕(B): CLOSE<br>
+            🟥(X): BROWSER &bull; 🔺(Y): YOUTUBE<br>
+            L1: TERMINAL &bull; R1: UPLOAD
+        </div>
+        <button id="init-btn">ENTER VR</button>
+        <button id="phone-pad-pref" type="button">PHONE PAD: ON</button>
+    </div>
+    <div id="vr-container">
+        <div id="eye-left" class="vr-eye">
+            <video id="vid-left" class="camera-feed" autoplay muted playsinline></video>
+            <div class="lens-vignette"></div>
+            <div class="hud-overlay"><div class="reticle" id="ret-l"></div><div class="hud-text">L_EYE // SYSTEM READY</div><div id="status-msg"></div></div>
+        </div>
+        <div id="eye-right" class="vr-eye">
+            <video id="vid-right" class="camera-feed" autoplay muted playsinline></video>
+            <div class="lens-vignette"></div>
+            <div class="hud-overlay"><div class="reticle" id="ret-r"></div><div class="hud-text">R_EYE // SYSTEM READY</div></div>
+        </div>
     </div>
 
-    <script>
-        window.addEventListener("contextmenu", e => e.preventDefault());
+    <button id="controller-toggle" type="button" aria-label="Show or hide phone controller">PAD: ON</button>
+    <div id="touch-controller" aria-label="On-screen phone game controller">
+        <div class="shoulder-row">
+            <button class="pad-btn shoulder-btn" data-action="terminal" type="button">L1<span class="button-caption">TEXT</span></button>
+            <button class="pad-btn shoulder-btn" data-action="upload" type="button">R1<span class="button-caption">FILE</span></button>
+        </div>
 
-        const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, true, { adaptToDeviceRatio: true });
-        engine.setHardwareScalingLevel(1 / window.devicePixelRatio);
+        <div id="move-stick" class="stick" aria-label="Movement stick">
+            <div class="stick-thumb"></div><span class="stick-name">MOVE</span>
+        </div>
+        <div id="look-stick" class="stick" aria-label="Look stick">
+            <div class="stick-thumb"></div><span class="stick-name">LOOK</span>
+        </div>
 
-        const promptUI = document.getElementById("interaction-prompt");
+        <div class="face-buttons">
+            <button class="pad-btn face-y" data-action="youtube" type="button">Y<span class="button-caption">VIDEO</span></button>
+            <button class="pad-btn face-x" data-action="browser" type="button">X<span class="button-caption">WEB</span></button>
+            <button class="pad-btn face-b" data-action="close" type="button">B<span class="button-caption">CLOSE</span></button>
+            <button class="pad-btn face-a" data-action="grab" type="button">A<span class="button-caption">GRAB</span></button>
+        </div>
+        <div class="controller-label">HELEN PHONE GAMEPAD</div>
+    </div>
 
-        // --- 1. TOUCH CONTROLS SETUP ---
-        const joyBase = document.getElementById("joystick-base");
-        const joyStick = document.getElementById("joystick-stick");
-        const runBtn = document.getElementById("run-button");
-        const jumpBtn = document.getElementById("jump-button");
-        const mobileControls = document.getElementById("mobile-controls");
-        
-        let touchMoveX = 0, touchMoveZ = 0, isTouchRunning = false, isTouchJumping = false;
-        let joyCenterX = 0, joyCenterY = 0;
+    <script type="module">
+        import * as THREE from 'three';
+        import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
-        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) mobileControls.style.display = "block";
+        let camera, rendererL, rendererR, cssL, cssR, sceneCommon, sceneL, sceneR; 
+        const IPD = 0.064; 
+        const player = { pos: new THREE.Vector3(0, 1.6, 5), rotY: 0, rotX: 0 }; 
+        const keys = {};
+        let windows = []; 
+        let windowCounter = 0;
+        let grabbedWindow = null; 
 
-        function updateJoystick(clientX, clientY) {
-            let dx = clientX - joyCenterX; let dy = clientY - joyCenterY;
-            let distance = Math.sqrt(dx*dx + dy*dy); let maxDist = 35; 
-            if (distance > maxDist) { dx = (dx / distance) * maxDist; dy = (dy / distance) * maxDist; }
-            joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
-            touchMoveX = dx / maxDist; touchMoveZ = dy / maxDist;
+        // TRACK BUTTON STATES TO PREVENT RAPID FIRING
+        const buttonState = {};
+
+        // PHONE TOUCH CONTROLLER STATE
+        const touchInput = { moveX: 0, moveY: 0, lookX: 0, lookY: 0 };
+        let phonePadEnabled = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+        let phonePadVisible = phonePadEnabled;
+
+        const touchController = document.getElementById('touch-controller');
+        const controllerToggle = document.getElementById('controller-toggle');
+        const phonePadPref = document.getElementById('phone-pad-pref');
+
+        function updatePhonePadUI() {
+            phonePadPref.textContent = `PHONE PAD: ${phonePadEnabled ? 'ON' : 'OFF'}`;
+            controllerToggle.textContent = `PAD: ${phonePadVisible && phonePadEnabled ? 'ON' : 'OFF'}`;
+            touchController.classList.toggle('active', phonePadEnabled && phonePadVisible);
         }
 
-        runBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); isTouchRunning = true; runBtn.style.background = "rgba(255, 255, 255, 0.8)"; });
-        runBtn.addEventListener("pointerup", (e) => { e.preventDefault(); isTouchRunning = false; runBtn.style.background = "rgba(255, 255, 255, 0.2)"; });
-        runBtn.addEventListener("pointerleave", (e) => { isTouchRunning = false; runBtn.style.background = "rgba(255, 255, 255, 0.2)"; });
+        phonePadPref.addEventListener('click', () => {
+            phonePadEnabled = !phonePadEnabled;
+            phonePadVisible = phonePadEnabled;
+            updatePhonePadUI();
+        });
 
-        jumpBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); isTouchJumping = true; jumpBtn.style.background = "rgba(255, 255, 255, 0.9)"; });
-        jumpBtn.addEventListener("pointerup", (e) => { e.preventDefault(); isTouchJumping = false; jumpBtn.style.background = "rgba(255, 255, 255, 0.3)"; });
-        jumpBtn.addEventListener("pointerleave", (e) => { isTouchJumping = false; jumpBtn.style.background = "rgba(255, 255, 255, 0.3)"; });
+        controllerToggle.addEventListener('click', () => {
+            phonePadVisible = !phonePadVisible;
+            resetTouchSticks();
+            updatePhonePadUI();
+        });
 
-        // --- CORE GAME SETUP ---
-        const createScene = async function () {
-            const scene = new BABYLON.Scene(engine);
+        updatePhonePadUI();
+        setupVirtualController();
+
+        const btn = document.getElementById('init-btn');
+        btn.addEventListener('click', async () => {
+            try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch(e){}
+            try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e){}
+            try { if (screen.orientation?.lock) await screen.orientation.lock('landscape'); } catch(e){}
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('vr-container').style.display = 'block';
+            controllerToggle.classList.add('visible');
+            updatePhonePadUI();
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720} }, audio: false });
+                document.getElementById('vid-left').srcObject = stream;
+                document.getElementById('vid-right').srcObject = stream;
+                document.getElementById('vid-left').play(); document.getElementById('vid-right').play();
+            } catch (e) { alert("Camera Error"); }
+            init3D();
+            loadWorld(); 
+        });
+
+        // --- NEW INPUT ENGINE ---
+        function updateInputs() {
+            const moveSpeed = 0.05;
+            const lookSpeed = 0.03;
             
-            scene.clearColor = new BABYLON.Color3(0.3, 0.5, 0.8); 
-            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2; 
-            scene.fogDensity = 0.005; 
-            scene.fogColor = new BABYLON.Color3(0.5, 0.7, 0.9);
+            // KEYBOARD FALLBACK
+            if(keys['KeyW']) { player.pos.x -= Math.sin(player.rotY) * moveSpeed; player.pos.z -= Math.cos(player.rotY) * moveSpeed; }
+            if(keys['KeyS']) { player.pos.x += Math.sin(player.rotY) * moveSpeed; player.pos.z += Math.cos(player.rotY) * moveSpeed; }
+            if(keys['KeyA']) { player.pos.x -= Math.cos(player.rotY) * moveSpeed; player.pos.z += Math.sin(player.rotY) * moveSpeed; }
+            if(keys['KeyD']) { player.pos.x += Math.cos(player.rotY) * moveSpeed; player.pos.z -= Math.sin(player.rotY) * moveSpeed; }
+            if(keys['ArrowLeft']) player.rotY += lookSpeed;
+            if(keys['ArrowRight']) player.rotY -= lookSpeed;
+            if(keys['ArrowUp']) player.rotX += lookSpeed;
+            if(keys['ArrowDown']) player.rotX -= lookSpeed;
 
-            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene); 
-            dirLight.diffuse = new BABYLON.Color3(1.0, 0.95, 0.85); 
-            dirLight.intensity = 1.3; 
-            
-            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
-            hemiLight.diffuse = new BABYLON.Color3(0.8, 0.9, 1.0); 
-            hemiLight.groundColor = new BABYLON.Color3(0.05, 0.15, 0.05); 
-            hemiLight.intensity = 0.6;
-
-            // PROCEDURAL TERRAIN
-            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 200, height: 200, subdivisions: 80, updatable: true}, scene);
-            const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
-            for (let i = 0; i < positions.length; i += 3) {
-                const x = positions[i]; const z = positions[i + 2];
-                let height = (Math.sin(x / 15) * 6.0) + (Math.cos(z / 15) * 6.0) + (Math.sin((x + z) / 8) * 2.0); 
-                positions[i + 1] = Math.max(0, height - 3.0); 
-            }
-            ground.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
-            BABYLON.VertexData.ComputeNormals(positions, ground.getIndices(), ground.getVerticesData(BABYLON.VertexBuffer.NormalKind)); 
-
-            const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-            groundMat.diffuseColor = new BABYLON.Color3(0.15, 0.4, 0.15); 
-            groundMat.specularColor = new BABYLON.Color3(0.0, 0.0, 0.0); 
-            ground.material = groundMat;
-
-            // MAGIC FOREST WEATHER
-            const dustSystem = new BABYLON.ParticleSystem("dust", 2000, scene);
-            dustSystem.particleTexture = new BABYLON.Texture("https://textures.babylonjs.com/flare.png", scene);
-            dustSystem.emitter = new BABYLON.Vector3(0, 5, 0); 
-            dustSystem.minEmitBox = new BABYLON.Vector3(-40, 0, -40); 
-            dustSystem.maxEmitBox = new BABYLON.Vector3(40, 10, 40);
-            dustSystem.color1 = new BABYLON.Color4(0.5, 1, 0.5, 0.6); 
-            dustSystem.color2 = new BABYLON.Color4(1, 1, 0.5, 0.6);   
-            dustSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0);
-            dustSystem.minSize = 0.05; dustSystem.maxSize = 0.15;
-            dustSystem.minLifeTime = 3.0; dustSystem.maxLifeTime = 8.0;
-            dustSystem.emitRate = 150; 
-            dustSystem.direction1 = new BABYLON.Vector3(-0.1, -0.1, -0.1); 
-            dustSystem.direction2 = new BABYLON.Vector3(0.1, 0.1, 0.1);
-            dustSystem.gravity = new BABYLON.Vector3(0, 0, 0); 
-            dustSystem.start();
-
-            // LANDMARK: The Campfire
-            const fireX = 15; const fireZ = 20;
-            const fireY = ground.getHeightAtCoordinates(fireX, fireZ);
-            
-            const fireBase = new BABYLON.TransformNode("fireBase", scene);
-            fireBase.position.set(fireX, fireY + 0.2, fireZ);
-
-            const logMat = new BABYLON.StandardMaterial("logMat", scene);
-            logMat.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
-            for(let i=0; i<3; i++) {
-                let log = BABYLON.MeshBuilder.CreateCylinder("log", {height: 2, diameter: 0.3}, scene);
-                log.material = logMat; log.parent = fireBase;
-                log.rotation.x = Math.PI / 2; log.rotation.y = (i * Math.PI) / 1.5;
-            }
-            
-            const fireLight = new BABYLON.PointLight("fireLight", fireBase.position, scene);
-            fireLight.diffuse = new BABYLON.Color3(1, 0.6, 0.2); 
-            fireLight.intensity = 1.5; fireLight.range = 25;
-
-            const fireSystem = new BABYLON.ParticleSystem("fire", 200, scene);
-            fireSystem.particleTexture = new BABYLON.Texture("https://textures.babylonjs.com/flare.png", scene);
-            fireSystem.emitter = fireBase;
-            fireSystem.minEmitBox = new BABYLON.Vector3(-0.4, 0, -0.4); 
-            fireSystem.maxEmitBox = new BABYLON.Vector3(0.4, 0.5, 0.4);
-            fireSystem.color1 = new BABYLON.Color4(1, 0.5, 0, 1); 
-            fireSystem.color2 = new BABYLON.Color4(1, 0.1, 0, 1); 
-            fireSystem.colorDead = new BABYLON.Color4(0.1, 0.1, 0.1, 0); 
-            fireSystem.minSize = 0.3; fireSystem.maxSize = 0.8;
-            fireSystem.minLifeTime = 0.5; fireSystem.maxLifeTime = 1.2;
-            fireSystem.emitRate = 100;
-            fireSystem.direction1 = new BABYLON.Vector3(-0.2, 1, -0.2); 
-            fireSystem.direction2 = new BABYLON.Vector3(0.2, 2, 0.2);
-            fireSystem.gravity = new BABYLON.Vector3(0, 1, 0); 
-            fireSystem.start();
-
-            // --- LOAD YOUR CUSTOM TREES (FIXED SCALE & CLONING) ---
-            BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "treee.glb", scene).then((result) => {
-                const originalRoot = result.meshes[0];
-                
-                // Turn the master tree invisible properly
-                originalRoot.setEnabled(false); 
-                
-                // Scatter 40 trees
-                for (let i = 0; i < 40; i++) {
-                    let entries = result.instantiateModelsToScene(name => name + "-clone-" + i);
-                    let treeClone = entries.rootNodes[0];
-                    
-                    // Pump up the scale massively! 
-                    // If it suddenly appears huge, dial these numbers down to 5.0 or 1.0. 
-                    treeClone.scaling = new BABYLON.Vector3(15.0, 15.0, 15.0);
-                    
-                    let randomX = (Math.random() - 0.5) * 150;
-                    let randomZ = (Math.random() - 0.5) * 150;
-                    
-                    if (Math.abs(randomX - 15) < 8 && Math.abs(randomZ - 20) < 8) {
-                        randomX += 15;
-                    }
-
-                    let treeY = ground.getHeightAtCoordinates(randomX, randomZ);
-                    
-                    treeClone.position.set(randomX, treeY, randomZ);
-                    treeClone.rotationQuaternion = null; 
-                    treeClone.rotation.y = Math.random() * Math.PI * 2; 
+            // ON-SCREEN PHONE STICKS
+            if (phonePadEnabled && phonePadVisible) {
+                const touchLookSpeed = 0.045;
+                if (Math.abs(touchInput.moveX) > 0.04) {
+                    player.pos.x += Math.cos(player.rotY) * touchInput.moveX * moveSpeed;
+                    player.pos.z -= Math.sin(player.rotY) * touchInput.moveX * moveSpeed;
                 }
-            }).catch((err) => {
-                // If the file is broken or missing, this will tell us exactly why!
-                console.error("Oops! The tree failed to load. Check the F12 Console:", err);
-            });
-
-            // Load Helen
-            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "Helen1.glb", scene);
-            const hero = result.meshes[0]; result.animationGroups.forEach(anim => anim.stop());
-
-            const bones = { leftArm:null, rightArm:null, leftLeg:null, rightLeg:null, spine:null };
-            let hairBones = []; 
-            
-            result.transformNodes.forEach(node => {
-                if (node.name === 'J_Bip_C_Spine') bones.spine = node;
-                if (node.name === 'J_Bip_L_UpperArm') bones.leftArm = node;
-                if (node.name === 'J_Bip_R_UpperArm') bones.rightArm = node;
-                if (node.name === 'J_Bip_L_UpperLeg') bones.leftLeg = node;
-                if (node.name === 'J_Bip_R_UpperLeg') bones.rightLeg = node;
-                if (node.name.includes('J_Sec_Hair')) {
-                    if (node.rotationQuaternion) { node.rotation = node.rotationQuaternion.toEulerAngles(); node.rotationQuaternion = null; }
-                    hairBones.push({ bone: node, baseRot: node.rotation.clone() });
+                if (Math.abs(touchInput.moveY) > 0.04) {
+                    player.pos.x += Math.sin(player.rotY) * touchInput.moveY * moveSpeed;
+                    player.pos.z += Math.cos(player.rotY) * touchInput.moveY * moveSpeed;
                 }
-            });
-
-            for (let key in bones) {
-                if (bones[key] && bones[key].rotationQuaternion) { bones[key].rotation = bones[key].rotationQuaternion.toEulerAngles(); bones[key].rotationQuaternion = null; }
+                if (Math.abs(touchInput.lookX) > 0.04) player.rotY -= touchInput.lookX * touchLookSpeed;
+                if (Math.abs(touchInput.lookY) > 0.04) player.rotX -= touchInput.lookY * touchLookSpeed;
             }
 
-            let blinkTarget = null;
-            result.meshes.forEach(m => {
-                if (m.morphTargetManager) {
-                    for (let i = 0; i < m.morphTargetManager.numTargets; i++) {
-                        if (m.morphTargetManager.getTarget(i).name === "Fcl_EYE_Close") blinkTarget = m.morphTargetManager.getTarget(i);
-                    }
-                }
-            });
-            let blinkState = { isBlinking: false, value: 0, nextTime: Date.now() + 3000 };
+            // PHYSICAL BLUETOOTH / USB GAMEPAD LOGIC
+            const gamepads = navigator.getGamepads();
+            if (gamepads[0]) {
+                const gp = gamepads[0];
+                const deadzone = 0.1;
 
-            // Camera
-            const camAnchor = new BABYLON.TransformNode("camAnchor", scene);
-            camAnchor.parent = hero; camAnchor.position.y = 1.3; 
-            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, camAnchor, scene);
-            camera.lowerRadiusLimit = 2; camera.upperBetaLimit = Math.PI / 2.0; 
-            const baseFov = 0.8; const runFov = 1.1; camera.fov = baseFov;
+                // STICKS
+                if (Math.abs(gp.axes[0]) > deadzone) { player.pos.x += Math.cos(player.rotY) * gp.axes[0] * moveSpeed; player.pos.z -= Math.sin(player.rotY) * gp.axes[0] * moveSpeed; }
+                if (Math.abs(gp.axes[1]) > deadzone) { player.pos.x += Math.sin(player.rotY) * gp.axes[1] * moveSpeed; player.pos.z += Math.cos(player.rotY) * gp.axes[1] * moveSpeed; }
+                if (Math.abs(gp.axes[2]) > deadzone) { player.rotY -= gp.axes[2] * lookSpeed; }
+                if (Math.abs(gp.axes[3]) > deadzone) { player.rotX -= gp.axes[3] * lookSpeed; }
 
-            const pipeline = new BABYLON.DefaultRenderingPipeline("default", true, scene, [camera]);
-            pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.8; pipeline.bloomWeight = 0.4;
-
-            // Touch Screen Swiping
-            let joystickPointerId = null; let cameraPointerId = null; let lastCamX = 0, lastCamY = 0;
-            
-            scene.onPointerObservable.add((pointerInfo) => {
-                const e = pointerInfo.event; 
-                const ptrX = scene.pointerX; const ptrY = scene.pointerY;
-                const halfWidth = engine.getRenderWidth() / 2;
-                const pId = e.pointerId || (e.changedTouches ? e.changedTouches[0].identifier : 1);
-
-                switch (pointerInfo.type) {
-                    case BABYLON.PointerEventTypes.POINTERDOWN:
-                        if (e.target === runBtn || e.target === jumpBtn) return; 
-                        
-                        if (ptrX < halfWidth && joystickPointerId === null) {
-                            joystickPointerId = pId; joyCenterX = ptrX; joyCenterY = ptrY;
-                            joyBase.style.left = `${joyCenterX - 60}px`; joyBase.style.top = `${joyCenterY - 60}px`;
-                            joyBase.style.display = "block"; updateJoystick(ptrX, ptrY);
-                        } else if (ptrX >= halfWidth && cameraPointerId === null) {
-                            cameraPointerId = pId; lastCamX = ptrX; lastCamY = ptrY;
+                // --- BUTTON MAPPING ---
+                // Helper to detect "Single Press"
+                const checkBtn = (index, action) => {
+                    if (gp.buttons[index].pressed) {
+                        if (!buttonState[index]) {
+                            action();
+                            buttonState[index] = true; // Lock it
                         }
-                        break;
-                    case BABYLON.PointerEventTypes.POINTERMOVE:
-                        if (pId === joystickPointerId) { updateJoystick(ptrX, ptrY); } 
-                        else if (pId === cameraPointerId) {
-                            camera.alpha -= (ptrX - lastCamX) * 0.005; camera.beta -= (ptrY - lastCamY) * 0.005; 
-                            lastCamX = ptrX; lastCamY = ptrY;
-                        }
-                        break;
-                    case BABYLON.PointerEventTypes.POINTERUP:
-                        if (pId === joystickPointerId) { joystickPointerId = null; joyBase.style.display = "none"; touchMoveX = 0; touchMoveZ = 0; } 
-                        else if (pId === cameraPointerId) { cameraPointerId = null; }
-                        break;
-                }
-            });
-
-            // Input Manager
-            const inputMap = {};
-            scene.actionManager = new BABYLON.ActionManager(scene);
-            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = true));
-            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = false));
-
-            const gamepadManager = new BABYLON.GamepadManager();
-            let myController = null;
-            gamepadManager.onGamepadConnectedObservable.add(gamepad => myController = gamepad);
-            gamepadManager.onGamepadDisconnectedObservable.add(() => myController = null);
-
-            // --- THE GAME LOOP ---
-            const speed = 0.08; 
-            let walkAccumulator = 0; let smoothSpeed = 0;
-            
-            let velocityY = 0; 
-            const gravity = -0.015; 
-            const jumpPower = 0.3;  
-
-            scene.onBeforeRenderObservable.add(() => {
-                let moveX = 0; let moveZ = 0;
-                
-                let isRunning = inputMap["shift"] || (myController && myController.browserGamepad.buttons[10]?.pressed) || isTouchRunning; 
-                let isJumpingPressed = inputMap[" "] || (myController && myController.browserGamepad.buttons[0]?.pressed) || isTouchJumping;
-
-                if (inputMap["w"]) moveZ -= speed;
-                if (inputMap["s"]) moveZ += speed;
-                if (inputMap["a"]) moveX += speed;
-                if (inputMap["d"]) moveX -= speed;
-
-                if (myController && myController.leftStick) {
-                    if (Math.abs(myController.leftStick.x) > 0.1) moveX -= myController.leftStick.x * speed; 
-                    if (Math.abs(myController.leftStick.y) > 0.1) moveZ -= myController.leftStick.y * speed; 
-                }
-
-                if (myController && myController.rightStick) {
-                    if (Math.abs(myController.rightStick.x) > 0.1) camera.inertialAlphaOffset += myController.rightStick.x * 0.015; 
-                    if (Math.abs(myController.rightStick.y) > 0.1) camera.inertialBetaOffset += myController.rightStick.y * 0.015; 
-                }
-
-                if (touchMoveX !== 0) moveX -= touchMoveX * speed;
-                if (touchMoveZ !== 0) moveZ += touchMoveZ * speed; 
-
-                if (isRunning) { moveX *= 1.8; moveZ *= 1.8; }
-
-                let currentSpeed = Math.sqrt(moveX*moveX + moveZ*moveZ);
-                smoothSpeed = BABYLON.Scalar.Lerp(smoothSpeed, currentSpeed, 0.1);
-
-                if (currentSpeed > 0) {
-                    const forward = camera.getFrontPosition(1).subtract(camera.position);
-                    forward.y = 0; forward.normalize();
-                    const right = BABYLON.Vector3.Cross(new BABYLON.Vector3(0, 1, 0), forward).normalize();
-                    const direction = forward.scale(moveZ).add(right.scale(-moveX));
-                    
-                    hero.position.addInPlace(direction);
-                    hero.rotationQuaternion = null; 
-                    hero.rotation.y = Math.atan2(direction.x, direction.z) + Math.PI; 
-                }
-
-                let groundHeight = ground.getHeightAtCoordinates(hero.position.x, hero.position.z);
-                let isGrounded = (hero.position.y <= groundHeight + 0.05); 
-
-                if (isGrounded) {
-                    if (isJumpingPressed) {
-                        velocityY = jumpPower; 
                     } else {
-                        hero.position.y = groundHeight; 
-                        velocityY = 0;
+                        buttonState[index] = false; // Release lock
                     }
-                } else {
-                    velocityY += gravity; 
-                }
-                hero.position.y += velocityY; 
+                };
 
-                dustSystem.emitter.x = camera.position.x;
-                dustSystem.emitter.z = camera.position.z;
+                // SAME ACTION MAP FOR PHYSICAL AND PHONE CONTROLLERS
+                checkBtn(0, () => runControllerAction('grab'));
+                checkBtn(1, () => runControllerAction('close'));
+                checkBtn(2, () => runControllerAction('browser'));
+                checkBtn(3, () => runControllerAction('youtube'));
+                checkBtn(4, () => runControllerAction('terminal'));
+                checkBtn(5, () => runControllerAction('upload'));
+            }
+            
+            player.rotX = Math.max(-1.5, Math.min(1.5, player.rotX));
+        }
 
-                const normalRadius = 5; 
-                let camGroundHeight = ground.getHeightAtCoordinates(camera.position.x, camera.position.z);
-                if (camera.position.y < camGroundHeight + 0.5) {
-                    camera.radius = BABYLON.Scalar.Lerp(camera.radius, camera.radius - 1.0, 0.2);
-                } else {
-                    if (camera.radius < normalRadius) { camera.radius = BABYLON.Scalar.Lerp(camera.radius, normalRadius, 0.05); }
-                }
+        // --- PHONE CONTROLLER HELPERS ---
+        function resetTouchSticks() {
+            touchInput.moveX = 0; touchInput.moveY = 0;
+            touchInput.lookX = 0; touchInput.lookY = 0;
+            document.querySelectorAll('.stick-thumb').forEach(thumb => {
+                thumb.style.transform = 'translate(-50%, -50%)';
+            });
+        }
 
-                if (BABYLON.Vector3.Distance(hero.position, fireBase.position) < 6.0) {
-                    promptUI.style.opacity = "1";
-                    fireSystem.emitRate = 150;
-                } else {
-                    promptUI.style.opacity = "0";
-                    fireSystem.emitRate = 80;
-                }
+        function setupVirtualController() {
+            setupStick(document.getElementById('move-stick'), 'moveX', 'moveY');
+            setupStick(document.getElementById('look-stick'), 'lookX', 'lookY');
 
-                const delta = engine.getDeltaTime() / 1000;
-                const time = Date.now() * 0.001;
-                
-                if (smoothSpeed > 0.01 && isGrounded) {
-                    walkAccumulator += (smoothSpeed * 150) * delta;
-                    const wc = walkAccumulator;
-                    const legAmp = isRunning ? 0.7 : 0.4;
-                    const armAmp = isRunning ? 0.5 : 0.2;
-
-                    if (bones.leftLeg) bones.leftLeg.rotation.x = Math.sin(wc) * legAmp;
-                    if (bones.rightLeg) bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * legAmp;
-                    if (bones.leftArm) { bones.leftArm.rotation.z = -1.2; bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp; }
-                    if (bones.rightArm) { bones.rightArm.rotation.z = 1.2; bones.rightArm.rotation.x = Math.sin(wc) * armAmp; }
-                    if (bones.spine) bones.spine.rotation.y = Math.cos(wc) * 0.1;
-                } else {
-                    walkAccumulator = 0;
-                    const breath = isGrounded ? Math.sin(time * 2.5) * 0.03 : 0;
-                    if (bones.leftLeg) bones.leftLeg.rotation.x = BABYLON.Scalar.Lerp(bones.leftLeg.rotation.x, 0, 0.1);
-                    if (bones.rightLeg) bones.rightLeg.rotation.x = BABYLON.Scalar.Lerp(bones.rightLeg.rotation.x, 0, 0.1);
-                    if (bones.leftArm) { bones.leftArm.rotation.z = BABYLON.Scalar.Lerp(bones.leftArm.rotation.z, -1.2, 0.1); bones.leftArm.rotation.x = BABYLON.Scalar.Lerp(bones.leftArm.rotation.x, 0, 0.1); }
-                    if (bones.rightArm) { bones.rightArm.rotation.z = BABYLON.Scalar.Lerp(bones.rightArm.rotation.z, 1.2, 0.1); bones.rightArm.rotation.x = BABYLON.Scalar.Lerp(bones.rightArm.rotation.x, 0, 0.1); }
-                    if (bones.spine) bones.spine.rotation.x = breath;
-                }
-
-                const wind = Math.sin(time * 2) * 0.03;
-                hairBones.forEach(h => {
-                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 0.5) - (velocityY * 1.5); 
-                    h.bone.rotation.x = BABYLON.Scalar.Lerp(h.bone.rotation.x, targetRotX, 0.1);
-                });
-
-                if (blinkTarget) {
-                    if (blinkState.isBlinking) {
-                        blinkState.value += 0.25;
-                        if (blinkState.value >= 1.2) { blinkState.value = 1; blinkState.isBlinking = false; }
-                    } else {
-                        blinkState.value -= 0.1;
-                        if (blinkState.value <= 0) {
-                            blinkState.value = 0;
-                            if (Date.now() >= blinkState.nextTime) { blinkState.isBlinking = true; blinkState.nextTime = Date.now() + 3500 + (Math.random() * 2000); }
-                        }
-                    }
-                    blinkTarget.influence = Math.max(0, Math.min(1, blinkState.value));
-                }
-
-                camera.fov = BABYLON.Scalar.Lerp(camera.fov, isRunning && smoothSpeed > 0.05 ? runFov : baseFov, 0.05);
+            document.querySelectorAll('.pad-btn[data-action]').forEach(button => {
+                const press = event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    button.classList.add('pressed');
+                    try { button.setPointerCapture(event.pointerId); } catch (_) {}
+                    if (navigator.vibrate) navigator.vibrate(18);
+                    runControllerAction(button.dataset.action);
+                };
+                const release = event => {
+                    event.preventDefault();
+                    button.classList.remove('pressed');
+                };
+                button.addEventListener('pointerdown', press);
+                button.addEventListener('pointerup', release);
+                button.addEventListener('pointercancel', release);
+                button.addEventListener('lostpointercapture', release);
+                button.addEventListener('contextmenu', event => event.preventDefault());
             });
 
-            return scene;
-        };
+            window.addEventListener('blur', resetTouchSticks);
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) resetTouchSticks();
+            });
+        }
 
-        createScene().then(scene => { engine.runRenderLoop(() => scene.render()); });
+        function setupStick(stick, xKey, yKey) {
+            const thumb = stick.querySelector('.stick-thumb');
+            let activePointer = null;
+
+            const update = event => {
+                const rect = stick.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const maxRadius = rect.width * 0.34;
+                let dx = event.clientX - centerX;
+                let dy = event.clientY - centerY;
+                const distance = Math.hypot(dx, dy);
+                if (distance > maxRadius) {
+                    dx = dx / distance * maxRadius;
+                    dy = dy / distance * maxRadius;
+                }
+                touchInput[xKey] = dx / maxRadius;
+                touchInput[yKey] = dy / maxRadius;
+                thumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            };
+
+            stick.addEventListener('pointerdown', event => {
+                event.preventDefault();
+                activePointer = event.pointerId;
+                try { stick.setPointerCapture(activePointer); } catch (_) {}
+                update(event);
+            });
+            stick.addEventListener('pointermove', event => {
+                if (event.pointerId === activePointer) update(event);
+            });
+            const release = event => {
+                if (event.pointerId !== activePointer) return;
+                activePointer = null;
+                touchInput[xKey] = 0;
+                touchInput[yKey] = 0;
+                thumb.style.transform = 'translate(-50%, -50%)';
+            };
+            stick.addEventListener('pointerup', release);
+            stick.addEventListener('pointercancel', release);
+            stick.addEventListener('lostpointercapture', release);
+            stick.addEventListener('contextmenu', event => event.preventDefault());
+        }
+
+        function runControllerAction(action) {
+            if (!sceneL || !sceneR) return;
+            const coords = getSpawnPos();
+            switch (action) {
+                case 'grab': toggleGrab(); break;
+                case 'close': removeLastWindow(); break;
+                case 'browser': spawnWindow('browser', coords[0], coords[1], coords[2], player.rotY, 'https://en.wikipedia.org/wiki/Main_Page'); break;
+                case 'youtube': spawnWindow('youtube', coords[0], coords[1], coords[2], player.rotY, 'dQw4w9WgXcQ'); break;
+                case 'terminal': spawnWindow('text', coords[0], coords[1], coords[2], player.rotY); break;
+                case 'upload': spawnWindow('upload', coords[0], coords[1], coords[2], player.rotY); break;
+            }
+        }
+
+        // --- HELPERS ---
+        function getSpawnPos() {
+            const dist = 2.5;
+            const x = player.pos.x - Math.sin(player.rotY) * dist;
+            const z = player.pos.z - Math.cos(player.rotY) * dist;
+            return [x, 1.6, z];
+        }
+
+        // --- STANDARD FUNCTIONS (Simplified for length) ---
+        function syncWindows() { /* Kept same as before */
+             const updates = [];
+             windows.forEach(w => {
+                if(!w.domL) return;
+                const cL = w.domL.querySelector('.win-content');
+                if(cL) updates.push({ domR: w.domR, t: cL.scrollTop, l: cL.scrollLeft });
+             });
+             updates.forEach(u => {
+                 const cR = u.domR.querySelector('.win-content');
+                 if(cR) { cR.scrollTop = u.t; cR.scrollLeft = u.l; }
+             });
+        }
+        window.navigateBrowser = function(id, eye) {
+            const win = windows.find(w => w.id === id); if(!win) return;
+            const val = win.domL.querySelector('.browser-input').value;
+            const url = val.startsWith('http') ? val : 'https://' + val;
+            win.domL.querySelector('iframe').src = url; win.domR.querySelector('iframe').src = url;
+            win.url = url; saveWorld();
+        }
+        window.handleUpload = function(id, el) {
+             if(el.files[0]) {
+                 const r = new FileReader();
+                 r.onload = e => {
+                     const img = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:contain;">`;
+                     windows.find(w=>w.id===id).domL.querySelector('.win-content').innerHTML = img;
+                     windows.find(w=>w.id===id).domR.querySelector('.win-content').innerHTML = img;
+                     showStatus("UPLOADED");
+                 }; r.readAsDataURL(el.files[0]);
+             }
+        }
+        function saveWorld() {
+            const data = windows.filter(w=>w.type!=='upload').map(w=>({id:w.id,type:w.type,url:w.url,x:w.objL.position.x,y:w.objL.position.y,z:w.objL.position.z,rotY:w.objL.rotation.y}));
+            localStorage.setItem('helen_world_data', JSON.stringify(data));
+        }
+        function loadWorld() {
+            const d = localStorage.getItem('helen_world_data'); if(!d) return;
+            JSON.parse(d).forEach(w=>spawnWindow(w.type,w.x,w.y,w.z,w.rotY,w.url,false));
+            showStatus("LOADED");
+        }
+        function toggleGrab() {
+            if(grabbedWindow) { grabbedWindow=null; showStatus("DROPPED"); saveWorld(); }
+            else {
+                let min=Infinity, t=null; windows.forEach(w=>{const d=w.objL.position.distanceTo(player.pos); if(d<min){min=d;t=w;}});
+                if(t && min<2.0) { grabbedWindow=t.win?t.win:t; showStatus("GRABBED"); }
+            }
+        }
+        function updateGrabbedWindow() {
+            if(!grabbedWindow) return;
+            const dist=2.0;
+            const x = player.pos.x - Math.sin(player.rotY)*Math.cos(player.rotX)*dist;
+            const y = player.pos.y + Math.sin(player.rotX)*dist;
+            const z = player.pos.z - Math.cos(player.rotY)*Math.cos(player.rotX)*dist;
+            grabbedWindow.objL.position.set(x,y,z); grabbedWindow.objL.rotation.set(player.rotX, player.rotY, 0, 'YXZ');
+            grabbedWindow.objR.position.set(x,y,z); grabbedWindow.objR.rotation.set(player.rotX, player.rotY, 0, 'YXZ');
+        }
+        function showStatus(t) { const e=document.getElementById('status-msg'); e.innerText=t; e.style.display='block'; setTimeout(()=>e.style.display='none',2000); }
+        function removeLastWindow() { if(windows.length){const w=windows.pop(); sceneL.remove(w.objL); sceneR.remove(w.objR); saveWorld(); showStatus("CLOSED");} }
+
+        function init3D() {
+            sceneCommon = new THREE.Scene(); sceneL=new THREE.Scene(); sceneR=new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth/2/window.innerHeight, 0.1, 100);
+            camera.rotation.order = 'YXZ';
+            const l=new THREE.DirectionalLight(0xffffff,2); l.position.set(0,5,5); sceneCommon.add(l); sceneCommon.add(new THREE.AmbientLight(0xffffff,0.5));
+            rendererL=createWebGL('vid-left'); rendererR=createWebGL('vid-right'); // Attach to video containers for sizing
+            cssL=createCSS('vid-left'); cssR=createCSS('vid-right');
+            window.addEventListener('resize', onResize); document.addEventListener('keydown', handleInput); document.addEventListener('keyup', e=>keys[e.code]=false);
+            animate();
+        }
+        function createWebGL(id) { const p=document.getElementById(id).parentNode; const r=new THREE.WebGLRenderer({alpha:true}); r.setSize(p.clientWidth,p.clientHeight); p.appendChild(r.domElement); r.domElement.className='ar-overlay'; return r; }
+        function createCSS(id) { const p=document.getElementById(id).parentNode; const r=new CSS3DRenderer(); r.setSize(p.clientWidth,p.clientHeight); p.appendChild(r.domElement); r.domElement.style.position='absolute'; r.domElement.style.top='0'; r.domElement.style.zIndex='1'; return r; }
+        function onResize() { camera.aspect=window.innerWidth/2/window.innerHeight; camera.updateProjectionMatrix(); rendererL.setSize(window.innerWidth/2,window.innerHeight); rendererR.setSize(window.innerWidth/2,window.innerHeight); cssL.setSize(window.innerWidth/2,window.innerHeight); cssR.setSize(window.innerWidth/2,window.innerHeight); }
+        function handleInput(e) { keys[e.code]=true; if(['1','2','3','4','5','6'].includes(e.key)) { /* Keyboard spawn logic fallback */ } }
         
-        window.addEventListener("resize", () => {
-            setTimeout(() => engine.resize(), 100);
-        });
-        window.addEventListener("orientationchange", () => {
-            setTimeout(() => engine.resize(), 200);
-        });
+        function spawnWindow(type,x,y,z,ry,url="",save=true) {
+            windowCounter++; const id=windowCounter;
+            const dL=createDOM(id,type,"LEFT",url); const dR=createDOM(id,type,"RIGHT",url);
+            const oL=new CSS3DObject(dL); oL.scale.set(0.002,0.002,0.002); oL.position.set(x,y,z); oL.rotation.y=ry; sceneL.add(oL);
+            const oR=new CSS3DObject(dR); oR.scale.set(0.002,0.002,0.002); oR.position.set(x,y,z); oR.rotation.y=ry; sceneR.add(oR);
+            windows.push({id,type,url,objL:oL,objR:oR,domL:dL,domR:dR});
+            if(save) saveWorld();
+            showStatus(type.toUpperCase() + " OPENED");
+        }
+        function createDOM(id,type,eye,url) {
+            const d=document.createElement('div'); d.className='window-container'; 
+            d.style.cssText=`width:600px;height:400px;background:rgba(0,10,20,0.95);border:2px solid #00ffff;box-shadow:0 0 30px rgba(0,255,255,0.3);display:flex;flex-direction:column;color:#00ffff;font-family:monospace;`;
+            if(type==='browser'){ d.innerHTML=`<div class="browser-bar"><input type="text" class="browser-input" value="${url}"><button class="browser-btn" onclick="window.navigateBrowser(${id},'${eye}')">GO</button></div>`; }
+            else { d.innerHTML=`<div style="padding:10px;background:rgba(0,255,255,0.2);font-weight:bold;">HELEN_OS // ${type}</div>`; }
+            const c=document.createElement('div'); c.className='win-content'; c.style.cssText='flex:1;overflow:auto;position:relative;';
+            if(type==='text') c.innerHTML='<p style="padding:20px;font-size:24px;">> SYSTEM ONLINE.</p>';
+            else if(type==='browser') c.innerHTML=`<iframe width="100%" height="100%" src="${url}" frameborder="0" style="background:#fff;"></iframe>`;
+            else if(type==='youtube') c.innerHTML=`<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${url}" frameborder="0" allow="autoplay"></iframe>`;
+            else if(type==='upload') c.innerHTML=`<div style="height:100%;display:flex;align-items:center;justify-content:center;"><input type="file" onchange="window.handleUpload(${id},this)" style="display:none;" id="f-${id}-${eye}"><label for="f-${id}-${eye}" class="file-upload-btn">SELECT FILE</label></div>`;
+            d.appendChild(c); return d;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateInputs(); updateGrabbedWindow(); syncWindows();
+            const h=IPD/2;
+            camera.position.copy(player.pos); camera.rotation.set(player.rotX,player.rotY,0,'YXZ');
+            camera.translateX(-h); camera.updateMatrixWorld(); rendererL.render(sceneCommon,camera); cssL.render(sceneL,camera);
+            camera.position.copy(player.pos); camera.rotation.set(player.rotX,player.rotY,0,'YXZ');
+            camera.translateX(h); camera.updateMatrixWorld(); rendererR.render(sceneCommon,camera); cssR.render(sceneR,camera);
+        }
     </script>
 </body>
 </html>
