@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+/>
+
+<title>Hear Assist</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    background:
+      radial-gradient(circle at top, #173044 0%, #09131c 45%, #05090d 100%);
+    color: white;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  body {
+    min-height: 100dvh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 18px;
+  }
+
+  .app {
+    width: min(620px, 100%);
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 22px;
+  }
+
+  .logo {
+    font-size: 42px;
+    margin-bottom: 4px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(28px, 7vw, 42px);
+  }
+
+  .subtitle {
+    margin-top: 6px;
+    color: #a9bdc9;
+    font-size: 14px;
+  }
+
+  .card {
+    background: rgba(13, 26, 36, 0.82);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 24px;
+    padding: 20px;
+    margin-bottom: 15px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 15px 45px rgba(0,0,0,.28);
+  }
+
+  .status-area {
+    text-align: center;
+  }
+
+  .status-dot {
+    width: 12px;
+    height: 12px;
+    background: #777;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 7px;
+  }
+
+  .status-dot.active {
+    background: #4cff9b;
+    box-shadow: 0 0 16px #4cff9b;
+  }
+
+  #levelContainer {
+    height: 14px;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #081015;
+    margin-top: 16px;
+  }
+
+  #level {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(
+      90deg,
+      #4cff9b 0%,
+      #f6d365 70%,
+      #ff6868 100%
+    );
+    transition: width .05s linear;
+  }
+
+  button {
+    width: 100%;
+    border: none;
+    border-radius: 18px;
+    padding: 18px;
+    font-size: 19px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  #startButton {
+    background: #4cff9b;
+    color: #03150a;
+  }
+
+  #startButton.running {
+    background: #ff6262;
+    color: white;
+  }
+
+  .control {
+    margin: 22px 0;
+  }
+
+  .control:first-child {
+    margin-top: 0;
+  }
+
+  .control:last-child {
+    margin-bottom: 0;
+  }
+
+  .control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .label {
+    font-weight: 650;
+    font-size: 16px;
+  }
+
+  .value {
+    color: #4cff9b;
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    height: 34px;
+    accent-color: #4cff9b;
+  }
+
+  select {
+    width: 100%;
+    padding: 14px;
+    background: #0a1821;
+    color: white;
+    border-radius: 13px;
+    border: 1px solid rgba(255,255,255,.15);
+    font-size: 16px;
+  }
+
+  .preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .preset {
+    background: #142734;
+    color: #d7e7ef;
+    padding: 13px 7px;
+    font-size: 14px;
+  }
+
+  .preset.selected {
+    background: #4cff9b;
+    color: #05150c;
+  }
+
+  .warning {
+    color: #aac0cc;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .big-value {
+    text-align: center;
+    font-size: 46px;
+    font-weight: 750;
+    color: #4cff9b;
+    line-height: 1;
+  }
+
+  .big-label {
+    text-align: center;
+    color: #91a7b4;
+    font-size: 12px;
+    margin-top: 7px;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div class="logo">◉</div>
+    <h1>Hear Assist</h1>
+    <div class="subtitle">Live microphone listening assistant</div>
+  </div>
+
+
+  <div class="card status-area">
+
+    <div>
+      <span id="statusDot" class="status-dot"></span>
+      <span id="statusText">Microphone off</span>
+    </div>
+
+    <div id="levelContainer">
+      <div id="level"></div>
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <button id="startButton">
+      Start Listening
+    </button>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="big-value">
+      <span id="gainBig">1.0</span>×
+    </div>
+
+    <div class="big-label">
+      Amplification
+    </div>
+
+    <div class="control">
+      <input
+        id="gain"
+        type="range"
+        min="0.5"
+        max="2.5"
+        value="1"
+        step="0.05"
+      >
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="control">
+
+      <div class="control-header">
+        <span class="label">Bass</span>
+        <span id="bassValue" class="value">0 dB</span>
+      </div>
+
+      <input
+        id="bass"
+        type="range"
+        min="-12"
+        max="12"
+        value="0"
+        step="1"
+      >
+
+    </div>
+
+
+    <div class="control">
+
+      <div class="control-header">
+        <span class="label">Speech</span>
+        <span id="midValue" class="value">+3 dB</span>
+      </div>
+
+      <input
+        id="mid"
+        type="range"
+        min="-12"
+        max="12"
+        value="3"
+        step="1"
+      >
+
+    </div>
+
+
+    <div class="control">
+
+      <div class="control-header">
+        <span class="label">Treble</span>
+        <span id="trebleValue" class="value">+2 dB</span>
+      </div>
+
+      <input
+        id="treble"
+        type="range"
+        min="-12"
+        max="12"
+        value="2"
+        step="1"
+      >
+
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="control-header">
+      <span class="label">Listening Mode</span>
+    </div>
+
+    <div class="preset-grid">
+
+      <button class="preset selected" data-mode="speech">
+        Speech
+      </button>
+
+      <button class="preset" data-mode="natural">
+        Natural
+      </button>
+
+      <button class="preset" data-mode="bright">
+        Clear
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="control-header">
+      <span class="label">Microphone</span>
+    </div>
+
+    <select id="micSelect">
+      <option value="">Default microphone</option>
+    </select>
+
+  </div>
+
+
+  <div class="warning">
+    Use headphones before enabling amplification to prevent feedback.
+    Start at a low level and increase gradually.
+    Browser microphone access normally requires HTTPS.
+  </div>
+
+</div>
+
+
+<script>
+
+let audioContext;
+let microphone;
+let stream;
+
+let highPass;
+let bassFilter;
+let midFilter;
+let trebleFilter;
+let compressor;
+let limiter;
+let masterGain;
+let analyser;
+
+let listening = false;
+let meterFrame;
+
+
+const startButton = document.getElementById("startButton");
+const statusText = document.getElementById("statusText");
+const statusDot = document.getElementById("statusDot");
+
+const gainSlider = document.getElementById("gain");
+const gainBig = document.getElementById("gainBig");
+
+const bassSlider = document.getElementById("bass");
+const midSlider = document.getElementById("mid");
+const trebleSlider = document.getElementById("treble");
+
+const bassValue = document.getElementById("bassValue");
+const midValue = document.getElementById("midValue");
+const trebleValue = document.getElementById("trebleValue");
+
+const micSelect = document.getElementById("micSelect");
+
+const level = document.getElementById("level");
+
+
+function formatDb(value) {
+
+  const number = Number(value);
+
+  if (number > 0) return "+" + number + " dB";
+
+  return number + " dB";
+
+}
+
+
+async function loadMicrophones() {
+
+  try {
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+
+    const microphones = devices.filter(
+      device => device.kind === "audioinput"
+    );
+
+    const currentValue = micSelect.value;
+
+    micSelect.innerHTML =
+      '<option value="">Default microphone</option>';
+
+    microphones.forEach((device, index) => {
+
+      const option = document.createElement("option");
+
+      option.value = device.deviceId;
+
+      option.textContent =
+        device.label || `Microphone ${index + 1}`;
+
+      micSelect.appendChild(option);
+
+    });
+
+    if (
+      [...micSelect.options].some(
+        option => option.value === currentValue
+      )
+    ) {
+      micSelect.value = currentValue;
+    }
+
+  } catch (error) {
+
+    console.log("Unable to list microphones:", error);
+
+  }
+
+}
+
+
+async function startListening() {
+
+  try {
+
+    const selectedMic = micSelect.value;
+
+    const constraints = {
+
+      audio: {
+
+        deviceId: selectedMic
+          ? { exact: selectedMic }
+          : undefined,
+
+        echoCancellation: false,
+        autoGainControl: false,
+        noiseSuppression: false,
+
+        channelCount: 1
+
+      }
+
+    };
+
+
+    stream = await navigator.mediaDevices.getUserMedia(
+      constraints
+    );
+
+
+    audioContext = new (
+      window.AudioContext ||
+      window.webkitAudioContext
+    )({
+      latencyHint: "interactive"
+    });
+
+
+    await audioContext.resume();
+
+
+    microphone =
+      audioContext.createMediaStreamSource(stream);
+
+
+    /*
+      Remove very low-frequency rumble.
+    */
+
+    highPass = audioContext.createBiquadFilter();
+
+    highPass.type = "highpass";
+    highPass.frequency.value = 80;
+    highPass.Q.value = 0.7;
+
+
+    /*
+      Tone controls
+    */
+
+    bassFilter = audioContext.createBiquadFilter();
+
+    bassFilter.type = "lowshelf";
+    bassFilter.frequency.value = 250;
+    bassFilter.gain.value = Number(bassSlider.value);
+
+
+    midFilter = audioContext.createBiquadFilter();
+
+    midFilter.type = "peaking";
+    midFilter.frequency.value = 1800;
+    midFilter.Q.value = 0.9;
+    midFilter.gain.value = Number(midSlider.value);
+
+
+    trebleFilter = audioContext.createBiquadFilter();
+
+    trebleFilter.type = "highshelf";
+    trebleFilter.frequency.value = 4000;
+    trebleFilter.gain.value = Number(trebleSlider.value);
+
+
+    /*
+      Gentle compression helps quiet speech
+      without allowing louder sounds to jump
+      as dramatically.
+    */
+
+    compressor = audioContext.createDynamicsCompressor();
+
+    compressor.threshold.value = -24;
+    compressor.knee.value = 10;
+    compressor.ratio.value = 3;
+    compressor.attack.value = 0.005;
+    compressor.release.value = 0.15;
+
+
+    /*
+      Final limiter / protection stage.
+    */
+
+    limiter = audioContext.createDynamicsCompressor();
+
+    limiter.threshold.value = -5;
+    limiter.knee.value = 1;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.002;
+    limiter.release.value = 0.08;
+
+
+    masterGain = audioContext.createGain();
+
+    masterGain.gain.value =
+      Number(gainSlider.value);
+
+
+    analyser = audioContext.createAnalyser();
+
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.7;
+
+
+    /*
+      AUDIO PATH
+
+      Microphone
+        ↓
+      High Pass
+        ↓
+      Bass EQ
+        ↓
+      Speech EQ
+        ↓
+      Treble EQ
+        ↓
+      Compression
+        ↓
+      Gain
+        ↓
+      Limiter
+        ↓
+      Headphones
+    */
+
+    microphone
+      .connect(highPass)
+      .connect(bassFilter)
+      .connect(midFilter)
+      .connect(trebleFilter)
+      .connect(compressor)
+      .connect(masterGain)
+      .connect(limiter)
+      .connect(analyser)
+      .connect(audioContext.destination);
+
+
+    listening = true;
+
+    startButton.textContent = "Stop Listening";
+    startButton.classList.add("running");
+
+    statusText.textContent = "Listening";
+    statusDot.classList.add("active");
+
+
+    await loadMicrophones();
+
+    updateMeter();
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    statusText.textContent =
+      "Microphone permission unavailable";
+
+    alert(
+      "The microphone could not be started. " +
+      "Make sure microphone permission is allowed " +
+      "and that the page is running over HTTPS."
+    );
+
+  }
+
+}
+
+
+function stopListening() {
+
+  listening = false;
+
+  cancelAnimationFrame(meterFrame);
+
+
+  if (stream) {
+
+    stream.getTracks().forEach(track => track.stop());
+
+    stream = null;
+
+  }
+
+
+  if (audioContext) {
+
+    audioContext.close();
+
+    audioContext = null;
+
+  }
+
+
+  level.style.width = "0%";
+
+  startButton.textContent = "Start Listening";
+  startButton.classList.remove("running");
+
+  statusText.textContent = "Microphone off";
+  statusDot.classList.remove("active");
+
+}
+
+
+function updateMeter() {
+
+  if (!analyser || !listening) return;
+
+
+  const data = new Uint8Array(
+    analyser.frequencyBinCount
+  );
+
+  analyser.getByteFrequencyData(data);
+
+
+  let total = 0;
+
+  for (const value of data) {
+    total += value;
+  }
+
+
+  const average = total / data.length;
+
+  const percentage =
+    Math.min(100, average * 1.25);
+
+
+  level.style.width = percentage + "%";
+
+
+  meterFrame = requestAnimationFrame(updateMeter);
+
+}
+
+
+startButton.addEventListener("click", async () => {
+
+  if (!listening) {
+
+    await startListening();
+
+  } else {
+
+    stopListening();
+
+  }
+
+});
+
+
+gainSlider.addEventListener("input", () => {
+
+  const value = Number(gainSlider.value);
+
+  gainBig.textContent = value.toFixed(2);
+
+
+  if (masterGain && audioContext) {
+
+    masterGain.gain.setTargetAtTime(
+      value,
+      audioContext.currentTime,
+      0.03
+    );
+
+  }
+
+});
+
+
+bassSlider.addEventListener("input", () => {
+
+  bassValue.textContent =
+    formatDb(bassSlider.value);
+
+
+  if (bassFilter && audioContext) {
+
+    bassFilter.gain.setTargetAtTime(
+      Number(bassSlider.value),
+      audioContext.currentTime,
+      0.03
+    );
+
+  }
+
+});
+
+
+midSlider.addEventListener("input", () => {
+
+  midValue.textContent =
+    formatDb(midSlider.value);
+
+
+  if (midFilter && audioContext) {
+
+    midFilter.gain.setTargetAtTime(
+      Number(midSlider.value),
+      audioContext.currentTime,
+      0.03
+    );
+
+  }
+
+});
+
+
+trebleSlider.addEventListener("input", () => {
+
+  trebleValue.textContent =
+    formatDb(trebleSlider.value);
+
+
+  if (trebleFilter && audioContext) {
+
+    trebleFilter.gain.setTargetAtTime(
+      Number(trebleSlider.value),
+      audioContext.currentTime,
+      0.03
+    );
+
+  }
+
+});
+
+
+document.querySelectorAll(".preset")
+.forEach(button => {
+
+  button.addEventListener("click", () => {
+
+    document
+      .querySelectorAll(".preset")
+      .forEach(item =>
+        item.classList.remove("selected")
+      );
+
+
+    button.classList.add("selected");
+
+
+    const mode = button.dataset.mode;
+
+
+    if (mode === "speech") {
+
+      bassSlider.value = -2;
+      midSlider.value = 4;
+      trebleSlider.value = 3;
+
+    }
+
+
+    if (mode === "natural") {
+
+      bassSlider.value = 0;
+      midSlider.value = 0;
+      trebleSlider.value = 0;
+
+    }
+
+
+    if (mode === "bright") {
+
+      bassSlider.value = -4;
+      midSlider.value = 3;
+      trebleSlider.value = 6;
+
+    }
+
+
+    bassSlider.dispatchEvent(
+      new Event("input")
+    );
+
+    midSlider.dispatchEvent(
+      new Event("input")
+    );
+
+    trebleSlider.dispatchEvent(
+      new Event("input")
+    );
+
+  });
+
+});
+
+
+micSelect.addEventListener("change", async () => {
+
+  if (listening) {
+
+    stopListening();
+
+    await startListening();
+
+  }
+
+});
+
+
+if (
+  navigator.mediaDevices &&
+  navigator.mediaDevices.enumerateDevices
+) {
+
+  loadMicrophones();
+
+}
+
+</script>
+
+</body>
+</html>
