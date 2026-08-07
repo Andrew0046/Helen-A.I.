@@ -8,7 +8,7 @@
   content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
 />
 
-<title>Hear Assist</title>
+<title>Hear Assist Spatial</title>
 
 <style>
   * {
@@ -29,12 +29,12 @@
     min-height: 100dvh;
     display: flex;
     justify-content: center;
-    align-items: center;
     padding: 18px;
   }
 
   .app {
     width: min(620px, 100%);
+    margin: auto;
   }
 
   .header {
@@ -103,7 +103,6 @@
       #f6d365 70%,
       #ff6868 100%
     );
-    transition: width .05s linear;
   }
 
   button {
@@ -111,9 +110,10 @@
     border: none;
     border-radius: 18px;
     padding: 18px;
-    font-size: 19px;
+    font-size: 18px;
     font-weight: 700;
     cursor: pointer;
+    touch-action: manipulation;
   }
 
   #startButton {
@@ -142,6 +142,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 15px;
     margin-bottom: 10px;
   }
 
@@ -177,23 +178,18 @@
     gap: 8px;
   }
 
-  .preset {
+  .preset,
+  .mode-button {
     background: #142734;
     color: #d7e7ef;
     padding: 13px 7px;
     font-size: 14px;
   }
 
-  .preset.selected {
+  .preset.selected,
+  .mode-button.selected {
     background: #4cff9b;
     color: #05150c;
-  }
-
-  .warning {
-    color: #aac0cc;
-    font-size: 12px;
-    line-height: 1.5;
-    text-align: center;
   }
 
   .big-value {
@@ -212,6 +208,111 @@
     text-transform: uppercase;
     letter-spacing: .12em;
   }
+
+  .spatial-visual {
+    height: 72px;
+    background: #081015;
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+    margin: 18px 0;
+  }
+
+  .spatial-line {
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    height: 2px;
+    top: 50%;
+    background: rgba(255,255,255,.12);
+  }
+
+  .spatial-center {
+    position: absolute;
+    width: 2px;
+    height: 34px;
+    top: 19px;
+    left: 50%;
+    background: rgba(255,255,255,.18);
+  }
+
+  #spatialOrb {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    left: calc(50% - 13px);
+    top: 23px;
+    background: #4cff9b;
+    box-shadow:
+      0 0 8px #4cff9b,
+      0 0 25px rgba(76,255,155,.7);
+    transition: left .03s linear;
+  }
+
+  .toggle {
+    position: relative;
+    width: 58px;
+    height: 32px;
+    flex-shrink: 0;
+  }
+
+  .toggle input {
+    display: none;
+  }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: #243744;
+    border-radius: 999px;
+    transition: .2s;
+  }
+
+  .toggle-track::after {
+    content: "";
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    top: 4px;
+    left: 4px;
+    background: white;
+    border-radius: 50%;
+    transition: .2s;
+  }
+
+  .toggle input:checked + .toggle-track {
+    background: #4cff9b;
+  }
+
+  .toggle input:checked + .toggle-track::after {
+    transform: translateX(26px);
+  }
+
+  .spatial-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .small-button {
+    padding: 13px 8px;
+    font-size: 14px;
+  }
+
+  .reset-button {
+    margin-top: 12px;
+    background: #203442;
+    color: white;
+  }
+
+  .warning {
+    color: #aac0cc;
+    font-size: 12px;
+    line-height: 1.55;
+    text-align: center;
+    padding-bottom: 30px;
+  }
 </style>
 </head>
 
@@ -222,7 +323,9 @@
   <div class="header">
     <div class="logo">◉</div>
     <h1>Hear Assist</h1>
-    <div class="subtitle">Live microphone listening assistant</div>
+    <div class="subtitle">
+      Live microphone amplification + spatial audio
+    </div>
   </div>
 
 
@@ -241,18 +344,16 @@
 
 
   <div class="card">
-
     <button id="startButton">
       Start Listening
     </button>
-
   </div>
 
 
   <div class="card">
 
     <div class="big-value">
-      <span id="gainBig">1.0</span>×
+      <span id="gainBig">1.00</span>×
     </div>
 
     <div class="big-label">
@@ -359,6 +460,119 @@
   </div>
 
 
+  <!-- SPATIAL AUDIO -->
+
+  <div class="card">
+
+    <div class="control-header">
+
+      <div>
+        <div class="label">8D Spatial Sound</div>
+        <div style="color:#91a7b4;font-size:12px;margin-top:3px;">
+          Stereo movement effect
+        </div>
+      </div>
+
+      <label class="toggle">
+        <input id="spatialToggle" type="checkbox">
+        <span class="toggle-track"></span>
+      </label>
+
+    </div>
+
+
+    <div class="spatial-visual">
+
+      <div class="spatial-line"></div>
+      <div class="spatial-center"></div>
+      <div id="spatialOrb"></div>
+
+    </div>
+
+
+    <div class="spatial-options">
+
+      <button
+        class="mode-button selected small-button"
+        data-spatial-mode="move"
+      >
+        8D Move
+      </button>
+
+      <button
+        class="mode-button small-button"
+        data-spatial-mode="static"
+      >
+        Static Position
+      </button>
+
+    </div>
+
+
+    <div class="control">
+
+      <div class="control-header">
+        <span class="label">Spatial Width</span>
+        <span id="widthValue" class="value">65%</span>
+      </div>
+
+      <input
+        id="spatialWidth"
+        type="range"
+        min="0"
+        max="1"
+        value="0.65"
+        step="0.01"
+      >
+
+    </div>
+
+
+    <div class="control">
+
+      <div class="control-header">
+        <span class="label">Movement Speed</span>
+        <span id="speedValue" class="value">0.20 Hz</span>
+      </div>
+
+      <input
+        id="spatialSpeed"
+        type="range"
+        min="0.03"
+        max="0.8"
+        value="0.20"
+        step="0.01"
+      >
+
+    </div>
+
+
+    <div class="control">
+
+      <div class="control-header">
+        <span class="label">Manual Position</span>
+        <span id="panValue" class="value">Center</span>
+      </div>
+
+      <input
+        id="manualPan"
+        type="range"
+        min="-1"
+        max="1"
+        value="0"
+        step="0.01"
+      >
+
+    </div>
+
+
+    <button id="centerButton" class="reset-button">
+      Reset Sound to Center
+    </button>
+
+  </div>
+
+
   <div class="card">
 
     <div class="control-header">
@@ -373,9 +587,10 @@
 
 
   <div class="warning">
-    Use headphones before enabling amplification to prevent feedback.
-    Start at a low level and increase gradually.
-    Browser microphone access normally requires HTTPS.
+    Use headphones before starting to reduce feedback.
+    Keep amplification at a comfortable level.
+    Spatial movement may make speech harder to understand,
+    so turn 8D mode off when maximum speech clarity is needed.
   </div>
 
 </div>
@@ -391,234 +606,423 @@ let highPass;
 let bassFilter;
 let midFilter;
 let trebleFilter;
+
 let compressor;
-let limiter;
 let masterGain;
+let stereoPanner;
+let limiter;
 let analyser;
 
 let listening = false;
+
 let meterFrame;
+let spatialFrame;
+
+let spatialMode = "move";
+let spatialStartTime = 0;
 
 
-const startButton = document.getElementById("startButton");
-const statusText = document.getElementById("statusText");
-const statusDot = document.getElementById("statusDot");
+/* -----------------------------
+   ELEMENTS
+----------------------------- */
 
-const gainSlider = document.getElementById("gain");
-const gainBig = document.getElementById("gainBig");
+const startButton =
+  document.getElementById("startButton");
 
-const bassSlider = document.getElementById("bass");
-const midSlider = document.getElementById("mid");
-const trebleSlider = document.getElementById("treble");
+const statusText =
+  document.getElementById("statusText");
 
-const bassValue = document.getElementById("bassValue");
-const midValue = document.getElementById("midValue");
-const trebleValue = document.getElementById("trebleValue");
+const statusDot =
+  document.getElementById("statusDot");
 
-const micSelect = document.getElementById("micSelect");
+const level =
+  document.getElementById("level");
 
-const level = document.getElementById("level");
 
+const gainSlider =
+  document.getElementById("gain");
+
+const gainBig =
+  document.getElementById("gainBig");
+
+
+const bassSlider =
+  document.getElementById("bass");
+
+const midSlider =
+  document.getElementById("mid");
+
+const trebleSlider =
+  document.getElementById("treble");
+
+
+const bassValue =
+  document.getElementById("bassValue");
+
+const midValue =
+  document.getElementById("midValue");
+
+const trebleValue =
+  document.getElementById("trebleValue");
+
+
+const micSelect =
+  document.getElementById("micSelect");
+
+
+/* SPATIAL */
+
+const spatialToggle =
+  document.getElementById("spatialToggle");
+
+const spatialWidth =
+  document.getElementById("spatialWidth");
+
+const spatialSpeed =
+  document.getElementById("spatialSpeed");
+
+const manualPan =
+  document.getElementById("manualPan");
+
+const widthValue =
+  document.getElementById("widthValue");
+
+const speedValue =
+  document.getElementById("speedValue");
+
+const panValue =
+  document.getElementById("panValue");
+
+const spatialOrb =
+  document.getElementById("spatialOrb");
+
+const centerButton =
+  document.getElementById("centerButton");
+
+
+/* -----------------------------
+   UTILITIES
+----------------------------- */
 
 function formatDb(value) {
 
   const number = Number(value);
 
-  if (number > 0) return "+" + number + " dB";
+  if (number > 0) {
+    return "+" + number + " dB";
+  }
 
   return number + " dB";
 
 }
 
 
-async function loadMicrophones() {
+function updatePanDisplay(pan) {
 
-  try {
+  pan = Math.max(-1, Math.min(1, pan));
 
-    const devices = await navigator.mediaDevices.enumerateDevices();
+  const visualPercent =
+    12 + ((pan + 1) / 2) * 76;
 
-    const microphones = devices.filter(
-      device => device.kind === "audioinput"
-    );
+  spatialOrb.style.left =
+    `calc(${visualPercent}% - 13px)`;
 
-    const currentValue = micSelect.value;
 
-    micSelect.innerHTML =
-      '<option value="">Default microphone</option>';
+  if (Math.abs(pan) < 0.05) {
 
-    microphones.forEach((device, index) => {
+    panValue.textContent = "Center";
 
-      const option = document.createElement("option");
+  } else if (pan < 0) {
 
-      option.value = device.deviceId;
+    panValue.textContent =
+      "Left " + Math.round(Math.abs(pan) * 100) + "%";
 
-      option.textContent =
-        device.label || `Microphone ${index + 1}`;
+  } else {
 
-      micSelect.appendChild(option);
-
-    });
-
-    if (
-      [...micSelect.options].some(
-        option => option.value === currentValue
-      )
-    ) {
-      micSelect.value = currentValue;
-    }
-
-  } catch (error) {
-
-    console.log("Unable to list microphones:", error);
+    panValue.textContent =
+      "Right " + Math.round(pan * 100) + "%";
 
   }
 
 }
 
 
+/* -----------------------------
+   MICROPHONES
+----------------------------- */
+
+async function loadMicrophones() {
+
+  try {
+
+    const devices =
+      await navigator.mediaDevices.enumerateDevices();
+
+    const microphones =
+      devices.filter(
+        device => device.kind === "audioinput"
+      );
+
+    const previous =
+      micSelect.value;
+
+
+    micSelect.innerHTML =
+      '<option value="">Default microphone</option>';
+
+
+    microphones.forEach((device, index) => {
+
+      const option =
+        document.createElement("option");
+
+      option.value =
+        device.deviceId;
+
+      option.textContent =
+        device.label ||
+        `Microphone ${index + 1}`;
+
+      micSelect.appendChild(option);
+
+    });
+
+
+    if (
+      [...micSelect.options].some(
+        option => option.value === previous
+      )
+    ) {
+
+      micSelect.value =
+        previous;
+
+    }
+
+  }
+
+  catch(error) {
+
+    console.log(
+      "Unable to list microphones:",
+      error
+    );
+
+  }
+
+}
+
+
+/* -----------------------------
+   START AUDIO
+----------------------------- */
+
 async function startListening() {
 
   try {
 
-    const selectedMic = micSelect.value;
-
-    const constraints = {
-
-      audio: {
-
-        deviceId: selectedMic
-          ? { exact: selectedMic }
-          : undefined,
-
-        echoCancellation: false,
-        autoGainControl: false,
-        noiseSuppression: false,
-
-        channelCount: 1
-
-      }
-
-    };
+    const selectedMic =
+      micSelect.value;
 
 
-    stream = await navigator.mediaDevices.getUserMedia(
-      constraints
-    );
+    stream =
+      await navigator.mediaDevices.getUserMedia({
+
+        audio: {
+
+          deviceId:
+            selectedMic
+              ? { exact: selectedMic }
+              : undefined,
+
+          echoCancellation: false,
+          autoGainControl: false,
+          noiseSuppression: false,
+
+          channelCount: 1
+
+        }
+
+      });
 
 
-    audioContext = new (
-      window.AudioContext ||
-      window.webkitAudioContext
-    )({
-      latencyHint: "interactive"
-    });
+    audioContext =
+      new (
+        window.AudioContext ||
+        window.webkitAudioContext
+      )({
+        latencyHint: "interactive"
+      });
 
 
     await audioContext.resume();
 
 
     microphone =
-      audioContext.createMediaStreamSource(stream);
+      audioContext.createMediaStreamSource(
+        stream
+      );
 
 
-    /*
-      Remove very low-frequency rumble.
-    */
+    /* LOW CUT */
 
-    highPass = audioContext.createBiquadFilter();
+    highPass =
+      audioContext.createBiquadFilter();
 
-    highPass.type = "highpass";
-    highPass.frequency.value = 80;
-    highPass.Q.value = 0.7;
+    highPass.type =
+      "highpass";
 
+    highPass.frequency.value =
+      80;
 
-    /*
-      Tone controls
-    */
-
-    bassFilter = audioContext.createBiquadFilter();
-
-    bassFilter.type = "lowshelf";
-    bassFilter.frequency.value = 250;
-    bassFilter.gain.value = Number(bassSlider.value);
+    highPass.Q.value =
+      0.7;
 
 
-    midFilter = audioContext.createBiquadFilter();
+    /* BASS */
 
-    midFilter.type = "peaking";
-    midFilter.frequency.value = 1800;
-    midFilter.Q.value = 0.9;
-    midFilter.gain.value = Number(midSlider.value);
+    bassFilter =
+      audioContext.createBiquadFilter();
 
+    bassFilter.type =
+      "lowshelf";
 
-    trebleFilter = audioContext.createBiquadFilter();
+    bassFilter.frequency.value =
+      250;
 
-    trebleFilter.type = "highshelf";
-    trebleFilter.frequency.value = 4000;
-    trebleFilter.gain.value = Number(trebleSlider.value);
-
-
-    /*
-      Gentle compression helps quiet speech
-      without allowing louder sounds to jump
-      as dramatically.
-    */
-
-    compressor = audioContext.createDynamicsCompressor();
-
-    compressor.threshold.value = -24;
-    compressor.knee.value = 10;
-    compressor.ratio.value = 3;
-    compressor.attack.value = 0.005;
-    compressor.release.value = 0.15;
+    bassFilter.gain.value =
+      Number(bassSlider.value);
 
 
-    /*
-      Final limiter / protection stage.
-    */
+    /* SPEECH */
 
-    limiter = audioContext.createDynamicsCompressor();
+    midFilter =
+      audioContext.createBiquadFilter();
 
-    limiter.threshold.value = -5;
-    limiter.knee.value = 1;
-    limiter.ratio.value = 20;
-    limiter.attack.value = 0.002;
-    limiter.release.value = 0.08;
+    midFilter.type =
+      "peaking";
+
+    midFilter.frequency.value =
+      1800;
+
+    midFilter.Q.value =
+      0.9;
+
+    midFilter.gain.value =
+      Number(midSlider.value);
 
 
-    masterGain = audioContext.createGain();
+    /* TREBLE */
+
+    trebleFilter =
+      audioContext.createBiquadFilter();
+
+    trebleFilter.type =
+      "highshelf";
+
+    trebleFilter.frequency.value =
+      4000;
+
+    trebleFilter.gain.value =
+      Number(trebleSlider.value);
+
+
+    /* COMPRESSOR */
+
+    compressor =
+      audioContext.createDynamicsCompressor();
+
+    compressor.threshold.value =
+      -24;
+
+    compressor.knee.value =
+      10;
+
+    compressor.ratio.value =
+      3;
+
+    compressor.attack.value =
+      0.005;
+
+    compressor.release.value =
+      0.15;
+
+
+    /* MASTER AMPLIFICATION */
+
+    masterGain =
+      audioContext.createGain();
 
     masterGain.gain.value =
       Number(gainSlider.value);
 
 
-    analyser = audioContext.createAnalyser();
+    /* 8D / STEREO PANNER */
 
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.7;
+    stereoPanner =
+      audioContext.createStereoPanner();
+
+    stereoPanner.pan.value =
+      Number(manualPan.value);
+
+
+    /* FINAL LIMITER */
+
+    limiter =
+      audioContext.createDynamicsCompressor();
+
+    limiter.threshold.value =
+      -5;
+
+    limiter.knee.value =
+      1;
+
+    limiter.ratio.value =
+      20;
+
+    limiter.attack.value =
+      0.002;
+
+    limiter.release.value =
+      0.08;
+
+
+    /* ANALYSER */
+
+    analyser =
+      audioContext.createAnalyser();
+
+    analyser.fftSize =
+      256;
+
+    analyser.smoothingTimeConstant =
+      0.7;
 
 
     /*
-      AUDIO PATH
+       AUDIO ROUTE
 
-      Microphone
-        ↓
-      High Pass
-        ↓
-      Bass EQ
-        ↓
-      Speech EQ
-        ↓
-      Treble EQ
-        ↓
-      Compression
-        ↓
-      Gain
-        ↓
-      Limiter
-        ↓
-      Headphones
+       MICROPHONE
+          ↓
+       LOW CUT
+          ↓
+       BASS EQ
+          ↓
+       SPEECH EQ
+          ↓
+       TREBLE EQ
+          ↓
+       COMPRESSION
+          ↓
+       MASTER GAIN
+          ↓
+       8D STEREO PANNER
+          ↓
+       LIMITER
+          ↓
+       OUTPUT
     */
+
 
     microphone
       .connect(highPass)
@@ -627,36 +1031,63 @@ async function startListening() {
       .connect(trebleFilter)
       .connect(compressor)
       .connect(masterGain)
+      .connect(stereoPanner)
       .connect(limiter)
       .connect(analyser)
       .connect(audioContext.destination);
 
 
-    listening = true;
+    listening =
+      true;
 
-    startButton.textContent = "Stop Listening";
-    startButton.classList.add("running");
 
-    statusText.textContent = "Listening";
-    statusDot.classList.add("active");
+    startButton.textContent =
+      "Stop Listening";
+
+    startButton.classList.add(
+      "running"
+    );
+
+
+    statusText.textContent =
+      spatialToggle.checked
+        ? "Listening • Spatial"
+        : "Listening";
+
+
+    statusDot.classList.add(
+      "active"
+    );
 
 
     await loadMicrophones();
 
+
     updateMeter();
 
 
-  } catch (error) {
+    spatialStartTime =
+      performance.now();
+
+    updateSpatialAudio(
+      spatialStartTime
+    );
+
+  }
+
+  catch(error) {
 
     console.error(error);
 
+
     statusText.textContent =
-      "Microphone permission unavailable";
+      "Microphone unavailable";
+
 
     alert(
       "The microphone could not be started. " +
-      "Make sure microphone permission is allowed " +
-      "and that the page is running over HTTPS."
+      "Allow microphone access and make sure " +
+      "the page is running over HTTPS."
     );
 
   }
@@ -664,18 +1095,35 @@ async function startListening() {
 }
 
 
+/* -----------------------------
+   STOP
+----------------------------- */
+
 function stopListening() {
 
-  listening = false;
+  listening =
+    false;
 
-  cancelAnimationFrame(meterFrame);
+
+  cancelAnimationFrame(
+    meterFrame
+  );
+
+  cancelAnimationFrame(
+    spatialFrame
+  );
 
 
   if (stream) {
 
-    stream.getTracks().forEach(track => track.stop());
+    stream
+      .getTracks()
+      .forEach(
+        track => track.stop()
+      );
 
-    stream = null;
+    stream =
+      null;
 
   }
 
@@ -684,221 +1132,694 @@ function stopListening() {
 
     audioContext.close();
 
-    audioContext = null;
+    audioContext =
+      null;
 
   }
 
 
-  level.style.width = "0%";
+  microphone = null;
+  stereoPanner = null;
+  analyser = null;
 
-  startButton.textContent = "Start Listening";
-  startButton.classList.remove("running");
 
-  statusText.textContent = "Microphone off";
-  statusDot.classList.remove("active");
+  level.style.width =
+    "0%";
+
+
+  updatePanDisplay(0);
+
+
+  startButton.textContent =
+    "Start Listening";
+
+  startButton.classList.remove(
+    "running"
+  );
+
+
+  statusText.textContent =
+    "Microphone off";
+
+  statusDot.classList.remove(
+    "active"
+  );
 
 }
 
+
+/* -----------------------------
+   AUDIO METER
+----------------------------- */
 
 function updateMeter() {
 
-  if (!analyser || !listening) return;
-
-
-  const data = new Uint8Array(
-    analyser.frequencyBinCount
-  );
-
-  analyser.getByteFrequencyData(data);
-
-
-  let total = 0;
-
-  for (const value of data) {
-    total += value;
+  if (
+    !analyser ||
+    !listening
+  ) {
+    return;
   }
 
 
-  const average = total / data.length;
+  const data =
+    new Uint8Array(
+      analyser.frequencyBinCount
+    );
+
+
+  analyser.getByteFrequencyData(
+    data
+  );
+
+
+  let total =
+    0;
+
+
+  for (
+    let i = 0;
+    i < data.length;
+    i++
+  ) {
+
+    total +=
+      data[i];
+
+  }
+
+
+  const average =
+    total / data.length;
+
 
   const percentage =
-    Math.min(100, average * 1.25);
+    Math.min(
+      100,
+      average * 1.25
+    );
 
 
-  level.style.width = percentage + "%";
+  level.style.width =
+    percentage + "%";
 
 
-  meterFrame = requestAnimationFrame(updateMeter);
+  meterFrame =
+    requestAnimationFrame(
+      updateMeter
+    );
 
 }
 
 
-startButton.addEventListener("click", async () => {
+/* -----------------------------
+   SPATIAL ENGINE
+----------------------------- */
+
+function updateSpatialAudio(time) {
 
   if (!listening) {
+    return;
+  }
 
-    await startListening();
 
-  } else {
+  let pan =
+    0;
 
-    stopListening();
+
+  if (
+    spatialToggle.checked &&
+    stereoPanner
+  ) {
+
+    if (
+      spatialMode === "move"
+    ) {
+
+      const seconds =
+        (time - spatialStartTime)
+        / 1000;
+
+
+      const speed =
+        Number(
+          spatialSpeed.value
+        );
+
+
+      const width =
+        Number(
+          spatialWidth.value
+        );
+
+
+      pan =
+        Math.sin(
+          seconds *
+          speed *
+          Math.PI *
+          2
+        )
+        * width;
+
+    }
+
+
+    else {
+
+      pan =
+        Number(
+          manualPan.value
+        );
+
+    }
 
   }
 
-});
 
+  if (
+    stereoPanner &&
+    audioContext
+  ) {
 
-gainSlider.addEventListener("input", () => {
-
-  const value = Number(gainSlider.value);
-
-  gainBig.textContent = value.toFixed(2);
-
-
-  if (masterGain && audioContext) {
-
-    masterGain.gain.setTargetAtTime(
-      value,
+    stereoPanner.pan.setTargetAtTime(
+      pan,
       audioContext.currentTime,
-      0.03
+      0.025
     );
 
   }
 
-});
+
+  updatePanDisplay(
+    pan
+  );
 
 
-bassSlider.addEventListener("input", () => {
-
-  bassValue.textContent =
-    formatDb(bassSlider.value);
-
-
-  if (bassFilter && audioContext) {
-
-    bassFilter.gain.setTargetAtTime(
-      Number(bassSlider.value),
-      audioContext.currentTime,
-      0.03
+  spatialFrame =
+    requestAnimationFrame(
+      updateSpatialAudio
     );
 
-  }
-
-});
+}
 
 
-midSlider.addEventListener("input", () => {
+/* -----------------------------
+   START BUTTON
+----------------------------- */
 
-  midValue.textContent =
-    formatDb(midSlider.value);
+startButton.addEventListener(
+  "click",
+  async () => {
 
+    if (!listening) {
 
-  if (midFilter && audioContext) {
+      await startListening();
 
-    midFilter.gain.setTargetAtTime(
-      Number(midSlider.value),
-      audioContext.currentTime,
-      0.03
-    );
+    }
 
-  }
+    else {
 
-});
+      stopListening();
 
-
-trebleSlider.addEventListener("input", () => {
-
-  trebleValue.textContent =
-    formatDb(trebleSlider.value);
-
-
-  if (trebleFilter && audioContext) {
-
-    trebleFilter.gain.setTargetAtTime(
-      Number(trebleSlider.value),
-      audioContext.currentTime,
-      0.03
-    );
+    }
 
   }
+);
 
-});
+
+/* -----------------------------
+   MASTER GAIN
+----------------------------- */
+
+gainSlider.addEventListener(
+  "input",
+  () => {
+
+    const value =
+      Number(gainSlider.value);
 
 
-document.querySelectorAll(".preset")
-.forEach(button => {
+    gainBig.textContent =
+      value.toFixed(2);
 
-  button.addEventListener("click", () => {
 
-    document
-      .querySelectorAll(".preset")
-      .forEach(item =>
-        item.classList.remove("selected")
+    if (
+      masterGain &&
+      audioContext
+    ) {
+
+      masterGain.gain.setTargetAtTime(
+        value,
+        audioContext.currentTime,
+        0.03
+      );
+
+    }
+
+  }
+);
+
+
+/* -----------------------------
+   EQ CONTROLS
+----------------------------- */
+
+bassSlider.addEventListener(
+  "input",
+  () => {
+
+    bassValue.textContent =
+      formatDb(
+        bassSlider.value
       );
 
 
-    button.classList.add("selected");
+    if (
+      bassFilter &&
+      audioContext
+    ) {
 
-
-    const mode = button.dataset.mode;
-
-
-    if (mode === "speech") {
-
-      bassSlider.value = -2;
-      midSlider.value = 4;
-      trebleSlider.value = 3;
-
-    }
-
-
-    if (mode === "natural") {
-
-      bassSlider.value = 0;
-      midSlider.value = 0;
-      trebleSlider.value = 0;
+      bassFilter.gain.setTargetAtTime(
+        Number(
+          bassSlider.value
+        ),
+        audioContext.currentTime,
+        0.03
+      );
 
     }
 
+  }
+);
 
-    if (mode === "bright") {
 
-      bassSlider.value = -4;
-      midSlider.value = 3;
-      trebleSlider.value = 6;
+midSlider.addEventListener(
+  "input",
+  () => {
+
+    midValue.textContent =
+      formatDb(
+        midSlider.value
+      );
+
+
+    if (
+      midFilter &&
+      audioContext
+    ) {
+
+      midFilter.gain.setTargetAtTime(
+        Number(
+          midSlider.value
+        ),
+        audioContext.currentTime,
+        0.03
+      );
 
     }
 
+  }
+);
 
-    bassSlider.dispatchEvent(
-      new Event("input")
-    );
 
-    midSlider.dispatchEvent(
-      new Event("input")
-    );
+trebleSlider.addEventListener(
+  "input",
+  () => {
 
-    trebleSlider.dispatchEvent(
-      new Event("input")
+    trebleValue.textContent =
+      formatDb(
+        trebleSlider.value
+      );
+
+
+    if (
+      trebleFilter &&
+      audioContext
+    ) {
+
+      trebleFilter.gain.setTargetAtTime(
+        Number(
+          trebleSlider.value
+        ),
+        audioContext.currentTime,
+        0.03
+      );
+
+    }
+
+  }
+);
+
+
+/* -----------------------------
+   LISTENING PRESETS
+----------------------------- */
+
+document
+  .querySelectorAll(".preset")
+  .forEach(button => {
+
+    button.addEventListener(
+      "click",
+      () => {
+
+        document
+          .querySelectorAll(".preset")
+          .forEach(
+            item =>
+              item.classList.remove(
+                "selected"
+              )
+          );
+
+
+        button.classList.add(
+          "selected"
+        );
+
+
+        const mode =
+          button.dataset.mode;
+
+
+        if (
+          mode === "speech"
+        ) {
+
+          bassSlider.value =
+            -2;
+
+          midSlider.value =
+            4;
+
+          trebleSlider.value =
+            3;
+
+        }
+
+
+        if (
+          mode === "natural"
+        ) {
+
+          bassSlider.value =
+            0;
+
+          midSlider.value =
+            0;
+
+          trebleSlider.value =
+            0;
+
+        }
+
+
+        if (
+          mode === "bright"
+        ) {
+
+          bassSlider.value =
+            -4;
+
+          midSlider.value =
+            3;
+
+          trebleSlider.value =
+            6;
+
+        }
+
+
+        bassSlider.dispatchEvent(
+          new Event("input")
+        );
+
+        midSlider.dispatchEvent(
+          new Event("input")
+        );
+
+        trebleSlider.dispatchEvent(
+          new Event("input")
+        );
+
+      }
     );
 
   });
 
-});
+
+/* -----------------------------
+   8D ON / OFF
+----------------------------- */
+
+spatialToggle.addEventListener(
+  "change",
+  () => {
+
+    spatialStartTime =
+      performance.now();
 
 
-micSelect.addEventListener("change", async () => {
+    if (
+      !spatialToggle.checked
+    ) {
 
-  if (listening) {
+      manualPan.value =
+        0;
 
-    stopListening();
+      if (
+        stereoPanner &&
+        audioContext
+      ) {
 
-    await startListening();
+        stereoPanner.pan.setTargetAtTime(
+          0,
+          audioContext.currentTime,
+          0.03
+        );
+
+      }
+
+      updatePanDisplay(0);
+
+    }
+
+
+    if (listening) {
+
+      statusText.textContent =
+        spatialToggle.checked
+          ? "Listening • Spatial"
+          : "Listening";
+
+    }
 
   }
+);
 
-});
 
+/* -----------------------------
+   WIDTH
+----------------------------- */
+
+spatialWidth.addEventListener(
+  "input",
+  () => {
+
+    widthValue.textContent =
+      Math.round(
+        Number(
+          spatialWidth.value
+        ) * 100
+      )
+      + "%";
+
+  }
+);
+
+
+/* -----------------------------
+   SPEED
+----------------------------- */
+
+spatialSpeed.addEventListener(
+  "input",
+  () => {
+
+    speedValue.textContent =
+      Number(
+        spatialSpeed.value
+      ).toFixed(2)
+      + " Hz";
+
+  }
+);
+
+
+/* -----------------------------
+   MANUAL PAN
+----------------------------- */
+
+manualPan.addEventListener(
+  "input",
+  () => {
+
+    const pan =
+      Number(
+        manualPan.value
+      );
+
+
+    if (
+      spatialMode === "static" &&
+      spatialToggle.checked &&
+      stereoPanner &&
+      audioContext
+    ) {
+
+      stereoPanner.pan.setTargetAtTime(
+        pan,
+        audioContext.currentTime,
+        0.03
+      );
+
+    }
+
+
+    if (
+      spatialMode === "static"
+    ) {
+
+      updatePanDisplay(
+        pan
+      );
+
+    }
+
+  }
+);
+
+
+/* -----------------------------
+   SPATIAL MODES
+----------------------------- */
+
+document
+  .querySelectorAll(
+    ".mode-button"
+  )
+  .forEach(
+    button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          document
+            .querySelectorAll(
+              ".mode-button"
+            )
+            .forEach(
+              item =>
+                item.classList.remove(
+                  "selected"
+                )
+            );
+
+
+          button.classList.add(
+            "selected"
+          );
+
+
+          spatialMode =
+            button.dataset
+              .spatialMode;
+
+
+          spatialStartTime =
+            performance.now();
+
+
+          if (
+            spatialMode === "static"
+          ) {
+
+            updatePanDisplay(
+              Number(
+                manualPan.value
+              )
+            );
+
+          }
+
+        }
+      );
+
+    }
+  );
+
+
+/* -----------------------------
+   RESET CENTER
+----------------------------- */
+
+centerButton.addEventListener(
+  "click",
+  () => {
+
+    manualPan.value =
+      0;
+
+
+    updatePanDisplay(0);
+
+
+    spatialStartTime =
+      performance.now();
+
+
+    if (
+      stereoPanner &&
+      audioContext
+    ) {
+
+      stereoPanner.pan.setTargetAtTime(
+        0,
+        audioContext.currentTime,
+        0.03
+      );
+
+    }
+
+  }
+);
+
+
+/* -----------------------------
+   MICROPHONE SWITCHING
+----------------------------- */
+
+micSelect.addEventListener(
+  "change",
+  async () => {
+
+    if (listening) {
+
+      stopListening();
+
+      await startListening();
+
+    }
+
+  }
+);
+
+
+/* -----------------------------
+   INITIAL DEVICE LIST
+----------------------------- */
 
 if (
   navigator.mediaDevices &&
@@ -908,6 +1829,11 @@ if (
   loadMicrophones();
 
 }
+
+
+/* INITIAL UI */
+
+updatePanDisplay(0);
 
 </script>
 
