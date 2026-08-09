@@ -25,7 +25,7 @@ button,select,input{font:inherit}.start{width:100%;border:0;border-radius:18px;p
 .profiles{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px;scrollbar-width:none}.profiles::-webkit-scrollbar{display:none}.profile{white-space:nowrap;flex:0 0 auto}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.earGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.ear{background:#07171f;border:1px solid var(--line);border-radius:18px;padding:14px}.earHead{display:flex;justify-content:space-between;align-items:center}.earBadge{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#14323f;color:var(--accent);font-weight:900}.earNum{font-size:27px;font-weight:900}.ear small{color:var(--muted)}.earEQ{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}.minirow{display:grid;grid-template-columns:58px 1fr 45px;align-items:center;gap:8px;font-size:11px;color:var(--muted)}.minirow input{width:100%;accent-color:var(--blue)}.minirow b{color:var(--text);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
 .switchrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--line)}.switchrow:first-of-type{border-top:0}.switch{width:54px;height:30px;position:relative;flex:0 0 auto}.switch input{display:none}.track{position:absolute;inset:0;border-radius:999px;background:#243943;transition:.2s}.track::after{content:"";position:absolute;width:22px;height:22px;left:4px;top:4px;border-radius:50%;background:white;transition:.2s}.switch input:checked+.track{background:var(--accent)}.switch input:checked+.track::after{transform:translateX(24px)}
-.captionBox{min-height:96px;border:1px solid var(--line);border-radius:18px;background:#061119;padding:14px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:clamp(18px,5.5vw,28px);font-weight:760;line-height:1.25}.captionBox.muted{color:var(--muted);font-size:15px;font-weight:650}.captionTools{display:grid;grid-template-columns:1fr 145px;gap:8px;margin-top:10px}.captionBtn{border:1px solid rgba(101,201,255,.35);border-radius:14px;background:rgba(101,201,255,.08);color:var(--blue);font-weight:800;padding:12px}.captionBtn.on{background:var(--blue);color:#06131a}select{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px;background:#071820;color:white}
+.captionBox{min-height:108px;border:1px solid var(--line);border-radius:18px;background:#061119;padding:16px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:clamp(20px,6vw,30px);font-weight:800;line-height:1.28;letter-spacing:.005em}.captionBox.muted{color:var(--muted);font-size:15px;font-weight:650}.captionBox.live{border-color:rgba(101,201,255,.35);box-shadow:inset 0 0 28px rgba(101,201,255,.05)}.captionTools{display:grid;grid-template-columns:1fr 145px;gap:8px;margin-top:10px}.captionBtn{border:1px solid rgba(101,201,255,.35);border-radius:14px;background:rgba(101,201,255,.08);color:var(--blue);font-weight:800;padding:12px}.captionBtn.on{background:var(--blue);color:#06131a}.transcriptWrap{margin-top:12px;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#050d12}.transcriptHead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border-bottom:1px solid var(--line);background:#081820}.transcriptHead strong{font-size:13px}.transcriptHead span{color:var(--muted);font-size:11px}.clearTranscript{border:1px solid var(--line);border-radius:11px;padding:8px 10px;background:#0c202a;color:#cce0e8;font-weight:800;font-size:11px}.transcriptList{max-height:230px;overflow:auto;padding:8px 10px;scroll-behavior:smooth}.transcriptEmpty{padding:22px 8px;text-align:center;color:var(--muted);font-size:12px}.transcriptItem{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.06);font-size:16px;line-height:1.35}.transcriptItem:last-child{border-bottom:0}.transcriptTime{display:block;color:var(--muted);font-size:10px;margin-bottom:4px;font-variant-numeric:tabular-nums}.transcriptItem.newest{color:#f7fcff}.transcriptItem.interim{color:var(--blue);font-style:italic}.captionMeta{display:flex;justify-content:space-between;gap:8px;margin-top:8px;color:var(--muted);font-size:10px}select{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px;background:#071820;color:white}
 .spectrum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.band{background:#061119;border:1px solid var(--line);border-radius:15px;padding:10px;text-align:center}.band strong{display:block;font-size:12px}.bar{height:46px;margin:8px auto 0;width:10px;background:#122c36;border-radius:999px;overflow:hidden;display:flex;align-items:flex-end}.bar i{display:block;width:100%;height:0;background:var(--accent);border-radius:999px;transition:height 70ms linear}.band small{color:var(--muted);font-size:10px}
 .spatialViz{height:68px;background:#061119;border-radius:18px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.06);margin:12px 0}.spatialViz::before{content:"";position:absolute;left:12%;right:12%;top:50%;height:1px;background:rgba(255,255,255,.14)}.spatialViz::after{content:"";position:absolute;left:50%;top:18px;bottom:18px;width:1px;background:rgba(255,255,255,.14)}#spatialOrb{position:absolute;width:24px;height:24px;border-radius:50%;background:var(--accent);box-shadow:0 0 22px rgba(77,255,173,.7);left:calc(50% - 12px);top:22px}
 .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.chip{padding:7px 10px;border-radius:999px;background:#071820;border:1px solid var(--line);font-size:11px;color:var(--muted)}.chip.good{color:var(--accent);border-color:rgba(77,255,173,.2)}.safe{width:100%;border:1px solid rgba(255,200,90,.34);border-radius:16px;padding:14px;background:rgba(255,200,90,.08);color:var(--warn);font-weight:850}.footer{text-align:center;color:var(--muted);font-size:11px;line-height:1.5;padding:6px 12px}.studioOnly{display:none}.studio .studioOnly{display:block}.studio .studioGrid{display:grid}.divider{height:1px;background:var(--line);margin:14px 0}.note{padding:10px 12px;border-radius:14px;background:rgba(255,200,90,.06);border:1px solid rgba(255,200,90,.18);color:#d8c18c;font-size:11px;line-height:1.45}
@@ -72,8 +72,9 @@ button,select,input{font:inherit}.start{width:100%;border:0;border-radius:18px;p
   </section>
 
   <section class="card">
-    <div class="sectionTitle"><strong>Live Captions</strong><small id="captionState">optional</small></div>
-    <div id="captionBox" class="captionBox muted">Tap Start Captions when you want speech shown as text.</div>
+    <div class="sectionTitle"><strong>Conversation Transcript</strong><small id="captionState">optional</small></div>
+    <div id="captionBox" class="captionBox muted" aria-live="polite">Tap Start Captions to see the current sentence here.</div>
+    <div class="captionMeta"><span id="captionCurrentLabel">CURRENT SPEECH</span><span>History automatically keeps the last 30 seconds</span></div>
     <div class="captionTools">
       <button id="captionBtn" class="captionBtn">Start Captions</button>
       <select id="captionLang" aria-label="Caption language">
@@ -81,7 +82,16 @@ button,select,input{font:inherit}.start{width:100%;border:0;border-radius:18px;p
         <option value="es-US">Español</option>
       </select>
     </div>
-    <p class="hint">Captions use the browser's speech-recognition feature when available. Some browsers may process recognition online.</p>
+    <div class="transcriptWrap">
+      <div class="transcriptHead">
+        <div><strong>Recent Conversation</strong><br><span>Rolling 30-second transcript</span></div>
+        <button id="clearTranscript" class="clearTranscript">Clear</button>
+      </div>
+      <div id="transcriptList" class="transcriptList" aria-live="polite">
+        <div class="transcriptEmpty">Spoken sentences will appear here.</div>
+      </div>
+    </div>
+    <p class="hint">Captions use the browser's speech-recognition feature when available. Some browsers may process recognition online. The transcript shown here is kept only in this page's memory and is cleared when the page reloads.</p>
   </section>
 
   <section class="card">
@@ -173,12 +183,12 @@ button,select,input{font:inherit}.start{width:100%;border:0;border-radius:18px;p
 let ctx,stream,source,hp,warmthFilter,clarityFilter,compressor,gateNode,baseGain,autoGainNode,panner,splitter,merger,limiter,outputAnalyser,inputAnalyser;
 let dirSplitter,dirLeftAnalyser,dirRightAnalyser,leftBassNode,leftSpeechNode,leftTrebleNode,rightBassNode,rightSpeechNode,rightTrebleNode,leftGainNode,rightGainNode;
 let running=false,meterRAF=0,spatialRAF=0,spatialStart=0,workletReady=false,inputChannels=1,adaptiveNoise=.0025,voiceHoldUntil=0,currentAuto=1;
-let recognition=null,captionsWanted=false,captionFinal=[];
+let recognition=null,captionsWanted=false,captionHistory=[],captionInterim='',transcriptTimer=0;
 
 const $=id=>document.getElementById(id);
 const ui={
  app:$('app'),simpleMode:$('simpleMode'),studioMode:$('studioMode'),start:$('startBtn'),conversation:$('conversationBtn'),mainOrb:$('mainOrb'),orbText:$('orbText'),meter:$('meterFill'),status:$('statusText'),safety:$('safetyText'),directionArrow:$('directionArrow'),directionText:$('directionText'),voiceFlag:$('voiceFlag'),autoReadout:$('autoReadout'),
- profileLabel:$('profileLabel'),captionBox:$('captionBox'),captionBtn:$('captionBtn'),captionLang:$('captionLang'),captionState:$('captionState'),
+ profileLabel:$('profileLabel'),captionBox:$('captionBox'),captionBtn:$('captionBtn'),captionLang:$('captionLang'),captionState:$('captionState'),captionCurrentLabel:$('captionCurrentLabel'),transcriptList:$('transcriptList'),clearTranscript:$('clearTranscript'),
  autoGain:$('autoGainToggle'),echo:$('echoToggle'),noiseReadout:$('noiseReadout'),rumble:$('rumble'),rumbleValue:$('rumbleValue'),
  gain:$('gain'),gainValue:$('gainValue'),clarity:$('clarity'),clarityValue:$('clarityValue'),warmth:$('warmth'),warmthValue:$('warmthValue'),lowBar:$('lowBar'),voiceBar:$('voiceBar'),highBar:$('highBar'),
  left:$('leftGain'),right:$('rightGain'),leftNum:$('leftNum'),rightNum:$('rightNum'),leftBass:$('leftBass'),leftSpeech:$('leftSpeech'),leftTreble:$('leftTreble'),rightBass:$('rightBass'),rightSpeech:$('rightSpeech'),rightTreble:$('rightTreble'),leftBassV:$('leftBassV'),leftSpeechV:$('leftSpeechV'),leftTrebleV:$('leftTrebleV'),rightBassV:$('rightBassV'),rightSpeechV:$('rightSpeechV'),rightTrebleV:$('rightTrebleV'),
@@ -386,21 +396,48 @@ function syncControls(){
 }
 
 function captionSupport(){return window.SpeechRecognition||window.webkitSpeechRecognition}
-async function startCaptions(){
- const SR=captionSupport();if(!SR){ui.captionState.textContent='not supported';ui.captionBox.textContent='Speech recognition is not exposed by this browser.';ui.captionBox.classList.add('muted');return}
- if(!running){const ok=await start();if(!ok)return}
- stopCaptions(false);captionsWanted=true;recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.lang=ui.captionLang.value;
- recognition.onstart=()=>{ui.captionBtn.textContent='Stop Captions';ui.captionBtn.classList.add('on');ui.captionState.textContent='listening';ui.captionBox.classList.remove('muted');if(!captionFinal.length)ui.captionBox.textContent='Listening…'};
- recognition.onresult=e=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const text=e.results[i][0]?.transcript?.trim()||'';if(e.results[i].isFinal&&text){captionFinal.push(text);captionFinal=captionFinal.slice(-3)}else if(text)interim+=text+' '}const out=[...captionFinal,interim.trim()].filter(Boolean).join('  ');if(out)ui.captionBox.textContent=out.slice(-420)};
- recognition.onerror=e=>{if(e.error!=='no-speech'){ui.captionState.textContent='error';ui.captionBox.textContent='Caption error: '+e.error;ui.captionBox.classList.add('muted')}};
- recognition.onend=()=>{if(captionsWanted&&running)setTimeout(()=>{try{recognition?.start()}catch(e){}},250);else{ui.captionBtn.textContent='Start Captions';ui.captionBtn.classList.remove('on');ui.captionState.textContent='optional'}};
- try{recognition.start()}catch(e){captionsWanted=false;ui.captionState.textContent='unavailable';ui.captionBox.textContent='Could not start captions in this browser.';ui.captionBox.classList.add('muted')}
+function captionClock(ts){const d=new Date(ts);return d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})}
+function pruneTranscript(){
+ const cutoff=Date.now()-30000;captionHistory=captionHistory.filter(x=>x.ts>=cutoff);renderTranscript();
 }
-function stopCaptions(clearWanted=true){if(clearWanted)captionsWanted=false;if(recognition){recognition.onend=null;try{recognition.stop()}catch(e){}recognition=null}ui.captionBtn.textContent='Start Captions';ui.captionBtn.classList.remove('on');ui.captionState.textContent='optional'}
+function renderTranscript(){
+ if(!ui.transcriptList)return;
+ const cutoff=Date.now()-30000;captionHistory=captionHistory.filter(x=>x.ts>=cutoff);
+ const rows=captionHistory.map((x,i)=>`<div class="transcriptItem ${i===captionHistory.length-1?'newest':''}"><span class="transcriptTime">${captionClock(x.ts)}</span>${escapeTranscript(x.text)}</div>`);
+ if(captionInterim.trim())rows.push(`<div class="transcriptItem interim"><span class="transcriptTime">now</span>${escapeTranscript(captionInterim.trim())}</div>`);
+ ui.transcriptList.innerHTML=rows.length?rows.join(''):'<div class="transcriptEmpty">Spoken sentences will appear here.</div>';
+ ui.transcriptList.scrollTop=ui.transcriptList.scrollHeight;
+}
+function escapeTranscript(text){const d=document.createElement('div');d.textContent=text;return d.innerHTML}
+function clearTranscript(){captionHistory=[];captionInterim='';renderTranscript();if(captionsWanted){ui.captionBox.textContent='Listening…';ui.captionBox.classList.remove('muted')}else{ui.captionBox.textContent='Tap Start Captions to see the current sentence here.';ui.captionBox.classList.add('muted')}}
+function setCurrentCaption(text,isInterim=false){
+ const clean=(text||'').trim();
+ if(clean){ui.captionBox.textContent=clean;ui.captionBox.classList.remove('muted');ui.captionBox.classList.toggle('live',true);ui.captionCurrentLabel.textContent=isInterim?'HEARING NOW…':'LAST SENTENCE'}
+ else if(captionsWanted){ui.captionBox.textContent='Listening…';ui.captionBox.classList.remove('muted');ui.captionBox.classList.add('live');ui.captionCurrentLabel.textContent='CURRENT SPEECH'}
+}
+async function startCaptions(){
+ const SR=captionSupport();if(!SR){ui.captionState.textContent='not supported';ui.captionBox.textContent='Speech recognition is not exposed by this browser.';ui.captionBox.classList.add('muted');ui.captionBox.classList.remove('live');return}
+ if(!running){const ok=await start();if(!ok)return}
+ stopCaptions(false);captionsWanted=true;recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.maxAlternatives=1;recognition.lang=ui.captionLang.value;
+ recognition.onstart=()=>{ui.captionBtn.textContent='Stop Captions';ui.captionBtn.classList.add('on');ui.captionState.textContent='listening';ui.captionBox.classList.remove('muted');ui.captionBox.classList.add('live');if(!captionHistory.length)ui.captionBox.textContent='Listening…';if(!transcriptTimer)transcriptTimer=setInterval(pruneTranscript,1000)};
+ recognition.onresult=e=>{
+   let interim='';
+   for(let i=e.resultIndex;i<e.results.length;i++){
+     const text=e.results[i][0]?.transcript?.trim()||'';
+     if(e.results[i].isFinal&&text){captionHistory.push({text,ts:Date.now()});captionInterim='';setCurrentCaption(text,false)}
+     else if(text)interim+=(interim?' ':'')+text;
+   }
+   captionInterim=interim.trim();if(captionInterim)setCurrentCaption(captionInterim,true);renderTranscript();
+ };
+ recognition.onerror=e=>{if(e.error!=='no-speech'){ui.captionState.textContent='error';ui.captionBox.textContent='Caption error: '+e.error;ui.captionBox.classList.add('muted');ui.captionBox.classList.remove('live')}};
+ recognition.onend=()=>{if(captionsWanted&&running)setTimeout(()=>{try{recognition?.start()}catch(e){}},250);else{ui.captionBtn.textContent='Start Captions';ui.captionBtn.classList.remove('on');ui.captionState.textContent='optional';ui.captionBox.classList.remove('live')}};
+ try{recognition.start()}catch(e){captionsWanted=false;ui.captionState.textContent='unavailable';ui.captionBox.textContent='Could not start captions in this browser.';ui.captionBox.classList.add('muted');ui.captionBox.classList.remove('live')}
+}
+function stopCaptions(clearWanted=true){if(clearWanted)captionsWanted=false;if(recognition){recognition.onend=null;try{recognition.stop()}catch(e){}recognition=null}captionInterim='';renderTranscript();if(transcriptTimer){clearInterval(transcriptTimer);transcriptTimer=0}ui.captionBtn.textContent='Start Captions';ui.captionBtn.classList.remove('on');ui.captionState.textContent='optional';ui.captionBox.classList.remove('live')}
 
 ui.simpleMode.addEventListener('click',()=>setUIMode(false));ui.studioMode.addEventListener('click',()=>setUIMode(true));
 ui.start.addEventListener('click',()=>running?stop():start());ui.conversation.addEventListener('click',conversationPreset);ui.safeReset.addEventListener('click',conversationPreset);
-ui.captionBtn.addEventListener('click',()=>captionsWanted?stopCaptions(true):startCaptions());ui.captionLang.addEventListener('change',()=>{if(captionsWanted)startCaptions()});
+ui.captionBtn.addEventListener('click',()=>captionsWanted?stopCaptions(true):startCaptions());ui.captionLang.addEventListener('change',()=>{if(captionsWanted)startCaptions()});ui.clearTranscript.addEventListener('click',clearTranscript);
 [ui.gain,ui.clarity,ui.warmth,ui.rumble,ui.left,ui.right,ui.leftBass,ui.leftSpeech,ui.leftTreble,ui.rightBass,ui.rightSpeech,ui.rightTreble,ui.spatialAmount,ui.spatialSpeed].forEach(x=>x.addEventListener('input',()=>{syncControls();document.querySelectorAll('.profile').forEach(b=>b.classList.remove('on'));ui.profileLabel.textContent='Custom'}));
 ui.autoGain.addEventListener('change',()=>{if(!ui.autoGain.checked){currentAuto=1;if(autoGainNode&&ctx)autoGainNode.gain.setTargetAtTime(1,ctx.currentTime,.05)}});
 document.querySelectorAll('.profile').forEach(b=>b.addEventListener('click',()=>applyProfile(b.dataset.profile)));
@@ -408,7 +445,7 @@ document.querySelectorAll('#noiseModes button').forEach(b=>b.addEventListener('c
 document.querySelectorAll('#spatialModes button').forEach(b=>b.addEventListener('click',()=>{setSegment('spatialModes','spatial',b.dataset.spatial);spatialStart=performance.now();if(b.dataset.spatial==='move'&&Number(ui.spatialAmount.value)===0)ui.spatialAmount.value=.65;syncControls()}));
 ui.echo.addEventListener('change',applyTrackProcessing);ui.mic.addEventListener('change',async()=>{if(running){await stop();await start()}});
 
-refreshSupport();setUIMode(false);syncControls();loadMics();
+refreshSupport();setUIMode(false);syncControls();renderTranscript();loadMics();
 </script>
 </body>
 </html>
