@@ -1,1841 +1,232 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-/>
-
-<title>Hear Assist Spatial</title>
-
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#071118" />
+<title>Hear Assist Lab</title>
 <style>
-  * {
-    box-sizing: border-box;
-  }
-
-  html, body {
-    margin: 0;
-    width: 100%;
-    min-height: 100%;
-    background:
-      radial-gradient(circle at top, #173044 0%, #09131c 45%, #05090d 100%);
-    color: white;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  }
-
-  body {
-    min-height: 100dvh;
-    display: flex;
-    justify-content: center;
-    padding: 18px;
-  }
-
-  .app {
-    width: min(620px, 100%);
-    margin: auto;
-  }
-
-  .header {
-    text-align: center;
-    margin-bottom: 22px;
-  }
-
-  .logo {
-    font-size: 42px;
-    margin-bottom: 4px;
-  }
-
-  h1 {
-    margin: 0;
-    font-size: clamp(28px, 7vw, 42px);
-  }
-
-  .subtitle {
-    margin-top: 6px;
-    color: #a9bdc9;
-    font-size: 14px;
-  }
-
-  .card {
-    background: rgba(13, 26, 36, 0.82);
-    border: 1px solid rgba(255,255,255,.12);
-    border-radius: 24px;
-    padding: 20px;
-    margin-bottom: 15px;
-    backdrop-filter: blur(14px);
-    box-shadow: 0 15px 45px rgba(0,0,0,.28);
-  }
-
-  .status-area {
-    text-align: center;
-  }
-
-  .status-dot {
-    width: 12px;
-    height: 12px;
-    background: #777;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 7px;
-  }
-
-  .status-dot.active {
-    background: #4cff9b;
-    box-shadow: 0 0 16px #4cff9b;
-  }
-
-  #levelContainer {
-    height: 14px;
-    border-radius: 20px;
-    overflow: hidden;
-    background: #081015;
-    margin-top: 16px;
-  }
-
-  #level {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(
-      90deg,
-      #4cff9b 0%,
-      #f6d365 70%,
-      #ff6868 100%
-    );
-  }
-
-  button {
-    width: 100%;
-    border: none;
-    border-radius: 18px;
-    padding: 18px;
-    font-size: 18px;
-    font-weight: 700;
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-
-  #startButton {
-    background: #4cff9b;
-    color: #03150a;
-  }
-
-  #startButton.running {
-    background: #ff6262;
-    color: white;
-  }
-
-  .control {
-    margin: 22px 0;
-  }
-
-  .control:first-child {
-    margin-top: 0;
-  }
-
-  .control:last-child {
-    margin-bottom: 0;
-  }
-
-  .control-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 15px;
-    margin-bottom: 10px;
-  }
-
-  .label {
-    font-weight: 650;
-    font-size: 16px;
-  }
-
-  .value {
-    color: #4cff9b;
-    font-variant-numeric: tabular-nums;
-  }
-
-  input[type="range"] {
-    width: 100%;
-    height: 34px;
-    accent-color: #4cff9b;
-  }
-
-  select {
-    width: 100%;
-    padding: 14px;
-    background: #0a1821;
-    color: white;
-    border-radius: 13px;
-    border: 1px solid rgba(255,255,255,.15);
-    font-size: 16px;
-  }
-
-  .preset-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-
-  .preset,
-  .mode-button {
-    background: #142734;
-    color: #d7e7ef;
-    padding: 13px 7px;
-    font-size: 14px;
-  }
-
-  .preset.selected,
-  .mode-button.selected {
-    background: #4cff9b;
-    color: #05150c;
-  }
-
-  .big-value {
-    text-align: center;
-    font-size: 46px;
-    font-weight: 750;
-    color: #4cff9b;
-    line-height: 1;
-  }
-
-  .big-label {
-    text-align: center;
-    color: #91a7b4;
-    font-size: 12px;
-    margin-top: 7px;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-  }
-
-  .spatial-visual {
-    height: 72px;
-    background: #081015;
-    border-radius: 20px;
-    position: relative;
-    overflow: hidden;
-    margin: 18px 0;
-  }
-
-  .spatial-line {
-    position: absolute;
-    left: 12%;
-    right: 12%;
-    height: 2px;
-    top: 50%;
-    background: rgba(255,255,255,.12);
-  }
-
-  .spatial-center {
-    position: absolute;
-    width: 2px;
-    height: 34px;
-    top: 19px;
-    left: 50%;
-    background: rgba(255,255,255,.18);
-  }
-
-  #spatialOrb {
-    position: absolute;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    left: calc(50% - 13px);
-    top: 23px;
-    background: #4cff9b;
-    box-shadow:
-      0 0 8px #4cff9b,
-      0 0 25px rgba(76,255,155,.7);
-    transition: left .03s linear;
-  }
-
-  .toggle {
-    position: relative;
-    width: 58px;
-    height: 32px;
-    flex-shrink: 0;
-  }
-
-  .toggle input {
-    display: none;
-  }
-
-  .toggle-track {
-    position: absolute;
-    inset: 0;
-    background: #243744;
-    border-radius: 999px;
-    transition: .2s;
-  }
-
-  .toggle-track::after {
-    content: "";
-    position: absolute;
-    width: 24px;
-    height: 24px;
-    top: 4px;
-    left: 4px;
-    background: white;
-    border-radius: 50%;
-    transition: .2s;
-  }
-
-  .toggle input:checked + .toggle-track {
-    background: #4cff9b;
-  }
-
-  .toggle input:checked + .toggle-track::after {
-    transform: translateX(26px);
-  }
-
-  .spatial-options {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .small-button {
-    padding: 13px 8px;
-    font-size: 14px;
-  }
-
-  .reset-button {
-    margin-top: 12px;
-    background: #203442;
-    color: white;
-  }
-
-  .warning {
-    color: #aac0cc;
-    font-size: 12px;
-    line-height: 1.55;
-    text-align: center;
-    padding-bottom: 30px;
-  }
+:root{--bg:#061017;--card:#0c1b24;--card2:#102630;--text:#f4fbff;--muted:#91aab6;--accent:#4dffad;--warn:#ffc85a;--danger:#ff6b72;--line:rgba(255,255,255,.1)}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(circle at 50% -10%,#183748 0,#08151d 38%,#04090d 100%);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}body{min-height:100dvh;padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom);-webkit-tap-highlight-color:transparent}.app{width:min(680px,100%);margin:auto;padding:14px 0 34px}.top{text-align:center;padding:12px 0 16px}.brand{font-size:13px;letter-spacing:.28em;color:var(--accent);font-weight:800}.top h1{font-size:clamp(30px,9vw,48px);margin:6px 0 2px}.sub{color:var(--muted);font-size:13px}.card{background:linear-gradient(180deg,rgba(16,38,48,.92),rgba(8,22,30,.94));border:1px solid var(--line);border-radius:24px;padding:18px;margin-bottom:12px;box-shadow:0 15px 40px rgba(0,0,0,.24);backdrop-filter:blur(14px)}.hero{text-align:center}.orb{width:142px;height:142px;margin:4px auto 14px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,#183844 0,#0a1b24 58%,#061017 100%);border:1px solid rgba(77,255,173,.2);box-shadow:inset 0 0 32px rgba(77,255,173,.08),0 0 0 8px rgba(255,255,255,.02);position:relative}.orb::before,.orb::after{content:"";position:absolute;border-radius:50%;inset:14px;border:1px solid rgba(77,255,173,.12)}.orb::after{inset:32px}.orb.active{box-shadow:inset 0 0 35px rgba(77,255,173,.16),0 0 36px rgba(77,255,173,.16)}.orbText{font-size:30px;font-weight:850;color:var(--accent)}.orbLabel{font-size:10px;letter-spacing:.17em;color:var(--muted)}.meter{height:12px;border-radius:999px;overflow:hidden;background:#020608;border:1px solid rgba(255,255,255,.07)}.meter>div{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--warn),var(--danger));transition:width 45ms linear}.statusrow{display:flex;justify-content:space-between;gap:12px;margin-top:10px;color:var(--muted);font-size:12px}.statusgood{color:var(--accent)}.statuswarn{color:var(--warn)}button,select,input{font:inherit}.start{width:100%;border:0;border-radius:18px;padding:18px;font-weight:850;font-size:19px;background:var(--accent);color:#032014;touch-action:manipulation}.start.running{background:var(--danger);color:white}.conversation{width:100%;margin-top:10px;border:1px solid rgba(77,255,173,.3);border-radius:18px;padding:15px;background:rgba(77,255,173,.08);color:var(--accent);font-weight:800}.sectionTitle{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.sectionTitle strong{font-size:17px}.sectionTitle small{color:var(--muted)}.control{margin:18px 0}.row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}.row .value{color:var(--accent);font-variant-numeric:tabular-nums}.hint{color:var(--muted);font-size:12px;line-height:1.45}.slider{width:100%;height:34px;accent-color:var(--accent)}.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.seg button{border:1px solid var(--line);border-radius:14px;padding:12px 8px;background:#0b202a;color:#cbe0e8;font-weight:750}.seg button.on{background:var(--accent);color:#052017;border-color:transparent}.earGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.ear{background:#07171f;border:1px solid var(--line);border-radius:18px;padding:14px}.earHead{display:flex;justify-content:space-between;align-items:center}.earBadge{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#14323f;color:var(--accent);font-weight:900}.earNum{font-size:27px;font-weight:850}.ear small{color:var(--muted)}.spatialViz{height:68px;background:#061119;border-radius:18px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.06);margin:12px 0}.spatialViz::before{content:"";position:absolute;left:12%;right:12%;top:50%;height:1px;background:rgba(255,255,255,.14)}.spatialViz::after{content:"";position:absolute;left:50%;top:18px;bottom:18px;width:1px;background:rgba(255,255,255,.14)}#spatialOrb{position:absolute;width:24px;height:24px;border-radius:50%;background:var(--accent);box-shadow:0 0 22px rgba(77,255,173,.7);left:calc(50% - 12px);top:22px}.switchrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--line)}.switchrow:first-of-type{border-top:0}.switch{width:54px;height:30px;position:relative;flex:0 0 auto}.switch input{display:none}.track{position:absolute;inset:0;border-radius:999px;background:#243943;transition:.2s}.track::after{content:"";position:absolute;width:22px;height:22px;left:4px;top:4px;border-radius:50%;background:white;transition:.2s}.switch input:checked+.track{background:var(--accent)}.switch input:checked+.track::after{transform:translateX(24px)}select{width:100%;border:1px solid var(--line);border-radius:14px;padding:14px;background:#071820;color:white}.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.chip{padding:7px 10px;border-radius:999px;background:#071820;border:1px solid var(--line);font-size:11px;color:var(--muted)}.chip.good{color:var(--accent);border-color:rgba(77,255,173,.2)}.safe{width:100%;border:1px solid rgba(255,200,90,.34);border-radius:16px;padding:14px;background:rgba(255,200,90,.08);color:var(--warn);font-weight:800}.footer{text-align:center;color:var(--muted);font-size:11px;line-height:1.5;padding:6px 12px}@media(max-width:430px){.card{padding:15px}.earGrid{gap:7px}.seg button{font-size:12px}.orb{width:128px;height:128px}}
 </style>
 </head>
-
 <body>
-
 <div class="app">
+  <header class="top">
+    <div class="brand">HEAR ASSIST LAB</div>
+    <h1>Conversation Lens</h1>
+    <div class="sub">Live speech-focused headphone listening</div>
+  </header>
 
-  <div class="header">
-    <div class="logo">◉</div>
-    <h1>Hear Assist</h1>
-    <div class="subtitle">
-      Live microphone amplification + spatial audio
+  <section class="card hero">
+    <div id="mainOrb" class="orb"><div><div id="orbText" class="orbText">OFF</div><div class="orbLabel">AUDIO ENGINE</div></div></div>
+    <div class="meter"><div id="meterFill"></div></div>
+    <div class="statusrow"><span id="statusText">Microphone stopped</span><span id="safetyText">Limiter ready</span></div>
+  </section>
+
+  <section class="card">
+    <button id="startBtn" class="start">Start Listening</button>
+    <button id="conversationBtn" class="conversation">Conversation Mode</button>
+  </section>
+
+  <section class="card">
+    <div class="sectionTitle"><strong>Adaptive Quiet</strong><small id="noiseReadout">SMART</small></div>
+    <div class="seg" id="noiseModes">
+      <button data-noise="off">Off</button>
+      <button data-noise="smart" class="on">Smart</button>
+      <button data-noise="strong">Strong</button>
     </div>
-  </div>
+    <p class="hint">Uses the phone/browser's noise suppression when available plus a gentle adaptive background attenuator. It is noise reduction, not true headphone ANC.</p>
+    <div class="switchrow"><div><strong>Echo / Feedback Guard</strong><div class="hint">Requests browser echo cancellation when supported.</div></div><label class="switch"><input id="echoToggle" type="checkbox" checked><span class="track"></span></label></div>
+  </section>
 
+  <section class="card">
+    <div class="sectionTitle"><strong>Sound</strong><small>speech-first</small></div>
+    <div class="control"><div class="row"><span>Amplification</span><span id="gainValue" class="value">1.00×</span></div><input id="gain" class="slider" type="range" min="0.50" max="1.80" step="0.05" value="1"></div>
+    <div class="control"><div class="row"><span>Speech Clarity</span><span id="clarityValue" class="value">+4 dB</span></div><input id="clarity" class="slider" type="range" min="-3" max="9" step="1" value="4"></div>
+    <div class="control"><div class="row"><span>Warmth</span><span id="warmthValue" class="value">-2 dB</span></div><input id="warmth" class="slider" type="range" min="-8" max="8" step="1" value="-2"></div>
+  </section>
 
-  <div class="card status-area">
-
-    <div>
-      <span id="statusDot" class="status-dot"></span>
-      <span id="statusText">Microphone off</span>
+  <section class="card">
+    <div class="sectionTitle"><strong>Each Ear</strong><small>independent level</small></div>
+    <div class="earGrid">
+      <div class="ear"><div class="earHead"><div class="earBadge">L</div><div><div id="leftNum" class="earNum">100%</div><small>Left ear</small></div></div><input id="leftGain" class="slider" type="range" min="0" max="1.30" step="0.05" value="1"></div>
+      <div class="ear"><div class="earHead"><div class="earBadge">R</div><div><div id="rightNum" class="earNum">100%</div><small>Right ear</small></div></div><input id="rightGain" class="slider" type="range" min="0" max="1.30" step="0.05" value="1"></div>
     </div>
+  </section>
 
-    <div id="levelContainer">
-      <div id="level"></div>
+  <section class="card">
+    <div class="sectionTitle"><strong>Spatial / 8D</strong><small id="spatialLabel">OFF</small></div>
+    <div class="seg" id="spatialModes">
+      <button data-spatial="off" class="on">Centered</button>
+      <button data-spatial="move">8D Move</button>
+      <button data-spatial="manual">Manual</button>
     </div>
+    <div class="spatialViz"><div id="spatialOrb"></div></div>
+    <div class="control"><div class="row"><span>Width / Position</span><span id="spatialValue" class="value">0%</span></div><input id="spatialAmount" class="slider" type="range" min="-1" max="1" step="0.01" value="0"></div>
+    <div class="control"><div class="row"><span>8D Speed</span><span id="speedValue" class="value">0.16 Hz</span></div><input id="spatialSpeed" class="slider" type="range" min="0.04" max="0.55" step="0.01" value="0.16"></div>
+  </section>
 
-  </div>
-
-
-  <div class="card">
-    <button id="startButton">
-      Start Listening
-    </button>
-  </div>
-
-
-  <div class="card">
-
-    <div class="big-value">
-      <span id="gainBig">1.00</span>×
+  <section class="card">
+    <div class="sectionTitle"><strong>Input & Engine</strong><small id="engineState">ready</small></div>
+    <select id="micSelect"><option value="">Default microphone</option></select>
+    <div class="chips">
+      <span id="chipWorklet" class="chip">Adaptive DSP: checking</span>
+      <span id="chipNoise" class="chip">Noise suppression: checking</span>
+      <span id="chipEcho" class="chip">Echo cancellation: checking</span>
+      <span id="chipRate" class="chip">Sample rate: --</span>
+      <span id="chipLatency" class="chip">Latency: --</span>
     </div>
+  </section>
 
-    <div class="big-label">
-      Amplification
-    </div>
-
-    <div class="control">
-      <input
-        id="gain"
-        type="range"
-        min="0.5"
-        max="2.5"
-        value="1"
-        step="0.05"
-      >
-    </div>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="control">
-
-      <div class="control-header">
-        <span class="label">Bass</span>
-        <span id="bassValue" class="value">0 dB</span>
-      </div>
-
-      <input
-        id="bass"
-        type="range"
-        min="-12"
-        max="12"
-        value="0"
-        step="1"
-      >
-
-    </div>
-
-
-    <div class="control">
-
-      <div class="control-header">
-        <span class="label">Speech</span>
-        <span id="midValue" class="value">+3 dB</span>
-      </div>
-
-      <input
-        id="mid"
-        type="range"
-        min="-12"
-        max="12"
-        value="3"
-        step="1"
-      >
-
-    </div>
-
-
-    <div class="control">
-
-      <div class="control-header">
-        <span class="label">Treble</span>
-        <span id="trebleValue" class="value">+2 dB</span>
-      </div>
-
-      <input
-        id="treble"
-        type="range"
-        min="-12"
-        max="12"
-        value="2"
-        step="1"
-      >
-
-    </div>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="control-header">
-      <span class="label">Listening Mode</span>
-    </div>
-
-    <div class="preset-grid">
-
-      <button class="preset selected" data-mode="speech">
-        Speech
-      </button>
-
-      <button class="preset" data-mode="natural">
-        Natural
-      </button>
-
-      <button class="preset" data-mode="bright">
-        Clear
-      </button>
-
-    </div>
-
-  </div>
-
-
-  <!-- SPATIAL AUDIO -->
-
-  <div class="card">
-
-    <div class="control-header">
-
-      <div>
-        <div class="label">8D Spatial Sound</div>
-        <div style="color:#91a7b4;font-size:12px;margin-top:3px;">
-          Stereo movement effect
-        </div>
-      </div>
-
-      <label class="toggle">
-        <input id="spatialToggle" type="checkbox">
-        <span class="toggle-track"></span>
-      </label>
-
-    </div>
-
-
-    <div class="spatial-visual">
-
-      <div class="spatial-line"></div>
-      <div class="spatial-center"></div>
-      <div id="spatialOrb"></div>
-
-    </div>
-
-
-    <div class="spatial-options">
-
-      <button
-        class="mode-button selected small-button"
-        data-spatial-mode="move"
-      >
-        8D Move
-      </button>
-
-      <button
-        class="mode-button small-button"
-        data-spatial-mode="static"
-      >
-        Static Position
-      </button>
-
-    </div>
-
-
-    <div class="control">
-
-      <div class="control-header">
-        <span class="label">Spatial Width</span>
-        <span id="widthValue" class="value">65%</span>
-      </div>
-
-      <input
-        id="spatialWidth"
-        type="range"
-        min="0"
-        max="1"
-        value="0.65"
-        step="0.01"
-      >
-
-    </div>
-
-
-    <div class="control">
-
-      <div class="control-header">
-        <span class="label">Movement Speed</span>
-        <span id="speedValue" class="value">0.20 Hz</span>
-      </div>
-
-      <input
-        id="spatialSpeed"
-        type="range"
-        min="0.03"
-        max="0.8"
-        value="0.20"
-        step="0.01"
-      >
-
-    </div>
-
-
-    <div class="control">
-
-      <div class="control-header">
-        <span class="label">Manual Position</span>
-        <span id="panValue" class="value">Center</span>
-      </div>
-
-      <input
-        id="manualPan"
-        type="range"
-        min="-1"
-        max="1"
-        value="0"
-        step="0.01"
-      >
-
-    </div>
-
-
-    <button id="centerButton" class="reset-button">
-      Reset Sound to Center
-    </button>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="control-header">
-      <span class="label">Microphone</span>
-    </div>
-
-    <select id="micSelect">
-      <option value="">Default microphone</option>
-    </select>
-
-  </div>
-
-
-  <div class="warning">
-    Use headphones before starting to reduce feedback.
-    Keep amplification at a comfortable level.
-    Spatial movement may make speech harder to understand,
-    so turn 8D mode off when maximum speech clarity is needed.
-  </div>
-
+  <section class="card"><button id="safeReset" class="safe">Safety Reset: Center + Conversation</button></section>
+  <div class="footer">Prototype only — not a medical device or calibrated hearing aid. Use headphones, start low, and stop if the sound becomes uncomfortable or distorted. Microphone access normally requires HTTPS or localhost.</div>
 </div>
 
-
 <script>
+let ctx, stream, source, hp, warmthFilter, clarityFilter, compressor, gateNode, master, panner, splitter, leftNode, rightNode, merger, limiter, analyser;
+let running=false, meterRAF=0, spatialRAF=0, spatialMode='off', spatialStart=0;
+let workletReady=false;
 
-let audioContext;
-let microphone;
-let stream;
+const $=id=>document.getElementById(id);
+const ui={
+  start:$('startBtn'), conversation:$('conversationBtn'), mainOrb:$('mainOrb'), orbText:$('orbText'), meter:$('meterFill'), status:$('statusText'), safety:$('safetyText'),
+  gain:$('gain'), gainValue:$('gainValue'), clarity:$('clarity'), clarityValue:$('clarityValue'), warmth:$('warmth'), warmthValue:$('warmthValue'),
+  left:$('leftGain'), right:$('rightGain'), leftNum:$('leftNum'), rightNum:$('rightNum'), echo:$('echoToggle'),
+  spatialAmount:$('spatialAmount'), spatialSpeed:$('spatialSpeed'), spatialValue:$('spatialValue'), speedValue:$('speedValue'), spatialLabel:$('spatialLabel'), spatialOrb:$('spatialOrb'),
+  mic:$('micSelect'), noiseReadout:$('noiseReadout'), engineState:$('engineState'), chipWorklet:$('chipWorklet'), chipNoise:$('chipNoise'), chipEcho:$('chipEcho'), chipRate:$('chipRate'), chipLatency:$('chipLatency'), safeReset:$('safeReset')
+};
 
-let highPass;
-let bassFilter;
-let midFilter;
-let trebleFilter;
+function db(v){v=Number(v);return (v>0?'+':'')+v+' dB'}
+function setChip(el,text,good=false){el.textContent=text;el.classList.toggle('good',good)}
+function supported(){return navigator.mediaDevices?.getSupportedConstraints?.()||{}}
+function selectedNoise(){return document.querySelector('#noiseModes button.on')?.dataset.noise||'smart'}
+function selectedSpatial(){return document.querySelector('#spatialModes button.on')?.dataset.spatial||'off'}
 
-let compressor;
-let masterGain;
-let stereoPanner;
-let limiter;
-let analyser;
-
-let listening = false;
-
-let meterFrame;
-let spatialFrame;
-
-let spatialMode = "move";
-let spatialStartTime = 0;
-
-
-/* -----------------------------
-   ELEMENTS
------------------------------ */
-
-const startButton =
-  document.getElementById("startButton");
-
-const statusText =
-  document.getElementById("statusText");
-
-const statusDot =
-  document.getElementById("statusDot");
-
-const level =
-  document.getElementById("level");
-
-
-const gainSlider =
-  document.getElementById("gain");
-
-const gainBig =
-  document.getElementById("gainBig");
-
-
-const bassSlider =
-  document.getElementById("bass");
-
-const midSlider =
-  document.getElementById("mid");
-
-const trebleSlider =
-  document.getElementById("treble");
-
-
-const bassValue =
-  document.getElementById("bassValue");
-
-const midValue =
-  document.getElementById("midValue");
-
-const trebleValue =
-  document.getElementById("trebleValue");
-
-
-const micSelect =
-  document.getElementById("micSelect");
-
-
-/* SPATIAL */
-
-const spatialToggle =
-  document.getElementById("spatialToggle");
-
-const spatialWidth =
-  document.getElementById("spatialWidth");
-
-const spatialSpeed =
-  document.getElementById("spatialSpeed");
-
-const manualPan =
-  document.getElementById("manualPan");
-
-const widthValue =
-  document.getElementById("widthValue");
-
-const speedValue =
-  document.getElementById("speedValue");
-
-const panValue =
-  document.getElementById("panValue");
-
-const spatialOrb =
-  document.getElementById("spatialOrb");
-
-const centerButton =
-  document.getElementById("centerButton");
-
-
-/* -----------------------------
-   UTILITIES
------------------------------ */
-
-function formatDb(value) {
-
-  const number = Number(value);
-
-  if (number > 0) {
-    return "+" + number + " dB";
-  }
-
-  return number + " dB";
-
+function refreshSupport(){
+  const s=supported();
+  setChip(ui.chipNoise,'Noise suppression: '+(s.noiseSuppression?'supported':'not exposed'),!!s.noiseSuppression);
+  setChip(ui.chipEcho,'Echo cancellation: '+(s.echoCancellation?'supported':'not exposed'),!!s.echoCancellation);
+  setChip(ui.chipWorklet,'Adaptive DSP: '+(('AudioWorkletNode' in window)?'available':'fallback'),('AudioWorkletNode' in window));
 }
 
-
-function updatePanDisplay(pan) {
-
-  pan = Math.max(-1, Math.min(1, pan));
-
-  const visualPercent =
-    12 + ((pan + 1) / 2) * 76;
-
-  spatialOrb.style.left =
-    `calc(${visualPercent}% - 13px)`;
-
-
-  if (Math.abs(pan) < 0.05) {
-
-    panValue.textContent = "Center";
-
-  } else if (pan < 0) {
-
-    panValue.textContent =
-      "Left " + Math.round(Math.abs(pan) * 100) + "%";
-
-  } else {
-
-    panValue.textContent =
-      "Right " + Math.round(pan * 100) + "%";
-
-  }
-
+async function loadMics(){
+  if(!navigator.mediaDevices?.enumerateDevices)return;
+  try{
+    const prev=ui.mic.value;
+    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput');
+    ui.mic.innerHTML='<option value="">Default microphone</option>';
+    devs.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Microphone ${i+1}`;ui.mic.appendChild(o)});
+    if([...ui.mic.options].some(o=>o.value===prev))ui.mic.value=prev;
+  }catch(e){}
 }
 
-
-/* -----------------------------
-   MICROPHONES
------------------------------ */
-
-async function loadMicrophones() {
-
-  try {
-
-    const devices =
-      await navigator.mediaDevices.enumerateDevices();
-
-    const microphones =
-      devices.filter(
-        device => device.kind === "audioinput"
-      );
-
-    const previous =
-      micSelect.value;
-
-
-    micSelect.innerHTML =
-      '<option value="">Default microphone</option>';
-
-
-    microphones.forEach((device, index) => {
-
-      const option =
-        document.createElement("option");
-
-      option.value =
-        device.deviceId;
-
-      option.textContent =
-        device.label ||
-        `Microphone ${index + 1}`;
-
-      micSelect.appendChild(option);
-
-    });
-
-
-    if (
-      [...micSelect.options].some(
-        option => option.value === previous
-      )
-    ) {
-
-      micSelect.value =
-        previous;
-
+async function createAdaptiveWorklet(){
+  if(!ctx?.audioWorklet || !('AudioWorkletNode' in window))return null;
+  const code=`
+  class AdaptiveQuietProcessor extends AudioWorkletProcessor{
+    constructor(){super();this.noise=0.0025;this.g=1;this.strength=.55;this.n=0;this.port.onmessage=e=>{if(e.data&&typeof e.data.strength==='number')this.strength=Math.max(0,Math.min(1,e.data.strength));};}
+    process(inputs,outputs){
+      const input=inputs[0],output=outputs[0]; if(!input.length)return true;
+      let sum=0,count=0;
+      for(let c=0;c<input.length;c++){const a=input[c];for(let i=0;i<a.length;i++){sum+=a[i]*a[i];count++;}}
+      const rms=Math.sqrt(sum/Math.max(1,count));
+      if(rms<this.noise*2.2)this.noise=this.noise*.995+rms*.005; else this.noise=this.noise*.9998+rms*.0002;
+      this.noise=Math.max(.0004,Math.min(.04,this.noise));
+      const t=Math.max(.0012,this.noise*2.5);
+      const floor=1-this.strength*.88;
+      let target=1;
+      if(rms<t)target=floor; else if(rms<t*2)target=floor+(1-floor)*((rms-t)/t);
+      const k=target>this.g?.18:.035; this.g+=(target-this.g)*k;
+      for(let c=0;c<output.length;c++){const src=input[Math.min(c,input.length-1)]||input[0],dst=output[c];for(let i=0;i<dst.length;i++)dst[i]=(src?.[i]||0)*this.g;}
+      if((this.n++%24)===0)this.port.postMessage({noise:this.noise,gain:this.g});
+      return true;
     }
-
   }
-
-  catch(error) {
-
-    console.log(
-      "Unable to list microphones:",
-      error
-    );
-
-  }
-
+  registerProcessor('adaptive-quiet',AdaptiveQuietProcessor);`;
+  const url=URL.createObjectURL(new Blob([code],{type:'application/javascript'}));
+  try{await ctx.audioWorklet.addModule(url);workletReady=true;return new AudioWorkletNode(ctx,'adaptive-quiet',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1]});}
+  catch(e){workletReady=false;return null;}finally{URL.revokeObjectURL(url)}
 }
 
-
-/* -----------------------------
-   START AUDIO
------------------------------ */
-
-async function startListening() {
-
-  try {
-
-    const selectedMic =
-      micSelect.value;
-
-
-    stream =
-      await navigator.mediaDevices.getUserMedia({
-
-        audio: {
-
-          deviceId:
-            selectedMic
-              ? { exact: selectedMic }
-              : undefined,
-
-          echoCancellation: false,
-          autoGainControl: false,
-          noiseSuppression: false,
-
-          channelCount: 1
-
-        }
-
-      });
-
-
-    audioContext =
-      new (
-        window.AudioContext ||
-        window.webkitAudioContext
-      )({
-        latencyHint: "interactive"
-      });
-
-
-    await audioContext.resume();
-
-
-    microphone =
-      audioContext.createMediaStreamSource(
-        stream
-      );
-
-
-    /* LOW CUT */
-
-    highPass =
-      audioContext.createBiquadFilter();
-
-    highPass.type =
-      "highpass";
-
-    highPass.frequency.value =
-      80;
-
-    highPass.Q.value =
-      0.7;
-
-
-    /* BASS */
-
-    bassFilter =
-      audioContext.createBiquadFilter();
-
-    bassFilter.type =
-      "lowshelf";
-
-    bassFilter.frequency.value =
-      250;
-
-    bassFilter.gain.value =
-      Number(bassSlider.value);
-
-
-    /* SPEECH */
-
-    midFilter =
-      audioContext.createBiquadFilter();
-
-    midFilter.type =
-      "peaking";
-
-    midFilter.frequency.value =
-      1800;
-
-    midFilter.Q.value =
-      0.9;
-
-    midFilter.gain.value =
-      Number(midSlider.value);
-
-
-    /* TREBLE */
-
-    trebleFilter =
-      audioContext.createBiquadFilter();
-
-    trebleFilter.type =
-      "highshelf";
-
-    trebleFilter.frequency.value =
-      4000;
-
-    trebleFilter.gain.value =
-      Number(trebleSlider.value);
-
-
-    /* COMPRESSOR */
-
-    compressor =
-      audioContext.createDynamicsCompressor();
-
-    compressor.threshold.value =
-      -24;
-
-    compressor.knee.value =
-      10;
-
-    compressor.ratio.value =
-      3;
-
-    compressor.attack.value =
-      0.005;
-
-    compressor.release.value =
-      0.15;
-
-
-    /* MASTER AMPLIFICATION */
-
-    masterGain =
-      audioContext.createGain();
-
-    masterGain.gain.value =
-      Number(gainSlider.value);
-
-
-    /* 8D / STEREO PANNER */
-
-    stereoPanner =
-      audioContext.createStereoPanner();
-
-    stereoPanner.pan.value =
-      Number(manualPan.value);
-
-
-    /* FINAL LIMITER */
-
-    limiter =
-      audioContext.createDynamicsCompressor();
-
-    limiter.threshold.value =
-      -5;
-
-    limiter.knee.value =
-      1;
-
-    limiter.ratio.value =
-      20;
-
-    limiter.attack.value =
-      0.002;
-
-    limiter.release.value =
-      0.08;
-
-
-    /* ANALYSER */
-
-    analyser =
-      audioContext.createAnalyser();
-
-    analyser.fftSize =
-      256;
-
-    analyser.smoothingTimeConstant =
-      0.7;
-
-
-    /*
-       AUDIO ROUTE
-
-       MICROPHONE
-          ↓
-       LOW CUT
-          ↓
-       BASS EQ
-          ↓
-       SPEECH EQ
-          ↓
-       TREBLE EQ
-          ↓
-       COMPRESSION
-          ↓
-       MASTER GAIN
-          ↓
-       8D STEREO PANNER
-          ↓
-       LIMITER
-          ↓
-       OUTPUT
-    */
-
-
-    microphone
-      .connect(highPass)
-      .connect(bassFilter)
-      .connect(midFilter)
-      .connect(trebleFilter)
-      .connect(compressor)
-      .connect(masterGain)
-      .connect(stereoPanner)
-      .connect(limiter)
-      .connect(analyser)
-      .connect(audioContext.destination);
-
-
-    listening =
-      true;
-
-
-    startButton.textContent =
-      "Stop Listening";
-
-    startButton.classList.add(
-      "running"
-    );
-
-
-    statusText.textContent =
-      spatialToggle.checked
-        ? "Listening • Spatial"
-        : "Listening";
-
-
-    statusDot.classList.add(
-      "active"
-    );
-
-
-    await loadMicrophones();
-
-
-    updateMeter();
-
-
-    spatialStartTime =
-      performance.now();
-
-    updateSpatialAudio(
-      spatialStartTime
-    );
-
-  }
-
-  catch(error) {
-
-    console.error(error);
-
-
-    statusText.textContent =
-      "Microphone unavailable";
-
-
-    alert(
-      "The microphone could not be started. " +
-      "Allow microphone access and make sure " +
-      "the page is running over HTTPS."
-    );
-
-  }
-
+function noiseStrength(){const m=selectedNoise();return m==='off'?0:m==='strong'?.88:.55}
+async function applyTrackProcessing(){
+  if(!stream)return;
+  const t=stream.getAudioTracks()[0]; if(!t)return;
+  const s=supported(), mode=selectedNoise(), c={};
+  if(s.noiseSuppression)c.noiseSuppression=mode!=='off';
+  if(s.echoCancellation)c.echoCancellation=ui.echo.checked;
+  if(s.autoGainControl)c.autoGainControl=false;
+  try{await t.applyConstraints(c)}catch(e){}
+  if(gateNode?.port)gateNode.port.postMessage({strength:noiseStrength()});
+  const settings=t.getSettings?.()||{};
+  if('noiseSuppression' in settings)setChip(ui.chipNoise,'Noise suppression: '+(settings.noiseSuppression?'ON':'OFF'),!!settings.noiseSuppression);
+  if('echoCancellation' in settings)setChip(ui.chipEcho,'Echo cancellation: '+(settings.echoCancellation?'ON':'OFF'),!!settings.echoCancellation);
 }
 
-
-/* -----------------------------
-   STOP
------------------------------ */
-
-function stopListening() {
-
-  listening =
-    false;
-
-
-  cancelAnimationFrame(
-    meterFrame
-  );
-
-  cancelAnimationFrame(
-    spatialFrame
-  );
-
-
-  if (stream) {
-
-    stream
-      .getTracks()
-      .forEach(
-        track => track.stop()
-      );
-
-    stream =
-      null;
-
-  }
-
-
-  if (audioContext) {
-
-    audioContext.close();
-
-    audioContext =
-      null;
-
-  }
-
-
-  microphone = null;
-  stereoPanner = null;
-  analyser = null;
-
-
-  level.style.width =
-    "0%";
-
-
-  updatePanDisplay(0);
-
-
-  startButton.textContent =
-    "Start Listening";
-
-  startButton.classList.remove(
-    "running"
-  );
-
-
-  statusText.textContent =
-    "Microphone off";
-
-  statusDot.classList.remove(
-    "active"
-  );
-
+async function start(){
+  if(!navigator.mediaDevices?.getUserMedia){alert('This browser does not expose microphone capture.');return;}
+  try{
+    const s=supported(), mode=selectedNoise();
+    const audio={channelCount:1};
+    if(ui.mic.value)audio.deviceId={exact:ui.mic.value};
+    if(s.noiseSuppression)audio.noiseSuppression=mode!=='off';
+    if(s.echoCancellation)audio.echoCancellation=ui.echo.checked;
+    if(s.autoGainControl)audio.autoGainControl=false;
+    stream=await navigator.mediaDevices.getUserMedia({audio});
+    ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'}); await ctx.resume();
+    source=ctx.createMediaStreamSource(stream);
+    hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=95;hp.Q.value=.65;
+    warmthFilter=ctx.createBiquadFilter();warmthFilter.type='lowshelf';warmthFilter.frequency.value=320;warmthFilter.gain.value=Number(ui.warmth.value);
+    clarityFilter=ctx.createBiquadFilter();clarityFilter.type='peaking';clarityFilter.frequency.value=2200;clarityFilter.Q.value=.85;clarityFilter.gain.value=Number(ui.clarity.value);
+    compressor=ctx.createDynamicsCompressor();compressor.threshold.value=-28;compressor.knee.value=12;compressor.ratio.value=3;compressor.attack.value=.004;compressor.release.value=.16;
+    gateNode=await createAdaptiveWorklet();
+    master=ctx.createGain();master.gain.value=Number(ui.gain.value);
+    panner=ctx.createStereoPanner();panner.pan.value=0;
+    splitter=ctx.createChannelSplitter(2);leftNode=ctx.createGain();rightNode=ctx.createGain();leftNode.gain.value=Number(ui.left.value);rightNode.gain.value=Number(ui.right.value);merger=ctx.createChannelMerger(2);
+    limiter=ctx.createDynamicsCompressor();limiter.threshold.value=-8;limiter.knee.value=2;limiter.ratio.value=20;limiter.attack.value=.001;limiter.release.value=.08;
+    analyser=ctx.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=.72;
+    source.connect(hp).connect(warmthFilter).connect(clarityFilter).connect(compressor);
+    if(gateNode){compressor.connect(gateNode);gateNode.connect(master)}else compressor.connect(master);
+    master.connect(panner).connect(splitter);splitter.connect(leftNode,0);splitter.connect(rightNode,1);leftNode.connect(merger,0,0);rightNode.connect(merger,0,1);merger.connect(limiter).connect(analyser).connect(ctx.destination);
+    running=true;spatialStart=performance.now();ui.start.textContent='Stop Listening';ui.start.classList.add('running');ui.mainOrb.classList.add('active');ui.orbText.textContent='LIVE';ui.status.textContent='Listening';ui.engineState.textContent='live';
+    setChip(ui.chipWorklet,'Adaptive DSP: '+(gateNode?'ON':'fallback'),!!gateNode);setChip(ui.chipRate,'Sample rate: '+ctx.sampleRate+' Hz',true);
+    const latency=(ctx.baseLatency||0)+(ctx.outputLatency||0);setChip(ui.chipLatency,'Latency: '+(latency?Math.round(latency*1000)+' ms':'browser-managed'),!!latency);
+    await applyTrackProcessing();await loadMics();updateMeter();updateSpatial(performance.now());
+  }catch(e){console.error(e);ui.status.textContent='Microphone unavailable';alert('Could not start the microphone. Allow microphone permission and use HTTPS or localhost.');}
 }
 
-
-/* -----------------------------
-   AUDIO METER
------------------------------ */
-
-function updateMeter() {
-
-  if (
-    !analyser ||
-    !listening
-  ) {
-    return;
-  }
-
-
-  const data =
-    new Uint8Array(
-      analyser.frequencyBinCount
-    );
-
-
-  analyser.getByteFrequencyData(
-    data
-  );
-
-
-  let total =
-    0;
-
-
-  for (
-    let i = 0;
-    i < data.length;
-    i++
-  ) {
-
-    total +=
-      data[i];
-
-  }
-
-
-  const average =
-    total / data.length;
-
-
-  const percentage =
-    Math.min(
-      100,
-      average * 1.25
-    );
-
-
-  level.style.width =
-    percentage + "%";
-
-
-  meterFrame =
-    requestAnimationFrame(
-      updateMeter
-    );
-
+async function stop(){
+  running=false;cancelAnimationFrame(meterRAF);cancelAnimationFrame(spatialRAF);if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;if(ctx)await ctx.close().catch(()=>{});ctx=null;source=hp=warmthFilter=clarityFilter=compressor=gateNode=master=panner=splitter=leftNode=rightNode=merger=limiter=analyser=null;
+  ui.start.textContent='Start Listening';ui.start.classList.remove('running');ui.mainOrb.classList.remove('active');ui.orbText.textContent='OFF';ui.status.textContent='Microphone stopped';ui.safety.textContent='Limiter ready';ui.safety.className='';ui.meter.style.width='0%';ui.engineState.textContent='ready';moveOrb(0);
 }
 
-
-/* -----------------------------
-   SPATIAL ENGINE
------------------------------ */
-
-function updateSpatialAudio(time) {
-
-  if (!listening) {
-    return;
-  }
-
-
-  let pan =
-    0;
-
-
-  if (
-    spatialToggle.checked &&
-    stereoPanner
-  ) {
-
-    if (
-      spatialMode === "move"
-    ) {
-
-      const seconds =
-        (time - spatialStartTime)
-        / 1000;
-
-
-      const speed =
-        Number(
-          spatialSpeed.value
-        );
-
-
-      const width =
-        Number(
-          spatialWidth.value
-        );
-
-
-      pan =
-        Math.sin(
-          seconds *
-          speed *
-          Math.PI *
-          2
-        )
-        * width;
-
-    }
-
-
-    else {
-
-      pan =
-        Number(
-          manualPan.value
-        );
-
-    }
-
-  }
-
-
-  if (
-    stereoPanner &&
-    audioContext
-  ) {
-
-    stereoPanner.pan.setTargetAtTime(
-      pan,
-      audioContext.currentTime,
-      0.025
-    );
-
-  }
-
-
-  updatePanDisplay(
-    pan
-  );
-
-
-  spatialFrame =
-    requestAnimationFrame(
-      updateSpatialAudio
-    );
-
+function updateMeter(){
+  if(!running||!analyser)return;const a=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(a);let s=0;for(const v of a){const x=(v-128)/128;s+=x*x}const rms=Math.sqrt(s/a.length);ui.meter.style.width=Math.min(100,rms*310)+'%';
+  const reduction=Math.abs(limiter?.reduction||0);if(reduction>3){ui.safety.textContent='Limiter protecting';ui.safety.className='statuswarn'}else{ui.safety.textContent='Level protected';ui.safety.className='statusgood'}meterRAF=requestAnimationFrame(updateMeter);
+}
+function moveOrb(p){const x=12+((p+1)/2)*76;ui.spatialOrb.style.left=`calc(${x}% - 12px)`}
+function updateSpatial(t){
+  if(!running)return;let pan=0;spatialMode=selectedSpatial();
+  if(spatialMode==='move'){const width=Math.max(.15,Math.abs(Number(ui.spatialAmount.value))||.65);pan=Math.sin((t-spatialStart)/1000*Number(ui.spatialSpeed.value)*Math.PI*2)*width}
+  else if(spatialMode==='manual')pan=Number(ui.spatialAmount.value);
+  if(panner&&ctx)panner.pan.setTargetAtTime(pan,ctx.currentTime,.02);moveOrb(pan);ui.spatialLabel.textContent=spatialMode==='move'?'8D':spatialMode==='manual'?'MANUAL':'OFF';ui.spatialValue.textContent=(pan===0?'0%':(pan<0?'L ':'R ')+Math.round(Math.abs(pan)*100)+'%');spatialRAF=requestAnimationFrame(updateSpatial);
 }
 
-
-/* -----------------------------
-   START BUTTON
------------------------------ */
-
-startButton.addEventListener(
-  "click",
-  async () => {
-
-    if (!listening) {
-
-      await startListening();
-
-    }
-
-    else {
-
-      stopListening();
-
-    }
-
-  }
-);
-
-
-/* -----------------------------
-   MASTER GAIN
------------------------------ */
-
-gainSlider.addEventListener(
-  "input",
-  () => {
-
-    const value =
-      Number(gainSlider.value);
-
-
-    gainBig.textContent =
-      value.toFixed(2);
-
-
-    if (
-      masterGain &&
-      audioContext
-    ) {
-
-      masterGain.gain.setTargetAtTime(
-        value,
-        audioContext.currentTime,
-        0.03
-      );
-
-    }
-
-  }
-);
-
-
-/* -----------------------------
-   EQ CONTROLS
------------------------------ */
-
-bassSlider.addEventListener(
-  "input",
-  () => {
-
-    bassValue.textContent =
-      formatDb(
-        bassSlider.value
-      );
-
-
-    if (
-      bassFilter &&
-      audioContext
-    ) {
-
-      bassFilter.gain.setTargetAtTime(
-        Number(
-          bassSlider.value
-        ),
-        audioContext.currentTime,
-        0.03
-      );
-
-    }
-
-  }
-);
-
-
-midSlider.addEventListener(
-  "input",
-  () => {
-
-    midValue.textContent =
-      formatDb(
-        midSlider.value
-      );
-
-
-    if (
-      midFilter &&
-      audioContext
-    ) {
-
-      midFilter.gain.setTargetAtTime(
-        Number(
-          midSlider.value
-        ),
-        audioContext.currentTime,
-        0.03
-      );
-
-    }
-
-  }
-);
-
-
-trebleSlider.addEventListener(
-  "input",
-  () => {
-
-    trebleValue.textContent =
-      formatDb(
-        trebleSlider.value
-      );
-
-
-    if (
-      trebleFilter &&
-      audioContext
-    ) {
-
-      trebleFilter.gain.setTargetAtTime(
-        Number(
-          trebleSlider.value
-        ),
-        audioContext.currentTime,
-        0.03
-      );
-
-    }
-
-  }
-);
-
-
-/* -----------------------------
-   LISTENING PRESETS
------------------------------ */
-
-document
-  .querySelectorAll(".preset")
-  .forEach(button => {
-
-    button.addEventListener(
-      "click",
-      () => {
-
-        document
-          .querySelectorAll(".preset")
-          .forEach(
-            item =>
-              item.classList.remove(
-                "selected"
-              )
-          );
-
-
-        button.classList.add(
-          "selected"
-        );
-
-
-        const mode =
-          button.dataset.mode;
-
-
-        if (
-          mode === "speech"
-        ) {
-
-          bassSlider.value =
-            -2;
-
-          midSlider.value =
-            4;
-
-          trebleSlider.value =
-            3;
-
-        }
-
-
-        if (
-          mode === "natural"
-        ) {
-
-          bassSlider.value =
-            0;
-
-          midSlider.value =
-            0;
-
-          trebleSlider.value =
-            0;
-
-        }
-
-
-        if (
-          mode === "bright"
-        ) {
-
-          bassSlider.value =
-            -4;
-
-          midSlider.value =
-            3;
-
-          trebleSlider.value =
-            6;
-
-        }
-
-
-        bassSlider.dispatchEvent(
-          new Event("input")
-        );
-
-        midSlider.dispatchEvent(
-          new Event("input")
-        );
-
-        trebleSlider.dispatchEvent(
-          new Event("input")
-        );
-
-      }
-    );
-
-  });
-
-
-/* -----------------------------
-   8D ON / OFF
------------------------------ */
-
-spatialToggle.addEventListener(
-  "change",
-  () => {
-
-    spatialStartTime =
-      performance.now();
-
-
-    if (
-      !spatialToggle.checked
-    ) {
-
-      manualPan.value =
-        0;
-
-      if (
-        stereoPanner &&
-        audioContext
-      ) {
-
-        stereoPanner.pan.setTargetAtTime(
-          0,
-          audioContext.currentTime,
-          0.03
-        );
-
-      }
-
-      updatePanDisplay(0);
-
-    }
-
-
-    if (listening) {
-
-      statusText.textContent =
-        spatialToggle.checked
-          ? "Listening • Spatial"
-          : "Listening";
-
-    }
-
-  }
-);
-
-
-/* -----------------------------
-   WIDTH
------------------------------ */
-
-spatialWidth.addEventListener(
-  "input",
-  () => {
-
-    widthValue.textContent =
-      Math.round(
-        Number(
-          spatialWidth.value
-        ) * 100
-      )
-      + "%";
-
-  }
-);
-
-
-/* -----------------------------
-   SPEED
------------------------------ */
-
-spatialSpeed.addEventListener(
-  "input",
-  () => {
-
-    speedValue.textContent =
-      Number(
-        spatialSpeed.value
-      ).toFixed(2)
-      + " Hz";
-
-  }
-);
-
-
-/* -----------------------------
-   MANUAL PAN
------------------------------ */
-
-manualPan.addEventListener(
-  "input",
-  () => {
-
-    const pan =
-      Number(
-        manualPan.value
-      );
-
-
-    if (
-      spatialMode === "static" &&
-      spatialToggle.checked &&
-      stereoPanner &&
-      audioContext
-    ) {
-
-      stereoPanner.pan.setTargetAtTime(
-        pan,
-        audioContext.currentTime,
-        0.03
-      );
-
-    }
-
-
-    if (
-      spatialMode === "static"
-    ) {
-
-      updatePanDisplay(
-        pan
-      );
-
-    }
-
-  }
-);
-
-
-/* -----------------------------
-   SPATIAL MODES
------------------------------ */
-
-document
-  .querySelectorAll(
-    ".mode-button"
-  )
-  .forEach(
-    button => {
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          document
-            .querySelectorAll(
-              ".mode-button"
-            )
-            .forEach(
-              item =>
-                item.classList.remove(
-                  "selected"
-                )
-            );
-
-
-          button.classList.add(
-            "selected"
-          );
-
-
-          spatialMode =
-            button.dataset
-              .spatialMode;
-
-
-          spatialStartTime =
-            performance.now();
-
-
-          if (
-            spatialMode === "static"
-          ) {
-
-            updatePanDisplay(
-              Number(
-                manualPan.value
-              )
-            );
-
-          }
-
-        }
-      );
-
-    }
-  );
-
-
-/* -----------------------------
-   RESET CENTER
------------------------------ */
-
-centerButton.addEventListener(
-  "click",
-  () => {
-
-    manualPan.value =
-      0;
-
-
-    updatePanDisplay(0);
-
-
-    spatialStartTime =
-      performance.now();
-
-
-    if (
-      stereoPanner &&
-      audioContext
-    ) {
-
-      stereoPanner.pan.setTargetAtTime(
-        0,
-        audioContext.currentTime,
-        0.03
-      );
-
-    }
-
-  }
-);
-
-
-/* -----------------------------
-   MICROPHONE SWITCHING
------------------------------ */
-
-micSelect.addEventListener(
-  "change",
-  async () => {
-
-    if (listening) {
-
-      stopListening();
-
-      await startListening();
-
-    }
-
-  }
-);
-
-
-/* -----------------------------
-   INITIAL DEVICE LIST
------------------------------ */
-
-if (
-  navigator.mediaDevices &&
-  navigator.mediaDevices.enumerateDevices
-) {
-
-  loadMicrophones();
-
+function conversationPreset(){
+  ui.gain.value='1';ui.clarity.value='5';ui.warmth.value='-3';ui.left.value='1';ui.right.value='1';document.querySelectorAll('#noiseModes button').forEach(b=>b.classList.toggle('on',b.dataset.noise==='smart'));document.querySelectorAll('#spatialModes button').forEach(b=>b.classList.toggle('on',b.dataset.spatial==='off'));ui.spatialAmount.value='0';spatialStart=performance.now();syncControls();applyTrackProcessing();
+}
+function syncControls(){
+  ui.gainValue.textContent=Number(ui.gain.value).toFixed(2)+'×';ui.clarityValue.textContent=db(ui.clarity.value);ui.warmthValue.textContent=db(ui.warmth.value);ui.leftNum.textContent=Math.round(Number(ui.left.value)*100)+'%';ui.rightNum.textContent=Math.round(Number(ui.right.value)*100)+'%';ui.speedValue.textContent=Number(ui.spatialSpeed.value).toFixed(2)+' Hz';ui.noiseReadout.textContent=selectedNoise().toUpperCase();
+  if(ctx){master?.gain.setTargetAtTime(Number(ui.gain.value),ctx.currentTime,.03);clarityFilter?.gain.setTargetAtTime(Number(ui.clarity.value),ctx.currentTime,.03);warmthFilter?.gain.setTargetAtTime(Number(ui.warmth.value),ctx.currentTime,.03);leftNode?.gain.setTargetAtTime(Number(ui.left.value),ctx.currentTime,.03);rightNode?.gain.setTargetAtTime(Number(ui.right.value),ctx.currentTime,.03)}
 }
 
-
-/* INITIAL UI */
-
-updatePanDisplay(0);
-
+ui.start.addEventListener('click',()=>running?stop():start());ui.conversation.addEventListener('click',conversationPreset);ui.safeReset.addEventListener('click',conversationPreset);
+[ui.gain,ui.clarity,ui.warmth,ui.left,ui.right,ui.spatialAmount,ui.spatialSpeed].forEach(x=>x.addEventListener('input',syncControls));
+document.querySelectorAll('#noiseModes button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#noiseModes button').forEach(x=>x.classList.remove('on'));b.classList.add('on');syncControls();applyTrackProcessing()}));
+document.querySelectorAll('#spatialModes button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#spatialModes button').forEach(x=>x.classList.remove('on'));b.classList.add('on');spatialStart=performance.now();if(b.dataset.spatial==='move'&&Number(ui.spatialAmount.value)===0)ui.spatialAmount.value=.65;syncControls()}));
+ui.echo.addEventListener('change',applyTrackProcessing);ui.mic.addEventListener('change',async()=>{if(running){await stop();await start()}});
+refreshSupport();syncControls();loadMics();
 </script>
-
 </body>
 </html>
