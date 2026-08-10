@@ -1,389 +1,955 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Helen's Epic Adventure: Universal Pro HD</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#05070b" />
+    <title>Helen's Epic Adventure: Resonance</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-    
+
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; touch-action: none; user-select: none; -webkit-user-select: none; }
-        canvas { width: 100vw; height: 100vh; touch-action: none; display: block; outline: none; }
-        #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #00e5ff; font-family: monospace; font-size: 1.2rem; z-index: 10; pointer-events: none; text-shadow: 0px 2px 4px rgba(0,0,0,0.8);}
-        
-        #interaction-prompt {
-            position: absolute; top: 60px; width: 100%; text-align: center; 
-            color: #ff00ff; font-family: monospace; font-size: 1.5rem; font-weight: bold;
-            z-index: 10; pointer-events: none; text-shadow: 0px 0px 15px rgba(255,0,255,0.9);
-            opacity: 0; transition: opacity 0.3s ease-in-out;
+        :root {
+            --cyan: #57e8ff;
+            --cyan2: #00b8d9;
+            --violet: #c16bff;
+            --green: #78ffba;
+            --amber: #ffd276;
+            --red: #ff6b7d;
+            --glass: rgba(8, 15, 24, 0.66);
+            --glass2: rgba(12, 22, 34, 0.82);
+            --line: rgba(128, 226, 255, 0.28);
+            --text: #eafaff;
         }
 
-        /* --- MOBILE UI --- */
-        #mobile-controls { display: none; }
-        #joystick-base {
-            position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px;
-            background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50%; z-index: 100; touch-action: none; display: none; pointer-events: none;
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #05070b; }
+        body { touch-action: none; user-select: none; -webkit-user-select: none; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
+        canvas { width: 100vw; height: 100vh; display: block; outline: none; touch-action: none; }
+
+        #hud { position: fixed; inset: 0; z-index: 20; pointer-events: none; color: var(--text); }
+        .glass {
+            background: linear-gradient(180deg, rgba(14, 28, 42, .80), rgba(5, 11, 18, .70));
+            border: 1px solid var(--line);
+            box-shadow: 0 10px 35px rgba(0, 0, 0, .28), inset 0 0 28px rgba(66, 199, 255, .035);
+            backdrop-filter: blur(9px);
+            -webkit-backdrop-filter: blur(9px);
         }
-        #joystick-stick {
-            position: absolute; top: 35px; left: 35px; width: 50px; height: 50px;
-            background: rgba(0, 229, 255, 0.5); border-radius: 50%; pointer-events: none; 
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.5); transition: transform 0.05s ease-out;
+
+        #brand {
+            position: absolute;
+            top: max(14px, env(safe-area-inset-top));
+            left: max(14px, env(safe-area-inset-left));
+            min-width: 210px;
+            padding: 10px 13px 11px;
+            border-radius: 12px;
         }
-        
-        .action-button {
-            position: absolute; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%; z-index: 100; color: white; font-family: monospace; font-weight: bold;
-            display: flex; justify-content: center; align-items: center; touch-action: none; user-select: none;
+        #brand .eyebrow { color: var(--cyan); font-size: 10px; letter-spacing: .22em; font-weight: 800; opacity: .85; }
+        #brand .title { margin-top: 2px; font-size: 15px; font-weight: 800; letter-spacing: .04em; }
+        #brand .sub { margin-top: 2px; font-size: 10px; opacity: .64; }
+
+        #questPanel {
+            position: absolute;
+            top: max(14px, env(safe-area-inset-top));
+            right: max(14px, env(safe-area-inset-right));
+            width: min(330px, 42vw);
+            padding: 11px 13px 12px;
+            border-radius: 12px;
         }
-        #run-button { bottom: 40px; right: 120px; width: 70px; height: 70px; }
-        #jump-button { bottom: 100px; right: 40px; width: 80px; height: 80px; font-size: 18px; background: rgba(0, 229, 255, 0.2); }
+        #questPanel .label { color: var(--amber); font-size: 9px; font-weight: 900; letter-spacing: .18em; }
+        #questTitle { margin-top: 3px; font-size: 13px; font-weight: 800; }
+        #questDetail { margin-top: 3px; font-size: 10px; line-height: 1.35; opacity: .72; }
+        #objectiveDistance { margin-top: 6px; color: var(--cyan); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+
+        #statusPanel {
+            position: absolute;
+            left: max(14px, env(safe-area-inset-left));
+            bottom: max(16px, env(safe-area-inset-bottom));
+            width: min(265px, 43vw);
+            padding: 11px 12px;
+            border-radius: 12px;
+        }
+        .barRow { display: grid; grid-template-columns: 62px 1fr 34px; gap: 8px; align-items: center; margin: 5px 0; }
+        .barLabel { font-size: 9px; font-weight: 800; letter-spacing: .10em; opacity: .75; }
+        .barShell { height: 8px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; border: 1px solid rgba(255,255,255,.08); }
+        .barFill { height: 100%; width: 100%; border-radius: inherit; transform-origin: left center; }
+        #healthFill { background: linear-gradient(90deg, #ff6b7d, #ff9e8c); }
+        #staminaFill { background: linear-gradient(90deg, #57e8ff, #78ffba); }
+        .barValue { text-align: right; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; opacity: .8; }
+        #inventoryBrief { margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.08); font-size: 10px; opacity: .76; }
+
+        #centerPrompt {
+            position: absolute;
+            left: 50%;
+            bottom: 17%;
+            transform: translateX(-50%) translateY(10px);
+            opacity: 0;
+            transition: opacity .16s ease, transform .16s ease;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(4, 8, 14, .72);
+            border: 1px solid rgba(108, 230, 255, .35);
+            color: #f2fdff;
+            font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .04em;
+            text-shadow: 0 1px 8px #000;
+            white-space: nowrap;
+        }
+        #centerPrompt.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        #centerPrompt b { color: var(--cyan); }
+
+        #toast {
+            position: absolute;
+            top: 19%; left: 50%;
+            transform: translate(-50%, -10px);
+            width: min(560px, 82vw);
+            padding: 12px 16px;
+            border-radius: 14px;
+            text-align: center;
+            background: rgba(6, 11, 18, .86);
+            border: 1px solid rgba(104, 229, 255, .30);
+            box-shadow: 0 16px 45px rgba(0,0,0,.35);
+            opacity: 0;
+            transition: .22s ease;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        #toast.show { opacity: 1; transform: translate(-50%, 0); }
+        #toast strong { color: var(--cyan); }
+
+        #dialogue {
+            position: absolute;
+            left: 50%; bottom: 10%;
+            transform: translateX(-50%) translateY(16px);
+            width: min(620px, 84vw);
+            padding: 14px 16px;
+            border-radius: 14px;
+            opacity: 0;
+            pointer-events: none;
+            transition: .18s ease;
+        }
+        #dialogue.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        #dialogueName { font-size: 10px; font-weight: 900; color: var(--violet); letter-spacing: .16em; }
+        #dialogueText { margin-top: 5px; font-size: 12px; line-height: 1.45; }
+
+        #inventoryPanel {
+            position: absolute;
+            left: 50%; top: 50%;
+            transform: translate(-50%, -48%) scale(.98);
+            width: min(480px, 86vw);
+            max-height: 70vh;
+            overflow: auto;
+            padding: 16px;
+            border-radius: 16px;
+            opacity: 0;
+            pointer-events: none;
+            transition: .17s ease;
+        }
+        #inventoryPanel.show { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+        #inventoryPanel h2 { margin: 0 0 4px; font-size: 18px; }
+        #inventoryPanel .hint { font-size: 10px; opacity: .58; margin-bottom: 12px; }
+        .invItem { display: flex; justify-content: space-between; align-items: center; padding: 10px 11px; margin-top: 7px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; }
+        .invItem span:first-child { font-size: 12px; font-weight: 750; }
+        .invCount { color: var(--cyan); font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+        #topButtons {
+            position: absolute;
+            top: max(14px, env(safe-area-inset-top));
+            left: 50%; transform: translateX(-50%);
+            display: flex; gap: 8px; pointer-events: auto;
+        }
+        .tinyBtn {
+            appearance: none;
+            border: 1px solid rgba(122,226,255,.25);
+            background: rgba(8,16,25,.68);
+            color: #dffaff;
+            border-radius: 10px;
+            padding: 8px 10px;
+            font: 800 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .06em;
+        }
+        .tinyBtn:active { transform: scale(.96); }
+
+        /* Mobile controls */
+        #mobileControls { display: none; position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+        #joystickBase {
+            position: absolute;
+            left: max(24px, calc(env(safe-area-inset-left) + 16px));
+            bottom: max(28px, calc(env(safe-area-inset-bottom) + 18px));
+            width: 132px; height: 132px;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, rgba(74,210,255,.10), rgba(7,18,28,.26));
+            border: 1px solid rgba(140,230,255,.24);
+            box-shadow: inset 0 0 26px rgba(38,207,255,.08);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystickBase::after { content:""; position:absolute; inset: 30px; border-radius: 50%; border: 1px dashed rgba(132,227,255,.16); }
+        #joystickStick {
+            position: absolute;
+            left: 50%; top: 50%;
+            width: 54px; height: 54px;
+            margin-left: -27px; margin-top: -27px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 30%, rgba(196,249,255,.72), rgba(24,183,219,.54));
+            border: 1px solid rgba(202,250,255,.65);
+            box-shadow: 0 6px 20px rgba(0,0,0,.42), 0 0 25px rgba(44,217,255,.14);
+            pointer-events: none;
+        }
+        #actionCluster {
+            position: absolute;
+            right: max(20px, calc(env(safe-area-inset-right) + 12px));
+            bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px));
+            width: 190px; height: 170px;
+            pointer-events: none;
+        }
+        .actionBtn {
+            position: absolute;
+            display: grid; place-items: center;
+            width: 66px; height: 66px;
+            border-radius: 50%;
+            border: 1px solid rgba(180,241,255,.32);
+            background: rgba(10,22,33,.58);
+            color: white;
+            box-shadow: 0 8px 24px rgba(0,0,0,.30), inset 0 0 20px rgba(42,209,255,.05);
+            font: 900 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .05em;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        .actionBtn:active, .actionBtn.active { background: rgba(0,190,225,.45); transform: scale(.96); }
+        #jumpButton { right: 0; bottom: 50px; width: 74px; height: 74px; font-size: 10px; }
+        #sprintButton { right: 78px; bottom: 0; }
+        #interactButton { right: 84px; bottom: 86px; background: rgba(108,57,145,.42); opacity: .35; }
+        #interactButton.ready { opacity: 1; border-color: rgba(229,181,255,.62); box-shadow: 0 0 24px rgba(193,107,255,.18); }
+
+        #crosshair {
+            position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%);
+            opacity: .36;
+        }
+        #crosshair::before, #crosshair::after { content:""; position:absolute; background: rgba(173,240,255,.72); }
+        #crosshair::before { width: 14px; height: 1px; left:0; top:6px; }
+        #crosshair::after { width:1px; height:14px; left:6px; top:0; }
+
+        #rotateNotice {
+            display: none;
+            position: fixed; inset: 0; z-index: 100;
+            background: rgba(2,5,9,.94);
+            color: white; place-items: center; text-align: center; padding: 30px;
+        }
+        #rotateNotice strong { display:block; color:var(--cyan); font-size:18px; margin-bottom:6px; }
+
+        @media (max-width: 760px) {
+            #brand { min-width: 0; max-width: 44vw; padding: 8px 10px; }
+            #brand .title { font-size: 12px; }
+            #brand .sub { display: none; }
+            #questPanel { width: 47vw; padding: 8px 10px; }
+            #questTitle { font-size: 11px; }
+            #questDetail { display: none; }
+            #statusPanel { bottom: max(170px, calc(env(safe-area-inset-bottom) + 160px)); width: 180px; padding: 8px 9px; }
+            #inventoryBrief { display: none; }
+            .barRow { grid-template-columns: 44px 1fr 28px; gap: 5px; }
+            #topButtons { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); }
+            #centerPrompt { bottom: 30%; }
+            #dialogue { bottom: 31%; }
+        }
+
+        @media (orientation: portrait) and (max-width: 900px) {
+            #rotateNotice { display: grid; }
+        }
     </style>
 </head>
 <body>
-    <div id="ui">Universal Controls Active</div>
-    <div id="interaction-prompt">The Crystal Resonates...</div>
     <canvas id="renderCanvas"></canvas>
 
-    <div id="mobile-controls">
-        <div id="joystick-base"><div id="joystick-stick"></div></div>
-        <div id="run-button" class="action-button">SPRINT</div>
-        <div id="jump-button" class="action-button">JUMP</div>
+    <div id="hud">
+        <div id="brand" class="glass">
+            <div class="eyebrow">HELEN // FIELD LINK</div>
+            <div class="title">Resonance Valley</div>
+            <div class="sub">Explore • Discover • Awaken the Crystal</div>
+        </div>
+
+        <div id="questPanel" class="glass">
+            <div class="label">ACTIVE OBJECTIVE</div>
+            <div id="questTitle">Reach the Resonance Crystal</div>
+            <div id="questDetail">Follow the cyan beacon into the valley.</div>
+            <div id="objectiveDistance">TARGET -- m</div>
+        </div>
+
+        <div id="statusPanel" class="glass">
+            <div class="barRow"><div class="barLabel">HEALTH</div><div class="barShell"><div id="healthFill" class="barFill"></div></div><div id="healthValue" class="barValue">100</div></div>
+            <div class="barRow"><div class="barLabel">STAMINA</div><div class="barShell"><div id="staminaFill" class="barFill"></div></div><div id="staminaValue" class="barValue">100</div></div>
+            <div id="inventoryBrief">Echo Shards <b id="shardBrief">0 / 3</b></div>
+        </div>
+
+        <div id="centerPrompt"><b>E</b> INTERACT</div>
+        <div id="toast"></div>
+        <div id="dialogue" class="glass"><div id="dialogueName">VALLEY WISP</div><div id="dialogueText"></div></div>
+
+        <div id="inventoryPanel" class="glass">
+            <h2>Field Inventory</h2>
+            <div class="hint">Press I, BAG, or tap outside the panel to close.</div>
+            <div class="invItem"><span>Echo Shards</span><span id="invShards" class="invCount">0</span></div>
+            <div class="invItem"><span>Resonance Key</span><span id="invKey" class="invCount">LOCKED</span></div>
+            <div class="invItem"><span>Valley Signal</span><span id="invSignal" class="invCount">UNREAD</span></div>
+        </div>
+
+        <div id="topButtons">
+            <button id="inventoryButton" class="tinyBtn" type="button">BAG</button>
+            <button id="fullscreenButton" class="tinyBtn" type="button">FULL</button>
+        </div>
+
+        <div id="crosshair"></div>
     </div>
 
+    <div id="mobileControls">
+        <div id="joystickBase"><div id="joystickStick"></div></div>
+        <div id="actionCluster">
+            <button id="interactButton" class="actionBtn" type="button">ACT</button>
+            <button id="sprintButton" class="actionBtn" type="button">SPRINT</button>
+            <button id="jumpButton" class="actionBtn" type="button">JUMP</button>
+        </div>
+    </div>
+
+    <div id="rotateNotice"><div><strong>Turn your phone sideways</strong>Landscape gives you the full adventure view.</div></div>
+
     <script>
-        window.addEventListener("contextmenu", e => e.preventDefault());
+        (() => {
+            "use strict";
+            window.addEventListener("contextmenu", e => e.preventDefault());
 
-        const canvas = document.getElementById("renderCanvas");
-        
-        // --- HD MOBILE FIX ---
-        // Tell the engine to adapt to the phone's high-density pixels so it isn't blurry
-        const engine = new BABYLON.Engine(canvas, true, { adaptToDeviceRatio: true });
-        engine.setHardwareScalingLevel(1 / window.devicePixelRatio);
-
-        const promptUI = document.getElementById("interaction-prompt");
-
-        // --- 1. TOUCH CONTROLS SETUP ---
-        const joyBase = document.getElementById("joystick-base");
-        const joyStick = document.getElementById("joystick-stick");
-        const runBtn = document.getElementById("run-button");
-        const jumpBtn = document.getElementById("jump-button");
-        const mobileControls = document.getElementById("mobile-controls");
-        
-        let touchMoveX = 0, touchMoveZ = 0, isTouchRunning = false, isTouchJumping = false;
-        let joyCenterX = 0, joyCenterY = 0;
-
-        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) mobileControls.style.display = "block";
-
-        function updateJoystick(clientX, clientY) {
-            let dx = clientX - joyCenterX; let dy = clientY - joyCenterY;
-            let distance = Math.sqrt(dx*dx + dy*dy); let maxDist = 35; 
-            if (distance > maxDist) { dx = (dx / distance) * maxDist; dy = (dy / distance) * maxDist; }
-            joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
-            touchMoveX = dx / maxDist; touchMoveZ = dy / maxDist;
-        }
-
-        // Touch Buttons
-        runBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); isTouchRunning = true; runBtn.style.background = "rgba(0, 229, 255, 0.7)"; });
-        runBtn.addEventListener("pointerup", (e) => { e.preventDefault(); isTouchRunning = false; runBtn.style.background = "rgba(255, 255, 255, 0.1)"; });
-        runBtn.addEventListener("pointerleave", (e) => { isTouchRunning = false; runBtn.style.background = "rgba(255, 255, 255, 0.1)"; });
-
-        jumpBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); isTouchJumping = true; jumpBtn.style.background = "rgba(0, 229, 255, 0.9)"; });
-        jumpBtn.addEventListener("pointerup", (e) => { e.preventDefault(); isTouchJumping = false; jumpBtn.style.background = "rgba(0, 229, 255, 0.2)"; });
-        jumpBtn.addEventListener("pointerleave", (e) => { isTouchJumping = false; jumpBtn.style.background = "rgba(0, 229, 255, 0.2)"; });
-
-        // --- CORE GAME SETUP ---
-        const createScene = async function () {
-            const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color3(0.01, 0.02, 0.04); 
-            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2; scene.fogDensity = 0.008; scene.fogColor = scene.clearColor;
-
-            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-0.5, -1, -0.5), scene); dirLight.intensity = 0.5; 
-            const rimLight = new BABYLON.SpotLight("rimLight", new BABYLON.Vector3(5, 5, -5), new BABYLON.Vector3(-1, -1, 1), Math.PI / 3, 2, scene);
-            rimLight.diffuse = new BABYLON.Color3(0.8, 0.2, 1); rimLight.intensity = 2.0;
-
-            // Terrain
-            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 200, height: 200, subdivisions: 80, updatable: true}, scene);
-            const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
-            for (let i = 0; i < positions.length; i += 3) {
-                const x = positions[i]; const z = positions[i + 2];
-                positions[i + 1] = (Math.sin(x / 8) * 2.5) + (Math.cos(z / 10) * 2.5) + (Math.sin((x + z) / 4) * 0.5); 
-            }
-            ground.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
-            BABYLON.VertexData.ComputeNormals(positions, ground.getIndices(), ground.getVerticesData(BABYLON.VertexBuffer.NormalKind)); 
-
-            const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-            groundMat.diffuseColor = new BABYLON.Color3(0.05, 0.1, 0.08); groundMat.specularColor = new BABYLON.Color3(0, 0, 0); 
-            ground.material = groundMat;
-
-            // Crystal
-            const crystalX = 15; const crystalZ = 20;
-            const crystalY = ground.getHeightAtCoordinates(crystalX, crystalZ) + 6;
-            const crystal = BABYLON.MeshBuilder.CreateCylinder("crystal", {height: 12, diameterTop: 0.1, diameterBottom: 3, tessellation: 6}, scene);
-            crystal.position.set(crystalX, crystalY, crystalZ);
-            const crystalMat = new BABYLON.StandardMaterial("crystalMat", scene);
-            crystalMat.emissiveColor = new BABYLON.Color3(0, 0.8, 1); crystalMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
-            crystal.material = crystalMat;
-
-            const crystalLight = new BABYLON.PointLight("crystalLight", crystal.position, scene);
-            crystalLight.diffuse = new BABYLON.Color3(0, 0.8, 1); crystalLight.intensity = 2.5; crystalLight.range = 30;
-
-            const particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
-            particleSystem.particleTexture = new BABYLON.Texture("https://textures.babylonjs.com/flare.png", scene);
-            particleSystem.emitter = crystal;
-            particleSystem.minEmitBox = new BABYLON.Vector3(-1.5, -6, -1.5); particleSystem.maxEmitBox = new BABYLON.Vector3(1.5, -6, 1.5);
-            particleSystem.color1 = new BABYLON.Color4(0, 0.8, 1, 1); particleSystem.color2 = new BABYLON.Color4(0, 0.5, 1, 1);
-            particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0);
-            particleSystem.minSize = 0.1; particleSystem.maxSize = 0.4;
-            particleSystem.minLifeTime = 1.0; particleSystem.maxLifeTime = 4.0; particleSystem.emitRate = 80;
-            particleSystem.direction1 = new BABYLON.Vector3(-0.5, 1, -0.5); particleSystem.direction2 = new BABYLON.Vector3(0.5, 2, 0.5);
-            particleSystem.gravity = new BABYLON.Vector3(0, 0.5, 0); particleSystem.start();
-
-            // Load Helen
-            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "Helen1.glb", scene);
-            const hero = result.meshes[0]; result.animationGroups.forEach(anim => anim.stop());
-
-            const bones = { leftArm:null, rightArm:null, leftLeg:null, rightLeg:null, spine:null };
-            let hairBones = []; 
-            
-            result.transformNodes.forEach(node => {
-                if (node.name === 'J_Bip_C_Spine') bones.spine = node;
-                if (node.name === 'J_Bip_L_UpperArm') bones.leftArm = node;
-                if (node.name === 'J_Bip_R_UpperArm') bones.rightArm = node;
-                if (node.name === 'J_Bip_L_UpperLeg') bones.leftLeg = node;
-                if (node.name === 'J_Bip_R_UpperLeg') bones.rightLeg = node;
-                if (node.name.includes('J_Sec_Hair')) {
-                    if (node.rotationQuaternion) { node.rotation = node.rotationQuaternion.toEulerAngles(); node.rotationQuaternion = null; }
-                    hairBones.push({ bone: node, baseRot: node.rotation.clone() });
-                }
+            const canvas = document.getElementById("renderCanvas");
+            const isTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+            const renderDpr = Math.min(window.devicePixelRatio || 1, isTouch ? 1.45 : 2.0);
+            const engine = new BABYLON.Engine(canvas, true, {
+                preserveDrawingBuffer: false,
+                stencil: true,
+                powerPreference: "high-performance"
             });
+            engine.setHardwareScalingLevel(1 / renderDpr);
 
-            for (let key in bones) {
-                if (bones[key] && bones[key].rotationQuaternion) { bones[key].rotation = bones[key].rotationQuaternion.toEulerAngles(); bones[key].rotationQuaternion = null; }
+            const UI = {
+                mobile: document.getElementById("mobileControls"),
+                joyBase: document.getElementById("joystickBase"),
+                joyStick: document.getElementById("joystickStick"),
+                jump: document.getElementById("jumpButton"),
+                sprint: document.getElementById("sprintButton"),
+                interact: document.getElementById("interactButton"),
+                prompt: document.getElementById("centerPrompt"),
+                questTitle: document.getElementById("questTitle"),
+                questDetail: document.getElementById("questDetail"),
+                distance: document.getElementById("objectiveDistance"),
+                healthFill: document.getElementById("healthFill"),
+                staminaFill: document.getElementById("staminaFill"),
+                healthValue: document.getElementById("healthValue"),
+                staminaValue: document.getElementById("staminaValue"),
+                shardBrief: document.getElementById("shardBrief"),
+                toast: document.getElementById("toast"),
+                dialogue: document.getElementById("dialogue"),
+                dialogueName: document.getElementById("dialogueName"),
+                dialogueText: document.getElementById("dialogueText"),
+                inventory: document.getElementById("inventoryPanel"),
+                inventoryButton: document.getElementById("inventoryButton"),
+                fullscreenButton: document.getElementById("fullscreenButton"),
+                invShards: document.getElementById("invShards"),
+                invKey: document.getElementById("invKey"),
+                invSignal: document.getElementById("invSignal")
+            };
+            if (isTouch) UI.mobile.style.display = "block";
+
+            const state = {
+                health: 100,
+                stamina: 100,
+                shards: 0,
+                quest: 0,
+                hasKey: false,
+                signalRead: false,
+                nearInteractable: null,
+                interactPressed: false,
+                jumpPressed: false,
+                sprintHeld: false,
+                inventoryOpen: false,
+                toastTimer: 0,
+                dialogueTimer: 0,
+                objective: null
+            };
+
+            const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+            const lerp = (a, b, t) => a + (b - a) * t;
+
+            function setQuest(step) {
+                state.quest = step;
+                const quests = [
+                    ["Reach the Resonance Crystal", "Follow the cyan beacon into the valley."],
+                    ["Gather 3 Echo Shards", "Search the nearby ruins and glowing stones."],
+                    ["Return to the Crystal", "Bring the gathered echoes back to the central crystal."],
+                    ["Resonance Restored", "The valley has answered. Explore freely." ]
+                ];
+                const q = quests[step] || quests[quests.length - 1];
+                UI.questTitle.textContent = q[0];
+                UI.questDetail.textContent = q[1];
+                updateInventoryUI();
             }
 
-            let blinkTarget = null;
-            result.meshes.forEach(m => {
-                if (m.morphTargetManager) {
-                    for (let i = 0; i < m.morphTargetManager.numTargets; i++) {
-                        if (m.morphTargetManager.getTarget(i).name === "Fcl_EYE_Close") blinkTarget = m.morphTargetManager.getTarget(i);
-                    }
-                }
+            function updateInventoryUI() {
+                UI.shardBrief.textContent = `${state.shards} / 3`;
+                UI.invShards.textContent = String(state.shards);
+                UI.invKey.textContent = state.hasKey ? "AWAKENED" : "LOCKED";
+                UI.invSignal.textContent = state.signalRead ? "READ" : "UNREAD";
+            }
+
+            function showToast(message, seconds = 2.4) {
+                UI.toast.innerHTML = message;
+                UI.toast.classList.add("show");
+                state.toastTimer = seconds;
+            }
+
+            function showDialogue(name, text, seconds = 4.8) {
+                UI.dialogueName.textContent = name;
+                UI.dialogueText.textContent = text;
+                UI.dialogue.classList.add("show");
+                state.dialogueTimer = seconds;
+            }
+
+            function toggleInventory(force) {
+                state.inventoryOpen = typeof force === "boolean" ? force : !state.inventoryOpen;
+                UI.inventory.classList.toggle("show", state.inventoryOpen);
+            }
+
+            function updateHudBars() {
+                UI.healthFill.style.transform = `scaleX(${state.health / 100})`;
+                UI.staminaFill.style.transform = `scaleX(${state.stamina / 100})`;
+                UI.healthValue.textContent = Math.round(state.health);
+                UI.staminaValue.textContent = Math.round(state.stamina);
+            }
+
+            UI.inventoryButton.addEventListener("click", e => { e.stopPropagation(); toggleInventory(); });
+            UI.inventory.addEventListener("pointerdown", e => e.stopPropagation());
+            document.getElementById("hud").addEventListener("pointerdown", e => {
+                if (state.inventoryOpen && !UI.inventory.contains(e.target) && e.target !== UI.inventoryButton) toggleInventory(false);
             });
-            let blinkState = { isBlinking: false, value: 0, nextTime: Date.now() + 3000 };
-
-            // Camera
-            const camAnchor = new BABYLON.TransformNode("camAnchor", scene);
-            camAnchor.parent = hero; camAnchor.position.y = 1.3; 
-            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 5, camAnchor, scene);
-            camera.lowerRadiusLimit = 2; camera.upperBetaLimit = Math.PI / 2.0; 
-            const baseFov = 0.8; const runFov = 1.1; camera.fov = baseFov;
-
-            const pipeline = new BABYLON.DefaultRenderingPipeline("default", true, scene, [camera]);
-            pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.7; pipeline.bloomWeight = 0.5;
-
-            // Touch Screen Swiping
-            let joystickPointerId = null; let cameraPointerId = null; let lastCamX = 0, lastCamY = 0;
-            scene.onPointerObservable.add((pointerInfo) => {
-                const e = pointerInfo.event; const halfWidth = engine.getRenderWidth() / 2;
-                switch (pointerInfo.type) {
-                    case BABYLON.PointerEventTypes.POINTERDOWN:
-                        if (e.target === runBtn || e.target === jumpBtn) return; 
-                        if (e.clientX < halfWidth && joystickPointerId === null) {
-                            joystickPointerId = e.pointerId; joyCenterX = e.clientX; joyCenterY = e.clientY;
-                            joyBase.style.left = `${joyCenterX - 60}px`; joyBase.style.top = `${joyCenterY - 60}px`;
-                            joyBase.style.display = "block"; updateJoystick(e.clientX, e.clientY);
-                        } else if (e.clientX >= halfWidth && cameraPointerId === null) {
-                            cameraPointerId = e.pointerId; lastCamX = e.clientX; lastCamY = e.clientY;
-                        }
-                        break;
-                    case BABYLON.PointerEventTypes.POINTERMOVE:
-                        if (e.pointerId === joystickPointerId) { updateJoystick(e.clientX, e.clientY); } 
-                        else if (e.pointerId === cameraPointerId) {
-                            camera.inertialAlphaOffset -= (e.clientX - lastCamX) * 0.005; camera.inertialBetaOffset -= (e.clientY - lastCamY) * 0.005; 
-                            lastCamX = e.clientX; lastCamY = e.clientY;
-                        }
-                        break;
-                    case BABYLON.PointerEventTypes.POINTERUP:
-                        if (e.pointerId === joystickPointerId) { joystickPointerId = null; joyBase.style.display = "none"; touchMoveX = 0; touchMoveZ = 0; } 
-                        else if (e.pointerId === cameraPointerId) { cameraPointerId = null; }
-                        break;
-                }
+            UI.fullscreenButton.addEventListener("click", async () => {
+                try {
+                    if (!document.fullscreenElement) await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+                    else await document.exitFullscreen();
+                } catch (_) { showToast("Fullscreen is not available in this browser.", 2); }
             });
 
-            // --- 2. KEYBOARD & GAMEPAD SETUP ---
-            const inputMap = {};
-            scene.actionManager = new BABYLON.ActionManager(scene);
-            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = true));
-            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, evt => inputMap[evt.sourceEvent.key.toLowerCase()] = false));
+            // ---------- Mobile input ----------
+            let touchMoveX = 0, touchMoveZ = 0;
+            let joyPointerId = null;
+            const joyRadius = 42;
 
-            const gamepadManager = new BABYLON.GamepadManager();
-            let myController = null;
-            gamepadManager.onGamepadConnectedObservable.add(gamepad => myController = gamepad);
-            gamepadManager.onGamepadDisconnectedObservable.add(() => myController = null);
+            function updateJoystick(clientX, clientY) {
+                const r = UI.joyBase.getBoundingClientRect();
+                const cx = r.left + r.width / 2;
+                const cy = r.top + r.height / 2;
+                let dx = clientX - cx, dy = clientY - cy;
+                const len = Math.hypot(dx, dy) || 1;
+                if (len > joyRadius) { dx = dx / len * joyRadius; dy = dy / len * joyRadius; }
+                UI.joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+                touchMoveX = dx / joyRadius;
+                touchMoveZ = dy / joyRadius;
+            }
 
+            UI.joyBase.addEventListener("pointerdown", e => {
+                e.preventDefault(); joyPointerId = e.pointerId; UI.joyBase.setPointerCapture?.(e.pointerId); updateJoystick(e.clientX, e.clientY);
+            });
+            UI.joyBase.addEventListener("pointermove", e => {
+                if (e.pointerId === joyPointerId) updateJoystick(e.clientX, e.clientY);
+            });
+            const releaseJoy = e => {
+                if (e.pointerId !== joyPointerId) return;
+                joyPointerId = null; touchMoveX = 0; touchMoveZ = 0; UI.joyStick.style.transform = "translate(0px, 0px)";
+            };
+            UI.joyBase.addEventListener("pointerup", releaseJoy);
+            UI.joyBase.addEventListener("pointercancel", releaseJoy);
 
-            // --- 3. THE UNIVERSAL GAME LOOP ---
-            const speed = 0.08; 
-            let walkAccumulator = 0; let smoothSpeed = 0;
-            
-            // JUMP VARIABLES
-            let velocityY = 0; 
-            const gravity = -0.015; // How fast she falls back down
-            const jumpPower = 0.3;  // How high she leaps
+            function bindHold(button, setter) {
+                button.addEventListener("pointerdown", e => { e.preventDefault(); setter(true); button.classList.add("active"); button.setPointerCapture?.(e.pointerId); });
+                const off = e => { e.preventDefault(); setter(false); button.classList.remove("active"); };
+                button.addEventListener("pointerup", off); button.addEventListener("pointercancel", off); button.addEventListener("pointerleave", e => { if (e.buttons) off(e); });
+            }
+            bindHold(UI.sprint, v => state.sprintHeld = v);
+            bindHold(UI.jump, v => state.jumpPressed = v);
+            UI.interact.addEventListener("pointerdown", e => { e.preventDefault(); state.interactPressed = true; });
 
-            const colorCyan = new BABYLON.Color3(0, 0.8, 1);
-            const colorMagenta = new BABYLON.Color3(1, 0, 1);
+            // ---------- Scene ----------
+            async function createScene() {
+                const scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color4(0.012, 0.022, 0.036, 1);
+                scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+                scene.fogDensity = isTouch ? 0.0065 : 0.0075;
+                scene.fogColor = new BABYLON.Color3(0.012, 0.022, 0.036);
+                scene.collisionsEnabled = true;
+                scene.skipPointerMovePicking = true;
 
-            scene.onBeforeRenderObservable.add(() => {
-                let moveX = 0; let moveZ = 0;
-                
-                // A. SPRINT CHECK 
-                let isRunning = inputMap["shift"] || (myController && myController.browserGamepad.buttons[10]?.pressed) || isTouchRunning; 
+                const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+                hemi.intensity = 0.52;
+                hemi.diffuse = new BABYLON.Color3(0.48, 0.65, 0.75);
+                hemi.groundColor = new BABYLON.Color3(0.03, 0.055, 0.05);
 
-                // B. JUMP CHECK 
-                let isJumpingPressed = inputMap[" "] || (myController && myController.browserGamepad.buttons[0]?.pressed) || isTouchJumping;
+                const moon = new BABYLON.DirectionalLight("moon", new BABYLON.Vector3(-0.35, -0.9, 0.25), scene);
+                moon.position = new BABYLON.Vector3(45, 70, -30);
+                moon.intensity = 0.95;
+                moon.diffuse = new BABYLON.Color3(0.55, 0.72, 1.0);
 
-                // C. MOVEMENT CHECK (Keyboard WASD)
-                if (inputMap["w"]) moveZ -= speed;
-                if (inputMap["s"]) moveZ += speed;
-                if (inputMap["a"]) moveX += speed;
-                if (inputMap["d"]) moveX -= speed;
+                const sky = BABYLON.MeshBuilder.CreateSphere("sky", { diameter: 340, segments: 20, sideOrientation: BABYLON.Mesh.BACKSIDE }, scene);
+                const skyMat = new BABYLON.StandardMaterial("skyMat", scene);
+                skyMat.disableLighting = true;
+                skyMat.emissiveColor = new BABYLON.Color3(0.018, 0.032, 0.065);
+                sky.material = skyMat;
+                sky.isPickable = false;
 
-                // D. MOVEMENT CHECK (Gamepad Left Stick)
-                if (myController && myController.leftStick) {
-                    if (Math.abs(myController.leftStick.x) > 0.1) moveX -= myController.leftStick.x * speed; 
-                    if (Math.abs(myController.leftStick.y) > 0.1) moveZ -= myController.leftStick.y * speed; 
+                // Terrain
+                const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 220, height: 220, subdivisions: 100, updatable: true }, scene);
+                const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+                for (let i = 0; i < positions.length; i += 3) {
+                    const x = positions[i], z = positions[i + 2];
+                    const basin = -Math.exp(-((x - 12) ** 2 + (z - 18) ** 2) / 900) * 1.2;
+                    positions[i + 1] = Math.sin(x / 9) * 2.0 + Math.cos(z / 11) * 2.0 + Math.sin((x + z) / 4.8) * 0.45 + basin;
+                }
+                ground.updateVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
+                const normals = [];
+                BABYLON.VertexData.ComputeNormals(positions, ground.getIndices(), normals);
+                ground.updateVerticesData(BABYLON.VertexBuffer.NormalKind, normals);
+                ground.checkCollisions = true;
+                ground.isPickable = false;
+
+                const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+                groundMat.diffuseColor = new BABYLON.Color3(0.045, 0.085, 0.068);
+                groundMat.specularColor = BABYLON.Color3.Black();
+                groundMat.ambientColor = new BABYLON.Color3(0.02, 0.035, 0.03);
+                ground.material = groundMat;
+
+                const h = (x, z) => ground.getHeightAtCoordinates(x, z);
+
+                // Shared environment materials
+                const rockMat = new BABYLON.StandardMaterial("rockMat", scene);
+                rockMat.diffuseColor = new BABYLON.Color3(0.10, 0.13, 0.14); rockMat.specularColor = BABYLON.Color3.Black();
+                const trunkMat = new BABYLON.StandardMaterial("trunkMat", scene);
+                trunkMat.diffuseColor = new BABYLON.Color3(0.08, 0.055, 0.042); trunkMat.specularColor = BABYLON.Color3.Black();
+                const leafMat = new BABYLON.StandardMaterial("leafMat", scene);
+                leafMat.diffuseColor = new BABYLON.Color3(0.035, 0.11, 0.085); leafMat.specularColor = BABYLON.Color3.Black();
+                const runeMat = new BABYLON.StandardMaterial("runeMat", scene);
+                runeMat.diffuseColor = new BABYLON.Color3(0.08, 0.10, 0.12); runeMat.emissiveColor = new BABYLON.Color3(0.015, 0.07, 0.09); runeMat.specularColor = BABYLON.Color3.Black();
+
+                const baseRock = BABYLON.MeshBuilder.CreateIcoSphere("baseRock", { radius: 1.2, subdivisions: 1 }, scene);
+                baseRock.material = rockMat; baseRock.setEnabled(false);
+                const trunk = BABYLON.MeshBuilder.CreateCylinder("baseTrunk", { height: 4.6, diameterTop: .32, diameterBottom: .62, tessellation: 7 }, scene);
+                trunk.material = trunkMat; trunk.setEnabled(false);
+                const crown = BABYLON.MeshBuilder.CreateCylinder("baseCrown", { height: 5.2, diameterTop: .15, diameterBottom: 3.2, tessellation: 8 }, scene);
+                crown.material = leafMat; crown.setEnabled(false);
+
+                function placeRock(name, x, z, s = 1) {
+                    const r = baseRock.createInstance(name); r.position.set(x, h(x,z) + .65 * s, z); r.scaling.set(1.2*s, .65*s, .9*s); r.rotation.set(.1*s, x*.11, .2); r.checkCollisions = true; return r;
+                }
+                function placeTree(name, x, z, s = 1) {
+                    const t = trunk.createInstance(name + "T"); t.position.set(x, h(x,z) + 2.25*s, z); t.scaling.setAll(s); t.checkCollisions = true;
+                    const c = crown.createInstance(name + "C"); c.position.set(x, h(x,z) + 5.5*s, z); c.scaling.setAll(s); c.isPickable = false;
                 }
 
-                // E. CAMERA CHECK (Gamepad Right Stick)
-                if (myController && myController.rightStick) {
-                    if (Math.abs(myController.rightStick.x) > 0.1) camera.inertialAlphaOffset += myController.rightStick.x * 0.015; 
-                    if (Math.abs(myController.rightStick.y) > 0.1) camera.inertialBetaOffset += myController.rightStick.y * 0.015; 
+                const rocks = [[-9,8,.9],[-15,-4,1.2],[26,8,.7],[31,28,1.1],[7,31,.8],[-27,21,1.3],[37,-5,1],[-38,-22,1.2],[-7,-31,.85],[17,-28,.9],[43,37,1.35],[-42,42,1.1]];
+                rocks.forEach((r,i)=>placeRock("rock"+i, r[0], r[1], r[2]));
+                const trees = [[-13,18,1],[-20,25,1.1],[-27,31,.8],[-32,11,1.15],[-40,2,.9],[35,15,1],[42,22,1.2],[47,6,.85],[26,42,1.05],[9,47,.9],[-12,46,1.2],[-42,-5,1.1],[-31,-28,.95],[34,-29,1.15],[45,-42,1],[-8,-46,.9],[18,-50,1.2]];
+                trees.forEach((t,i)=>placeTree("tree"+i, t[0], t[1], t[2]));
+
+                // Ruin stones around crystal valley
+                for (let i = 0; i < 10; i++) {
+                    const a = i / 10 * Math.PI * 2;
+                    const rad = 17 + (i % 2) * 3;
+                    const x = 15 + Math.cos(a) * rad, z = 20 + Math.sin(a) * rad;
+                    const p = BABYLON.MeshBuilder.CreateBox("runePillar"+i, { width: 1.35, depth: 1.0, height: 4.5 + (i%3)*.7 }, scene);
+                    p.position.set(x, h(x,z) + p.scaling.y + 2.1, z);
+                    p.rotation.y = -a + .2;
+                    p.material = runeMat;
+                    p.checkCollisions = true;
                 }
 
-                // F. MOVEMENT CHECK (Touch Virtual Joystick)
-                if (touchMoveX !== 0) moveX -= touchMoveX * speed;
-                if (touchMoveZ !== 0) moveZ += touchMoveZ * speed; 
+                // Crystal and beacon
+                const crystalX = 15, crystalZ = 20;
+                const crystalBaseY = h(crystalX, crystalZ);
+                const crystal = BABYLON.MeshBuilder.CreateCylinder("crystal", { height: 10, diameterTop: .2, diameterBottom: 3.0, tessellation: 6 }, scene);
+                crystal.position.set(crystalX, crystalBaseY + 5.0, crystalZ);
+                crystal.rotation.z = .08;
+                const crystalMat = new BABYLON.StandardMaterial("crystalMat", scene);
+                crystalMat.diffuseColor = new BABYLON.Color3(0.05, 0.65, 0.86);
+                crystalMat.emissiveColor = new BABYLON.Color3(0.0, 0.55, 0.78);
+                crystalMat.alpha = .92;
+                crystal.material = crystalMat;
 
-                // Apply Sprint Multiplier
-                if (isRunning) { moveX *= 1.8; moveZ *= 1.8; }
+                const crystalLight = new BABYLON.PointLight("crystalLight", crystal.position.clone(), scene);
+                crystalLight.diffuse = new BABYLON.Color3(0.1, 0.8, 1);
+                crystalLight.intensity = 2.0; crystalLight.range = 38;
 
-                let currentSpeed = Math.sqrt(moveX*moveX + moveZ*moveZ);
-                smoothSpeed = BABYLON.Scalar.Lerp(smoothSpeed, currentSpeed, 0.1);
+                const beacon = BABYLON.MeshBuilder.CreateCylinder("beacon", { height: 55, diameter: .45, tessellation: 16 }, scene);
+                beacon.position.set(crystalX, crystalBaseY + 27, crystalZ);
+                const beaconMat = new BABYLON.StandardMaterial("beaconMat", scene);
+                beaconMat.disableLighting = true; beaconMat.emissiveColor = new BABYLON.Color3(0, .55, .8); beaconMat.alpha = .20;
+                beacon.material = beaconMat; beacon.isPickable = false;
 
-                // Apply Forward/Directional Movement (Camera Relative)
-                if (currentSpeed > 0) {
-                    const forward = camera.getFrontPosition(1).subtract(camera.position);
-                    forward.y = 0; forward.normalize();
-                    const right = BABYLON.Vector3.Cross(new BABYLON.Vector3(0, 1, 0), forward).normalize();
-                    const direction = forward.scale(moveZ).add(right.scale(-moveX));
-                    
-                    hero.position.addInPlace(direction);
-                    hero.rotationQuaternion = null; 
-                    hero.rotation.y = Math.atan2(direction.x, direction.z) + Math.PI; 
+                const ring = BABYLON.MeshBuilder.CreateTorus("crystalRing", { diameter: 8, thickness: .10, tessellation: 48 }, scene);
+                ring.position.set(crystalX, crystalBaseY + .2, crystalZ); ring.rotation.x = Math.PI / 2;
+                const ringMat = new BABYLON.StandardMaterial("ringMat", scene); ringMat.disableLighting = true; ringMat.emissiveColor = new BABYLON.Color3(0,.6,.85); ring.material = ringMat;
+
+                const particles = new BABYLON.ParticleSystem("crystalParticles", isTouch ? 700 : 1200, scene);
+                particles.particleTexture = new BABYLON.Texture("https://textures.babylonjs.com/flare.png", scene);
+                particles.emitter = crystal;
+                particles.minEmitBox = new BABYLON.Vector3(-1.3,-4.8,-1.3); particles.maxEmitBox = new BABYLON.Vector3(1.3,3.8,1.3);
+                particles.color1 = new BABYLON.Color4(0,.85,1,1); particles.color2 = new BABYLON.Color4(.5,.2,1,1); particles.colorDead = new BABYLON.Color4(0,0,.1,0);
+                particles.minSize = .05; particles.maxSize = .28; particles.minLifeTime = 1; particles.maxLifeTime = 3.5; particles.emitRate = isTouch ? 32 : 55;
+                particles.direction1 = new BABYLON.Vector3(-.25,.6,-.25); particles.direction2 = new BABYLON.Vector3(.25,1.6,.25); particles.gravity = new BABYLON.Vector3(0,.12,0); particles.start();
+
+                // Friendly guide wisp / NPC
+                const wispRoot = new BABYLON.TransformNode("wispRoot", scene);
+                const wispX = 4, wispZ = 5;
+                wispRoot.position.set(wispX, h(wispX,wispZ) + 2.25, wispZ);
+                const wisp = BABYLON.MeshBuilder.CreateSphere("guideWisp", { diameter: .65, segments: 16 }, scene); wisp.parent = wispRoot;
+                const wispMat = new BABYLON.StandardMaterial("wispMat", scene); wispMat.disableLighting = true; wispMat.emissiveColor = new BABYLON.Color3(.68,.24,1); wisp.material = wispMat;
+                const wispHalo = BABYLON.MeshBuilder.CreateTorus("wispHalo", { diameter: 1.25, thickness: .045, tessellation: 32 }, scene); wispHalo.parent = wispRoot; wispHalo.rotation.x = Math.PI/2; wispHalo.material = wispMat;
+                const wispLight = new BABYLON.PointLight("wispLight", wispRoot.position.clone(), scene); wispLight.diffuse = new BABYLON.Color3(.55,.18,1); wispLight.intensity = .8; wispLight.range = 9;
+
+                // Ambient wisps / creatures
+                const ambientWisps = [];
+                for (let i = 0; i < 6; i++) {
+                    const orb = BABYLON.MeshBuilder.CreateSphere("ambientWisp"+i, { diameter: .22, segments: 8 }, scene);
+                    orb.material = wispMat; orb.isPickable = false;
+                    orb.metadata = { a: i * 1.047, r: 9 + (i%3)*4, speed: .14 + i*.01, height: 2 + (i%2)*.7 };
+                    ambientWisps.push(orb);
                 }
 
-                // THE JUMPING & GRAVITY LOGIC 
-                let groundHeight = ground.getHeightAtCoordinates(hero.position.x, hero.position.z);
-                let isGrounded = (hero.position.y <= groundHeight + 0.05); 
-
-                if (isGrounded) {
-                    if (isJumpingPressed) {
-                        velocityY = jumpPower; 
-                    } else {
-                        hero.position.y = groundHeight; 
-                        velocityY = 0;
-                    }
-                } else {
-                    velocityY += gravity; 
-                }
-                hero.position.y += velocityY; 
-
-                // Camera Terrain Tracking (Spring Arm)
-                const normalRadius = 5; 
-                let camGroundHeight = ground.getHeightAtCoordinates(camera.position.x, camera.position.z);
-                if (camera.position.y < camGroundHeight + 0.5) {
-                    camera.radius = BABYLON.Scalar.Lerp(camera.radius, camera.radius - 1.0, 0.2);
-                } else {
-                    if (camera.radius < normalRadius) { camera.radius = BABYLON.Scalar.Lerp(camera.radius, normalRadius, 0.05); }
-                }
-
-                // Crystal Proximity
-                if (BABYLON.Vector3.Distance(hero.position, crystal.position) < 6.0) {
-                    promptUI.style.opacity = "1";
-                    crystalMat.emissiveColor = BABYLON.Color3.Lerp(crystalMat.emissiveColor, colorMagenta, 0.05);
-                    crystalLight.diffuse = BABYLON.Color3.Lerp(crystalLight.diffuse, colorMagenta, 0.05);
-                    particleSystem.color1 = new BABYLON.Color4(1, 0, 1, 1);
-                } else {
-                    promptUI.style.opacity = "0";
-                    crystalMat.emissiveColor = BABYLON.Color3.Lerp(crystalMat.emissiveColor, colorCyan, 0.05);
-                    crystalLight.diffuse = BABYLON.Color3.Lerp(crystalLight.diffuse, colorCyan, 0.05);
-                    particleSystem.color1 = new BABYLON.Color4(0, 0.8, 1, 1);
-                }
-
-                const delta = engine.getDeltaTime() / 1000;
-                const time = Date.now() * 0.001;
-                
-                // Procedural Animations 
-                if (smoothSpeed > 0.01 && isGrounded) {
-                    walkAccumulator += (smoothSpeed * 150) * delta;
-                    const wc = walkAccumulator;
-                    const legAmp = isRunning ? 0.7 : 0.4;
-                    const armAmp = isRunning ? 0.5 : 0.2;
-
-                    if (bones.leftLeg) bones.leftLeg.rotation.x = Math.sin(wc) * legAmp;
-                    if (bones.rightLeg) bones.rightLeg.rotation.x = Math.sin(wc + Math.PI) * legAmp;
-                    if (bones.leftArm) { bones.leftArm.rotation.z = -1.2; bones.leftArm.rotation.x = Math.sin(wc + Math.PI) * armAmp; }
-                    if (bones.rightArm) { bones.rightArm.rotation.z = 1.2; bones.rightArm.rotation.x = Math.sin(wc) * armAmp; }
-                    if (bones.spine) bones.spine.rotation.y = Math.cos(wc) * 0.1;
-                } else {
-                    walkAccumulator = 0;
-                    const breath = isGrounded ? Math.sin(time * 2.5) * 0.03 : 0;
-                    if (bones.leftLeg) bones.leftLeg.rotation.x = BABYLON.Scalar.Lerp(bones.leftLeg.rotation.x, 0, 0.1);
-                    if (bones.rightLeg) bones.rightLeg.rotation.x = BABYLON.Scalar.Lerp(bones.rightLeg.rotation.x, 0, 0.1);
-                    if (bones.leftArm) { bones.leftArm.rotation.z = BABYLON.Scalar.Lerp(bones.leftArm.rotation.z, -1.2, 0.1); bones.leftArm.rotation.x = BABYLON.Scalar.Lerp(bones.leftArm.rotation.x, 0, 0.1); }
-                    if (bones.rightArm) { bones.rightArm.rotation.z = BABYLON.Scalar.Lerp(bones.rightArm.rotation.z, 1.2, 0.1); bones.rightArm.rotation.x = BABYLON.Scalar.Lerp(bones.rightArm.rotation.x, 0, 0.1); }
-                    if (bones.spine) bones.spine.rotation.x = breath;
-                }
-
-                // Hair Physics
-                const wind = Math.sin(time * 2) * 0.03;
-                hairBones.forEach(h => {
-                    let targetRotX = h.baseRot.x + wind + (smoothSpeed * 0.5) - (velocityY * 1.5); 
-                    h.bone.rotation.x = BABYLON.Scalar.Lerp(h.bone.rotation.x, targetRotX, 0.1);
+                // Collectible Echo Shards
+                const shardMat = new BABYLON.StandardMaterial("shardMat", scene); shardMat.disableLighting = true; shardMat.emissiveColor = new BABYLON.Color3(.10, .95, .78); shardMat.diffuseColor = new BABYLON.Color3(.15,.8,.7);
+                const shardCoords = [[5,23], [25,34], [32,13], [-2,13], [15,2]];
+                const shards = shardCoords.map((p,i) => {
+                    const m = BABYLON.MeshBuilder.CreatePolyhedron("echoShard"+i, { type: 1, size: .62 }, scene);
+                    m.position.set(p[0], h(p[0],p[1]) + 1.3, p[1]); m.material = shardMat; m.metadata = { collected:false, baseY:m.position.y, offset:i*.7 }; return m;
                 });
 
-                // Blinking
-                if (blinkTarget) {
-                    if (blinkState.isBlinking) {
-                        blinkState.value += 0.25;
-                        if (blinkState.value >= 1.2) { blinkState.value = 1; blinkState.isBlinking = false; }
-                    } else {
-                        blinkState.value -= 0.1;
-                        if (blinkState.value <= 0) {
-                            blinkState.value = 0;
-                            if (Date.now() >= blinkState.nextTime) { blinkState.isBlinking = true; blinkState.nextTime = Date.now() + 3500 + (Math.random() * 2000); }
+                // Gentle hazard mist to make health meaningful
+                const hazard = BABYLON.MeshBuilder.CreateCylinder("unstableMist", { height: .14, diameter: 10, tessellation: 40 }, scene);
+                const hazardX = -18, hazardZ = -18; hazard.position.set(hazardX, h(hazardX,hazardZ)+.12, hazardZ);
+                const hazardMat = new BABYLON.StandardMaterial("hazardMat", scene); hazardMat.disableLighting = true; hazardMat.emissiveColor = new BABYLON.Color3(.28,.02,.08); hazardMat.alpha = .30; hazard.material = hazardMat; hazard.isPickable = false;
+
+                // Load Helen with a graceful fallback if the remote model cannot load.
+                let hero, result = null;
+                try {
+                    result = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "Helen1.glb", scene);
+                    hero = result.meshes[0];
+                    result.animationGroups.forEach(a => a.stop());
+                } catch (err) {
+                    console.warn("Helen model could not load; using fallback avatar.", err);
+                    hero = BABYLON.MeshBuilder.CreateCapsule("HelenFallback", { height: 2.2, radius: .42 }, scene);
+                    const fm = new BABYLON.StandardMaterial("fallbackMat", scene); fm.diffuseColor = new BABYLON.Color3(.18,.45,.62); fm.emissiveColor = new BABYLON.Color3(.02,.08,.12); hero.material = fm;
+                    showToast("Helen's model could not load, so a fallback avatar is active.", 4);
+                }
+                hero.position.set(0, h(0,0), 0);
+                hero.rotationQuaternion = null;
+
+                // Character bones for procedural animation
+                const bones = { leftArm:null, rightArm:null, leftLeg:null, rightLeg:null, spine:null };
+                const hairBones = [];
+                let blinkTarget = null;
+                if (result) {
+                    result.transformNodes.forEach(node => {
+                        if (node.name === "J_Bip_C_Spine") bones.spine = node;
+                        if (node.name === "J_Bip_L_UpperArm") bones.leftArm = node;
+                        if (node.name === "J_Bip_R_UpperArm") bones.rightArm = node;
+                        if (node.name === "J_Bip_L_UpperLeg") bones.leftLeg = node;
+                        if (node.name === "J_Bip_R_UpperLeg") bones.rightLeg = node;
+                        if (node.name.includes("J_Sec_Hair")) {
+                            if (node.rotationQuaternion) { node.rotation = node.rotationQuaternion.toEulerAngles(); node.rotationQuaternion = null; }
+                            hairBones.push({ bone: node, baseRot: node.rotation.clone() });
                         }
-                    }
-                    blinkTarget.influence = Math.max(0, Math.min(1, blinkState.value));
+                    });
+                    Object.values(bones).forEach(b => {
+                        if (b?.rotationQuaternion) { b.rotation = b.rotationQuaternion.toEulerAngles(); b.rotationQuaternion = null; }
+                    });
+                    result.meshes.forEach(m => {
+                        if (!m.morphTargetManager) return;
+                        for (let i=0;i<m.morphTargetManager.numTargets;i++) {
+                            const t = m.morphTargetManager.getTarget(i); if (t.name === "Fcl_EYE_Close") blinkTarget = t;
+                        }
+                    });
+                }
+                const blinkState = { blinking:false, value:0, next:performance.now()+2600 };
+
+                // Smooth third-person camera with terrain/collision protection
+                const cameraTarget = new BABYLON.TransformNode("cameraTarget", scene);
+                cameraTarget.position.copyFrom(hero.position.add(new BABYLON.Vector3(0, 1.25, 0)));
+                const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/3.05, 6.2, cameraTarget.position.clone(), scene);
+                camera.lockedTarget = cameraTarget;
+                camera.lowerRadiusLimit = 3.4; camera.upperRadiusLimit = 9.5;
+                camera.lowerBetaLimit = .48; camera.upperBetaLimit = 1.47;
+                camera.inertia = .78;
+                camera.angularSensibilityX = 4200; camera.angularSensibilityY = 4200;
+                camera.panningSensibility = 0;
+                camera.checkCollisions = true;
+                camera.collisionRadius = new BABYLON.Vector3(.35,.35,.35);
+                camera.fov = .82;
+                scene.activeCamera = camera;
+
+                const pipeline = new BABYLON.DefaultRenderingPipeline("renderPipeline", true, scene, [camera]);
+                pipeline.fxaaEnabled = true;
+                pipeline.bloomEnabled = true;
+                pipeline.bloomThreshold = .74;
+                pipeline.bloomWeight = isTouch ? .28 : .42;
+                pipeline.bloomKernel = isTouch ? 32 : 48;
+
+                // Camera drag only on the right side / outside the joystick + buttons.
+                let camPointerId = null, lastCamX = 0, lastCamY = 0;
+                canvas.addEventListener("pointerdown", e => {
+                    if (state.inventoryOpen) { toggleInventory(false); return; }
+                    if (isTouch && e.clientX < innerWidth * .42) return;
+                    camPointerId = e.pointerId; lastCamX = e.clientX; lastCamY = e.clientY; canvas.setPointerCapture?.(e.pointerId);
+                });
+                canvas.addEventListener("pointermove", e => {
+                    if (e.pointerId !== camPointerId) return;
+                    const dx = e.clientX-lastCamX, dy = e.clientY-lastCamY;
+                    camera.alpha -= dx * .0042; camera.beta = clamp(camera.beta - dy*.0034, camera.lowerBetaLimit, camera.upperBetaLimit);
+                    lastCamX=e.clientX; lastCamY=e.clientY;
+                });
+                const releaseCam = e => { if (e.pointerId === camPointerId) camPointerId = null; };
+                canvas.addEventListener("pointerup", releaseCam); canvas.addEventListener("pointercancel", releaseCam);
+
+                // Keyboard and gamepad
+                const input = {};
+                window.addEventListener("keydown", e => {
+                    input[e.key.toLowerCase()] = true;
+                    if (e.code === "Space") { state.jumpPressed = true; e.preventDefault(); }
+                    if (e.key.toLowerCase() === "e") state.interactPressed = true;
+                    if (e.key.toLowerCase() === "i") toggleInventory();
+                });
+                window.addEventListener("keyup", e => { input[e.key.toLowerCase()] = false; if (e.code === "Space") state.jumpPressed = false; });
+
+                const gamepads = new BABYLON.GamepadManager();
+                let pad = null, lastPadInteract = false;
+                gamepads.onGamepadConnectedObservable.add(g => { pad = g; showToast("Controller connected.", 1.8); });
+                gamepads.onGamepadDisconnectedObservable.add(() => pad = null);
+
+                const colorCyan = new BABYLON.Color3(0,.65,.88), colorMagenta = new BABYLON.Color3(.86,.16,1), colorGreen = new BABYLON.Color3(.14,1,.65);
+                let verticalVelocity = 0;
+                const gravity = -0.0165, jumpPower = .31;
+                const baseSpeed = .078;
+                let walkTime = 0, smoothSpeed = 0, wasGrounded = true;
+                let hazardTick = 0;
+                let qualityTimer = 0, qualityReduced = false;
+
+                function getNearestUncollectedShard() {
+                    let best = null, bestD = Infinity;
+                    shards.forEach(s => { if (!s.metadata.collected) { const d = BABYLON.Vector3.DistanceSquared(hero.position, s.position); if (d < bestD) { bestD=d; best=s; } } });
+                    return best;
                 }
 
-                camera.fov = BABYLON.Scalar.Lerp(camera.fov, isRunning && smoothSpeed > 0.05 ? runFov : baseFov, 0.05);
+                function chooseObjective() {
+                    if (state.quest === 0 || state.quest === 2) return crystal.position;
+                    if (state.quest === 1) return getNearestUncollectedShard()?.position || crystal.position;
+                    return null;
+                }
+
+                function doInteraction() {
+                    const obj = state.nearInteractable;
+                    if (!obj) return;
+                    if (obj.type === "wisp") {
+                        state.signalRead = true; updateInventoryUI();
+                        const lines = state.quest === 0
+                            ? "The crystal remembers every footstep in this valley. Reach it, and it may remember you too."
+                            : state.quest === 1
+                                ? "The Echo Shards are fragments of the crystal's song. Three are enough to restore its pattern."
+                                : "You carry the valley's echoes now. The crystal is waiting.";
+                        showDialogue("VALLEY WISP", lines, 5.4);
+                    } else if (obj.type === "crystal") {
+                        if (state.quest === 0) {
+                            setQuest(1);
+                            crystalMat.emissiveColor = colorMagenta.clone(); crystalLight.diffuse = colorMagenta.clone(); particles.emitRate *= 1.6;
+                            showToast("<strong>Crystal awakened.</strong> Echo Shards are now resonating nearby.", 3.5);
+                        } else if (state.quest === 1) {
+                            showToast(`The crystal needs more echoes. <strong>${state.shards} / 3</strong> gathered.`, 2.3);
+                        } else if (state.quest === 2) {
+                            state.hasKey = true; setQuest(3); updateInventoryUI();
+                            crystalMat.emissiveColor = colorGreen.clone(); crystalLight.diffuse = colorGreen.clone(); ringMat.emissiveColor = colorGreen.clone(); beaconMat.emissiveColor = colorGreen.clone();
+                            showToast("<strong>RESONANCE RESTORED</strong><br>The Resonance Key has awakened in your inventory.", 5);
+                            showDialogue("VALLEY WISP", "The valley knows your signal now. The path beyond this prototype is open for whatever we build next.", 6);
+                        }
+                    }
+                }
+
+                scene.onBeforeRenderObservable.add(() => {
+                    const dt = Math.min(engine.getDeltaTime()/1000, .033);
+                    const now = performance.now() * .001;
+                    if (state.inventoryOpen) { state.interactPressed = false; return; }
+
+                    let mx = 0, mz = 0;
+                    if (input["w"] || input["arrowup"]) mz -= 1;
+                    if (input["s"] || input["arrowdown"]) mz += 1;
+                    if (input["a"] || input["arrowleft"]) mx += 1;
+                    if (input["d"] || input["arrowright"]) mx -= 1;
+                    mx += -touchMoveX; mz += touchMoveZ;
+
+                    if (pad?.leftStick) { if (Math.abs(pad.leftStick.x)>.12) mx -= pad.leftStick.x; if (Math.abs(pad.leftStick.y)>.12) mz -= pad.leftStick.y; }
+                    if (pad?.rightStick) { if (Math.abs(pad.rightStick.x)>.12) camera.alpha += pad.rightStick.x*.022; if (Math.abs(pad.rightStick.y)>.12) camera.beta = clamp(camera.beta + pad.rightStick.y*.018, camera.lowerBetaLimit, camera.upperBetaLimit); }
+
+                    const padSprint = !!pad?.browserGamepad?.buttons?.[10]?.pressed;
+                    const wantsSprint = (input["shift"] || state.sprintHeld || padSprint) && state.stamina > 4;
+                    let magnitude = Math.hypot(mx,mz);
+                    if (magnitude > 1) { mx/=magnitude; mz/=magnitude; magnitude=1; }
+                    const sprinting = wantsSprint && magnitude > .08;
+                    if (sprinting) state.stamina = clamp(state.stamina - 24*dt, 0, 100);
+                    else state.stamina = clamp(state.stamina + (magnitude>.08 ? 13 : 18)*dt, 0, 100);
+
+                    const speed = baseSpeed * (sprinting ? 1.72 : 1) * (dt * 60);
+                    const currentMove = magnitude * speed;
+                    smoothSpeed = lerp(smoothSpeed, currentMove, .12);
+                    if (magnitude > .05) {
+                        const forward = camera.getFrontPosition(1).subtract(camera.position); forward.y=0; forward.normalize();
+                        const right = BABYLON.Vector3.Cross(BABYLON.Axis.Y, forward).normalize();
+                        const direction = forward.scale(mz * speed).add(right.scale(-mx * speed));
+                        hero.position.addInPlace(direction);
+                        hero.rotation.y = Math.atan2(direction.x, direction.z) + Math.PI;
+                    }
+
+                    const gy = h(hero.position.x, hero.position.z);
+                    const grounded = hero.position.y <= gy + .055;
+                    const padJump = !!pad?.browserGamepad?.buttons?.[0]?.pressed;
+                    if (grounded) {
+                        hero.position.y = gy;
+                        if ((state.jumpPressed || padJump) && wasGrounded) verticalVelocity = jumpPower;
+                        else if (verticalVelocity < 0) verticalVelocity = 0;
+                    } else verticalVelocity += gravity * (dt*60);
+                    hero.position.y += verticalVelocity * (dt*60);
+                    wasGrounded = grounded;
+
+                    // Out-of-bounds recovery + health feedback
+                    if (hero.position.y < -12 || Math.abs(hero.position.x) > 108 || Math.abs(hero.position.z) > 108) {
+                        hero.position.set(0,h(0,0),0); verticalVelocity=0; state.health=clamp(state.health-15,0,100); showToast("Field link recovered Helen at the valley entrance.", 2.8);
+                    }
+
+                    // Hazard zone slowly drains health; leaving it slowly restores.
+                    const hzDist = Math.hypot(hero.position.x-hazardX, hero.position.z-hazardZ);
+                    hazardTick += dt;
+                    if (hzDist < 4.8) {
+                        state.health = clamp(state.health - 5.5*dt, 0, 100);
+                        if (hazardTick > 2.2) { showToast("Unstable mist is weakening the field link. Move away from it.", 2); hazardTick=0; }
+                    } else {
+                        state.health = clamp(state.health + 1.3*dt, 0, 100);
+                        hazardTick = 0;
+                    }
+                    if (state.health <= 0) { state.health=60; hero.position.set(0,h(0,0),0); showToast("Field link reset. Health restored to 60.", 3); }
+
+                    // Smooth camera target and terrain safety.
+                    const target = hero.position.add(new BABYLON.Vector3(0, 1.25, 0));
+                    cameraTarget.position.copyFrom(BABYLON.Vector3.Lerp(cameraTarget.position, target, 1 - Math.pow(.001, dt)));
+                    const camGround = h(camera.position.x, camera.position.z);
+                    if (camera.position.y < camGround + .5) camera.radius = Math.max(camera.lowerRadiusLimit, camera.radius - .08*(dt*60));
+                    else camera.radius = lerp(camera.radius, 6.2, .025*(dt*60));
+                    camera.fov = lerp(camera.fov, sprinting ? .95 : .82, .06*(dt*60));
+
+                    // Interaction detection
+                    state.nearInteractable = null;
+                    const crystalDist = BABYLON.Vector3.Distance(hero.position, crystal.position);
+                    const wispDist = BABYLON.Vector3.Distance(hero.position, wispRoot.position);
+                    if (crystalDist < 6.4) state.nearInteractable = { type:"crystal", distance:crystalDist };
+                    if (wispDist < 3.3 && (!state.nearInteractable || wispDist < state.nearInteractable.distance)) state.nearInteractable = { type:"wisp", distance:wispDist };
+                    UI.prompt.classList.toggle("show", !!state.nearInteractable);
+                    UI.prompt.innerHTML = state.nearInteractable ? `<b>${isTouch ? "ACT" : "E"}</b> ${state.nearInteractable.type === "crystal" ? "TOUCH CRYSTAL" : "TALK TO WISP"}` : "";
+                    UI.interact.classList.toggle("ready", !!state.nearInteractable);
+
+                    const padInteract = !!pad?.browserGamepad?.buttons?.[2]?.pressed;
+                    if (padInteract && !lastPadInteract) state.interactPressed = true;
+                    lastPadInteract = padInteract;
+                    if (state.interactPressed) { doInteraction(); state.interactPressed=false; }
+
+                    // Shard animation + collection only after the crystal has awakened.
+                    shards.forEach((s,i) => {
+                        if (s.metadata.collected) return;
+                        s.rotation.y += dt*(1.4+i*.07); s.rotation.x = Math.sin(now*1.3+s.metadata.offset)*.22;
+                        s.position.y = s.metadata.baseY + Math.sin(now*2+s.metadata.offset)*.18;
+                        s.scaling.setAll(state.quest === 0 ? .55 : 1);
+                        if (state.quest >= 1 && BABYLON.Vector3.Distance(hero.position,s.position) < 1.65) {
+                            s.metadata.collected=true; s.setEnabled(false); state.shards++; updateInventoryUI();
+                            showToast(`<strong>Echo Shard collected.</strong> ${state.shards} / 3`, 2);
+                            if (state.shards >= 3 && state.quest === 1) { setQuest(2); showToast("Three echoes synchronized. <strong>Return to the Crystal.</strong>", 3.2); }
+                        }
+                    });
+
+                    // Objective distance
+                    state.objective = chooseObjective();
+                    if (state.objective) UI.distance.textContent = `TARGET ${Math.round(BABYLON.Vector3.Distance(hero.position,state.objective))} m`;
+                    else UI.distance.textContent = "FREE EXPLORATION";
+
+                    // Crystal/wisp/ambient animation
+                    crystal.rotation.y += dt*.12; ring.rotation.z += dt*.14; beaconMat.alpha = .17 + Math.sin(now*1.7)*.035;
+                    wispRoot.position.y = h(wispX,wispZ) + 2.25 + Math.sin(now*1.8)*.18; wispRoot.rotation.y += dt*.6; wispLight.position.copyFrom(wispRoot.position);
+                    ambientWisps.forEach((orb,i)=>{
+                        const m=orb.metadata, a=m.a+now*m.speed; orb.position.set(crystalX+Math.cos(a)*m.r, h(crystalX+Math.cos(a)*m.r, crystalZ+Math.sin(a)*m.r)+m.height+Math.sin(now*1.8+i)*.3, crystalZ+Math.sin(a)*m.r);
+                    });
+                    hazard.rotation.y += dt*.06; hazard.scaling.x = hazard.scaling.z = 1 + Math.sin(now*.7)*.03;
+
+                    // Character procedural states
+                    walkTime += smoothSpeed * (sprinting ? 110 : 88) * dt;
+                    if (result && bones.leftLeg && bones.rightLeg) {
+                        const moving = smoothSpeed > .012 && grounded;
+                        const legAmp = sprinting ? .72 : .42, armAmp = sprinting ? .54 : .26;
+                        if (moving) {
+                            bones.leftLeg.rotation.x = Math.sin(walkTime)*legAmp; bones.rightLeg.rotation.x = Math.sin(walkTime+Math.PI)*legAmp;
+                            if (bones.leftArm) { bones.leftArm.rotation.z=-1.18; bones.leftArm.rotation.x=Math.sin(walkTime+Math.PI)*armAmp; }
+                            if (bones.rightArm) { bones.rightArm.rotation.z=1.18; bones.rightArm.rotation.x=Math.sin(walkTime)*armAmp; }
+                            if (bones.spine) bones.spine.rotation.y=Math.cos(walkTime)*.09;
+                        } else {
+                            const breath = grounded ? Math.sin(now*2.3)*.025 : 0;
+                            bones.leftLeg.rotation.x=lerp(bones.leftLeg.rotation.x,0,.11); bones.rightLeg.rotation.x=lerp(bones.rightLeg.rotation.x,0,.11);
+                            if (bones.leftArm) { bones.leftArm.rotation.z=lerp(bones.leftArm.rotation.z,-1.18,.1); bones.leftArm.rotation.x=lerp(bones.leftArm.rotation.x,0,.1); }
+                            if (bones.rightArm) { bones.rightArm.rotation.z=lerp(bones.rightArm.rotation.z,1.18,.1); bones.rightArm.rotation.x=lerp(bones.rightArm.rotation.x,0,.1); }
+                            if (bones.spine) { bones.spine.rotation.y=lerp(bones.spine.rotation.y,0,.1); bones.spine.rotation.x=lerp(bones.spine.rotation.x,breath,.1); }
+                        }
+                    }
+                    hairBones.forEach(hb => { const target = hb.baseRot.x + Math.sin(now*2)*.025 + smoothSpeed*.45 - verticalVelocity*1.2; hb.bone.rotation.x = lerp(hb.bone.rotation.x,target,.12); });
+
+                    if (blinkTarget) {
+                        const ms = performance.now();
+                        if (!blinkState.blinking && ms >= blinkState.next) blinkState.blinking=true;
+                        blinkState.value += blinkState.blinking ? .28 : -.16;
+                        if (blinkState.value >= 1) { blinkState.value=1; blinkState.blinking=false; blinkState.next=ms+2700+Math.random()*2400; }
+                        if (!blinkState.blinking && blinkState.value < 0) blinkState.value=0;
+                        blinkTarget.influence=clamp(blinkState.value,0,1);
+                    }
+
+                    // HUD timers
+                    if (state.toastTimer>0) { state.toastTimer-=dt; if (state.toastTimer<=0) UI.toast.classList.remove("show"); }
+                    if (state.dialogueTimer>0) { state.dialogueTimer-=dt; if (state.dialogueTimer<=0) UI.dialogue.classList.remove("show"); }
+                    updateHudBars();
+
+                    // Auto quality safeguard on phones if sustained FPS is low.
+                    qualityTimer += dt;
+                    if (isTouch && qualityTimer > 5 && !qualityReduced) {
+                        qualityTimer = 0;
+                        if (engine.getFps() < 39) {
+                            qualityReduced = true;
+                            pipeline.bloomEnabled = false;
+                            engine.setHardwareScalingLevel(Math.max(engine.getHardwareScalingLevel(), 0.82));
+                            showToast("Performance mode enabled for smoother play.", 2.2);
+                        }
+                    }
+                });
+
+                setQuest(0); updateInventoryUI(); updateHudBars();
+                showToast("Explore the valley. Talk to the violet wisp or follow the cyan beacon.", 4.5);
+                return scene;
+            }
+
+            createScene().then(scene => {
+                engine.runRenderLoop(() => scene.render());
+            }).catch(err => {
+                console.error(err);
+                UI.toast.textContent = "The 3D scene could not start. Check your connection and refresh.";
+                UI.toast.classList.add("show");
             });
 
-            return scene;
-        };
-
-        createScene().then(scene => { engine.runRenderLoop(() => scene.render()); });
-        
-        // --- ROTATION FIX ---
-        // Give the mobile browser a fraction of a second to finish rotating before resizing the 3D world
-        window.addEventListener("resize", () => {
-            setTimeout(() => engine.resize(), 100);
-        });
-        window.addEventListener("orientationchange", () => {
-            setTimeout(() => engine.resize(), 200);
-        });
+            function safeResize() { requestAnimationFrame(() => engine.resize()); }
+            window.addEventListener("resize", () => setTimeout(safeResize, 80));
+            window.addEventListener("orientationchange", () => setTimeout(safeResize, 220));
+            document.addEventListener("fullscreenchange", () => setTimeout(safeResize, 100));
+        })();
     </script>
 </body>
 </html>
