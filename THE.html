@@ -266,7 +266,7 @@
         <div id="brand" class="glass">
             <div class="eyebrow">HELEN // FIELD LINK</div>
             <div class="title">Resonance Valley</div>
-            <div class="sub">Explore • Discover • Awaken the Crystal</div>
+            <div class="sub">VRM locomotion • Smooth turning • Natural motion states</div>
         </div>
 
         <div id="questPanel" class="glass">
@@ -296,7 +296,9 @@
 
         <div id="topButtons">
             <button id="inventoryButton" class="tinyBtn" type="button">BAG</button>
+            <button id="loadVrmButton" class="tinyBtn" type="button">LOAD VRM</button>
             <button id="fullscreenButton" class="tinyBtn" type="button">FULL</button>
+            <input id="vrmFileInput" type="file" accept=".vrm,.glb,.gltf" hidden />
         </div>
 
         <div id="crosshair"></div>
@@ -350,6 +352,8 @@
                 dialogueText: document.getElementById("dialogueText"),
                 inventory: document.getElementById("inventoryPanel"),
                 inventoryButton: document.getElementById("inventoryButton"),
+                loadVrmButton: document.getElementById("loadVrmButton"),
+                vrmFileInput: document.getElementById("vrmFileInput"),
                 fullscreenButton: document.getElementById("fullscreenButton"),
                 invShards: document.getElementById("invShards"),
                 invKey: document.getElementById("invKey"),
@@ -371,11 +375,14 @@
                 inventoryOpen: false,
                 toastTimer: 0,
                 dialogueTimer: 0,
-                objective: null
+                objective: null,
+                animationState: "IDLE"
             };
 
             const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
             const lerp = (a, b, t) => a + (b - a) * t;
+            const angleDelta = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+            const lerpAngle = (from, to, t) => from + angleDelta(from, to) * clamp(t, 0, 1);
 
             function setQuest(step) {
                 state.quest = step;
@@ -424,6 +431,13 @@
             }
 
             UI.inventoryButton.addEventListener("click", e => { e.stopPropagation(); toggleInventory(); });
+            UI.loadVrmButton.addEventListener("click", e => { e.stopPropagation(); UI.vrmFileInput.click(); });
+            UI.vrmFileInput.addEventListener("change", async () => {
+                const file = UI.vrmFileInput.files?.[0];
+                if (!file) return;
+                if (window.__helenLoadVRM) await window.__helenLoadVRM(file);
+                UI.vrmFileInput.value = "";
+            });
             UI.inventory.addEventListener("pointerdown", e => e.stopPropagation());
             document.getElementById("hud").addEventListener("pointerdown", e => {
                 if (state.inventoryOpen && !UI.inventory.contains(e.target) && e.target !== UI.inventoryButton) toggleInventory(false);
@@ -631,48 +645,196 @@
                 const hazardX = -18, hazardZ = -18; hazard.position.set(hazardX, h(hazardX,hazardZ)+.12, hazardZ);
                 const hazardMat = new BABYLON.StandardMaterial("hazardMat", scene); hazardMat.disableLighting = true; hazardMat.emissiveColor = new BABYLON.Color3(.28,.02,.08); hazardMat.alpha = .30; hazard.material = hazardMat; hazard.isPickable = false;
 
-                // Load Helen with a graceful fallback if the remote model cannot load.
+                // Helen avatar + VRM humanoid rig support.
+                // Babylon can read the glTF binary inside .vrm when we explicitly use the glTF loader.
+                // VRM itself standardizes the humanoid skeleton; motion is generated below by our locomotion state machine.
                 let hero, result = null;
+                let avatarFacingOffset = Math.PI; // legacy Helen1.glb faces the opposite direction from VRM's +Z convention.
+                let avatarSource = "Helen1.glb";
+                let hairBones = [];
+                let blinkTarget = null;
+                const blinkState = { blinking:false, value:0, next:performance.now()+2600 };
+
+                const rig = { nodes:{}, base:new Map(), valid:false, phase:0, moveBlend:0, runBlend:0, airBlend:0, landBlend:0 };
+
+                const normalizeBoneName = name => String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+                const aliases = {
+                    hips:["J_Bip_C_Hips","Hips","hips"],
+                    spine:["J_Bip_C_Spine","Spine","spine"],
+                    chest:["J_Bip_C_Chest","Chest","chest"],
+                    upperChest:["J_Bip_C_UpperChest","UpperChest","upper_chest"],
+                    neck:["J_Bip_C_Neck","Neck","neck"],
+                    head:["J_Bip_C_Head","Head","head"],
+                    leftUpperArm:["J_Bip_L_UpperArm","LeftUpperArm","leftUpperArm"],
+                    rightUpperArm:["J_Bip_R_UpperArm","RightUpperArm","rightUpperArm"],
+                    leftLowerArm:["J_Bip_L_LowerArm","LeftLowerArm","leftLowerArm"],
+                    rightLowerArm:["J_Bip_R_LowerArm","RightLowerArm","rightLowerArm"],
+                    leftUpperLeg:["J_Bip_L_UpperLeg","LeftUpperLeg","leftUpperLeg"],
+                    rightUpperLeg:["J_Bip_R_UpperLeg","RightUpperLeg","rightUpperLeg"],
+                    leftLowerLeg:["J_Bip_L_LowerLeg","LeftLowerLeg","leftLowerLeg"],
+                    rightLowerLeg:["J_Bip_R_LowerLeg","RightLowerLeg","rightLowerLeg"],
+                    leftFoot:["J_Bip_L_Foot","LeftFoot","leftFoot"],
+                    rightFoot:["J_Bip_R_Foot","RightFoot","rightFoot"]
+                };
+
+                function makeEulerNode(node) {
+                    if (!node) return null;
+                    if (node.rotationQuaternion) {
+                        node.rotation.copyFrom(node.rotationQuaternion.toEulerAngles());
+                        node.rotationQuaternion = null;
+                    }
+                    return node;
+                }
+
+                function mapHumanoid(imported) {
+                    rig.nodes = {}; rig.base.clear(); hairBones = []; blinkTarget = null;
+                    const all = [...(imported?.transformNodes || []), ...(imported?.meshes || [])];
+                    const byName = new Map(all.map(n => [normalizeBoneName(n.name), n]));
+                    for (const [key, names] of Object.entries(aliases)) {
+                        let node = null;
+                        for (const name of names) { node = byName.get(normalizeBoneName(name)); if (node) break; }
+                        // Last-resort fuzzy lookup helps with exporters that prefix bone names.
+                        if (!node) {
+                            const target = normalizeBoneName(names[0]);
+                            node = all.find(n => { const nn = normalizeBoneName(n.name); return nn.endsWith(target) || target.endsWith(nn); }) || null;
+                        }
+                        if (node) {
+                            makeEulerNode(node);
+                            rig.nodes[key] = node;
+                            rig.base.set(node, { rot:node.rotation.clone(), pos:node.position.clone() });
+                        }
+                    }
+
+                    (imported?.transformNodes || []).forEach(node => {
+                        if (/hair|jsechair/i.test(node.name || "")) {
+                            makeEulerNode(node);
+                            hairBones.push({ bone:node, baseRot:node.rotation.clone() });
+                        }
+                    });
+
+                    (imported?.meshes || []).forEach(m => {
+                        if (!m.morphTargetManager) return;
+                        for (let i=0; i<m.morphTargetManager.numTargets; i++) {
+                            const t = m.morphTargetManager.getTarget(i);
+                            if (/fcl_eye_close|blink/i.test(t.name || "")) { blinkTarget = t; break; }
+                        }
+                    });
+
+                    rig.valid = !!(rig.nodes.leftUpperLeg && rig.nodes.rightUpperLeg && rig.nodes.leftUpperArm && rig.nodes.rightUpperArm);
+                    rig.phase = 0; rig.moveBlend = rig.runBlend = rig.airBlend = rig.landBlend = 0;
+                }
+
+                function disposeAvatar(imported) {
+                    if (!imported) return;
+                    try { (imported.animationGroups || []).forEach(a => a.dispose()); } catch (_) {}
+                    try { (imported.meshes || []).forEach(m => { if (!m.isDisposed?.()) m.dispose(false, true); }); } catch (_) {}
+                    try { (imported.transformNodes || []).forEach(n => { if (!n.isDisposed?.()) n.dispose(); }); } catch (_) {}
+                }
+
+                function installAvatar(imported, label, isVrm=false) {
+                    if (!imported?.meshes?.length) throw new Error("No meshes found in avatar file.");
+                    (imported.animationGroups || []).forEach(a => a.stop());
+                    const newHero = imported.meshes.find(m => !m.parent) || imported.meshes[0];
+                    const oldResult = result;
+                    result = imported; hero = newHero; avatarSource = label;
+                    avatarFacingOffset = isVrm ? 0 : Math.PI;
+                    hero.position.set(0, h(0,0), 0);
+                    if (hero.rotationQuaternion) { hero.rotation.copyFrom(hero.rotationQuaternion.toEulerAngles()); hero.rotationQuaternion = null; }
+                    hero.rotation.y = avatarFacingOffset;
+                    mapHumanoid(imported);
+                    if (oldResult && oldResult !== imported) disposeAvatar(oldResult);
+                    showToast(rig.valid ? `<strong>${label}</strong> humanoid rig ready — natural locomotion active.` : `<strong>${label}</strong> loaded. Humanoid bones were only partially detected.`, 3.2);
+                }
+
                 try {
-                    result = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "Helen1.glb", scene);
-                    hero = result.meshes[0];
-                    result.animationGroups.forEach(a => a.stop());
+                    const imported = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/Andrew0046/Helen-A.I./main/", "Helen1.glb", scene);
+                    installAvatar(imported, "Helen1.glb", false);
                 } catch (err) {
                     console.warn("Helen model could not load; using fallback avatar.", err);
                     hero = BABYLON.MeshBuilder.CreateCapsule("HelenFallback", { height: 2.2, radius: .42 }, scene);
                     const fm = new BABYLON.StandardMaterial("fallbackMat", scene); fm.diffuseColor = new BABYLON.Color3(.18,.45,.62); fm.emissiveColor = new BABYLON.Color3(.02,.08,.12); hero.material = fm;
+                    hero.position.set(0, h(0,0), 0); hero.rotationQuaternion = null; avatarFacingOffset = 0;
                     showToast("Helen's model could not load, so a fallback avatar is active.", 4);
                 }
-                hero.position.set(0, h(0,0), 0);
-                hero.rotationQuaternion = null;
 
-                // Character bones for procedural animation
-                const bones = { leftArm:null, rightArm:null, leftLeg:null, rightLeg:null, spine:null };
-                const hairBones = [];
-                let blinkTarget = null;
-                if (result) {
-                    result.transformNodes.forEach(node => {
-                        if (node.name === "J_Bip_C_Spine") bones.spine = node;
-                        if (node.name === "J_Bip_L_UpperArm") bones.leftArm = node;
-                        if (node.name === "J_Bip_R_UpperArm") bones.rightArm = node;
-                        if (node.name === "J_Bip_L_UpperLeg") bones.leftLeg = node;
-                        if (node.name === "J_Bip_R_UpperLeg") bones.rightLeg = node;
-                        if (node.name.includes("J_Sec_Hair")) {
-                            if (node.rotationQuaternion) { node.rotation = node.rotationQuaternion.toEulerAngles(); node.rotationQuaternion = null; }
-                            hairBones.push({ bone: node, baseRot: node.rotation.clone() });
+                // Load a VRM directly from the phone/computer. The .vrm container is binary glTF,
+                // so we tell Babylon to use its glTF loader even though the filename ends in .vrm.
+                window.__helenLoadVRM = async file => {
+                    try {
+                        showToast(`Loading <strong>${file.name}</strong>...`, 2);
+                        const buffer = await file.arrayBuffer();
+                        const blobUrl = URL.createObjectURL(new Blob([buffer], { type:"model/gltf-binary" }));
+                        let imported;
+                        try {
+                            imported = await BABYLON.SceneLoader.ImportMeshAsync("", "", blobUrl, scene, null, ".glb");
+                        } finally {
+                            URL.revokeObjectURL(blobUrl);
                         }
-                    });
-                    Object.values(bones).forEach(b => {
-                        if (b?.rotationQuaternion) { b.rotation = b.rotationQuaternion.toEulerAngles(); b.rotationQuaternion = null; }
-                    });
-                    result.meshes.forEach(m => {
-                        if (!m.morphTargetManager) return;
-                        for (let i=0;i<m.morphTargetManager.numTargets;i++) {
-                            const t = m.morphTargetManager.getTarget(i); if (t.name === "Fcl_EYE_Close") blinkTarget = t;
-                        }
-                    });
+                        installAvatar(imported, file.name, /\.vrm$/i.test(file.name));
+                    } catch (err) {
+                        console.error("VRM load failed", err);
+                        showToast("That VRM could not be loaded by this browser build. The current Helen avatar was kept.", 4);
+                    }
+                };
+
+                function setRigRotation(node, x=0, y=0, z=0, blend=.18) {
+                    if (!node) return;
+                    const b = rig.base.get(node); if (!b) return;
+                    node.rotation.x = lerp(node.rotation.x, b.rot.x + x, blend);
+                    node.rotation.y = lerp(node.rotation.y, b.rot.y + y, blend);
+                    node.rotation.z = lerp(node.rotation.z, b.rot.z + z, blend);
                 }
-                const blinkState = { blinking:false, value:0, next:performance.now()+2600 };
+
+                function animateHumanoid(dt, now, grounded, sprinting, verticalVelocity, speedWorld, landPulse) {
+                    if (!rig.valid) return;
+                    const N = rig.nodes;
+                    const moveTarget = clamp(speedWorld / 4.6, 0, 1);
+                    const runTarget = sprinting ? 1 : 0;
+                    rig.moveBlend = lerp(rig.moveBlend, moveTarget, 1 - Math.exp(-8*dt));
+                    rig.runBlend = lerp(rig.runBlend, runTarget, 1 - Math.exp(-7*dt));
+                    rig.airBlend = lerp(rig.airBlend, grounded ? 0 : 1, 1 - Math.exp(-10*dt));
+                    rig.landBlend = lerp(rig.landBlend, landPulse, 1 - Math.exp(-14*dt));
+
+                    const cadence = lerp(6.4, 9.2, rig.runBlend);
+                    rig.phase += cadence * dt * Math.max(.18, rig.moveBlend);
+                    const s = Math.sin(rig.phase), c = Math.cos(rig.phase);
+                    const stride = lerp(.46, .76, rig.runBlend) * rig.moveBlend * (1-rig.airBlend);
+                    const armSwing = lerp(.34, .62, rig.runBlend) * rig.moveBlend * (1-rig.airBlend);
+                    const bob = Math.abs(c) * lerp(.018,.045,rig.runBlend) * rig.moveBlend;
+                    const idleBreath = Math.sin(now*2.05) * .018 * (1-rig.moveBlend);
+                    const crouch = rig.landBlend * .16;
+                    const air = rig.airBlend;
+                    const rising = clamp(verticalVelocity / .31, 0, 1);
+                    const falling = clamp(-verticalVelocity / .35, 0, 1);
+
+                    // Legs: opposite stride, knee bend on the trailing leg, then a compact airborne pose.
+                    setRigRotation(N.leftUpperLeg,  s*stride + air*(.18*rising - .10*falling) + crouch, 0, 0, .20);
+                    setRigRotation(N.rightUpperLeg,-s*stride + air*(-.12*rising + .16*falling) + crouch, 0, 0, .20);
+                    setRigRotation(N.leftLowerLeg,  Math.max(0,-s)*lerp(.42,.72,rig.runBlend)*rig.moveBlend + air*.28 + crouch*.7, 0, 0, .22);
+                    setRigRotation(N.rightLowerLeg, Math.max(0, s)*lerp(.42,.72,rig.runBlend)*rig.moveBlend + air*.28 + crouch*.7, 0, 0, .22);
+                    setRigRotation(N.leftFoot,  -Math.max(0,-s)*.16*rig.moveBlend + falling*.10, 0, 0, .18);
+                    setRigRotation(N.rightFoot, -Math.max(0, s)*.16*rig.moveBlend + falling*.10, 0, 0, .18);
+
+                    // VRM/VRoid avatars commonly load in a T-pose. Lower the arms, then layer the gait over it.
+                    setRigRotation(N.leftUpperArm,  -s*armSwing - air*.12, 0, -1.16 + air*.18, .18);
+                    setRigRotation(N.rightUpperArm,  s*armSwing + air*.12, 0,  1.16 - air*.18, .18);
+                    setRigRotation(N.leftLowerArm,  lerp(.10,.28,rig.runBlend)*rig.moveBlend + air*.25, 0, 0, .18);
+                    setRigRotation(N.rightLowerArm, lerp(.10,.28,rig.runBlend)*rig.moveBlend + air*.25, 0, 0, .18);
+
+                    // Hips/torso counter-rotate like a real walk instead of moving as one stiff block.
+                    const twist = c * lerp(.055,.105,rig.runBlend) * rig.moveBlend * (1-air);
+                    setRigRotation(N.hips, 0, twist, 0, .18);
+                    setRigRotation(N.spine, idleBreath - crouch*.22, -twist*.72, 0, .16);
+                    setRigRotation(N.chest, idleBreath*.55, -twist*.45, -s*.018*rig.moveBlend, .15);
+                    setRigRotation(N.upperChest, 0, -twist*.2, s*.015*rig.moveBlend, .15);
+                    setRigRotation(N.neck, 0, Math.sin(now*.55)*.025*(1-rig.moveBlend), 0, .10);
+                    setRigRotation(N.head, -idleBreath*.28, Math.sin(now*.42)*.035*(1-rig.moveBlend), 0, .10);
+
+                    if (N.hips) {
+                        const b = rig.base.get(N.hips);
+                        N.hips.position.y = lerp(N.hips.position.y, b.pos.y + bob - crouch*.12, .18);
+                    }
+                }
 
                 // Smooth third-person camera with terrain/collision protection
                 const cameraTarget = new BABYLON.TransformNode("cameraTarget", scene);
@@ -730,8 +892,9 @@
                 const colorCyan = new BABYLON.Color3(0,.65,.88), colorMagenta = new BABYLON.Color3(.86,.16,1), colorGreen = new BABYLON.Color3(.14,1,.65);
                 let verticalVelocity = 0;
                 const gravity = -0.0165, jumpPower = .31;
-                const baseSpeed = .078;
-                let walkTime = 0, smoothSpeed = 0, wasGrounded = true;
+                const walkSpeedWorld = 4.65, runSpeedWorld = 7.9;
+                const horizontalVelocity = new BABYLON.Vector3(0,0,0);
+                let smoothSpeed = 0, wasGrounded = true, landPulse = 0;
                 let hazardTick = 0;
                 let qualityTimer = 0, qualityReduced = false;
 
@@ -797,27 +960,51 @@
                     if (sprinting) state.stamina = clamp(state.stamina - 24*dt, 0, 100);
                     else state.stamina = clamp(state.stamina + (magnitude>.08 ? 13 : 18)*dt, 0, 100);
 
-                    const speed = baseSpeed * (sprinting ? 1.72 : 1) * (dt * 60);
-                    const currentMove = magnitude * speed;
-                    smoothSpeed = lerp(smoothSpeed, currentMove, .12);
+                    // Natural locomotion: velocity eases in/out and the body turns toward travel instead of snapping.
+                    const desired = new BABYLON.Vector3(0,0,0);
                     if (magnitude > .05) {
                         const forward = camera.getFrontPosition(1).subtract(camera.position); forward.y=0; forward.normalize();
                         const right = BABYLON.Vector3.Cross(BABYLON.Axis.Y, forward).normalize();
-                        const direction = forward.scale(mz * speed).add(right.scale(-mx * speed));
-                        hero.position.addInPlace(direction);
-                        hero.rotation.y = Math.atan2(direction.x, direction.z) + Math.PI;
+                        desired.copyFrom(forward.scale(mz).add(right.scale(-mx)));
+                        if (desired.lengthSquared() > .0001) desired.normalize().scaleInPlace(sprinting ? runSpeedWorld : walkSpeedWorld);
+                    }
+                    const accel = magnitude > .05 ? (sprinting ? 7.0 : 9.5) : 11.5;
+                    const velBlend = 1 - Math.exp(-accel * dt);
+                    horizontalVelocity.x = lerp(horizontalVelocity.x, desired.x, velBlend);
+                    horizontalVelocity.z = lerp(horizontalVelocity.z, desired.z, velBlend);
+                    hero.position.x += horizontalVelocity.x * dt;
+                    hero.position.z += horizontalVelocity.z * dt;
+                    const currentMove = Math.hypot(horizontalVelocity.x, horizontalVelocity.z);
+                    smoothSpeed = lerp(smoothSpeed, currentMove, 1 - Math.exp(-8*dt));
+                    if (currentMove > .16) {
+                        const targetYaw = Math.atan2(horizontalVelocity.x, horizontalVelocity.z) + avatarFacingOffset;
+                        hero.rotation.y = lerpAngle(hero.rotation.y, targetYaw, 1 - Math.exp(-(sprinting ? 10.5 : 8.5)*dt));
                     }
 
-                    const gy = h(hero.position.x, hero.position.z);
-                    const grounded = hero.position.y <= gy + .055;
+                    let gy = h(hero.position.x, hero.position.z);
+                    let grounded = hero.position.y <= gy + .06 && verticalVelocity <= 0;
                     const padJump = !!pad?.browserGamepad?.buttons?.[0]?.pressed;
                     if (grounded) {
                         hero.position.y = gy;
-                        if ((state.jumpPressed || padJump) && wasGrounded) verticalVelocity = jumpPower;
-                        else if (verticalVelocity < 0) verticalVelocity = 0;
-                    } else verticalVelocity += gravity * (dt*60);
+                        if ((state.jumpPressed || padJump) && wasGrounded) { verticalVelocity = jumpPower; grounded = false; }
+                        else verticalVelocity = 0;
+                    } else {
+                        verticalVelocity += gravity * (dt*60);
+                    }
                     hero.position.y += verticalVelocity * (dt*60);
+                    gy = h(hero.position.x, hero.position.z);
+                    const touchedGround = hero.position.y <= gy + .055 && verticalVelocity <= 0;
+                    if (touchedGround) {
+                        if (!wasGrounded) landPulse = 1;
+                        hero.position.y = gy; verticalVelocity = 0; grounded = true;
+                    }
+                    landPulse = Math.max(0, landPulse - dt*4.6);
                     wasGrounded = grounded;
+
+                    state.animationState = !grounded ? (verticalVelocity > .035 ? "JUMP" : "FALL")
+                        : landPulse > .18 ? "LAND"
+                        : smoothSpeed < .22 ? "IDLE"
+                        : sprinting ? "RUN" : "WALK";
 
                     // Out-of-bounds recovery + health feedback
                     if (hero.position.y < -12 || Math.abs(hero.position.x) > 108 || Math.abs(hero.position.z) > 108) {
@@ -885,25 +1072,12 @@
                     });
                     hazard.rotation.y += dt*.06; hazard.scaling.x = hazard.scaling.z = 1 + Math.sin(now*.7)*.03;
 
-                    // Character procedural states
-                    walkTime += smoothSpeed * (sprinting ? 110 : 88) * dt;
-                    if (result && bones.leftLeg && bones.rightLeg) {
-                        const moving = smoothSpeed > .012 && grounded;
-                        const legAmp = sprinting ? .72 : .42, armAmp = sprinting ? .54 : .26;
-                        if (moving) {
-                            bones.leftLeg.rotation.x = Math.sin(walkTime)*legAmp; bones.rightLeg.rotation.x = Math.sin(walkTime+Math.PI)*legAmp;
-                            if (bones.leftArm) { bones.leftArm.rotation.z=-1.18; bones.leftArm.rotation.x=Math.sin(walkTime+Math.PI)*armAmp; }
-                            if (bones.rightArm) { bones.rightArm.rotation.z=1.18; bones.rightArm.rotation.x=Math.sin(walkTime)*armAmp; }
-                            if (bones.spine) bones.spine.rotation.y=Math.cos(walkTime)*.09;
-                        } else {
-                            const breath = grounded ? Math.sin(now*2.3)*.025 : 0;
-                            bones.leftLeg.rotation.x=lerp(bones.leftLeg.rotation.x,0,.11); bones.rightLeg.rotation.x=lerp(bones.rightLeg.rotation.x,0,.11);
-                            if (bones.leftArm) { bones.leftArm.rotation.z=lerp(bones.leftArm.rotation.z,-1.18,.1); bones.leftArm.rotation.x=lerp(bones.leftArm.rotation.x,0,.1); }
-                            if (bones.rightArm) { bones.rightArm.rotation.z=lerp(bones.rightArm.rotation.z,1.18,.1); bones.rightArm.rotation.x=lerp(bones.rightArm.rotation.x,0,.1); }
-                            if (bones.spine) { bones.spine.rotation.y=lerp(bones.spine.rotation.y,0,.1); bones.spine.rotation.x=lerp(bones.spine.rotation.x,breath,.1); }
-                        }
-                    }
-                    hairBones.forEach(hb => { const target = hb.baseRot.x + Math.sin(now*2)*.025 + smoothSpeed*.45 - verticalVelocity*1.2; hb.bone.rotation.x = lerp(hb.bone.rotation.x,target,.12); });
+                    // VRM humanoid animation state machine + secondary motion.
+                    animateHumanoid(dt, now, grounded, sprinting, verticalVelocity, smoothSpeed, landPulse);
+                    hairBones.forEach(hb => {
+                        const target = hb.baseRot.x + Math.sin(now*2)*.022 + clamp(smoothSpeed/runSpeedWorld,0,1)*.12 - verticalVelocity*.5;
+                        hb.bone.rotation.x = lerp(hb.bone.rotation.x,target,.10);
+                    });
 
                     if (blinkTarget) {
                         const ms = performance.now();
