@@ -254,6 +254,53 @@
             #dialogue { bottom: 31%; }
         }
 
+
+
+        /* RPG expansion */
+        #compassBar {
+            position: absolute; top: 66px; left: 50%; transform: translateX(-50%);
+            width: min(360px, 48vw); height: 34px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            font: 800 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .08em; color: rgba(234,250,255,.82);
+        }
+        #compassNeedle { display:inline-block; color: var(--amber); font-size: 17px; line-height: 1; transform-origin: 50% 52%; }
+        #compassTarget { color: var(--cyan); max-width: 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #timeLabel { color: var(--amber); min-width: 56px; text-align:right; }
+
+        #questLogPanel {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -48%) scale(.98);
+            width: min(560px, 88vw); max-height: 72vh; overflow: auto; padding: 16px;
+            border-radius: 16px; opacity: 0; pointer-events: none; transition: .17s ease;
+        }
+        #questLogPanel.show { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+        #questLogPanel h2 { margin: 0 0 4px; font-size: 18px; }
+        .questCard { margin-top: 10px; padding: 11px 12px; border-radius: 11px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08); }
+        .questCard .qType { font-size: 9px; color: var(--amber); font-weight: 900; letter-spacing: .14em; }
+        .questCard .qName { margin-top: 3px; font-size: 13px; font-weight: 850; }
+        .questCard .qText { margin-top: 4px; font-size: 10px; line-height: 1.45; opacity: .68; }
+        .questCard .qProgress { margin-top: 6px; font: 800 10px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--cyan); }
+        #rpgStats { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:10px; }
+        .statTile { padding:9px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); text-align:center; }
+        .statTile b { display:block; color:var(--cyan); font-size:13px; }
+        .statTile span { font-size:8px; opacity:.56; letter-spacing:.1em; }
+
+        #areaBanner {
+            position:absolute; left:50%; top:27%; transform:translate(-50%,-8px); opacity:0;
+            transition:.35s ease; text-align:center; text-shadow:0 3px 15px #000; pointer-events:none;
+        }
+        #areaBanner.show { opacity:1; transform:translate(-50%,0); }
+        #areaBanner .areaName { font-size:22px; font-weight:900; letter-spacing:.12em; }
+        #areaBanner .areaSub { margin-top:3px; font-size:9px; opacity:.65; letter-spacing:.2em; }
+
+        @media (max-width: 800px) {
+            #compassBar { top: 54px; width: 46vw; height: 28px; }
+            #compassTarget { max-width: 110px; }
+            #timeLabel { min-width: 44px; }
+            #topButtons { gap: 4px; }
+            .tinyBtn { padding: 7px 7px; font-size: 8px; }
+        }
+
         @media (orientation: portrait) and (max-width: 900px) {
             #rotateNotice { display: grid; }
         }
@@ -266,7 +313,7 @@
         <div id="brand" class="glass">
             <div class="eyebrow">HELEN // FIELD LINK</div>
             <div class="title">Resonance Valley</div>
-            <div class="sub">VRM locomotion • Smooth turning • Natural motion states</div>
+            <div class="sub">VRM RPG prototype • Echohaven Village • Living world</div>
         </div>
 
         <div id="questPanel" class="glass">
@@ -292,11 +339,31 @@
             <div class="invItem"><span>Echo Shards</span><span id="invShards" class="invCount">0</span></div>
             <div class="invItem"><span>Resonance Key</span><span id="invKey" class="invCount">LOCKED</span></div>
             <div class="invItem"><span>Valley Signal</span><span id="invSignal" class="invCount">UNREAD</span></div>
+            <div class="invItem"><span>Moonleaf</span><span id="invHerbs" class="invCount">0</span></div>
+            <div class="invItem"><span>Gold</span><span id="invGold" class="invCount">0</span></div>
+            <div class="invItem"><span>Echohaven Token</span><span id="invToken" class="invCount">—</span></div>
         </div>
+
+        <div id="questLogPanel" class="glass">
+            <h2>Quest Journal</h2>
+            <div class="hint">Press Q, QUEST, or tap outside the panel to close.</div>
+            <div id="questLogContent"></div>
+            <div id="rpgStats">
+                <div class="statTile"><b id="statLevel">1</b><span>LEVEL</span></div>
+                <div class="statTile"><b id="statXP">0</b><span>XP</span></div>
+                <div class="statTile"><b id="statGold">0</b><span>GOLD</span></div>
+            </div>
+        </div>
+
+        <div id="compassBar" class="glass"><span>N</span><span id="compassNeedle">▲</span><span id="compassTarget">CRYSTAL</span><span id="timeLabel">08:00</span></div>
+        <div id="areaBanner"><div id="areaName" class="areaName">ECHOHAVEN</div><div id="areaSub" class="areaSub">VILLAGE DISCOVERED</div></div>
 
         <div id="topButtons">
             <button id="inventoryButton" class="tinyBtn" type="button">BAG</button>
-            <button id="loadVrmButton" class="tinyBtn" type="button">LOAD VRM</button>
+            <button id="questButton" class="tinyBtn" type="button">QUEST</button>
+            <button id="saveButton" class="tinyBtn" type="button">SAVE</button>
+            <button id="loadButton" class="tinyBtn" type="button">LOAD</button>
+            <button id="loadVrmButton" class="tinyBtn" type="button">VRM</button>
             <button id="fullscreenButton" class="tinyBtn" type="button">FULL</button>
             <input id="vrmFileInput" type="file" accept=".vrm,.glb,.gltf" hidden />
         </div>
@@ -357,7 +424,24 @@
                 fullscreenButton: document.getElementById("fullscreenButton"),
                 invShards: document.getElementById("invShards"),
                 invKey: document.getElementById("invKey"),
-                invSignal: document.getElementById("invSignal")
+                invSignal: document.getElementById("invSignal"),
+                invHerbs: document.getElementById("invHerbs"),
+                invGold: document.getElementById("invGold"),
+                invToken: document.getElementById("invToken"),
+                questButton: document.getElementById("questButton"),
+                saveButton: document.getElementById("saveButton"),
+                loadButton: document.getElementById("loadButton"),
+                questLog: document.getElementById("questLogPanel"),
+                questLogContent: document.getElementById("questLogContent"),
+                statLevel: document.getElementById("statLevel"),
+                statXP: document.getElementById("statXP"),
+                statGold: document.getElementById("statGold"),
+                compassNeedle: document.getElementById("compassNeedle"),
+                compassTarget: document.getElementById("compassTarget"),
+                timeLabel: document.getElementById("timeLabel"),
+                areaBanner: document.getElementById("areaBanner"),
+                areaName: document.getElementById("areaName"),
+                areaSub: document.getElementById("areaSub")
             };
             if (isTouch) UI.mobile.style.display = "block";
 
@@ -376,7 +460,17 @@
                 toastTimer: 0,
                 dialogueTimer: 0,
                 objective: null,
-                animationState: "IDLE"
+                animationState: "IDLE",
+                herbs: 0,
+                gold: 0,
+                xp: 0,
+                level: 1,
+                villageToken: false,
+                villageDiscovered: false,
+                questLogOpen: false,
+                openedChests: 0,
+                worldTime: 8.0,
+                currentArea: "Resonance Valley"
             };
 
             const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -390,12 +484,31 @@
                     ["Reach the Resonance Crystal", "Follow the cyan beacon into the valley."],
                     ["Gather 3 Echo Shards", "Search the nearby ruins and glowing stones."],
                     ["Return to the Crystal", "Bring the gathered echoes back to the central crystal."],
-                    ["Resonance Restored", "The valley has answered. Explore freely." ]
+                    ["Find Echohaven Village", "Follow the western road beyond the standing stones."],
+                    ["Speak with Mira", "Find Echohaven's village guide near the central well."],
+                    ["Gather 3 Moonleaf", "Collect the pale-green Moonleaf growing around Echohaven."],
+                    ["Return to Mira", "Bring the Moonleaf back to Mira at the village well."],
+                    ["A Place in Echohaven", "Explore the village, open treasure chests, and meet its residents."]
                 ];
                 const q = quests[step] || quests[quests.length - 1];
                 UI.questTitle.textContent = q[0];
                 UI.questDetail.textContent = q[1];
                 updateInventoryUI();
+                updateQuestLog();
+            }
+
+            function updateQuestLog() {
+                if (!UI.questLogContent) return;
+                const progress = state.quest === 1 ? `${state.shards} / 3 Echo Shards`
+                    : state.quest === 5 ? `${state.herbs} / 3 Moonleaf`
+                    : state.quest >= 7 ? "Village access unlocked" : "In progress";
+                const side = state.villageDiscovered
+                    ? `<div class="questCard"><div class="qType">ECHOHAVEN</div><div class="qName">Village Life</div><div class="qText">Speak with Rowan the smith, Sera the innkeeper, and search the village for old supply chests.</div><div class="qProgress">CHESTS ${state.openedChests} / 3</div></div>`
+                    : `<div class="questCard"><div class="qType">UNDISCOVERED</div><div class="qName">Beyond the Valley</div><div class="qText">Restore the Resonance Crystal to reveal the next path.</div></div>`;
+                UI.questLogContent.innerHTML = `<div class="questCard"><div class="qType">MAIN QUEST</div><div class="qName">${UI.questTitle.textContent}</div><div class="qText">${UI.questDetail.textContent}</div><div class="qProgress">${progress}</div></div>${side}`;
+                UI.statLevel.textContent = state.level;
+                UI.statXP.textContent = state.xp;
+                UI.statGold.textContent = state.gold;
             }
 
             function updateInventoryUI() {
@@ -403,6 +516,16 @@
                 UI.invShards.textContent = String(state.shards);
                 UI.invKey.textContent = state.hasKey ? "AWAKENED" : "LOCKED";
                 UI.invSignal.textContent = state.signalRead ? "READ" : "UNREAD";
+                UI.invHerbs.textContent = String(state.herbs);
+                UI.invGold.textContent = String(state.gold);
+                UI.invToken.textContent = state.villageToken ? "OWNED" : "—";
+                updateQuestLog();
+            }
+
+            function toggleQuestLog(force) {
+                state.questLogOpen = typeof force === "boolean" ? force : !state.questLogOpen;
+                if (state.questLogOpen) toggleInventory(false);
+                UI.questLog.classList.toggle("show", state.questLogOpen);
             }
 
             function showToast(message, seconds = 2.4) {
@@ -420,6 +543,7 @@
 
             function toggleInventory(force) {
                 state.inventoryOpen = typeof force === "boolean" ? force : !state.inventoryOpen;
+                if (state.inventoryOpen && state.questLogOpen) { state.questLogOpen = false; UI.questLog.classList.remove("show"); }
                 UI.inventory.classList.toggle("show", state.inventoryOpen);
             }
 
@@ -431,6 +555,9 @@
             }
 
             UI.inventoryButton.addEventListener("click", e => { e.stopPropagation(); toggleInventory(); });
+            UI.questButton.addEventListener("click", e => { e.stopPropagation(); toggleQuestLog(); });
+            UI.saveButton.addEventListener("click", e => { e.stopPropagation(); window.__rpgSave?.(); });
+            UI.loadButton.addEventListener("click", e => { e.stopPropagation(); window.__rpgLoad?.(); });
             UI.loadVrmButton.addEventListener("click", e => { e.stopPropagation(); UI.vrmFileInput.click(); });
             UI.vrmFileInput.addEventListener("change", async () => {
                 const file = UI.vrmFileInput.files?.[0];
@@ -439,8 +566,10 @@
                 UI.vrmFileInput.value = "";
             });
             UI.inventory.addEventListener("pointerdown", e => e.stopPropagation());
+            UI.questLog.addEventListener("pointerdown", e => e.stopPropagation());
             document.getElementById("hud").addEventListener("pointerdown", e => {
                 if (state.inventoryOpen && !UI.inventory.contains(e.target) && e.target !== UI.inventoryButton) toggleInventory(false);
+                if (state.questLogOpen && !UI.questLog.contains(e.target) && e.target !== UI.questButton) toggleQuestLog(false);
             });
             UI.fullscreenButton.addEventListener("click", async () => {
                 try {
@@ -644,6 +773,87 @@
                 const hazard = BABYLON.MeshBuilder.CreateCylinder("unstableMist", { height: .14, diameter: 10, tessellation: 40 }, scene);
                 const hazardX = -18, hazardZ = -18; hazard.position.set(hazardX, h(hazardX,hazardZ)+.12, hazardZ);
                 const hazardMat = new BABYLON.StandardMaterial("hazardMat", scene); hazardMat.disableLighting = true; hazardMat.emissiveColor = new BABYLON.Color3(.28,.02,.08); hazardMat.alpha = .30; hazard.material = hazardMat; hazard.isPickable = false;
+
+                // ---------- Echohaven Village RPG hub ----------
+                const villageCenter = new BABYLON.Vector3(-36, 0, 24);
+                villageCenter.y = h(villageCenter.x, villageCenter.z);
+                const villageNPCs = [], herbs = [], chests = [], lanternLights = [];
+
+                const woodMat = new BABYLON.StandardMaterial("villageWood", scene); woodMat.diffuseColor = new BABYLON.Color3(.20,.12,.07); woodMat.specularColor = BABYLON.Color3.Black();
+                const plasterMat = new BABYLON.StandardMaterial("villagePlaster", scene); plasterMat.diffuseColor = new BABYLON.Color3(.34,.29,.22); plasterMat.specularColor = BABYLON.Color3.Black();
+                const roofMat = new BABYLON.StandardMaterial("villageRoof", scene); roofMat.diffuseColor = new BABYLON.Color3(.12,.15,.16); roofMat.specularColor = BABYLON.Color3.Black();
+                const pathMat = new BABYLON.StandardMaterial("villagePath", scene); pathMat.diffuseColor = new BABYLON.Color3(.16,.15,.12); pathMat.specularColor = BABYLON.Color3.Black();
+                const lanternMat = new BABYLON.StandardMaterial("lanternMat", scene); lanternMat.disableLighting = true; lanternMat.emissiveColor = new BABYLON.Color3(1,.48,.12);
+                const moonleafMat = new BABYLON.StandardMaterial("moonleafMat", scene); moonleafMat.disableLighting = true; moonleafMat.emissiveColor = new BABYLON.Color3(.22,.85,.46); moonleafMat.diffuseColor = new BABYLON.Color3(.15,.58,.30);
+                const chestMat = new BABYLON.StandardMaterial("chestMat", scene); chestMat.diffuseColor = new BABYLON.Color3(.28,.16,.07); chestMat.specularColor = BABYLON.Color3.Black();
+
+                function placePath(x,z,sx,sz,rot=0) {
+                    const p = BABYLON.MeshBuilder.CreateBox("path", {width:sx,height:.08,depth:sz}, scene);
+                    p.position.set(x,h(x,z)+.06,z); p.rotation.y=rot; p.material=pathMat; p.isPickable=false; return p;
+                }
+                // Road from valley toward the village, then a central square.
+                [[-7,7,16,2.1,-.72],[-18,14,16,2.1,-.58],[-29,20,14,2.1,-.38],[-36,24,15,11,0]].forEach(a=>placePath(...a));
+
+                function makeHouse(name,x,z,w=7,d=6,height=4.2,rot=0) {
+                    const body = BABYLON.MeshBuilder.CreateBox(name+"Body", {width:w,depth:d,height}, scene);
+                    body.position.set(x,h(x,z)+height/2,z); body.rotation.y=rot; body.material=plasterMat; body.checkCollisions=true;
+                    const beams = BABYLON.MeshBuilder.CreateBox(name+"Beam", {width:w+.3,depth:.28,height:.35}, scene);
+                    beams.position.set(x,h(x,z)+height*.72,z); beams.rotation.y=rot; beams.material=woodMat; beams.isPickable=false;
+                    const roof = BABYLON.MeshBuilder.CreateCylinder(name+"Roof", {height:w*1.08,diameter:d*1.35,tessellation:3}, scene);
+                    roof.position.set(x,h(x,z)+height+.95,z); roof.rotation.z=Math.PI/2; roof.rotation.y=rot; roof.material=roofMat; roof.checkCollisions=true;
+                    const door = BABYLON.MeshBuilder.CreateBox(name+"Door", {width:1.25,height:2.25,depth:.18}, scene);
+                    const fx=Math.sin(rot), fz=Math.cos(rot); door.position.set(x+fx*(d/2+.08),h(x,z)+1.13,z+fz*(d/2+.08)); door.rotation.y=rot; door.material=woodMat;
+                }
+                makeHouse("Inn", -35,34,8,6,4.5,0);
+                makeHouse("Smithy", -47,24,7,6,4.1,Math.PI/2);
+                makeHouse("CottageA", -27,26,6,5,3.8,-Math.PI/2);
+                makeHouse("CottageB", -40,14,6,5,3.8,Math.PI);
+
+                // Village well / landmark.
+                const well = BABYLON.MeshBuilder.CreateCylinder("villageWell", {height:1.25,diameter:3.1,tessellation:16}, scene);
+                well.position.set(-36,h(-36,24)+.62,24); well.material=rockMat; well.checkCollisions=true;
+                const wellRing = BABYLON.MeshBuilder.CreateTorus("wellRing", {diameter:3.2,thickness:.24,tessellation:24}, scene);
+                wellRing.position.set(-36,h(-36,24)+1.2,24); wellRing.rotation.x=Math.PI/2; wellRing.material=rockMat;
+
+                function makeLantern(x,z) {
+                    const pole = BABYLON.MeshBuilder.CreateCylinder("lampPole", {height:3.2,diameter:.12,tessellation:8}, scene);
+                    pole.position.set(x,h(x,z)+1.6,z); pole.material=woodMat;
+                    const lamp = BABYLON.MeshBuilder.CreateSphere("lampGlow", {diameter:.34,segments:8}, scene);
+                    lamp.position.set(x,h(x,z)+3.05,z); lamp.material=lanternMat; lamp.isPickable=false;
+                    const light = new BABYLON.PointLight("lanternLight", lamp.position.clone(), scene); light.diffuse=new BABYLON.Color3(1,.45,.16); light.intensity=.15; light.range=10; lanternLights.push(light);
+                }
+                [[-31,22],[-41,27],[-35,31],[-44,19],[-27,30],[-36,17]].forEach(p=>makeLantern(...p));
+
+                // Campfire / save-point feeling.
+                const fire = BABYLON.MeshBuilder.CreateCylinder("campfire", {height:.18,diameter:1.4,tessellation:12}, scene);
+                fire.position.set(-31,h(-31,29)+.13,29); fire.material=rockMat;
+                const flame = BABYLON.MeshBuilder.CreateSphere("campFlame", {diameter:.52,segments:8}, scene); flame.scaling.y=1.7; flame.position.set(-31,h(-31,29)+.65,29); flame.material=lanternMat;
+                const fireLight = new BABYLON.PointLight("fireLight", flame.position.clone(), scene); fireLight.diffuse=new BABYLON.Color3(1,.35,.08); fireLight.range=11; fireLight.intensity=1.0;
+
+                function makeNPC(id,name,x,z,color) {
+                    const root = new BABYLON.TransformNode("npc_"+id, scene); root.position.set(x,h(x,z),z);
+                    const body = BABYLON.MeshBuilder.CreateCapsule("npcBody_"+id,{height:1.65,radius:.30},scene); body.parent=root; body.position.y=.85;
+                    const mat = new BABYLON.StandardMaterial("npcMat_"+id,scene); mat.diffuseColor=color; body.material=mat;
+                    const head = BABYLON.MeshBuilder.CreateSphere("npcHead_"+id,{diameter:.48,segments:10},scene); head.parent=root; head.position.y=1.78; head.material=mat;
+                    root.metadata={id,name,homeX:x,homeZ:z,phase:Math.random()*6.28}; villageNPCs.push(root); return root;
+                }
+                makeNPC("mira","Mira",-34,22,new BABYLON.Color3(.45,.23,.55));
+                makeNPC("rowan","Rowan",-44,23,new BABYLON.Color3(.34,.24,.14));
+                makeNPC("sera","Sera",-35,31,new BABYLON.Color3(.18,.38,.42));
+
+                const herbCoords=[[-23,21],[-27,16],[-43,33],[-49,17],[-31,38],[-19,29]];
+                herbCoords.forEach((p,i)=>{
+                    const stem = BABYLON.MeshBuilder.CreateCylinder("moonleaf"+i,{height:.55,diameterTop:.05,diameterBottom:.16,tessellation:6},scene);
+                    stem.position.set(p[0],h(p[0],p[1])+.3,p[1]); stem.material=moonleafMat; stem.metadata={index:i,collected:false,baseY:stem.position.y}; herbs.push(stem);
+                });
+
+                function makeChest(i,x,z) {
+                    const root=new BABYLON.TransformNode("chestRoot"+i,scene); root.position.set(x,h(x,z),z);
+                    const base=BABYLON.MeshBuilder.CreateBox("chestBase"+i,{width:1.25,height:.55,depth:.8},scene); base.parent=root; base.position.y=.32; base.material=chestMat;
+                    const lid=BABYLON.MeshBuilder.CreateBox("chestLid"+i,{width:1.3,height:.22,depth:.84},scene); lid.parent=root; lid.position.y=.69; lid.position.z=-.36; lid.material=chestMat;
+                    root.metadata={index:i,opened:false,lid}; chests.push(root);
+                }
+                makeChest(0,-47,31); makeChest(1,-28,34); makeChest(2,-45,12);
 
                 // Helen avatar + VRM humanoid rig support.
                 // Babylon can read the glTF binary inside .vrm when we explicitly use the glTF loader.
@@ -862,6 +1072,7 @@
                 let camPointerId = null, lastCamX = 0, lastCamY = 0;
                 canvas.addEventListener("pointerdown", e => {
                     if (state.inventoryOpen) { toggleInventory(false); return; }
+                    if (state.questLogOpen) { toggleQuestLog(false); return; }
                     if (isTouch && e.clientX < innerWidth * .42) return;
                     camPointerId = e.pointerId; lastCamX = e.clientX; lastCamY = e.clientY; canvas.setPointerCapture?.(e.pointerId);
                 });
@@ -881,6 +1092,7 @@
                     if (e.code === "Space") { state.jumpPressed = true; e.preventDefault(); }
                     if (e.key.toLowerCase() === "e") state.interactPressed = true;
                     if (e.key.toLowerCase() === "i") toggleInventory();
+                    if (e.key.toLowerCase() === "q") toggleQuestLog();
                 });
                 window.addEventListener("keyup", e => { input[e.key.toLowerCase()] = false; if (e.code === "Space") state.jumpPressed = false; });
 
@@ -904,10 +1116,26 @@
                     return best;
                 }
 
+                function getNearestUncollectedHerb() {
+                    let best=null,bestD=Infinity;
+                    herbs.forEach(m=>{ if(!m.metadata.collected){ const d=BABYLON.Vector3.DistanceSquared(hero.position,m.position); if(d<bestD){bestD=d;best=m;} } });
+                    return best;
+                }
+
                 function chooseObjective() {
                     if (state.quest === 0 || state.quest === 2) return crystal.position;
                     if (state.quest === 1) return getNearestUncollectedShard()?.position || crystal.position;
-                    return null;
+                    if (state.quest === 3) return villageCenter;
+                    if (state.quest === 4 || state.quest === 6) return villageNPCs.find(n=>n.metadata.id==="mira")?.position || villageCenter;
+                    if (state.quest === 5) return getNearestUncollectedHerb()?.position || villageCenter;
+                    return villageCenter;
+                }
+
+                function gainXP(amount) {
+                    state.xp += amount;
+                    const needed = state.level * 100;
+                    if (state.xp >= needed) { state.xp -= needed; state.level++; showToast(`<strong>LEVEL ${state.level}</strong> — Helen feels more attuned to the valley.`,3.2); }
+                    updateInventoryUI();
                 }
 
                 function doInteraction() {
@@ -917,9 +1145,9 @@
                         state.signalRead = true; updateInventoryUI();
                         const lines = state.quest === 0
                             ? "The crystal remembers every footstep in this valley. Reach it, and it may remember you too."
-                            : state.quest === 1
+                            : state.quest < 3
                                 ? "The Echo Shards are fragments of the crystal's song. Three are enough to restore its pattern."
-                                : "You carry the valley's echoes now. The crystal is waiting.";
+                                : "A road has awakened to the west. Echohaven is small, but its people remember more than they say.";
                         showDialogue("VALLEY WISP", lines, 5.4);
                     } else if (obj.type === "crystal") {
                         if (state.quest === 0) {
@@ -929,18 +1157,37 @@
                         } else if (state.quest === 1) {
                             showToast(`The crystal needs more echoes. <strong>${state.shards} / 3</strong> gathered.`, 2.3);
                         } else if (state.quest === 2) {
-                            state.hasKey = true; setQuest(3); updateInventoryUI();
+                            state.hasKey = true; setQuest(3); updateInventoryUI(); gainXP(40);
                             crystalMat.emissiveColor = colorGreen.clone(); crystalLight.diffuse = colorGreen.clone(); ringMat.emissiveColor = colorGreen.clone(); beaconMat.emissiveColor = colorGreen.clone();
-                            showToast("<strong>RESONANCE RESTORED</strong><br>The Resonance Key has awakened in your inventory.", 5);
-                            showDialogue("VALLEY WISP", "The valley knows your signal now. The path beyond this prototype is open for whatever we build next.", 6);
+                            showToast("<strong>RESONANCE RESTORED</strong><br>A western road is now marked in your journal.", 5);
+                            showDialogue("VALLEY WISP", "Follow the old road west. Echohaven has been waiting for someone carrying that key.", 6);
+                        } else showDialogue("RESONANCE CRYSTAL","Its light is steady now. The valley hums with a quiet, familiar rhythm.",4.5);
+                    } else if (obj.type === "npc") {
+                        const id=obj.npc.metadata.id;
+                        if(id==="mira") {
+                            if(state.quest < 4) showDialogue("MIRA","You came from the crystal road? Restore its resonance first, then come find me.",5);
+                            else if(state.quest===4) { setQuest(5); showDialogue("MIRA","Welcome to Echohaven. We need Moonleaf for the lantern tonic. Bring me three sprigs from around the village.",6); }
+                            else if(state.quest===5) showDialogue("MIRA",`Moonleaf grows near stone and shade. You have ${state.herbs} of 3.`,4.6);
+                            else if(state.quest===6) { state.villageToken=true; state.gold+=35; gainXP(75); setQuest(7); showDialogue("MIRA","Perfect. Take this Echohaven token and 35 gold. You're welcome at our fires now.",6); showToast("<strong>QUEST COMPLETE</strong> — A Place in Echohaven",3.8); }
+                            else showDialogue("MIRA","The village is yours to explore. Rowan loves old mechanisms; Sera hears every rumor that enters the inn.",5.4);
+                        } else if(id==="rowan") {
+                            showDialogue("ROWAN — SMITH","Those old supply chests still have working locks. Search the edges of the village; anything useful inside is yours.",5.5);
+                        } else if(id==="sera") {
+                            showDialogue("SERA — INNKEEPER", state.worldTime>=19||state.worldTime<6 ? "Night travelers always bring the best stories. The lanterns will guide you back to the square." : "Echohaven is quiet by day. If you're heading beyond the ridge later, stock up before sunset.",5.5);
                         }
+                    } else if (obj.type === "chest") {
+                        const c=obj.chest;
+                        if(c.metadata.opened){ showToast("This chest is empty.",1.5); return; }
+                        c.metadata.opened=true; c.metadata.lid.rotation.x=-1.05; state.openedChests++; const reward=12+c.metadata.index*7; state.gold+=reward; state.health=clamp(state.health+12,0,100); gainXP(15); updateQuestLog();
+                        showToast(`<strong>Supply chest opened.</strong> +${reward} gold • health restored`,2.8);
                     }
+                    window.__rpgAutoSave?.();
                 }
 
                 scene.onBeforeRenderObservable.add(() => {
                     const dt = Math.min(engine.getDeltaTime()/1000, .033);
                     const now = performance.now() * .001;
-                    if (state.inventoryOpen) { state.interactPressed = false; return; }
+                    if (state.inventoryOpen || state.questLogOpen) { state.interactPressed = false; return; }
 
                     let mx = 0, mz = 0;
                     if (input["w"] || input["arrowup"]) mz -= 1;
@@ -1031,14 +1278,22 @@
                     else camera.radius = lerp(camera.radius, 6.2, .025*(dt*60));
                     camera.fov = lerp(camera.fov, sprinting ? .95 : .82, .06*(dt*60));
 
-                    // Interaction detection
+                    // Interaction detection: crystal, wisp, village NPCs, and treasure chests.
                     state.nearInteractable = null;
+                    const consider = candidate => { if (!state.nearInteractable || candidate.distance < state.nearInteractable.distance) state.nearInteractable=candidate; };
                     const crystalDist = BABYLON.Vector3.Distance(hero.position, crystal.position);
                     const wispDist = BABYLON.Vector3.Distance(hero.position, wispRoot.position);
-                    if (crystalDist < 6.4) state.nearInteractable = { type:"crystal", distance:crystalDist };
-                    if (wispDist < 3.3 && (!state.nearInteractable || wispDist < state.nearInteractable.distance)) state.nearInteractable = { type:"wisp", distance:wispDist };
+                    if (crystalDist < 6.4) consider({ type:"crystal", distance:crystalDist });
+                    if (wispDist < 3.3) consider({ type:"wisp", distance:wispDist });
+                    villageNPCs.forEach(n=>{ const d=BABYLON.Vector3.Distance(hero.position,n.position); if(d<3.0) consider({type:"npc",distance:d,npc:n}); });
+                    chests.forEach(c=>{ const d=BABYLON.Vector3.Distance(hero.position,c.position); if(d<2.25) consider({type:"chest",distance:d,chest:c}); });
+                    let promptText="";
+                    if(state.nearInteractable){
+                        const o=state.nearInteractable;
+                        promptText = o.type==="crystal" ? "TOUCH CRYSTAL" : o.type==="wisp" ? "TALK TO WISP" : o.type==="npc" ? `TALK TO ${o.npc.metadata.name.toUpperCase()}` : "OPEN CHEST";
+                    }
                     UI.prompt.classList.toggle("show", !!state.nearInteractable);
-                    UI.prompt.innerHTML = state.nearInteractable ? `<b>${isTouch ? "ACT" : "E"}</b> ${state.nearInteractable.type === "crystal" ? "TOUCH CRYSTAL" : "TALK TO WISP"}` : "";
+                    UI.prompt.innerHTML = state.nearInteractable ? `<b>${isTouch ? "ACT" : "E"}</b> ${promptText}` : "";
                     UI.interact.classList.toggle("ready", !!state.nearInteractable);
 
                     const padInteract = !!pad?.browserGamepad?.buttons?.[2]?.pressed;
@@ -1059,10 +1314,60 @@
                         }
                     });
 
+                    // Moonleaf gathering becomes active once Mira asks for it.
+                    herbs.forEach((m,i)=>{
+                        if(m.metadata.collected) return;
+                        m.rotation.y += dt*(.5+i*.03); m.position.y=m.metadata.baseY+Math.sin(now*1.6+i)*.04;
+                        const active=state.quest>=5;
+                        m.scaling.setAll(active?1:.62);
+                        if(active && BABYLON.Vector3.Distance(hero.position,m.position)<1.35){
+                            m.metadata.collected=true; m.setEnabled(false); state.herbs++; updateInventoryUI(); showToast(`<strong>Moonleaf gathered.</strong> ${state.herbs} / 3`,1.9);
+                            if(state.herbs>=3 && state.quest===5){ setQuest(6); showToast("Enough Moonleaf gathered. <strong>Return to Mira.</strong>",2.8); }
+                            window.__rpgAutoSave?.();
+                        }
+                    });
+
+                    // Discover Echohaven when Helen reaches the village after restoring the crystal.
+                    const villageDist=BABYLON.Vector3.Distance(hero.position,villageCenter);
+                    if(!state.villageDiscovered && villageDist<18){
+                        state.villageDiscovered=true; state.currentArea="Echohaven Village"; updateQuestLog();
+                        UI.areaName.textContent="ECHOHAVEN"; UI.areaSub.textContent="VILLAGE DISCOVERED"; UI.areaBanner.classList.add("show"); setTimeout(()=>UI.areaBanner.classList.remove("show"),3200);
+                        if(state.quest===3) setQuest(4); gainXP(20); window.__rpgAutoSave?.();
+                    }
+
+                    // NPC idle motion gives the village a little life without expensive pathfinding.
+                    villageNPCs.forEach((n,i)=>{
+                        n.rotation.y += Math.sin(now*.35+n.metadata.phase)*dt*.06;
+                        const body=n.getChildren?.()[0]; if(body) body.position.y=.85+Math.sin(now*1.5+n.metadata.phase)*.012;
+                    });
+
                     // Objective distance
                     state.objective = chooseObjective();
                     if (state.objective) UI.distance.textContent = `TARGET ${Math.round(BABYLON.Vector3.Distance(hero.position,state.objective))} m`;
                     else UI.distance.textContent = "FREE EXPLORATION";
+
+                    // RPG compass points toward the active objective relative to the camera view.
+                    if(state.objective){
+                        const dx=state.objective.x-hero.position.x, dz=state.objective.z-hero.position.z;
+                        const targetYaw=Math.atan2(dx,dz);
+                        const f=camera.getForwardRay().direction; const camYaw=Math.atan2(f.x,f.z);
+                        const bearing=angleDelta(camYaw,targetYaw);
+                        UI.compassNeedle.style.transform=`rotate(${bearing}rad)`;
+                        UI.compassTarget.textContent=state.quest>=3 ? (state.quest<=6?"ECHOHAVEN":"VILLAGE") : (state.quest===1?"ECHO SHARD":"CRYSTAL");
+                    }
+
+                    // Day/night cycle: roughly one full game day every 16 real minutes.
+                    state.worldTime=(state.worldTime+dt*.025*24)%24;
+                    const hour=Math.floor(state.worldTime), minute=Math.floor((state.worldTime-hour)*60);
+                    UI.timeLabel.textContent=`${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}`;
+                    const sunPhase=(state.worldTime/24)*Math.PI*2-Math.PI/2;
+                    const daylight=clamp(Math.sin(sunPhase)*.75+.35,.08,1);
+                    hemi.intensity=.20+.42*daylight; moon.intensity=.22+.9*daylight;
+                    moon.direction.set(Math.cos(sunPhase)*-.45,-Math.max(.15,Math.sin(sunPhase)),Math.sin(sunPhase)*.35);
+                    skyMat.emissiveColor.set(.012+.05*daylight,.02+.08*daylight,.05+.16*daylight);
+                    scene.fogColor.set(.012+.035*daylight,.022+.055*daylight,.036+.08*daylight);
+                    const night=1-daylight; lanternLights.forEach(l=>l.intensity=.08+1.35*night); fireLight.intensity=.65+1.15*night;
+                    flame.scaling.y=1.55+Math.sin(now*9)*.18; flame.scaling.x=flame.scaling.z=.9+Math.sin(now*7.3)*.08;
 
                     // Crystal/wisp/ambient animation
                     crystal.rotation.y += dt*.12; ring.rotation.z += dt*.14; beaconMat.alpha = .17 + Math.sin(now*1.7)*.035;
@@ -1106,8 +1411,31 @@
                     }
                 });
 
+                const SAVE_KEY="helen_resonance_rpg_v1";
+                function snapshotWorld(){
+                    return {
+                        version:1, state:{health:state.health,stamina:state.stamina,shards:state.shards,quest:state.quest,hasKey:state.hasKey,signalRead:state.signalRead,herbs:state.herbs,gold:state.gold,xp:state.xp,level:state.level,villageToken:state.villageToken,villageDiscovered:state.villageDiscovered,openedChests:state.openedChests,worldTime:state.worldTime,currentArea:state.currentArea},
+                        hero:{x:hero.position.x,y:hero.position.y,z:hero.position.z},
+                        shards:shards.map(m=>!!m.metadata.collected), herbs:herbs.map(m=>!!m.metadata.collected), chests:chests.map(c=>!!c.metadata.opened)
+                    };
+                }
+                function applySnapshot(data){
+                    if(!data?.state) return false;
+                    Object.assign(state,data.state); state.inventoryOpen=false; state.questLogOpen=false;
+                    if(data.hero) hero.position.set(data.hero.x,data.hero.y,data.hero.z);
+                    (data.shards||[]).forEach((v,i)=>{ if(shards[i]){ shards[i].metadata.collected=!!v; shards[i].setEnabled(!v); } });
+                    (data.herbs||[]).forEach((v,i)=>{ if(herbs[i]){ herbs[i].metadata.collected=!!v; herbs[i].setEnabled(!v); } });
+                    (data.chests||[]).forEach((v,i)=>{ if(chests[i]){ chests[i].metadata.opened=!!v; chests[i].metadata.lid.rotation.x=v?-1.05:0; } });
+                    setQuest(state.quest); updateInventoryUI(); updateHudBars(); UI.inventory.classList.remove("show"); UI.questLog.classList.remove("show"); return true;
+                }
+                window.__rpgSave=()=>{ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(snapshotWorld())); showToast("<strong>Game saved.</strong> Echohaven remembers your progress.",2); }catch(e){ showToast("Save failed in this browser mode.",2.5); } };
+                window.__rpgAutoSave=()=>{ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(snapshotWorld())); }catch(_){} };
+                window.__rpgLoad=()=>{ try{ const raw=localStorage.getItem(SAVE_KEY); if(!raw){showToast("No RPG save found yet.",2);return;} if(applySnapshot(JSON.parse(raw))) showToast("<strong>Save loaded.</strong>",2); }catch(e){ showToast("That save could not be loaded.",2.5); } };
+
                 setQuest(0); updateInventoryUI(); updateHudBars();
-                showToast("Explore the valley. Talk to the violet wisp or follow the cyan beacon.", 4.5);
+                // Auto-resume an existing local save if one exists.
+                try { const raw=localStorage.getItem(SAVE_KEY); if(raw) applySnapshot(JSON.parse(raw)); } catch(_) {}
+                showToast("RPG mode ready. Restore the crystal, then follow the road to Echohaven.", 4.5);
                 return scene;
             }
 
