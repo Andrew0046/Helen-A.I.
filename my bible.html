@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101714">
+  <title>Versework — Bible Study Workbench</title>
+  <style>
+    :root{--bg:#f4f2ec;--panel:#fffefa;--panel2:#f8f6ef;--ink:#17201c;--muted:#6d756f;--line:#deddd5;--accent:#23785b;--accent2:#d9eee5;--gold:#b98a3d;--danger:#a74444;--shadow:0 18px 60px #1c31241a;--radius:18px;--serif:Georgia,"Times New Roman",serif;--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    *{box-sizing:border-box}html,body{height:100%;margin:0}body{font-family:var(--sans);background:var(--bg);color:var(--ink);overflow:hidden}
+    button,input,textarea,select{font:inherit}button{cursor:pointer}.icon{width:18px;height:18px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .app{height:100%;display:grid;grid-template-rows:70px minmax(0,1fr)}
+    header{display:flex;align-items:center;gap:18px;padding:0 22px;background:#101714;color:#f7f4eb;border-bottom:1px solid #ffffff16;z-index:4}
+    .brand{display:flex;align-items:center;gap:11px;min-width:235px}.mark{width:38px;height:38px;border:1px solid #e3ba713f;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#273d34,#15221c);color:#e6bd74;font:700 20px var(--serif)}
+    .brand b{font-family:var(--serif);font-size:21px;letter-spacing:.2px}.brand small{display:block;color:#aeb9b3;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
+    .doc-title{flex:1;min-width:0}.doc-title strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.save-state{color:#9cad9f;font-size:11px;margin-top:3px}
+    .actions{display:flex;gap:8px}.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:9px 12px;display:inline-flex;align-items:center;gap:8px;font-weight:650;font-size:12px;transition:.18s}.btn:hover{border-color:#a9aaa3;transform:translateY(-1px)}header .btn{background:#ffffff0d;color:#f7f4eb;border-color:#ffffff22}header .btn.primary{background:#dfb565;color:#1b211d;border-color:#dfb565}
+    main{display:grid;grid-template-columns:272px minmax(340px,1fr) minmax(340px,440px);min-height:0}
+    aside,.reader,.notes{min-height:0}.sidebar{background:#ece9e1;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px}.section-label{font-size:10px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);padding:0 9px;margin:4px 0 9px}
+    .dropzone{border:1.5px dashed #adb2aa;border-radius:15px;padding:20px 14px;text-align:center;background:#f7f5ef;color:var(--muted);transition:.2s}.dropzone.drag{border-color:var(--accent);background:var(--accent2);color:var(--accent)}.dropzone b{display:block;color:var(--ink);font-size:13px;margin:8px 0 3px}.dropzone span{font-size:11px}.dropzone button{margin-top:12px}.file-input{display:none}
+    .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}.stat{padding:12px;background:#f7f5ef;border:1px solid var(--line);border-radius:12px}.stat b{display:block;font:700 20px var(--serif)}.stat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+    .filter{position:relative;margin-bottom:12px}.filter input,.field input,.field textarea,.field select{width:100%;border:1px solid var(--line);background:var(--panel);border-radius:11px;color:var(--ink);outline:none}.filter input{padding:10px 12px 10px 35px;font-size:12px}.filter svg{position:absolute;left:11px;top:10px;color:var(--muted)}input:focus,textarea:focus,select:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px #23785b18}
+    .note-list{overflow:auto;flex:1}.note-card{padding:12px;margin:0 0 8px;background:#f7f5ef;border:1px solid transparent;border-radius:12px;cursor:pointer}.note-card:hover,.note-card.active{background:var(--panel);border-color:#c5c8c1}.note-card .ref{color:var(--accent);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px}.note-card h4{font:700 14px var(--serif);margin:5px 0}.note-card p{font-size:11px;color:var(--muted);margin:0;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.empty-mini{font-size:12px;color:var(--muted);padding:15px 9px;line-height:1.5}
+    .reader{display:flex;flex-direction:column;background:var(--panel)}.reader-toolbar{height:58px;display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid var(--line);background:#fffefaef}.reader-toolbar .search{flex:1;position:relative}.reader-toolbar input{width:100%;max-width:420px;padding:9px 12px 9px 35px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);outline:none;font-size:12px}.reader-toolbar .search svg{position:absolute;top:9px;left:11px;color:var(--muted)}.reader-toolbar .hint{color:var(--muted);font-size:10px;white-space:nowrap}
+    .text-view{overflow:auto;flex:1;padding:36px clamp(20px,5vw,72px) 100px;scroll-behavior:smooth}.welcome{max-width:620px;margin:9vh auto;text-align:center}.welcome .seal{margin:auto;width:64px;height:64px;border-radius:20px;background:var(--accent2);color:var(--accent);display:grid;place-items:center;font:700 30px var(--serif)}.welcome h1{font:700 clamp(29px,4vw,44px)/1.08 var(--serif);margin:22px 0 13px}.welcome p{color:var(--muted);font-size:14px;line-height:1.7;max-width:510px;margin:0 auto 24px}.welcome .btn{margin:auto}
+    .line-row{display:grid;grid-template-columns:42px 1fr;gap:16px;padding:8px 14px;border-radius:8px;position:relative;user-select:none;transition:background .12s}.line-row:hover{background:#f5f3ec}.line-row.selected{background:#e0f0e8}.line-row.annotated:after{content:"";position:absolute;right:4px;top:13px;width:6px;height:6px;border-radius:50%;background:var(--gold)}.line-row.match .line-text{background:#fff0b8}.line-no{font-size:10px;color:#9a9e99;text-align:right;padding-top:6px;font-variant-numeric:tabular-nums}.line-text{font:18px/1.62 var(--serif);white-space:pre-wrap;overflow-wrap:anywhere;border-radius:3px}.line-row.selected .line-no{color:var(--accent);font-weight:800}
+    .notes{background:var(--panel2);border-left:1px solid var(--line);display:flex;flex-direction:column}.notes-head{padding:20px 22px 14px;border-bottom:1px solid var(--line)}.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--accent);font-weight:800}.notes-head h2{font:700 24px var(--serif);margin:5px 0}.selection-meta{font-size:11px;color:var(--muted)}.quote{font:italic 14px/1.5 var(--serif);color:#4c5650;background:#fffefa;border-left:3px solid var(--gold);padding:12px 14px;margin-top:13px;border-radius:0 9px 9px 0;max-height:86px;overflow:auto}
+    .editor{padding:18px 22px;overflow:auto}.field{margin-bottom:13px}.field label{display:block;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin:0 0 6px}.field input,.field select{padding:10px 11px}.field textarea{padding:12px;min-height:180px;resize:vertical;line-height:1.55}.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.editor-actions{display:flex;gap:8px;align-items:center}.editor-actions .primary{background:var(--accent);color:white;border-color:var(--accent)}.editor-actions .danger{color:var(--danger);margin-left:auto}.disabled{opacity:.48;pointer-events:none}
+    .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);padding:11px 15px;border-radius:11px;background:#17201c;color:white;font-size:12px;opacity:0;pointer-events:none;transition:.2s;z-index:10;box-shadow:var(--shadow)}.toast.show{opacity:1;transform:translate(-50%,0)}
+    .modal{position:fixed;inset:0;background:#0c120f88;display:none;place-items:center;z-index:20;padding:18px}.modal.open{display:grid}.modal-card{width:min(480px,100%);background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow)}.modal-card h3{font:700 24px var(--serif);margin:0 0 8px}.modal-card p{color:var(--muted);font-size:12px;line-height:1.55}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+    @media(max-width:1000px){main{grid-template-columns:220px 1fr}.notes{position:fixed;right:0;top:70px;bottom:0;width:min(440px,94vw);z-index:6;box-shadow:-20px 0 60px #16231b20;transform:translateX(105%);transition:.25s}.notes.open{transform:none}.mobile-note{display:inline-flex!important}}
+    @media(max-width:700px){header{height:62px;padding:0 12px;gap:10px}.app{grid-template-rows:62px 1fr}.brand{min-width:0}.brand small,.doc-title,.hide-mobile{display:none}.actions{margin-left:auto}.btn{padding:9px}.btn span{display:none}main{grid-template-columns:1fr}.sidebar{display:none}.reader-toolbar{padding:0 10px}.reader-toolbar .hint{display:none}.text-view{padding:22px 8px 90px}.line-row{grid-template-columns:31px 1fr;gap:10px;padding:7px 7px}.line-text{font-size:17px}.notes{top:62px}.mobile-note{display:inline-flex!important}}
+    .mobile-note{display:none}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><div class="mark">V</div><div><b>Versework</b><small>Study Workbench</small></div></div>
+    <div class="doc-title"><strong id="documentName">No document loaded</strong><div class="save-state" id="saveState">Ready · Stored locally</div></div>
+    <div class="actions">
+      <button class="btn" id="importProjectBtn" title="Import a saved project"><svg class="icon"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>Import project</span></button>
+      <button class="btn" id="exportBtn"><svg class="icon"><path d="M12 15V3m0 0 4 4m-4-4L8 7"/><path d="M5 12v7h14v-7"/></svg><span>Export</span></button>
+      <button class="btn primary" id="openFileTop"><svg class="icon"><path d="M3 7h6l2 2h10v10H3z"/><path d="M3 7V5h7l2 2"/></svg><span>Open text</span></button>
+    </div>
+  </header>
+  <main>
+    <aside class="sidebar">
+      <div class="section-label">Source</div>
+      <div class="dropzone" id="dropzone"><svg class="icon" style="margin:auto"><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 15v5h16v-5"/></svg><b>Drop a text file</b><span>Plain .txt files work best</span><button class="btn" id="browseBtn">Browse file</button></div>
+      <div class="stats"><div class="stat"><b id="lineCount">0</b><span>Lines</span></div><div class="stat"><b id="noteCount">0</b><span>Notes</span></div></div>
+      <div class="section-label">Notebook</div>
+      <div class="filter"><svg class="icon"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="noteSearch" placeholder="Search your notes"></div>
+      <div class="note-list" id="noteList"><div class="empty-mini">Your saved thoughts will appear here.</div></div>
+    </aside>
+    <section class="reader">
+      <div class="reader-toolbar"><div class="search"><svg class="icon"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="textSearch" placeholder="Search inside this text"></div><span class="hint">Click a line · Shift-click for a range</span><button class="btn mobile-note" id="showNotes">Notes</button></div>
+      <div class="text-view" id="textView"><div class="welcome"><div class="seal">V</div><h1>Read closely.<br>Capture what matters.</h1><p>Bring in a text file, choose the lines you want to study, and build a notebook of thoughts connected directly to the passage.</p><button class="btn" id="welcomeOpen">Choose a text file</button></div></div>
+    </section>
+    <aside class="notes" id="notesPanel">
+      <div class="notes-head"><div class="eyebrow">Current selection</div><h2 id="selectionTitle">No lines selected</h2><div class="selection-meta" id="selectionMeta">Select one or more lines from the reading panel.</div><div class="quote" id="selectionQuote" hidden></div></div>
+      <div class="editor disabled" id="editor">
+        <div class="field"><label for="noteTitle">Note title</label><input id="noteTitle" placeholder="What is this thought about?"></div>
+        <div class="field-row"><div class="field"><label for="noteType">Type</label><select id="noteType"><option>Reflection</option><option>Observation</option><option>Question</option><option>Connection</option><option>Application</option><option>Prayer</option></select></div><div class="field"><label for="noteTags">Tags</label><input id="noteTags" placeholder="faith, wisdom"></div></div>
+        <div class="field"><label for="noteBody">Your thoughts</label><textarea id="noteBody" placeholder="Write freely. What do you notice? What questions come to mind?"></textarea></div>
+        <div class="editor-actions"><button class="btn primary" id="saveNote">Save thought</button><button class="btn" id="newNote">Clear</button><button class="btn danger" id="deleteNote" hidden>Delete</button></div>
+      </div>
+    </aside>
+  </main>
+</div>
+<input class="file-input" type="file" id="textFile" accept=".txt,text/plain"><input class="file-input" type="file" id="projectFile" accept=".json,application/json">
+<div class="toast" id="toast"></div>
+<div class="modal" id="exportModal"><div class="modal-card"><h3>Export your work</h3><p>Save a complete project to continue editing later, or make a readable Markdown notebook.</p><div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn" id="exportMarkdown">Markdown notes</button><button class="btn primary" id="exportProject">Complete project</button></div></div></div>
+<script>
+(()=>{"use strict";
+const KEY="versework-project-v1";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const els={textView:$("#textView"),textFile:$("#textFile"),projectFile:$("#projectFile"),drop:$("#dropzone"),doc:$("#documentName"),lineCount:$("#lineCount"),noteCount:$("#noteCount"),list:$("#noteList"),editor:$("#editor"),selTitle:$("#selectionTitle"),selMeta:$("#selectionMeta"),quote:$("#selectionQuote"),title:$("#noteTitle"),type:$("#noteType"),tags:$("#noteTags"),body:$("#noteBody"),del:$("#deleteNote"),saveState:$("#saveState"),notesPanel:$("#notesPanel")};
+let state={version:1,documentName:"",lines:[],notes:[],selected:[],anchor:null,editing:null,updatedAt:null};
+let saveTimer;
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function toast(msg){const e=$("#toast");e.textContent=msg;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),1900)}
+function persist(){state.updatedAt=new Date().toISOString();localStorage.setItem(KEY,JSON.stringify(state));els.saveState.textContent="Saved just now · Stored locally";clearTimeout(saveTimer);saveTimer=setTimeout(()=>els.saveState.textContent="All changes saved · Stored locally",1800)}
+function restore(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&Array.isArray(x.lines)&&Array.isArray(x.notes))state={...state,...x,selected:[],anchor:null,editing:null}}catch(e){} renderAll()}
+function safe(s){return String(s??"").replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function renderAll(){els.doc.textContent=state.documentName||"No document loaded";els.lineCount.textContent=state.lines.length;renderText();renderNotes();renderSelection()}
+function renderText(){if(!state.lines.length){els.textView.innerHTML='<div class="welcome"><div class="seal">V</div><h1>Read closely.<br>Capture what matters.</h1><p>Bring in a text file, choose the lines you want to study, and build a notebook of thoughts connected directly to the passage.</p><button class="btn" id="welcomeOpenAgain">Choose a text file</button></div>';$("#welcomeOpenAgain").onclick=()=>els.textFile.click();return}const noted=new Set(state.notes.flatMap(n=>n.lines));els.textView.innerHTML=state.lines.map((line,i)=>`<div class="line-row ${state.selected.includes(i)?"selected":""} ${noted.has(i)?"annotated":""}" data-i="${i}"><div class="line-no">${i+1}</div><div class="line-text">${safe(line)||"&nbsp;"}</div></div>`).join("")}
+function selectLine(i,e){if(e.shiftKey&&state.anchor!==null){const a=Math.min(state.anchor,i),b=Math.max(state.anchor,i);state.selected=Array.from({length:b-a+1},(_,k)=>a+k)}else if(e.ctrlKey||e.metaKey){state.selected=state.selected.includes(i)?state.selected.filter(x=>x!==i):[...state.selected,i].sort((a,b)=>a-b);state.anchor=i}else{state.selected=[i];state.anchor=i}state.editing=null;clearForm();renderText();renderSelection();els.notesPanel.classList.add("open")}
+function renderSelection(){const s=state.selected;if(!s.length){els.selTitle.textContent="No lines selected";els.selMeta.textContent="Select one or more lines from the reading panel.";els.quote.hidden=true;els.editor.classList.add("disabled");return}const first=s[0]+1,last=s[s.length-1]+1;els.selTitle.textContent=first===last?`Line ${first}`:`Lines ${first}–${last}`;els.selMeta.textContent=`${s.length} ${s.length===1?"line":"lines"} ready for annotation`;els.quote.textContent=s.map(i=>state.lines[i]).join(" ");els.quote.hidden=false;els.editor.classList.remove("disabled")}
+function clearForm(){els.title.value="";els.type.value="Reflection";els.tags.value="";els.body.value="";els.del.hidden=true;state.editing=null}
+function saveNote(){if(!state.selected.length)return;if(!els.body.value.trim()&&!els.title.value.trim()){toast("Write a title or thought first");return}const data={title:els.title.value.trim()||"Untitled thought",type:els.type.value,tags:els.tags.value.split(",").map(x=>x.trim()).filter(Boolean),body:els.body.value.trim(),lines:[...state.selected],excerpt:state.selected.map(i=>state.lines[i]).join(" "),updatedAt:new Date().toISOString()};if(state.editing){const i=state.notes.findIndex(n=>n.id===state.editing);if(i>-1)state.notes[i]={...state.notes[i],...data}}else state.notes.unshift({id:uid(),createdAt:new Date().toISOString(),...data});persist();renderNotes();renderText();clearForm();toast("Thought saved")}
+function renderNotes(){const q=$("#noteSearch").value.trim().toLowerCase();const notes=state.notes.filter(n=>!q||[n.title,n.body,n.type,n.tags.join(" "),n.excerpt].join(" ").toLowerCase().includes(q));els.noteCount.textContent=state.notes.length;els.list.innerHTML=notes.length?notes.map(n=>{const a=Math.min(...n.lines)+1,b=Math.max(...n.lines)+1;return `<article class="note-card ${state.editing===n.id?"active":""}" data-note="${n.id}"><div class="ref">${safe(n.type)} · ${a===b?`Line ${a}`:`Lines ${a}–${b}`}</div><h4>${safe(n.title)}</h4><p>${safe(n.body||n.excerpt)}</p></article>`}).join(""):'<div class="empty-mini">No matching thoughts yet.</div>'}
+function editNote(id){const n=state.notes.find(x=>x.id===id);if(!n)return;state.editing=id;state.selected=[...n.lines];state.anchor=n.lines[0];els.title.value=n.title;els.type.value=n.type;els.tags.value=n.tags.join(", ");els.body.value=n.body;els.del.hidden=false;renderText();renderSelection();renderNotes();els.notesPanel.classList.add("open");document.querySelector(`[data-i="${n.lines[0]}"]`)?.scrollIntoView({block:"center"})}
+function loadText(file){if(!file)return;const r=new FileReader;r.onload=()=>{const text=String(r.result).replace(/^\uFEFF/,"");state={version:1,documentName:file.name,lines:text.split(/\r?\n/),notes:[],selected:[],anchor:null,editing:null,updatedAt:null};clearForm();persist();renderAll();toast("Text loaded")};r.readAsText(file)}
+function importProject(file){if(!file)return;const r=new FileReader;r.onload=()=>{try{const x=JSON.parse(r.result);if(!Array.isArray(x.lines)||!Array.isArray(x.notes))throw 0;state={...state,...x,selected:[],anchor:null,editing:null};clearForm();persist();renderAll();toast("Project restored")}catch(e){toast("That project file is not valid")}};r.readAsText(file)}
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},0)}
+function baseName(){return(state.documentName||"versework").replace(/\.[^.]+$/,"").replace(/[^a-z0-9_-]+/gi,"_")}
+function exportProject(){download(`${baseName()}_study.json`,JSON.stringify({...state,selected:[],anchor:null,editing:null},null,2),"application/json");closeModal();toast("Project exported")}
+function exportMarkdown(){let out=`# ${state.documentName||"Versework Study"}\n\n`;state.notes.forEach(n=>{const a=Math.min(...n.lines)+1,b=Math.max(...n.lines)+1;out+=`## ${n.title}\n\n**${n.type} · ${a===b?`Line ${a}`:`Lines ${a}–${b}`}**${n.tags.length?` · ${n.tags.map(t=>`#${t.replace(/\s+/g,"-")}`).join(" ")}`:""}\n\n> ${n.excerpt.replace(/\n/g," ")}\n\n${n.body}\n\n---\n\n`});download(`${baseName()}_notes.md`,out,"text/markdown");closeModal();toast("Notebook exported")}
+function closeModal(){$("#exportModal").classList.remove("open")}
+els.textView.addEventListener("click",e=>{const row=e.target.closest(".line-row");if(row)selectLine(+row.dataset.i,e)});
+$("#browseBtn").onclick=$("#openFileTop").onclick=$("#welcomeOpen").onclick=()=>els.textFile.click();els.textFile.onchange=e=>{loadText(e.target.files[0]);e.target.value=""};
+$("#importProjectBtn").onclick=()=>els.projectFile.click();els.projectFile.onchange=e=>{importProject(e.target.files[0]);e.target.value=""};
+els.drop.ondragover=e=>{e.preventDefault();els.drop.classList.add("drag")};els.drop.ondragleave=()=>els.drop.classList.remove("drag");els.drop.ondrop=e=>{e.preventDefault();els.drop.classList.remove("drag");loadText(e.dataTransfer.files[0])};
+$("#saveNote").onclick=saveNote;$("#newNote").onclick=clearForm;els.del.onclick=()=>{if(!state.editing)return;state.notes=state.notes.filter(n=>n.id!==state.editing);clearForm();persist();renderNotes();renderText();toast("Note deleted")};
+els.list.onclick=e=>{const c=e.target.closest("[data-note]");if(c)editNote(c.dataset.note)};$("#noteSearch").oninput=renderNotes;
+$("#textSearch").oninput=e=>{const q=e.target.value.trim().toLowerCase();$$('.line-row').forEach((row,i)=>row.classList.toggle("match",!!q&&state.lines[i].toLowerCase().includes(q)));if(q)document.querySelector(".line-row.match")?.scrollIntoView({block:"center"})};
+$("#exportBtn").onclick=()=>$("#exportModal").classList.add("open");$("#exportProject").onclick=exportProject;$("#exportMarkdown").onclick=exportMarkdown;$$('[data-close]').forEach(b=>b.onclick=closeModal);$("#exportModal").onclick=e=>{if(e.target.id==="exportModal")closeModal()};
+$("#showNotes").onclick=()=>els.notesPanel.classList.toggle("open");document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();saveNote()}if(e.key==="Escape")els.notesPanel.classList.remove("open")});
+restore();
+})();
+</script>
+</body>
+</html>
