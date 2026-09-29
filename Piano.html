@@ -106,7 +106,23 @@
     .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1d1b16;border:1px solid #6d5a32;color:#e6d3a2;padding:10px 14px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
     .toast.on{opacity:1}
 
-    .wave-card{display:none;border:1px solid var(--line);border-radius:14px;background:#111113;overflow:hidden;box-shadow:0 12px 34px #0005}
+
+    .mic-diagnostics{display:none;border:1px solid var(--line);border-radius:14px;background:#111113;overflow:hidden;box-shadow:0 12px 34px #0005}
+    .mic-diagnostics.on{display:block}
+    .mic-diag-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 13px;border-bottom:1px solid #29282c;background:#171719}
+    .mic-diag-head b{font-size:13px}.mic-diag-head .diag-actions{margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+    .mic-diag-head select{height:31px;background:#151517;color:#eee9de;border:1px solid #37363b;border-radius:8px;padding:0 8px}
+    .mic-diag-head .btn{height:31px;font-size:11px;padding:0 9px}
+    .mic-diag-grid{display:grid;grid-template-columns:repeat(6,minmax(100px,1fr));gap:1px;background:#2b2a2e}
+    .mic-stat{min-width:0;background:#111113;padding:9px 11px}
+    .mic-stat span{display:block;color:#74727a;font-size:9px;letter-spacing:.12em;text-transform:uppercase}
+    .mic-stat b{display:block;margin-top:4px;color:#d8c79d;font:600 12px ui-monospace,SFMono-Regular,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .mic-diag-note{padding:8px 12px;color:#8f8c93;font-size:11px;line-height:1.45;border-top:1px solid #252428}
+    .mic-diag-note strong{color:#c9b47f}
+    @media(max-width:900px){.mic-diag-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:520px){.mic-diag-grid{grid-template-columns:repeat(2,1fr)}}
+
+        .wave-card{display:none;border:1px solid var(--line);border-radius:14px;background:#111113;overflow:hidden;box-shadow:0 12px 34px #0005}
     .wave-card.on{display:block}
     .wave-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 13px;border-bottom:1px solid #29282c;background:#171719}
     .wave-head b{font-size:13px}.wave-stats{color:#99979f;font-size:12px}.wave-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
@@ -227,6 +243,33 @@
     </div>
   </section>
 
+  <section class="mic-diagnostics on" id="micDiagnostics">
+    <div class="mic-diag-head">
+      <b>Precision Microphone</b>
+      <span class="analysis-pill" id="micEngineLabel">Hybrid FFT + periodicity</span>
+      <div class="diag-actions">
+        <label>Mode
+          <select id="micQuality">
+            <option value="fast">Fast</option>
+            <option value="precision" selected>Precision</option>
+          </select>
+        </label>
+        <label><input id="micAutoGain" type="checkbox" checked> Smart gain</label>
+        <label><input id="micAdaptiveNoise" type="checkbox" checked> Adaptive noise</label>
+        <button class="btn ghost" id="calibrateA4" type="button">Calibrate Piano A4</button>
+        <button class="btn ghost" id="resetA4" type="button">Reset 440</button>
+      </div>
+    </div>
+    <div class="mic-diag-grid">
+      <div class="mic-stat"><span>Detected</span><b id="diagNotes">—</b></div>
+      <div class="mic-stat"><span>Confidence</span><b id="diagConfidence">—</b></div>
+      <div class="mic-stat"><span>Noise floor</span><b id="diagNoise">— dB</b></div>
+      <div class="mic-stat"><span>Smart gain</span><b id="diagGain">1.00×</b></div>
+      <div class="mic-stat"><span>Attack</span><b id="diagAttack">0.000</b></div>
+      <div class="mic-stat"><span>Piano tuning</span><b id="diagA4">A4 = 440.0 Hz</b></div>
+    </div>
+    <div class="mic-diag-note" id="diagMessage"><strong>Precision mode:</strong> 40 Hz high-pass + 5 kHz low-pass, harmonic scoring, periodicity verification, confidence hysteresis, and adaptive room-noise tracking.</div>
+  </section>
 
   <section class="practice-card" id="practiceCard">
     <div class="practice-head">
@@ -342,7 +385,7 @@
   </section>
 
   <div class="controls">
-    <label>Sensitivity <input id="sensitivity" type="range" min="0.005" max="0.08" step="0.005" value="0.018"></label>
+    <label>Sensitivity <input id="sensitivity" type="range" min="0.005" max="0.08" step="0.005" value="0.015"></label>
     <label>Volume <input id="volume" type="range" min="0.1" max="1.2" step="0.05" value="0.85"></label>
     <label>Speed
       <select id="speed">
@@ -378,7 +421,7 @@
 <div class="help" id="help">
   <div class="help-card">
     <h3>How to use it</h3>
-    <p><b>Mic</b> listens for up to two notes at a time. Play cleanly, one or two keys, and raise sensitivity if the room is noisy.</p>
+    <p><b>Mic</b> uses the Precision Microphone engine: piano-band filtering, harmonic scoring, periodicity verification, adaptive room noise, confidence hysteresis, and optional A4 tuning calibration. Precision is more selective; Fast reacts quicker.</p>
     <p><b>Tap piano</b> records the on-screen keys (or computer keys). Hold a key to hold the note.</p>
     <p><b>Import audio</b> analyzes an MP3/WAV for up to two simultaneous piano voices, shows the waveform, and lets you compare Original / Detected / Both.</p>
     <p><b>Practice</b> loads written note names and listens to your real piano through the microphone. Correct notes advance automatically; repeated notes require a release before the next step.</p>
@@ -404,6 +447,9 @@
 
   let mode = 'mic';
   let ctx, stream, source, analyser, recorder, chunks = [], raf, startTime = 0;
+  let micHighpass = null, micLowpass = null, micGain = null;
+  let referenceA4 = 440, adaptiveGain = 1, previousRms = 0, lastAttack = 0, lastDetectedInfos = [];
+  let pianoCalibration = { active:false, samples:[], started:0 };
   let notes = [], activeNotes = new Map(), candidateFrames = new Map(), missingFrames = new Map();
   let audioURL = null, lastScan = 0, lastDraw = 0, sampleBuffer, spectrum, noiseFloor = -92, calibratingUntil = 0;
   let recording = false, tapClock = 0, tapOrigin = 0;
@@ -419,7 +465,7 @@
 
 
   const fmt = t => `${String(Math.floor(Math.max(0,t)/60)).padStart(2,'0')}:${(Math.max(0,t)%60).toFixed(1).padStart(4,'0')}`;
-  const a4 = () => 440;
+  const a4 = () => referenceA4;
   const noteInfo = f => {
     const midi = Math.round(69 + 12 * Math.log2(f / a4()));
     const ideal = a4() * Math.pow(2, (midi - 69) / 12);
@@ -444,41 +490,278 @@
     } catch(e){}
   };
 
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+
+  function micIsPrecision() {
+    return $('#micQuality')?.value !== 'fast';
+  }
+
+  function micScanInterval() {
+    return micIsPrecision() ? 48 : 32;
+  }
+
+  function micStartConfidence() {
+    return micIsPrecision() ? .56 : .48;
+  }
+
+  function micHoldConfidence() {
+    return micIsPrecision() ? .34 : .29;
+  }
+
+  function setupMicChain() {
+    source = ctx.createMediaStreamSource(stream);
+
+    micHighpass = ctx.createBiquadFilter();
+    micHighpass.type = 'highpass';
+    micHighpass.frequency.value = 40;
+    micHighpass.Q.value = .7;
+
+    micLowpass = ctx.createBiquadFilter();
+    micLowpass.type = 'lowpass';
+    micLowpass.frequency.value = Math.min(5000, ctx.sampleRate * .45);
+    micLowpass.Q.value = .55;
+
+    micGain = ctx.createGain();
+    micGain.gain.value = 1;
+    adaptiveGain = 1;
+
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = micIsPrecision() ? 16384 : 8192;
+    analyser.smoothingTimeConstant = micIsPrecision() ? .18 : .30;
+    analyser.minDecibels = -110;
+    analyser.maxDecibels = -10;
+
+    source.connect(micHighpass).connect(micLowpass).connect(micGain).connect(analyser);
+    sampleBuffer = new Float32Array(analyser.fftSize);
+    spectrum = new Float32Array(analyser.frequencyBinCount);
+
+    $('#micQuality').disabled = true;
+    $('#micEngineLabel').textContent = micIsPrecision() ? 'FFT 16K + periodicity' : 'FFT 8K + periodicity';
+  }
+
+  function resetMicControls() {
+    $('#micQuality').disabled = false;
+    adaptiveGain = 1;
+    previousRms = 0;
+    lastAttack = 0;
+    lastDetectedInfos = [];
+    if (micGain && ctx && ctx.state !== 'closed') {
+      try { micGain.gain.setValueAtTime(1, ctx.currentTime); } catch(e) {}
+    }
+    updateMicDiagnostics([], 0, 0);
+  }
+
   function spectrumLevelAt(freq) {
-    const bin = freq / (ctx.sampleRate / analyser.fftSize);
-    const i = Math.round(bin);
-    return Math.max(spectrum[Math.max(0, i - 1)] || -120, spectrum[i] || -120, spectrum[Math.min(spectrum.length - 1, i + 1)] || -120);
+    if (!spectrum || !analyser || !ctx || freq <= 0) return -120;
+    const binWidth = ctx.sampleRate / analyser.fftSize;
+    const i = Math.round(freq / binWidth);
+    return Math.max(
+      spectrum[Math.max(0, i - 1)] ?? -120,
+      spectrum[Math.max(0, Math.min(spectrum.length - 1, i))] ?? -120,
+      spectrum[Math.min(spectrum.length - 1, i + 1)] ?? -120
+    );
+  }
+
+  function spectrumPeakAround(expected, centsSpan = 55) {
+    if (!spectrum || !analyser || !ctx || expected <= 0) return { freq:expected, db:-120 };
+    const binWidth = ctx.sampleRate / analyser.fftSize;
+    const loF = expected * Math.pow(2, -centsSpan / 1200);
+    const hiF = expected * Math.pow(2,  centsSpan / 1200);
+    const center = Math.round(expected / binWidth);
+    let lo = Math.max(1, Math.floor(loF / binWidth), center - 3);
+    let hi = Math.min(spectrum.length - 2, Math.ceil(hiF / binWidth), center + 3);
+    if (lo > hi) { lo = Math.max(1, center - 2); hi = Math.min(spectrum.length - 2, center + 2); }
+
+    let best = lo, bestDb = -120;
+    for (let i = lo; i <= hi; i++) {
+      const db = spectrum[i] ?? -120;
+      if (db > bestDb) { bestDb = db; best = i; }
+    }
+
+    // Quadratic interpolation gives a more precise peak than the raw FFT bin.
+    const y1 = spectrum[Math.max(0,best-1)] ?? bestDb;
+    const y2 = spectrum[best] ?? bestDb;
+    const y3 = spectrum[Math.min(spectrum.length-1,best+1)] ?? bestDb;
+    const denom = y1 - 2*y2 + y3;
+    let shift = denom ? .5 * (y1 - y3) / denom : 0;
+    shift = Math.max(-.5, Math.min(.5, shift));
+    return { freq:(best + shift) * binWidth, db:bestDb };
+  }
+
+  function periodicityAt(freq) {
+    if (!sampleBuffer || !ctx || !Number.isFinite(freq) || freq < 40) return 0;
+    const lag = Math.max(2, Math.round(ctx.sampleRate / freq));
+    const maxLen = micIsPrecision() ? 6144 : 4096;
+    const len = Math.min(maxLen, sampleBuffer.length - lag);
+    if (len < 256) return 0;
+
+    let num = 0, aa = 0, bb = 0;
+    const step = micIsPrecision() ? 2 : 3;
+    for (let i = 0; i < len; i += step) {
+      const a = sampleBuffer[i], b = sampleBuffer[i + lag];
+      num += a * b;
+      aa += a * a;
+      bb += b * b;
+    }
+    if (aa < 1e-9 || bb < 1e-9) return 0;
+    return clamp01(num / Math.sqrt(aa * bb));
+  }
+
+  function estimateSpectrumNoise() {
+    if (!spectrum?.length) return -92;
+    const vals = [];
+    const max = Math.min(spectrum.length, Math.max(80, Math.floor(5000 / (ctx.sampleRate / analyser.fftSize))));
+    for (let i = 8; i < max; i += 13) {
+      const v = spectrum[i];
+      if (Number.isFinite(v)) vals.push(v);
+    }
+    if (!vals.length) return noiseFloor;
+    vals.sort((a,b)=>a-b);
+    // The lower-middle portion tracks the room floor without following piano peaks.
+    return vals[Math.floor(vals.length * .38)] ?? noiseFloor;
+  }
+
+  function updateSmartGain(rms) {
+    if (!micGain || !ctx || !$('#micAutoGain')?.checked) {
+      adaptiveGain += (1 - adaptiveGain) * .05;
+      return;
+    }
+    if (rms < .0025 || rms > .30) return;
+    const targetRms = .055;
+    const desired = Math.max(.70, Math.min(2.8, adaptiveGain * targetRms / Math.max(.006, rms)));
+    adaptiveGain = adaptiveGain * .92 + desired * .08;
+    try { micGain.gain.setTargetAtTime(adaptiveGain, ctx.currentTime, .06); } catch(e) {}
+  }
+
+  function updateAdaptiveNoise(rms, infos) {
+    if (!$('#micAdaptiveNoise')?.checked || !spectrum?.length) return;
+    const estimate = estimateSpectrumNoise();
+    const idle = !infos.length || rms < .010;
+    if (idle) noiseFloor = noiseFloor * .985 + estimate * .015;
+  }
+
+  function collectPianoCalibration() {
+    if (!pianoCalibration.active || !spectrum?.length) return;
+    const peak = spectrumPeakAround(440, 52);
+    const snr = peak.db - noiseFloor;
+    const periodicity = periodicityAt(peak.freq);
+
+    if (snr > 10 && periodicity > .22 && peak.freq >= 427 && peak.freq <= 453) {
+      pianoCalibration.samples.push(peak.freq);
+      $('#diagMessage').innerHTML = `<strong>Calibrating:</strong> keep holding A4… ${pianoCalibration.samples.length}/18 clean readings.`;
+    }
+
+    if (pianoCalibration.samples.length >= 18) {
+      const vals = pianoCalibration.samples.slice().sort((a,b)=>a-b);
+      const mid = vals[Math.floor(vals.length/2)];
+      referenceA4 = Math.max(427, Math.min(453, mid));
+      pianoCalibration.active = false;
+      $('#diagMessage').innerHTML = `<strong>Calibrated:</strong> this piano's A4 is ${referenceA4.toFixed(2)} Hz. Detection now follows that tuning.`;
+      $('#diagA4').textContent = `A4 = ${referenceA4.toFixed(2)} Hz`;
+      toast(`Piano calibrated: A4 ${referenceA4.toFixed(2)} Hz`);
+    } else if (performance.now() - pianoCalibration.started > 6500) {
+      pianoCalibration.active = false;
+      $('#diagMessage').innerHTML = '<strong>Calibration stopped:</strong> I could not get a stable A4. Try again closer to the piano and hold A4 clearly.';
+    }
+  }
+
+  function beginPianoCalibration() {
+    if (!analyser || !ctx) {
+      toast('Start Mic recording or Practice listening first');
+      return;
+    }
+    pianoCalibration = { active:true, samples:[], started:performance.now() };
+    $('#diagMessage').innerHTML = '<strong>Calibrating:</strong> play and hold the A4 key near the middle of the piano.';
+  }
+
+  function updateMicDiagnostics(infos, rms, attack) {
+    const notesText = infos.length ? infos.map(i=>`${i.name}${i.oct}`).join(' + ') : '—';
+    const confText = infos.length ? infos.map(i=>`${Math.round((i.confidence||0)*100)}%`).join(' / ') : '—';
+    $('#diagNotes').textContent = notesText;
+    $('#diagConfidence').textContent = confText;
+    $('#diagNoise').textContent = `${Number.isFinite(noiseFloor) ? noiseFloor.toFixed(1) : '—'} dB`;
+    $('#diagGain').textContent = `${adaptiveGain.toFixed(2)}×`;
+    $('#diagAttack').textContent = attack.toFixed(3);
+    $('#diagA4').textContent = `A4 = ${referenceA4.toFixed(2)} Hz`;
   }
 
   function detectTwoNotes() {
     analyser.getFloatFrequencyData(spectrum);
     const sensitivity = +$('#sensitivity').value;
-    const threshold = Math.max(-82, noiseFloor + 8 + sensitivity * 180);
-    const candidates = [];
+    const threshold = Math.max(-88, noiseFloor + 6 + sensitivity * 135);
+    const preliminary = [];
+
     for (let midi = 36; midi <= 84; midi++) {
-      const f = a4() * Math.pow(2, (midi - 69) / 12);
-      const fundDb = spectrumLevelAt(f);
+      const expected = a4() * Math.pow(2, (midi - 69) / 12);
+      const peak = spectrumPeakAround(expected, micIsPrecision() ? 48 : 58);
+      const fundDb = peak.db;
       if (fundDb < threshold) continue;
-      let score = Math.pow(10, fundDb / 20) * 1.65;
-      [[2,.34],[3,.2],[4,.11],[5,.06]].forEach(([h,w]) => {
-        if (f * h < ctx.sampleRate / 2) score += Math.pow(10, spectrumLevelAt(f * h) / 20) * w;
+
+      const h2 = peak.freq * 2 < ctx.sampleRate/2 ? spectrumLevelAt(peak.freq*2) : -120;
+      const h3 = peak.freq * 3 < ctx.sampleRate/2 ? spectrumLevelAt(peak.freq*3) : -120;
+      const h4 = peak.freq * 4 < ctx.sampleRate/2 ? spectrumLevelAt(peak.freq*4) : -120;
+
+      const snr = fundDb - noiseFloor;
+      const snrScore = clamp01((snr - 4) / 26);
+      const harmonicSupport =
+        .46 * clamp01((h2 - noiseFloor - 2) / 24) +
+        .34 * clamp01((h3 - noiseFloor - 2) / 24) +
+        .20 * clamp01((h4 - noiseFloor - 2) / 24);
+
+      const spectralScore =
+        Math.pow(10, fundDb/20) * 1.7 +
+        Math.pow(10, h2/20) * .34 +
+        Math.pow(10, h3/20) * .20 +
+        Math.pow(10, h4/20) * .10;
+
+      preliminary.push({
+        midi, expected, freq:peak.freq, fundDb, snr, snrScore,
+        harmonicSupport, spectralScore
       });
-      if (activeNotes.has(midi) || candidateFrames.has(midi)) score *= 1.32;
-      candidates.push({ ...noteInfo(f), score, fundDb });
     }
-    candidates.sort((a,b) => b.score - a.score);
+
+    preliminary.sort((a,b)=>b.spectralScore-a.spectralScore);
+    const verified = preliminary.slice(0, 10).map(c => {
+      const periodicity = periodicityAt(c.freq);
+      let confidence = c.snrScore * .50 + c.harmonicSupport * .28 + clamp01((periodicity-.08)/.68) * .22;
+
+      if (activeNotes.has(c.midi) || candidateFrames.has(c.midi)) confidence += .055;
+
+      // Practice knows the expected key, but only receives a small bias. It still
+      // must be physically present in the microphone signal.
+      if (mode === 'practice' && practiceSequence[practiceIndex]?.midis?.includes(c.midi)) confidence += .035;
+
+      confidence = clamp01(confidence);
+      return { ...noteInfo(c.freq), midi:c.midi, freq:c.freq, confidence, periodicity, fundDb:c.fundDb, snr:c.snr, spectralScore:c.spectralScore };
+    });
+
+    verified.sort((a,b) => (b.confidence*1.4 + Math.log10(1+b.spectralScore)) - (a.confidence*1.4 + Math.log10(1+a.spectralScore)));
+
     const picked = [];
-    for (const c of candidates) {
+    for (const c of verified) {
+      if (c.confidence < .27) continue;
       if (picked.some(p => Math.abs(p.midi - c.midi) <= 1)) continue;
-      if (picked.length) {
-        const ratio = c.freq / picked[0].freq;
-        const nearHarmonic = [2,3,4].some(h => Math.abs(ratio - h) < .035);
-        if (nearHarmonic && c.fundDb < picked[0].fundDb - 3) continue;
-        if (c.score < picked[0].score * .24) continue;
+
+      let reject = false;
+      for (const p of picked) {
+        const ratio = Math.max(c.freq,p.freq) / Math.min(c.freq,p.freq);
+        const nearHarmonic = [2,3,4].some(h => Math.abs(ratio-h) < .032);
+        if (nearHarmonic && c.fundDb < p.fundDb - 2.5 && c.confidence <= p.confidence + .08) {
+          reject = true;
+          break;
+        }
       }
+      if (reject) continue;
+
+      if (picked.length && c.confidence < picked[0].confidence - .34 && c.spectralScore < picked[0].spectralScore*.20) continue;
+
       picked.push(c);
       if (picked.length === 2) break;
     }
+
+    picked.sort((a,b)=>a.midi-b.midi);
+    collectPianoCalibration();
+    lastDetectedInfos = picked;
     return picked;
   }
 
@@ -497,33 +780,57 @@
   function closeAll(now) { [...activeNotes.keys()].forEach(m => closeMidi(m, now)); render(); }
 
   function updateDetection(infos, now) {
-    const seen = new Set(infos.map(i => i.midi));
+    const startConf = micStartConfidence();
+    const holdConf = micHoldConfidence();
+    const seen = new Set();
+
     infos.forEach(info => {
+      const isActive = activeNotes.has(info.midi);
+      const threshold = isActive ? holdConf : startConf;
+      if ((info.confidence || 0) < threshold) return;
+
+      seen.add(info.midi);
       candidateFrames.set(info.midi, (candidateFrames.get(info.midi) || 0) + 1);
       missingFrames.set(info.midi, 0);
-      if (!activeNotes.has(info.midi) && candidateFrames.get(info.midi) >= 2) {
-        activeNotes.set(info.midi, { ...info, start: now - .05, end: now, duration: .05 });
+
+      const requiredFrames = micIsPrecision() ? 3 : 2;
+      if (!isActive && candidateFrames.get(info.midi) >= requiredFrames) {
+        activeNotes.set(info.midi, { ...info, start: now - .06, end: now, duration:.06 });
       }
       const n = activeNotes.get(info.midi);
-      if (n) { n.end = now; n.duration = now - n.start; n.freq = info.freq; n.cents = info.cents; }
+      if (n) {
+        n.end = now;
+        n.duration = now - n.start;
+        n.freq = info.freq;
+        n.cents = info.cents;
+        n.confidence = info.confidence;
+      }
     });
+
     [...activeNotes.keys()].forEach(m => {
       if (seen.has(m)) return;
       const misses = (missingFrames.get(m) || 0) + 1;
       missingFrames.set(m, misses);
-      if (misses >= 3) closeMidi(m, now - .09);
+      if (misses >= (micIsPrecision() ? 4 : 3)) closeMidi(m, now - .08);
     });
-    [...candidateFrames.keys()].forEach(m => { if (!seen.has(m) && !activeNotes.has(m)) candidateFrames.delete(m); });
+
+    [...candidateFrames.keys()].forEach(m => {
+      if (!seen.has(m) && !activeNotes.has(m)) candidateFrames.delete(m);
+    });
+
     if (!infos.length) {
       noteEl.textContent = '—';
       freqEl.textContent = 'Listening for up to two notes';
       needle.style.left = '50%';
       return;
     }
+
     noteEl.innerHTML = infos.map(i => `${i.name}<small>${i.oct}</small>`).join(' <small>+</small> ');
     const cents = infos[0].cents || 0;
     needle.style.left = Math.max(4, Math.min(96, 50 + cents * 1.6)) + '%';
-    freqEl.textContent = infos.length === 2 ? 'Two notes detected' : `${infos[0].freq.toFixed(1)} Hz · ${cents >= 0 ? '+' : ''}${cents.toFixed(0)}¢`;
+    freqEl.textContent = infos.length === 2
+      ? `${infos.map(i=>`${i.name}${i.oct} ${Math.round(i.confidence*100)}%`).join(' · ')}`
+      : `${infos[0].freq.toFixed(1)} Hz · ${cents >= 0 ? '+' : ''}${cents.toFixed(0)}¢ · ${Math.round(infos[0].confidence*100)}%`;
   }
 
   function buildPiano() {
@@ -947,7 +1254,9 @@
   function practiceTargetMatches(infos) {
     if (!practiceSequence.length || practiceIndex >= practiceSequence.length) return false;
     const target = practiceSequence[practiceIndex].midis;
-    const detected = infos.map(i => i.midi).sort((a,b)=>a-b);
+    const minimum = micIsPrecision() ? .52 : .44;
+    const reliable = infos.filter(i => (i.confidence || 0) >= minimum);
+    const detected = reliable.map(i => i.midi).sort((a,b)=>a-b);
     const containsAll = target.every(m => detected.includes(m));
     return $('#practiceExactChord').checked
       ? containsAll && detected.length === target.length
@@ -988,8 +1297,8 @@
       practiceCandidateFrames = 1;
     }
 
-    // Require a stable reading before judging it.
-    if (practiceCandidateFrames < 2) return;
+    // Precision mode waits for an extra stable frame before judging.
+    if (practiceCandidateFrames < (micIsPrecision() ? 3 : 2)) return;
 
     const feedback = $('#practiceFeedback');
     if (practiceTargetMatches(infos)) {
@@ -1016,25 +1325,34 @@
 
   function practiceLoop(stamp) {
     if (!practiceListening || !analyser) return;
+
     analyser.getFloatTimeDomainData(sampleBuffer);
     let rms = 0;
-    for (const v of sampleBuffer) rms += v * v;
+    for (const v of sampleBuffer) rms += v*v;
     rms = Math.sqrt(rms / sampleBuffer.length);
-    levelEl.style.width = Math.min(100, rms * 650) + '%';
 
+    const attack = Math.max(0, rms - previousRms * 1.10);
+    previousRms = previousRms * .70 + rms * .30;
+    lastAttack = attack;
+    updateSmartGain(rms);
+
+    levelEl.style.width = Math.min(100, rms * 720) + '%';
     const elapsed = (performance.now() - startTime) / 1000;
     timer.textContent = fmt(elapsed);
 
     if (elapsed < calibratingUntil) {
       analyser.getFloatFrequencyData(spectrum);
-      let sum = 0, n = 0;
-      for (let i = 6; i < Math.min(spectrum.length,1200); i++) { sum += spectrum[i]; n++; }
-      noiseFloor = noiseFloor * .85 + (sum / Math.max(1,n)) * .15;
+      const estimate = estimateSpectrumNoise();
+      noiseFloor = noiseFloor * .78 + estimate * .22;
       $('#practiceState').textContent = 'Calibrating microphone';
       freqEl.textContent = 'Listening to the room…';
+      updateMicDiagnostics([], rms, attack);
     } else {
       if ($('#practiceState').textContent === 'Calibrating microphone') $('#practiceState').textContent = 'Listening';
-      practiceHandleDetection(detectTwoNotes());
+      const infos = detectTwoNotes();
+      updateAdaptiveNoise(rms, infos);
+      updateMicDiagnostics(infos, rms, attack);
+      practiceHandleDetection(infos);
     }
     practiceRAF = requestAnimationFrame(practiceLoop);
   }
@@ -1048,16 +1366,10 @@
     stopNotePlayback();
     notice.style.display = 'none';
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false } });
+      stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false, channelCount:{ideal:1} } });
       ctx = new (window.AudioContext || window.webkitAudioContext)();
-      source = ctx.createMediaStreamSource(stream);
-      analyser = ctx.createAnalyser();
-      analyser.fftSize = 8192;
-      analyser.smoothingTimeConstant = .42;
-      sampleBuffer = new Float32Array(analyser.fftSize);
-      spectrum = new Float32Array(analyser.frequencyBinCount);
-      source.connect(analyser);
-      noiseFloor = -92;
+      setupMicChain();
+      noiseFloor = -96;
       activeNotes.clear(); candidateFrames.clear(); missingFrames.clear();
       startTime = performance.now();
       calibratingUntil = 1;
@@ -1086,7 +1398,8 @@
     stream?.getTracks().forEach(t => t.stop());
     stream = null;
     try { ctx?.close(); } catch(e) {}
-    ctx = null; analyser = null;
+    ctx = null; analyser = null; micHighpass = null; micLowpass = null; micGain = null;
+    resetMicControls();
     record.disabled = false;
     record.classList.remove('recording');
     record.textContent = '● Start Listening';
@@ -1116,22 +1429,36 @@
 
   function loop(stamp) {
     const now = (performance.now() - startTime) / 1000;
-    if (stamp - lastScan > 45 && analyser) {
+
+    if (stamp - lastScan > micScanInterval() && analyser) {
       analyser.getFloatTimeDomainData(sampleBuffer);
       let rms = 0;
-      for (const v of sampleBuffer) rms += v * v;
+      for (const v of sampleBuffer) rms += v*v;
       rms = Math.sqrt(rms / sampleBuffer.length);
-      levelEl.style.width = Math.min(100, rms * 650) + '%';
+
+      const attack = Math.max(0, rms - previousRms * 1.10);
+      previousRms = previousRms * .70 + rms * .30;
+      lastAttack = attack;
+      updateSmartGain(rms);
+
+      levelEl.style.width = Math.min(100, rms * 720) + '%';
+
       if (now < calibratingUntil) {
         analyser.getFloatFrequencyData(spectrum);
-        let sum = 0, n = 0;
-        for (let i = 6; i < Math.min(spectrum.length, 1200); i++) { sum += spectrum[i]; n++; }
-        noiseFloor = noiseFloor * .85 + (sum / Math.max(1, n)) * .15;
+        const estimate = estimateSpectrumNoise();
+        noiseFloor = noiseFloor * .78 + estimate * .22;
         visualMode.textContent = 'Calibrating';
         freqEl.textContent = 'Listening to the room…';
-      } else updateDetection(detectTwoNotes(), now);
+        updateMicDiagnostics([], rms, attack);
+      } else {
+        const infos = detectTwoNotes();
+        updateAdaptiveNoise(rms, infos);
+        updateMicDiagnostics(infos, rms, attack);
+        updateDetection(infos, now);
+      }
       lastScan = stamp;
     }
+
     if (stamp - lastDraw > 90) {
       timer.textContent = fmt(now);
       render();
@@ -1145,6 +1472,7 @@
     mode = next;
     document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === next));
     $('#practiceCard').classList.toggle('on', next === 'practice');
+    $('#micDiagnostics').classList.toggle('on', next === 'mic' || next === 'practice');
     $('#viewRoll').disabled = next === 'practice';
     if (next === 'practice') {
       performanceEl.classList.remove('roll-on');
@@ -1178,17 +1506,11 @@
     try {
       stopNotePlayback();
       notice.style.display = 'none';
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false, channelCount:{ideal:1} } });
       ctx = new (window.AudioContext || window.webkitAudioContext)();
-      source = ctx.createMediaStreamSource(stream);
-      analyser = ctx.createAnalyser();
-      analyser.fftSize = 8192;
-      analyser.smoothingTimeConstant = .42;
-      sampleBuffer = new Float32Array(analyser.fftSize);
-      spectrum = new Float32Array(analyser.frequencyBinCount);
-      source.connect(analyser);
+      setupMicChain();
       chunks = []; notes = []; activeNotes.clear(); candidateFrames.clear(); missingFrames.clear();
-      noiseFloor = -92; lastScan = 0; lastDraw = 0;
+      noiseFloor = -96; lastScan = 0; lastDraw = 0; previousRms = 0;
       recorder = new MediaRecorder(stream);
       recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
       recorder.onstop = finishAudio;
@@ -1264,7 +1586,8 @@
     if (recorder && recorder.state !== 'inactive') recorder.stop();
     stream?.getTracks().forEach(t => t.stop());
     ctx?.close();
-    ctx = null; analyser = null;
+    ctx = null; analyser = null; micHighpass = null; micLowpass = null; micGain = null;
+    resetMicControls();
     recording = false;
     record.disabled = false;
     record.classList.remove('recording');
@@ -1838,6 +2161,8 @@
   restore();
   loadPracticeSequence($('#practiceText').value, 'example');
   $('#practiceCard').classList.remove('on');
+  $('#micDiagnostics').classList.add('on');
+  updateMicDiagnostics([],0,0);
   clearKeys();
   addEventListener('resize', () => { renderPerformance(playing ? 0 : null); drawWaveform(); });
 
@@ -1864,6 +2189,21 @@
   $('#helpClose').onclick = () => $('#help').classList.remove('on');
   $('#help').onclick = e => { if (e.target.id === 'help') e.target.classList.remove('on'); };
   $('#refA').onclick = () => previewNote(69);
+  $('#calibrateA4').onclick = beginPianoCalibration;
+  $('#resetA4').onclick = () => {
+    referenceA4 = 440;
+    pianoCalibration.active = false;
+    $('#diagA4').textContent = 'A4 = 440.00 Hz';
+    $('#diagMessage').innerHTML = '<strong>Tuning reset:</strong> using standard A4 = 440 Hz.';
+    toast('Piano tuning reset to A4 440 Hz');
+  };
+  $('#micQuality').onchange = () => {
+    if (recording || practiceListening) {
+      toast('Stop the microphone before changing detector mode');
+      return;
+    }
+    $('#micEngineLabel').textContent = micIsPrecision() ? 'FFT 16K + periodicity' : 'FFT 8K + periodicity';
+  };
   $('#volume').oninput = () => { if (playbackMaster) playbackMaster.gain.value = +$('#volume').value; };
   $('#bpm').oninput = () => $('#bpmVal').textContent = $('#bpm').value;
   $('#modeMic').onclick = () => setMode('mic');
