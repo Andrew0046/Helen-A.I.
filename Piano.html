@@ -1,0 +1,1927 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b0d">
+  <meta name="description" content="Record piano or voice, detect notes, replay them, and export MIDI.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0b0d'/%3E%3Cpath d='M14 12h9v40h-9zm13 0h10v40H27zm14 0h9v40h-9z' fill='%23f3efe5'/%3E%3Cpath d='M21 12h8v24h-8zm16 0h8v24h-8z' fill='%23caa661'/%3E%3C/svg%3E">
+  <title>Piano Note Recorder</title>
+  <style>
+    :root{
+      --bg:#09090b;--panel:#141416;--line:#333237;--gold:#c9a45d;--cream:#f3efe5;
+      --muted:#99979f;--red:#df5e58;--cyan:#69c6c3;--ink:#0c0c0e;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--cream);font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+    body{background:radial-gradient(circle at 50% -12%,#2f2d34 0,#121214 42%,#080809 82%)}
+    button,input,select{font:inherit}
+    .app{width:min(1600px,100%);min-height:100dvh;margin:auto;padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));display:grid;grid-template-rows:auto auto auto 1fr auto;gap:12px}
+    header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .mark{width:36px;height:36px;border:1px solid #806a3f;border-radius:50%;display:grid;place-items:center;color:var(--gold);font-family:Georgia,serif;font-size:21px;flex:none}
+    h1{font:500 clamp(18px,3vw,28px)/1 Georgia,serif;letter-spacing:.06em;margin:0}
+    .sub{color:var(--muted);font-size:13px;margin-top:4px}
+    .spacer{flex:1}
+    .transport{display:flex;gap:7px;flex-wrap:wrap}
+    .btn{height:42px;border:1px solid #3c3b40;border-radius:10px;background:linear-gradient(#28272b,#18181a);color:#efede7;padding:0 13px;font-weight:700;cursor:pointer;box-shadow:inset 0 1px rgba(255,255,255,.05)}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:linear-gradient(#df6862,#a83e3a);border-color:#e97b74}
+    .btn.primary.recording{animation:pulse 1.4s infinite}
+    .btn:disabled{opacity:.38;cursor:not-allowed}
+    .btn.ghost{background:#141416;color:#b8b6bc}
+    .btn.gold{background:linear-gradient(#3a311f,#241c12);border-color:#6d5a32;color:#e6d3a2}
+    @keyframes pulse{50%{box-shadow:0 0 0 7px rgba(223,94,88,0)}}
+    .modes{display:flex;gap:6px;flex-wrap:wrap}
+    .mode{height:34px;border:1px solid #3a393e;background:#161618;color:#b7b5bb;border-radius:999px;padding:0 12px;cursor:pointer;font-size:12px;font-weight:600}
+    .mode.on{border-color:#7a6436;background:#231e16;color:#e4cc8d}
+    .monitor{border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,#19191c,#101012);display:grid;grid-template-columns:210px 1fr 200px;align-items:center;gap:16px;padding:15px 18px;box-shadow:0 16px 50px #0008,inset 0 1px rgba(255,255,255,.05)}
+    .live-label{font-size:11px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+    .note-now{font:500 54px/1 Georgia,serif;color:var(--gold);margin-top:3px}
+    .note-now small{font:500 22px Georgia,serif;color:#b7a984}
+    .freq{font-variant-numeric:tabular-nums;color:#aaa;font-size:13px;margin-top:6px}
+    .meter{height:9px;border-radius:10px;background:#09090a;overflow:hidden;border:1px solid #2d2c30}
+    .meter-fill{height:100%;width:0;background:linear-gradient(90deg,#6ab1a9,#d5b25e,#e2605a);transition:width .06s}
+    .tuning{height:30px;position:relative;margin-top:9px;background:linear-gradient(90deg,transparent 49.5%,#b89b5c 49.5% 50.5%,transparent 50.5%)}
+    .needle{position:absolute;left:50%;top:2px;width:3px;height:26px;background:var(--cyan);border-radius:2px;transform:translateX(-50%);transition:left .09s}
+    .tune-labels{display:flex;justify-content:space-between;color:#77757c;font-size:11px}
+    .timer{text-align:right;font:500 30px/1.1 ui-monospace,SFMono-Regular,monospace}
+    .count{color:var(--muted);font-size:13px;margin-top:6px}
+    .controls{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;color:#9a989f;font-size:12px}
+    .controls label{display:flex;align-items:center;gap:8px}
+    .controls input[type=range]{accent-color:var(--gold);width:92px}
+    .controls select,.mini{background:#161618;color:var(--cream);border:1px solid #3a393e;border-radius:8px;height:32px;padding:0 8px}
+    .workspace{min-height:0;display:grid;grid-template-columns:minmax(0,1.75fr) minmax(250px,.7fr);gap:12px}
+    .card{min-height:0;border:1px solid var(--line);border-radius:16px;background:#111113;overflow:hidden;box-shadow:0 16px 45px #0006}
+    .card-head{min-height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid #2b2a2e;background:#18181a;flex-wrap:wrap}
+    .card-head h2{font-size:15px;margin:0;letter-spacing:.04em}
+    .card-head .right{margin-left:auto;color:#89878e;font-size:12px}
+    .view-toggle{display:flex;gap:4px}
+    .view-toggle button{height:28px;font-size:11px;padding:0 9px;border-radius:8px}
+    .list{height:clamp(280px,50vh,610px);overflow:auto}
+    .row{display:grid;grid-template-columns:54px 1fr 58px 28px;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #252428;cursor:pointer}
+    .row:hover{background:#1a1916}
+    .badge{width:48px;height:30px;border:1px solid #66583b;border-radius:7px;display:grid;place-items:center;color:#e2c477;background:#201d17;font:600 16px Georgia,serif}
+    .row time,.dur{font:12px ui-monospace,monospace;color:#8e8c93}
+    .dur{text-align:right}
+    .row.current{background:#1d1b16}
+    .x{border:0;background:transparent;color:#7a787f;cursor:pointer;font-size:16px}
+    .empty{pointer-events:none;color:#737178;padding:28px;text-align:center;line-height:1.5}
+    .empty b{display:block;color:#aaa8ae;margin-bottom:5px}
+    .notice{display:none;color:#d9867f;font-size:13px}
+    audio{height:36px;width:min(280px,42vw);filter:invert(.88) hue-rotate(180deg)}
+    .audio-wrap{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .performance-wrap{height:clamp(360px,54vh,640px);overflow:hidden;background:#09090b;position:relative}
+    .performance{position:relative;width:100%;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 95%,#332917 0,#151419 27%,#09090b 72%)}
+    .performance::before{content:"";position:absolute;inset:0 0 126px;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(3.448% - 1px),#ffffff0b calc(3.448% - 1px),#ffffff0b 3.448%),linear-gradient(180deg,transparent,#c9a45d0c);pointer-events:none}
+    .performance::after{content:"";position:absolute;left:0;right:0;bottom:124px;height:2px;background:linear-gradient(90deg,transparent,#d9b86f,#fff0bd,#d9b86f,transparent);box-shadow:0 0 18px #d6b265;z-index:5}
+    .fall-field,.roll-field{position:absolute;inset:0 0 126px;overflow:hidden}
+    .roll-field{display:none;overflow:auto;background:#0c0c0e}
+    .performance.roll-on .fall-field{display:none}
+    .performance.roll-on .roll-field{display:block}
+    .performance.roll-on::before,.performance.roll-on::after{display:none}
+    .roll{position:relative;min-width:720px;height:100%;background-image:linear-gradient(#252429 1px,transparent 1px),linear-gradient(90deg,#252429 1px,transparent 1px);background-size:100% 22px,64px 100%}
+    .roll-labels{position:sticky;left:0;top:0;z-index:3;width:36px;color:#6a686f;font:10px/22px ui-monospace,monospace;background:linear-gradient(90deg,#101012,#101012cc 80%,transparent)}
+    .note-block{position:absolute;height:18px;min-width:8px;border-radius:4px;background:linear-gradient(90deg,#a98444,#e0c27e);box-shadow:0 0 10px #bf95503b;border:1px solid #ebd093;color:#18140d;font:bold 10px/16px system-ui;padding:0 4px;overflow:hidden;white-space:nowrap}
+    .playhead{position:absolute;top:0;bottom:0;width:2px;background:#e7635d;left:36px;box-shadow:0 0 8px #e7635d;display:none;z-index:4}
+    .fall-note{position:absolute;border:1px solid #f1d89a;border-radius:6px 6px 2px 2px;background:linear-gradient(90deg,#8f6a2d,#f0ce7d 50%,#9c7433);box-shadow:0 0 16px #d7aa4f88,inset 0 1px #fff8d3;color:#171108;font:bold 11px/1 system-ui;display:flex;align-items:flex-end;justify-content:center;padding:0 2px 7px;overflow:hidden;white-space:nowrap;z-index:3}
+    .fall-note.black-note{background:linear-gradient(90deg,#756239,#d6b76e 50%,#6f5a31);color:#080705}
+    .performance-empty{position:absolute;inset:0 0 126px;display:grid;place-items:center;text-align:center;color:#77747c;line-height:1.5;pointer-events:none;z-index:2}
+    .performance-empty b{display:block;color:#b7b2a8;margin-bottom:5px}
+    .performance.has-notes .performance-empty{display:none}
+    .piano{position:absolute;left:0;right:0;bottom:0;height:126px;display:flex;background:#050506;border-top:6px solid #080809;z-index:6;padding:0 3px 4px}
+    .p-key{position:relative;border:1px solid #222126;border-top:0;padding:0;touch-action:none;user-select:none}
+    .p-key.white{flex:1;height:100%;background:linear-gradient(90deg,#cbc8c0,#fff 15%,#f1eee7 76%,#aaa79f);border-radius:0 0 5px 5px;box-shadow:inset 0 -7px #c1beb5}
+    .p-key.black{position:absolute;top:0;width:2.05%;height:65%;transform:translateX(-50%);z-index:3;background:linear-gradient(90deg,#060607,#2b2a2d 48%,#070708);border-color:#000;border-radius:0 0 4px 4px;box-shadow:inset 0 -6px #030304,2px 4px 6px #000}
+    .p-key span{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#716e67;font-size:9px;pointer-events:none}
+    .p-key.black span{color:#b9af98;font-size:8px}
+    .p-key .hint{display:block;font-size:8px;opacity:.55;margin-top:1px}
+    .p-key.active{background:linear-gradient(#f6dea2,#c99f4e);box-shadow:0 0 25px #e1bd68,inset 0 -4px #987435}
+    .p-key.black.active{background:linear-gradient(#d9bd78,#725725);box-shadow:0 0 22px #e4bf67}
+    .mode-pill{border:1px solid #5c4c2f;border-radius:99px;padding:5px 10px;color:#c9ae72;background:#1c1913;font-size:12px}
+    .help{display:none;position:fixed;inset:0;background:#000a;z-index:20;place-items:center;padding:18px}
+    .help.on{display:grid}
+    .help-card{width:min(560px,100%);background:#161618;border:1px solid #3a393e;border-radius:16px;padding:22px;line-height:1.55;color:#c9c7ce}
+    .help-card h3{margin:0 0 8px;font:500 22px Georgia,serif;color:var(--gold)}
+    .help-card kbd{background:#2a2a2e;border:1px solid #444;border-bottom-width:2px;border-radius:5px;padding:1px 6px;font:12px ui-monospace,monospace}
+    .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1d1b16;border:1px solid #6d5a32;color:#e6d3a2;padding:10px 14px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+    .toast.on{opacity:1}
+
+    .wave-card{display:none;border:1px solid var(--line);border-radius:14px;background:#111113;overflow:hidden;box-shadow:0 12px 34px #0005}
+    .wave-card.on{display:block}
+    .wave-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 13px;border-bottom:1px solid #29282c;background:#171719}
+    .wave-head b{font-size:13px}.wave-stats{color:#99979f;font-size:12px}.wave-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+    .wave-actions .btn{height:32px;padding:0 10px;font-size:11px}.wave-wrap{height:112px;position:relative;background:linear-gradient(#0b0b0d,#111115)}
+    #waveform{display:block;width:100%;height:100%;cursor:pointer}.wave-time{position:absolute;right:8px;bottom:6px;background:#09090bcc;border:1px solid #333237;border-radius:6px;padding:3px 7px;color:#b9b6bd;font:11px ui-monospace,monospace;pointer-events:none}
+    .editor-tools{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.editor-tools .btn{height:28px;font-size:11px;padding:0 8px}.selected-readout{font:11px ui-monospace,monospace;color:#d7c18a;min-width:90px}
+    .note-block{cursor:grab;touch-action:none}.note-block.selected{outline:2px solid #69c6c3;z-index:7;box-shadow:0 0 14px #69c6c377}.note-block.dragging{cursor:grabbing;opacity:.9}
+    .note-block .resize-handle{position:absolute;right:0;top:0;bottom:0;width:7px;background:#ffffff33;cursor:ew-resize}
+    .voice-meta{display:block;color:#77757c;font-size:9px;margin-top:2px;text-transform:uppercase;letter-spacing:.06em}
+    .confidence{color:#b9a36e}
+    .analysis-pill{border:1px solid #3a393e;border-radius:999px;padding:4px 8px;font-size:10px;color:#aaa8ae;background:#121214}
+    .quantize-select{height:28px!important;font-size:11px!important;padding:0 5px!important}
+
+    .practice-card{display:none;border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,#171719,#0f0f11);overflow:hidden;box-shadow:0 14px 40px #0006}
+    .practice-card.on{display:block}
+    .practice-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 14px;border-bottom:1px solid #2b2a2e;background:#18181a}
+    .practice-head h2{font-size:15px;margin:0;letter-spacing:.04em}
+    .practice-head .practice-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+    .practice-head .btn{height:34px;font-size:11px;padding:0 10px}
+    .practice-body{display:grid;grid-template-columns:minmax(230px,.7fr) minmax(0,1.8fr);gap:14px;padding:14px}
+    .practice-source{min-width:0}
+    .practice-source textarea{width:100%;min-height:130px;resize:vertical;background:#0d0d0f;color:#ece8df;border:1px solid #343339;border-radius:10px;padding:11px;font:13px/1.5 ui-monospace,SFMono-Regular,monospace}
+    .practice-source textarea:focus{outline:2px solid #6f6250;outline-offset:1px}
+    .practice-help{margin-top:7px;color:#7f7d84;font-size:11px;line-height:1.45}
+    .practice-stage{min-width:0;display:grid;grid-template-rows:auto auto auto;gap:10px}
+    .practice-targets{display:grid;grid-template-columns:1fr minmax(180px,1.4fr) 1fr;align-items:stretch;gap:8px}
+    .practice-target{border:1px solid #333238;border-radius:12px;background:#111113;padding:10px;text-align:center;min-width:0}
+    .practice-target.current{border-color:#806a3f;background:radial-gradient(circle at 50% 0,#342c1d,#17140f 75%);box-shadow:inset 0 1px #ffffff0a}
+    .practice-kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#77757c}
+    .practice-note{margin-top:5px;font:500 clamp(23px,4vw,48px)/1 Georgia,serif;color:#d7c18a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .practice-target:not(.current) .practice-note{font-size:clamp(17px,2.5vw,28px);color:#8d8980}
+    .practice-feedback{min-height:48px;border:1px solid #2d2c31;border-radius:10px;background:#0d0d0f;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .practice-feedback strong{color:#d9c58f}.practice-feedback.good{border-color:#456f5f;background:#101915}.practice-feedback.bad{border-color:#754941;background:#1b1110}
+    .practice-progress{height:7px;border-radius:99px;background:#080809;border:1px solid #2d2c31;overflow:hidden}
+    .practice-progress>div{height:100%;width:0;background:linear-gradient(90deg,#756238,#d9bb72);transition:width .2s}
+    .practice-sequence{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:thin}
+    .practice-step{flex:none;min-width:48px;border:1px solid #302f34;border-radius:8px;background:#101012;color:#77757c;padding:7px 8px;text-align:center;font:11px ui-monospace,monospace}
+    .practice-step.done{color:#79aa91;border-color:#3d6454;background:#101813}
+    .practice-step.current{color:#ead7a0;border-color:#806a3f;background:#211c14}
+
+    .practice-note-bar{position:absolute;border-radius:7px 7px 3px 3px;border:1px solid #8b7b58;background:linear-gradient(90deg,#5d5138,#c8ad6d 48%,#66583b);box-shadow:0 0 12px #b7934e55,inset 0 1px #fff3c633;color:#17130d;font:bold 10px/1 system-ui;display:flex;align-items:flex-end;justify-content:center;padding:0 2px 7px;overflow:hidden;white-space:nowrap;z-index:4;transition:top .18s ease,height .18s ease,opacity .18s ease}
+    .practice-note-bar.black-note{background:linear-gradient(90deg,#423a2a,#a8925f 48%,#453b29);color:#080706}
+    .practice-note-bar.current{border:2px solid #f3d990;box-shadow:0 0 24px #ddb95f99,inset 0 1px #fff6d8;z-index:5}
+    .practice-note-bar.upcoming{opacity:.72}
+    .practice-note-bar.future{opacity:.38}
+    .practice-hit-label{position:absolute;left:10px;bottom:8px;z-index:6;color:#a99667;font:10px ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;pointer-events:none}
+
+    .practice-stats{display:flex;gap:12px;flex-wrap:wrap;color:#8e8b92;font-size:11px}
+    .practice-stats b{color:#d2c8b1;font-weight:700}
+    .practice-options{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px;color:#99979f;font-size:11px}
+    .practice-options select{height:30px;background:#151517;color:#eee9de;border:1px solid #37363b;border-radius:8px;padding:0 7px}
+    @media(max-width:820px){
+      .practice-body{grid-template-columns:1fr}
+      .practice-targets{grid-template-columns:.8fr 1.4fr .8fr}
+      .practice-head .practice-actions{margin-left:0;width:100%}
+      .practice-head .practice-actions .btn{flex:1}
+    }
+
+    @media(max-width:820px){
+      .monitor{grid-template-columns:1fr 1fr;padding:13px}
+      .monitor-center{grid-column:1/-1;grid-row:2}
+      .note-now{font-size:42px}
+      .timer{font-size:24px}
+      .workspace{grid-template-columns:1fr}
+      .performance-wrap{height:420px}
+      .list{height:220px}
+      .transport .btn{flex:1 1 calc(33% - 7px)}
+      audio{width:100%}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="mark">♪</div>
+    <div>
+      <h1>PIANO NOTE RECORDER</h1>
+      <div class="sub" id="subtitle">Record, import audio, or practice from written notes with your real piano.</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="modes">
+      <button class="mode on" data-mode="mic" id="modeMic">Mic</button>
+      <button class="mode" data-mode="tap" id="modeTap">Tap piano</button>
+      <button class="mode" data-mode="vocal" id="modeVocal">Import audio</button>
+      <button class="mode" data-mode="practice" id="modePractice">Practice</button>
+    </div>
+  </header>
+
+  <div class="transport">
+    <button class="btn primary" id="record">● Record</button>
+    <button class="btn" id="stop" disabled>■ Stop</button>
+    <button class="btn" id="importVocal">Import Audio</button>
+    <input id="vocalFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg" hidden>
+    <button class="btn" id="playNotes" disabled>▶ Play</button>
+    <button class="btn ghost" id="stopNotes" disabled>■ Stop</button>
+    <button class="btn ghost" id="undo" disabled>Undo</button>
+    <button class="btn ghost" id="clear" disabled>Clear</button>
+    <button class="btn gold" id="saveMidi" disabled>MIDI</button>
+    <button class="btn ghost" id="helpBtn">Help</button>
+  </div>
+
+  <section class="monitor">
+    <div>
+      <div class="live-label">Detected notes</div>
+      <div class="note-now" id="note">—</div>
+      <div class="freq" id="frequency">Choose a mode to begin</div>
+    </div>
+    <div class="monitor-center">
+      <div class="live-label">Input level & tuning</div>
+      <div class="meter"><div class="meter-fill" id="level"></div></div>
+      <div class="tuning"><div class="needle" id="needle"></div></div>
+      <div class="tune-labels"><span>♭ Flat</span><span>In tune</span><span>Sharp ♯</span></div>
+      <div class="notice" id="notice"></div>
+    </div>
+    <div>
+      <div class="timer" id="timer">00:00.0</div>
+      <div class="count"><span id="count">0</span> notes captured</div>
+    </div>
+  </section>
+
+
+  <section class="practice-card" id="practiceCard">
+    <div class="practice-head">
+      <h2>Practice / Follow Mode</h2>
+      <span class="analysis-pill" id="practiceState">Load notes first</span>
+      <div class="practice-actions">
+        <button class="btn ghost" id="practiceImport" type="button">Import Notes File</button>
+        <input id="practiceFile" type="file" accept=".txt,.csv,.json,.md,text/plain,text/csv,application/json" hidden>
+        <button class="btn ghost" id="practiceLoadText" type="button">Load Text</button>
+        <button class="btn ghost" id="practiceHear" type="button">Hear Target</button>
+        <button class="btn ghost" id="practicePrev" type="button">← Previous</button>
+        <button class="btn ghost" id="practiceNext" type="button">Next →</button>
+        <button class="btn ghost" id="practiceRestart" type="button">Restart</button>
+      </div>
+    </div>
+    <div class="practice-body">
+      <div class="practice-source">
+        <div class="live-label">Written notes</div>
+        <textarea id="practiceText" spellcheck="false">C4 D4 E4 F4 | G4 G4 [F3+G4] A4</textarea>
+        <div class="practice-options">
+          <label>Default octave
+            <select id="practiceOctave">
+              <option value="3">3</option>
+              <option value="4" selected>4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
+          <label><input id="practiceExactChord" type="checkbox" checked> Exact chord</label>
+        </div>
+        <div class="practice-help">
+          Examples: <b>C4 D4 E4</b>, <b>F#4</b>, <b>Bb3</b>, or a two-note chord like <b>[F3+G4]</b>.
+          TXT, CSV, JSON, and Markdown note files are supported in this version.
+        </div>
+      </div>
+      <div class="practice-stage">
+        <div class="practice-targets">
+          <div class="practice-target"><div class="practice-kicker">Previous</div><div class="practice-note" id="practicePrevious">—</div></div>
+          <div class="practice-target current"><div class="practice-kicker">Play now</div><div class="practice-note" id="practiceCurrent">—</div></div>
+          <div class="practice-target"><div class="practice-kicker">Next</div><div class="practice-note" id="practiceNextLabel">—</div></div>
+        </div>
+        <div class="practice-feedback" id="practiceFeedback">
+          <strong>Ready:</strong><span>Load the written notes, then press Start Listening.</span>
+        </div>
+        <div>
+          <div class="practice-progress"><div id="practiceProgressBar"></div></div>
+          <div class="practice-stats">
+            <span>Progress <b id="practiceProgressText">0 / 0</b></span>
+            <span>Correct <b id="practiceCorrect">0</b></span>
+            <span>Misses <b id="practiceAttempts">0</b></span>
+            <span>Streak <b id="practiceStreak">0</b></span>
+          </div>
+          <div class="practice-sequence" id="practiceSequence"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wave-card" id="waveCard">
+    <div class="wave-head">
+      <b>Imported audio</b>
+      <span class="analysis-pill" id="analysisBadge">Waiting</span>
+      <span class="wave-stats" id="waveStats">No audio analyzed</span>
+      <div class="wave-actions">
+        <button class="btn ghost" id="playOriginal" type="button">▶ Original</button>
+        <button class="btn ghost" id="playDetected" type="button">▶ Detected</button>
+        <button class="btn gold" id="playBoth" type="button">▶ Both</button>
+        <button class="btn ghost" id="stopAudition" type="button">■ Stop</button>
+      </div>
+    </div>
+    <div class="wave-wrap"><canvas id="waveform"></canvas><div class="wave-time" id="waveTime">00:00.0 / 00:00.0</div></div>
+  </section>
+
+  <section class="workspace">
+    <div class="card">
+      <div class="card-head">
+        <h2 id="stageTitle">Falling notes</h2>
+        <div class="view-toggle">
+          <button class="btn ghost" id="viewFall">Fall</button>
+          <button class="btn ghost" id="viewRoll">Roll</button>
+        </div>
+        <div class="editor-tools" id="editorTools">
+          <span class="selected-readout" id="selectedReadout">Select a note</span>
+          <button class="btn ghost" id="pitchDown" type="button">Pitch −</button>
+          <button class="btn ghost" id="pitchUp" type="button">Pitch +</button>
+          <button class="btn ghost" id="timeLeft" type="button">← Time</button>
+          <button class="btn ghost" id="timeRight" type="button">Time →</button>
+          <button class="btn ghost" id="shorter" type="button">Shorter</button>
+          <button class="btn ghost" id="longer" type="button">Longer</button>
+          <select class="mini quantize-select" id="quantizeGrid"><option value="1">1/4</option><option value="0.5" selected>1/8</option><option value="0.25">1/16</option></select>
+          <button class="btn ghost" id="quantize" type="button">Quantize</button>
+          <button class="btn ghost" id="deleteSelected" type="button">Delete</button>
+        </div>
+        <div class="mode-pill" id="visualMode">Ready</div>
+      </div>
+      <div class="performance-wrap">
+        <div class="performance" id="performance">
+          <div class="fall-field" id="fallField"></div>
+          <div class="roll-field" id="rollField">
+            <div class="roll" id="roll"><div class="playhead" id="playhead"></div></div>
+          </div>
+          <div class="performance-empty"><div><b>Your performance appears here</b>Record, tap keys, or import a melody.</div></div>
+          <div class="piano" id="piano"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Captured notes</h2>
+        <div class="right" id="sessionStatus">No recording</div>
+      </div>
+      <div class="list" id="list"><div class="empty">No notes captured yet.</div></div>
+    </div>
+  </section>
+
+  <div class="controls">
+    <label>Sensitivity <input id="sensitivity" type="range" min="0.005" max="0.08" step="0.005" value="0.018"></label>
+    <label>Volume <input id="volume" type="range" min="0.1" max="1.2" step="0.05" value="0.85"></label>
+    <label>Speed
+      <select id="speed">
+        <option value="0.5">0.5×</option>
+        <option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option>
+      </select>
+    </label>
+    <label>Transpose
+      <select id="transpose">
+        <option value="-12">-12</option><option value="-7">-7</option><option value="-5">-5</option>
+        <option value="-2">-2</option><option value="0" selected>0</option><option value="2">+2</option>
+        <option value="5">+5</option><option value="7">+7</option><option value="12">+12</option>
+      </select>
+    </label>
+    <label><input id="loop" type="checkbox"> Loop</label>
+    <label><input id="metronome" type="checkbox"> Metronome</label>
+    <label>BPM <input id="bpm" type="range" min="60" max="160" step="1" value="90"><span id="bpmVal">90</span></label>
+    <button class="btn ghost" id="refA" type="button">Play A4</button>
+    <button class="btn ghost" id="copyText" type="button">Copy notes</button>
+  </div>
+
+  <div class="audio-wrap" id="audioWrap" hidden>
+    <audio id="audio" controls></audio>
+    <button class="btn ghost" id="saveAudio">Save audio</button>
+    <button class="btn ghost" id="saveNotes">Save CSV</button>
+    <button class="btn ghost" id="saveJson">Save JSON</button>
+  </div>
+</div>
+
+<div class="help" id="help">
+  <div class="help-card">
+    <h3>How to use it</h3>
+    <p><b>Mic</b> listens for up to two notes at a time. Play cleanly, one or two keys, and raise sensitivity if the room is noisy.</p>
+    <p><b>Tap piano</b> records the on-screen keys (or computer keys). Hold a key to hold the note.</p>
+    <p><b>Import audio</b> analyzes an MP3/WAV for up to two simultaneous piano voices, shows the waveform, and lets you compare Original / Detected / Both.</p>
+    <p><b>Practice</b> loads written note names and listens to your real piano through the microphone. Correct notes advance automatically; repeated notes require a release before the next step.</p>
+    <p>Computer keys: <kbd>A S D F G H J K</kbd> white keys from C4. Black keys: <kbd>W E T Y U</kbd>. Space starts/stops recording. <kbd>Z</kbd> undo.</p>
+    <p><b>Piano roll:</b> select and drag a note to move it, drag its right edge to resize it, or use the editor buttons. Quantize snaps timing to the BPM grid.</p><p>Export MIDI into a DAW, or CSV/JSON for study. MIDI now follows the selected BPM. Transpose changes playback and MIDI, not the captured list.</p>
+    <button class="btn primary" id="helpClose">Close</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const names = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+  const KEYMAP = {a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:69,u:70,j:71,k:72,o:73,l:74,p:75,';':76};
+
+  const record = $('#record'), stop = $('#stop'), clear = $('#clear');
+  const noteEl = $('#note'), freqEl = $('#frequency'), levelEl = $('#level'), needle = $('#needle');
+  const timer = $('#timer'), count = $('#count'), performanceEl = $('#performance');
+  const fallField = $('#fallField'), roll = $('#roll'), playhead = $('#playhead');
+  const piano = $('#piano'), visualMode = $('#visualMode'), list = $('#list');
+  const notice = $('#notice'), sessionStatus = $('#sessionStatus'), toastEl = $('#toast');
+
+  let mode = 'mic';
+  let ctx, stream, source, analyser, recorder, chunks = [], raf, startTime = 0;
+  let notes = [], activeNotes = new Map(), candidateFrames = new Map(), missingFrames = new Map();
+  let audioURL = null, lastScan = 0, lastDraw = 0, sampleBuffer, spectrum, noiseFloor = -92, calibratingUntil = 0;
+  let recording = false, tapClock = 0, tapOrigin = 0;
+  let playbackCtx, playbackMaster, playbackNodes = [], playbackRAF = 0, playbackTimer = 0, playbackScheduler = 0, playing = false;
+  let metroOsc = null, metroGain = null, metroId = 0;
+  let toastTimer = 0;
+  let selectedNoteIndex = -1, rollDrag = null;
+  let wavePeaks = null, importedDuration = 0;
+
+  let practiceSequence = [], practiceIndex = 0, practiceCorrect = 0, practiceAttempts = 0, practiceStreak = 0;
+  let practiceCandidateSig = '', practiceCandidateFrames = 0, practiceLastAttemptSig = '';
+  let practiceAwaitRelease = false, practiceReleaseFrames = 0, practiceRAF = 0, practiceListening = false;
+
+
+  const fmt = t => `${String(Math.floor(Math.max(0,t)/60)).padStart(2,'0')}:${(Math.max(0,t)%60).toFixed(1).padStart(4,'0')}`;
+  const a4 = () => 440;
+  const noteInfo = f => {
+    const midi = Math.round(69 + 12 * Math.log2(f / a4()));
+    const ideal = a4() * Math.pow(2, (midi - 69) / 12);
+    const cents = 1200 * Math.log2(f / ideal);
+    return { midi, name: names[(midi % 12 + 12) % 12], oct: Math.floor(midi / 12) - 1, cents, freq: f };
+  };
+  const labelOf = midi => `${names[(midi % 12 + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+  const toast = msg => { toastEl.textContent = msg; toastEl.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('on'), 1800); };
+  const persist = () => { try { localStorage.setItem('pnr-notes', JSON.stringify(notes.map(n => ({ midi:n.midi, start:n.start, duration:n.duration, freq:n.freq, name:n.name, oct:n.oct, lane:n.lane || null, confidence:n.confidence ?? null })))); } catch(e){} };
+  const restore = () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('pnr-notes') || '[]');
+      if (Array.isArray(raw) && raw.length) {
+        notes = raw.filter(n => Number.isFinite(n.midi) && Number.isFinite(n.start));
+        render();
+        sessionStatus.textContent = `${notes.length} notes restored`;
+        $('#playNotes').disabled = !notes.length;
+        clear.disabled = !notes.length;
+        $('#undo').disabled = !notes.length;
+        $('#saveMidi').disabled = !notes.length;
+      }
+    } catch(e){}
+  };
+
+  function spectrumLevelAt(freq) {
+    const bin = freq / (ctx.sampleRate / analyser.fftSize);
+    const i = Math.round(bin);
+    return Math.max(spectrum[Math.max(0, i - 1)] || -120, spectrum[i] || -120, spectrum[Math.min(spectrum.length - 1, i + 1)] || -120);
+  }
+
+  function detectTwoNotes() {
+    analyser.getFloatFrequencyData(spectrum);
+    const sensitivity = +$('#sensitivity').value;
+    const threshold = Math.max(-82, noiseFloor + 8 + sensitivity * 180);
+    const candidates = [];
+    for (let midi = 36; midi <= 84; midi++) {
+      const f = a4() * Math.pow(2, (midi - 69) / 12);
+      const fundDb = spectrumLevelAt(f);
+      if (fundDb < threshold) continue;
+      let score = Math.pow(10, fundDb / 20) * 1.65;
+      [[2,.34],[3,.2],[4,.11],[5,.06]].forEach(([h,w]) => {
+        if (f * h < ctx.sampleRate / 2) score += Math.pow(10, spectrumLevelAt(f * h) / 20) * w;
+      });
+      if (activeNotes.has(midi) || candidateFrames.has(midi)) score *= 1.32;
+      candidates.push({ ...noteInfo(f), score, fundDb });
+    }
+    candidates.sort((a,b) => b.score - a.score);
+    const picked = [];
+    for (const c of candidates) {
+      if (picked.some(p => Math.abs(p.midi - c.midi) <= 1)) continue;
+      if (picked.length) {
+        const ratio = c.freq / picked[0].freq;
+        const nearHarmonic = [2,3,4].some(h => Math.abs(ratio - h) < .035);
+        if (nearHarmonic && c.fundDb < picked[0].fundDb - 3) continue;
+        if (c.score < picked[0].score * .24) continue;
+      }
+      picked.push(c);
+      if (picked.length === 2) break;
+    }
+    return picked;
+  }
+
+  function closeMidi(midi, now) {
+    const n = activeNotes.get(midi);
+    if (!n) return;
+    n.end = now;
+    n.duration = Math.max(.08, now - n.start);
+    notes.push(n);
+    notes.sort((a,b) => a.start - b.start || a.midi - b.midi);
+    activeNotes.delete(midi);
+    candidateFrames.delete(midi);
+    missingFrames.delete(midi);
+    persist();
+  }
+  function closeAll(now) { [...activeNotes.keys()].forEach(m => closeMidi(m, now)); render(); }
+
+  function updateDetection(infos, now) {
+    const seen = new Set(infos.map(i => i.midi));
+    infos.forEach(info => {
+      candidateFrames.set(info.midi, (candidateFrames.get(info.midi) || 0) + 1);
+      missingFrames.set(info.midi, 0);
+      if (!activeNotes.has(info.midi) && candidateFrames.get(info.midi) >= 2) {
+        activeNotes.set(info.midi, { ...info, start: now - .05, end: now, duration: .05 });
+      }
+      const n = activeNotes.get(info.midi);
+      if (n) { n.end = now; n.duration = now - n.start; n.freq = info.freq; n.cents = info.cents; }
+    });
+    [...activeNotes.keys()].forEach(m => {
+      if (seen.has(m)) return;
+      const misses = (missingFrames.get(m) || 0) + 1;
+      missingFrames.set(m, misses);
+      if (misses >= 3) closeMidi(m, now - .09);
+    });
+    [...candidateFrames.keys()].forEach(m => { if (!seen.has(m) && !activeNotes.has(m)) candidateFrames.delete(m); });
+    if (!infos.length) {
+      noteEl.textContent = '—';
+      freqEl.textContent = 'Listening for up to two notes';
+      needle.style.left = '50%';
+      return;
+    }
+    noteEl.innerHTML = infos.map(i => `${i.name}<small>${i.oct}</small>`).join(' <small>+</small> ');
+    const cents = infos[0].cents || 0;
+    needle.style.left = Math.max(4, Math.min(96, 50 + cents * 1.6)) + '%';
+    freqEl.textContent = infos.length === 2 ? 'Two notes detected' : `${infos[0].freq.toFixed(1)} Hz · ${cents >= 0 ? '+' : ''}${cents.toFixed(0)}¢`;
+  }
+
+  function buildPiano() {
+    piano.innerHTML = '';
+    const min = 36, max = 84, whiteMidis = [];
+    for (let m = min; m <= max; m++) if (![1,3,6,8,10].includes(m % 12)) whiteMidis.push(m);
+    const hints = {60:'A',62:'S',64:'D',65:'F',67:'G',69:'H',71:'J',72:'K',61:'W',63:'E',66:'T',68:'Y',70:'U'};
+    whiteMidis.forEach(m => {
+      const k = document.createElement('button');
+      k.className = 'p-key white';
+      k.dataset.midi = m;
+      k.setAttribute('aria-label', labelOf(m));
+      const hint = hints[m] ? `<span class="hint">${hints[m]}</span>` : '';
+      k.innerHTML = m % 12 === 0 ? `<span>C${Math.floor(m/12)-1}${hint}</span>` : (hints[m] ? `<span>${hint}</span>` : '');
+      bindKey(k, m);
+      piano.append(k);
+    });
+    for (let m = min; m <= max; m++) {
+      if (![1,3,6,8,10].includes(m % 12)) continue;
+      const before = whiteMidis.filter(v => v < m).length;
+      const k = document.createElement('button');
+      k.className = 'p-key black';
+      k.dataset.midi = m;
+      k.style.left = (before / whiteMidis.length * 100) + '%';
+      k.setAttribute('aria-label', labelOf(m));
+      if (hints[m]) k.innerHTML = `<span>${hints[m]}</span>`;
+      bindKey(k, m);
+      piano.append(k);
+    }
+  }
+
+  function bindKey(el, midi) {
+    const down = ev => { ev.preventDefault(); startTap(midi); };
+    const up = ev => { ev.preventDefault(); endTap(midi); };
+    el.onpointerdown = down;
+    el.onpointerup = up;
+    el.onpointerleave = ev => { if (ev.buttons) endTap(midi); };
+    el.onpointercancel = up;
+  }
+
+  function keyFor(midi) { return piano.querySelector(`[data-midi="${Math.max(36, Math.min(84, midi))}"]`); }
+  function clearKeys() { piano.querySelectorAll('.active').forEach(k => k.classList.remove('active')); }
+  function lightKey(midi, on = true) { const k = keyFor(midi); if (k) k.classList.toggle('active', on); }
+
+  function addFallBar(n, top, height) {
+    const k = keyFor(n.midi);
+    if (!k) return;
+    const b = document.createElement('div');
+    const kw = k.offsetWidth;
+    const x = k.offsetLeft + kw / 2 - Math.max(15, kw * .72) / 2;
+    b.className = 'fall-note' + (k.classList.contains('black') ? ' black-note' : '');
+    b.style.left = x + 'px';
+    b.style.top = top + 'px';
+    b.style.width = Math.max(15, kw * .72) + 'px';
+    b.style.height = Math.max(25, height) + 'px';
+    b.textContent = (n.name || names[(n.midi % 12 + 12) % 12]) + (n.oct ?? Math.floor(n.midi / 12) - 1);
+    fallField.append(b);
+  }
+
+  function updateSelectedReadout() {
+    const el = $('#selectedReadout');
+    const n = notes[selectedNoteIndex];
+    if (!el) return;
+    el.textContent = n ? `${labelOf(n.midi)}  ${n.start.toFixed(2)}s  ${n.duration.toFixed(2)}s` : 'Select a note';
+  }
+
+  function selectNote(index) {
+    selectedNoteIndex = index >= 0 && index < notes.length ? index : -1;
+    updateSelectedReadout();
+    renderRoll();
+  }
+
+  function beginRollDrag(ev, block, index, px, rowH, origin) {
+    if (playing) return;
+    ev.preventDefault(); ev.stopPropagation();
+    selectedNoteIndex = index; updateSelectedReadout();
+    const n = notes[index];
+    const rect = block.getBoundingClientRect();
+    const resizing = ev.target.classList.contains('resize-handle') || ev.clientX > rect.right - 9;
+    rollDrag = { index, block, startX:ev.clientX, startY:ev.clientY, origStart:n.start, origDuration:n.duration, origMidi:n.midi, px, rowH, origin, resizing };
+    block.classList.add('selected','dragging');
+    block.setPointerCapture?.(ev.pointerId);
+  }
+
+  function moveRollDrag(ev) {
+    if (!rollDrag) return;
+    const d = rollDrag, n = notes[d.index];
+    if (!n) return;
+    const dx = ev.clientX - d.startX, dy = ev.clientY - d.startY;
+    if (d.resizing) n.duration = Math.max(.05, d.origDuration + dx / d.px);
+    else {
+      n.start = Math.max(0, d.origStart + dx / d.px);
+      n.midi = Math.max(36, Math.min(84, d.origMidi - Math.round(dy / d.rowH)));
+      n.freq = a4() * Math.pow(2, (n.midi - 69) / 12);
+      n.name = names[(n.midi%12+12)%12]; n.oct = Math.floor(n.midi/12)-1;
+    }
+    d.block.style.left = (36 + (n.start - d.origin) * d.px) + 'px';
+    d.block.style.width = Math.max(8, n.duration * d.px) + 'px';
+    d.block.style.top = ((84 - n.midi) * d.rowH + 2) + 'px';
+    d.block.firstChild.nodeValue = labelOf(n.midi);
+    updateSelectedReadout();
+  }
+
+  function endRollDrag() {
+    if (!rollDrag) return;
+    rollDrag.block?.classList.remove('dragging');
+    const moved = notes[rollDrag.index]; rollDrag = null; notes.sort((a,b)=>a.start-b.start||a.midi-b.midi);
+    selectedNoteIndex = moved ? notes.indexOf(moved) : -1; persist(); render(); updateSelectedReadout();
+  }
+
+  function editSelected(kind) {
+    const n = notes[selectedNoteIndex]; if (!n) return toast('Select a piano-roll note first');
+    if (kind==='pitchDown') n.midi = Math.max(36,n.midi-1);
+    if (kind==='pitchUp') n.midi = Math.min(84,n.midi+1);
+    if (kind==='timeLeft') n.start = Math.max(0,n.start-.05);
+    if (kind==='timeRight') n.start += .05;
+    if (kind==='shorter') n.duration = Math.max(.05,n.duration-.05);
+    if (kind==='longer') n.duration += .05;
+    if (kind==='delete') { notes.splice(selectedNoteIndex,1); selectedNoteIndex=-1; persist(); render(); return; }
+    n.freq=a4()*Math.pow(2,(n.midi-69)/12); n.name=names[(n.midi%12+12)%12]; n.oct=Math.floor(n.midi/12)-1;
+    persist(); render(); updateSelectedReadout();
+  }
+
+  function quantizeNotes() {
+    if (!notes.length) return;
+    const bpm = +$('#bpm').value || 90, fraction = +$('#quantizeGrid').value || .5;
+    const grid = (60 / bpm) * fraction;
+    notes.forEach(n => { n.start = Math.max(0, Math.round(n.start/grid)*grid); n.duration = Math.max(grid/2, Math.round(n.duration/grid)*grid); });
+    notes.sort((a,b)=>a.start-b.start||a.midi-b.midi); persist(); render(); toast(`Quantized to ${$('#quantizeGrid').selectedOptions[0].textContent}`);
+  }
+
+  function renderRoll(playTime = null) {
+    const minMidi = 36, maxMidi = 84, rowH = 22;
+    const all = [...notes, ...activeNotes.values()];
+    const span = Math.max(4, all.reduce((m,n)=>Math.max(m,(n.start||0)+(n.duration||0)),0)+.6);
+    const px = Math.max(80, roll.parentElement.clientWidth - 8) / span;
+    roll.style.height = ((maxMidi-minMidi+1)*rowH)+'px';
+    roll.style.minWidth = Math.max(720,36+span*px)+'px';
+    roll.querySelectorAll('.note-block,.roll-labels').forEach(n=>n.remove());
+    const labels=document.createElement('div'); labels.className='roll-labels'; labels.style.height=roll.style.height;
+    let lab=''; for(let m=maxMidi;m>=minMidi;m--) lab+=(m%12===0?labelOf(m):'')+'\n'; labels.textContent=lab.trimEnd(); roll.append(labels);
+    const first = notes[0] ? notes[0].start : 0;
+    notes.forEach((n,index)=>{
+      const b=document.createElement('div'); b.className='note-block'+(index===selectedNoteIndex?' selected':''); b.dataset.noteIndex=index;
+      const t=n.start-first; b.style.left=(36+t*px)+'px'; b.style.width=Math.max(8,n.duration*px)+'px'; b.style.top=((maxMidi-n.midi)*rowH+2)+'px';
+      b.append(document.createTextNode(labelOf(n.midi))); const h=document.createElement('span'); h.className='resize-handle'; b.append(h);
+      b.title=`${labelOf(n.midi)} · ${n.start.toFixed(2)}s · ${(n.confidence?Math.round(n.confidence*100)+'% confidence':'editable')}`;
+      b.onpointerdown=ev=>beginRollDrag(ev,b,index,px,rowH,first); b.onclick=ev=>{ev.stopPropagation();selectedNoteIndex=index;updateSelectedReadout();renderRoll(playTime)};
+      roll.append(b);
+    });
+    if(playTime!==null&&all.length){playhead.style.display='block';playhead.style.left=(36+playTime*px)+'px'}else playhead.style.display='none';
+  }
+
+  function renderPerformance(playTime = null) {
+    if (mode === 'practice') {
+      renderPracticeBars();
+      return;
+    }
+    const active = [...activeNotes.values()];
+    const all = [...notes, ...active];
+    const fieldH = fallField.clientHeight || 300;
+    fallField.innerHTML = '';
+    clearKeys();
+    performanceEl.classList.toggle('has-notes', all.length > 0);
+    if (playTime !== null && all.length) {
+      const first = notes[0] ? notes[0].start : 0;
+      all.forEach(n => {
+        const at = n.start - first;
+        const h = Math.max(28, Math.min(180, n.duration * 135));
+        const bottom = fieldH - (at - playTime) * 145;
+        const top = bottom - h;
+        if (top < fieldH && bottom > -20) addFallBar(n, top, h);
+        if (playTime >= at && playTime <= at + n.duration) lightKey(n.midi);
+      });
+      visualMode.textContent = 'Playing';
+    } else if (all.length) {
+      const newest = Math.max(...all.map(n => n.start));
+      all.slice(-36).forEach(n => {
+        const h = Math.max(27, Math.min(110, n.duration * 62));
+        const top = fieldH - 28 - (newest - n.start) * 62 - h;
+        addFallBar(n, top, h);
+      });
+      active.forEach(n => lightKey(n.midi));
+      visualMode.textContent = active.length ? (active.length === 2 ? 'Two-key live' : 'Listening') : 'Captured';
+    } else visualMode.textContent = 'Ready';
+    if (performanceEl.classList.contains('roll-on')) renderRoll(playTime);
+  }
+
+  function render() {
+    const active = [...activeNotes.values()];
+    const all = [...notes, ...active];
+    renderPerformance();
+    list.innerHTML = all.length ? '' : `<div class="empty">No notes captured yet.</div>`;
+    all.slice().reverse().forEach((n, idx) => {
+      const r = document.createElement('div');
+      r.className = 'row' + (activeNotes.has(n.midi) && active.includes(n) ? ' current' : '');
+      r.innerHTML = `<div class="badge">${n.name || names[(n.midi%12+12)%12]}${n.oct ?? Math.floor(n.midi/12)-1}</div><div><time>${fmt(n.start)}</time><small class="voice-meta">${n.lane ? n.lane : (n.source||'note')}${n.confidence ? ` · <span class="confidence">${Math.round(n.confidence*100)}%</span>` : ''}</small></div><div class="dur">${(n.duration||0).toFixed(2)}s</div><button class="x" title="Remove">×</button>`;
+      r.querySelector('.badge').onclick = () => previewNote(n.midi);
+      r.querySelector('time').onclick = () => previewNote(n.midi);
+      r.querySelector('.x').onclick = ev => {
+        ev.stopPropagation();
+        const i = notes.indexOf(n);
+        if (i >= 0) { notes.splice(i, 1); persist(); render(); setHasNotes(); }
+      };
+      list.append(r);
+    });
+    count.textContent = all.length;
+    setHasNotes();
+  }
+
+  function setHasNotes() {
+    const has = notes.length > 0;
+    $('#playNotes').disabled = !has && !playing;
+    clear.disabled = !has && !activeNotes.size;
+    $('#undo').disabled = !notes.length;
+    $('#saveMidi').disabled = !notes.length;
+  }
+
+
+  function practiceNoteToMidi(token, defaultOctave = 4) {
+    token = String(token || '').trim().replace(/♯/g,'#').replace(/♭/g,'b');
+    const m = token.match(/^([A-Ga-g])([#b]?)(-?\d)?$/);
+    if (!m) return null;
+    const pitch = {C:0,D:2,E:4,F:5,G:7,A:9,B:11}[m[1].toUpperCase()];
+    let accidental = m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0;
+    const octave = m[3] === undefined ? defaultOctave : Number(m[3]);
+    const midi = (octave + 1) * 12 + pitch + accidental;
+    return midi >= 0 && midi <= 127 ? midi : null;
+  }
+
+  function practiceLabel(midis) {
+    return midis.map(labelOf).join(' + ');
+  }
+
+  function parsePracticeText(raw) {
+    const defaultOct = +$('#practiceOctave').value || 4;
+    let value = String(raw || '').trim();
+    if (!value) return [];
+
+    // If JSON is pasted, accept arrays such as ["C4","D4","F3+G4"].
+    if ((value.startsWith('[') || value.startsWith('{'))) {
+      try {
+        const data = JSON.parse(value);
+        if (Array.isArray(data)) value = data.map(v => typeof v === 'string' ? v : (v.notes || v.note || '')).join(' ');
+        else if (Array.isArray(data.notes)) value = data.notes.map(v => typeof v === 'string' ? v : (v.notes || v.note || '')).join(' ');
+      } catch(e) {}
+    }
+
+    value = value.replace(/[,;\t\r\n|]+/g, ' ');
+    const pieces = value.split(/\s+/).filter(Boolean);
+    const out = [];
+
+    for (let piece of pieces) {
+      piece = piece.replace(/^[("'`]+|[)"'`.]+$/g, '');
+      if (!piece) continue;
+
+      // Optional beat suffix, e.g. C4:2 or [C4+E4]:0.5
+      let beats = 1;
+      const dm = piece.match(/:(\d+(?:\.\d+)?)$/);
+      if (dm) {
+        beats = Math.max(.125, Math.min(16, Number(dm[1]) || 1));
+        piece = piece.slice(0, dm.index);
+      }
+
+      piece = piece.replace(/^\[|\]$/g,'');
+      const parts = piece.split('+').filter(Boolean);
+      if (!parts.length) continue;
+
+      const midis = parts.map(p => practiceNoteToMidi(p, defaultOct));
+      if (midis.some(m => m === null)) continue;
+
+      const uniq = [...new Set(midis)].sort((a,b) => a-b);
+      out.push({ midis: uniq, label: practiceLabel(uniq), beats, source: piece });
+      if (out.length >= 500) break;
+    }
+    return out;
+  }
+
+  function loadPracticeSequence(raw, sourceName = 'notes') {
+    const seq = parsePracticeText(raw);
+    if (!seq.length) {
+      $('#practiceState').textContent = 'No notes found';
+      $('#practiceFeedback').className = 'practice-feedback bad';
+      $('#practiceFeedback').innerHTML = '<strong>Could not read notes:</strong><span>Try note names like C4 D4 E4 or [F3+G4].</span>';
+      return false;
+    }
+    practiceSequence = seq;
+    practiceIndex = 0;
+    practiceCorrect = 0;
+    practiceAttempts = 0;
+    practiceStreak = 0;
+    practiceCandidateSig = '';
+    practiceCandidateFrames = 0;
+    practiceLastAttemptSig = '';
+    practiceAwaitRelease = false;
+    practiceReleaseFrames = 0;
+    $('#practiceState').textContent = `${seq.length} targets · ${sourceName}`;
+    renderPractice();
+    return true;
+  }
+
+  async function loadPracticeFile(file) {
+    if (!file) return;
+    try {
+      const raw = await file.text();
+      $('#practiceText').value = raw;
+      loadPracticeSequence(raw, file.name);
+    } catch(e) {
+      $('#practiceState').textContent = 'File error';
+      toast('Could not read this notes file');
+    }
+  }
+
+
+  function addPracticeBar(midi, top, height, state, stepNumber) {
+    const key = keyFor(midi);
+    if (!key) return;
+    const bar = document.createElement('div');
+    const keyWidth = key.offsetWidth;
+    const width = Math.max(15, keyWidth * .72);
+    const x = key.offsetLeft + keyWidth / 2 - width / 2;
+    bar.className = 'practice-note-bar'
+      + (key.classList.contains('black') ? ' black-note' : '')
+      + ' ' + state;
+    bar.style.left = x + 'px';
+    bar.style.top = top + 'px';
+    bar.style.width = width + 'px';
+    bar.style.height = Math.max(30, height) + 'px';
+    bar.title = `${labelOf(midi)} · step ${stepNumber + 1}`;
+    bar.textContent = labelOf(midi);
+    fallField.append(bar);
+  }
+
+  function renderPracticeBars() {
+    if (mode !== 'practice') return;
+    performanceEl.classList.remove('roll-on');
+    $('#stageTitle').textContent = 'Practice bars';
+    fallField.innerHTML = '';
+    clearKeys();
+
+    const total = practiceSequence.length;
+    if (!total || practiceIndex >= total) {
+      performanceEl.classList.toggle('has-notes', total > 0);
+      if (total && practiceIndex >= total) {
+        const done = document.createElement('div');
+        done.className = 'practice-hit-label';
+        done.textContent = 'Practice complete';
+        fallField.append(done);
+      }
+      return;
+    }
+
+    performanceEl.classList.add('has-notes');
+    const fieldH = fallField.clientHeight || 300;
+    const bottomPad = 8, baseHeight = 48, beatScale = 24, gap = 14;
+    let cursorBottom = bottomPad;
+
+    // Current target touches the piano line. Future notes stack upward.
+    const end = Math.min(total, practiceIndex + 10);
+    for (let i = practiceIndex; i < end; i++) {
+      const step = practiceSequence[i];
+      const height = Math.max(baseHeight, baseHeight + (Math.max(.125, step.beats || 1) - 1) * beatScale);
+      const top = fieldH - cursorBottom - height;
+      if (top < fieldH && top + height > 0) {
+        const state = i === practiceIndex ? 'current' : i <= practiceIndex + 3 ? 'upcoming' : 'future';
+        step.midis.forEach(midi => addPracticeBar(midi, top, height, state, i));
+      }
+      cursorBottom += height + gap;
+      if (cursorBottom > fieldH + 100) break;
+    }
+
+    practiceSequence[practiceIndex].midis.forEach(m => lightKey(m, true));
+    const label = document.createElement('div');
+    label.className = 'practice-hit-label';
+    label.textContent = 'Play at the line';
+    fallField.append(label);
+    visualMode.textContent = practiceListening ? 'Practice listening' : 'Practice ready';
+  }
+
+  function renderPractice() {
+    const total = practiceSequence.length;
+    const current = total ? practiceSequence[Math.min(practiceIndex, total - 1)] : null;
+    const prev = practiceIndex > 0 ? practiceSequence[practiceIndex - 1] : null;
+    const next = practiceIndex + 1 < total ? practiceSequence[practiceIndex + 1] : null;
+
+    $('#practicePrevious').textContent = prev ? prev.label : '—';
+    $('#practiceCurrent').textContent = current ? current.label : (total && practiceIndex >= total ? 'Complete ✓' : '—');
+    $('#practiceNextLabel').textContent = next ? next.label : '—';
+
+    const progress = total ? Math.min(100, practiceIndex / total * 100) : 0;
+    $('#practiceProgressBar').style.width = progress + '%';
+    $('#practiceProgressText').textContent = `${Math.min(practiceIndex,total)} / ${total}`;
+    $('#practiceCorrect').textContent = practiceCorrect;
+    $('#practiceAttempts').textContent = practiceAttempts;
+    $('#practiceStreak').textContent = practiceStreak;
+
+    const seqEl = $('#practiceSequence');
+    seqEl.innerHTML = '';
+    const start = Math.max(0, practiceIndex - 5);
+    const end = Math.min(total, practiceIndex + 10);
+    for (let i = start; i < end; i++) {
+      const b = document.createElement('div');
+      b.className = 'practice-step' + (i < practiceIndex ? ' done' : i === practiceIndex ? ' current' : '');
+      b.textContent = practiceSequence[i].label;
+      b.title = `Step ${i + 1}`;
+      seqEl.append(b);
+    }
+
+    clearKeys();
+    if (current && practiceIndex < total) current.midis.forEach(m => lightKey(m, true));
+
+    if (total && practiceIndex >= total) {
+      $('#practiceState').textContent = 'Complete';
+      $('#practiceFeedback').className = 'practice-feedback good';
+      $('#practiceFeedback').innerHTML = `<strong>Finished ✓</strong><span>${practiceCorrect} correct matches with ${practiceAttempts} misses.</span>`;
+      if (practiceListening) stopPracticeListening(false);
+    }
+    renderPracticeBars();
+  }
+
+  function practiceTargetMatches(infos) {
+    if (!practiceSequence.length || practiceIndex >= practiceSequence.length) return false;
+    const target = practiceSequence[practiceIndex].midis;
+    const detected = infos.map(i => i.midi).sort((a,b)=>a-b);
+    const containsAll = target.every(m => detected.includes(m));
+    return $('#practiceExactChord').checked
+      ? containsAll && detected.length === target.length
+      : containsAll;
+  }
+
+  function practiceHandleDetection(infos) {
+    const detected = infos.map(i => i.midi).sort((a,b)=>a-b);
+    const sig = detected.join(',');
+
+    noteEl.innerHTML = infos.length
+      ? infos.map(i => `${i.name}<small>${i.oct}</small>`).join(' <small>+</small> ')
+      : '—';
+    freqEl.textContent = infos.length ? `Practice heard: ${practiceLabel(detected)}` : 'Listening for your piano…';
+
+    if (practiceAwaitRelease) {
+      if (!infos.length) {
+        practiceReleaseFrames++;
+        if (practiceReleaseFrames >= 2) {
+          practiceAwaitRelease = false;
+          practiceReleaseFrames = 0;
+          practiceCandidateSig = '';
+          practiceCandidateFrames = 0;
+        }
+      } else practiceReleaseFrames = 0;
+      return;
+    }
+
+    if (!sig) {
+      practiceCandidateSig = '';
+      practiceCandidateFrames = 0;
+      return;
+    }
+
+    if (sig === practiceCandidateSig) practiceCandidateFrames++;
+    else {
+      practiceCandidateSig = sig;
+      practiceCandidateFrames = 1;
+    }
+
+    // Require a stable reading before judging it.
+    if (practiceCandidateFrames < 2) return;
+
+    const feedback = $('#practiceFeedback');
+    if (practiceTargetMatches(infos)) {
+      const matched = practiceSequence[practiceIndex];
+      practiceCorrect++;
+      practiceStreak++;
+      feedback.className = 'practice-feedback good';
+      feedback.innerHTML = `<strong>Correct ✓</strong><span>${matched.label}</span>`;
+      practiceIndex++;
+      practiceAwaitRelease = true;
+      practiceReleaseFrames = 0;
+      practiceCandidateFrames = 0;
+      practiceLastAttemptSig = '';
+      renderPractice();
+    } else if (sig !== practiceLastAttemptSig) {
+      practiceAttempts++;
+      practiceStreak = 0;
+      practiceLastAttemptSig = sig;
+      feedback.className = 'practice-feedback bad';
+      feedback.innerHTML = `<strong>Heard ${practiceLabel(detected)}</strong><span>Target: ${practiceSequence[practiceIndex]?.label || '—'}</span>`;
+      renderPractice();
+    }
+  }
+
+  function practiceLoop(stamp) {
+    if (!practiceListening || !analyser) return;
+    analyser.getFloatTimeDomainData(sampleBuffer);
+    let rms = 0;
+    for (const v of sampleBuffer) rms += v * v;
+    rms = Math.sqrt(rms / sampleBuffer.length);
+    levelEl.style.width = Math.min(100, rms * 650) + '%';
+
+    const elapsed = (performance.now() - startTime) / 1000;
+    timer.textContent = fmt(elapsed);
+
+    if (elapsed < calibratingUntil) {
+      analyser.getFloatFrequencyData(spectrum);
+      let sum = 0, n = 0;
+      for (let i = 6; i < Math.min(spectrum.length,1200); i++) { sum += spectrum[i]; n++; }
+      noiseFloor = noiseFloor * .85 + (sum / Math.max(1,n)) * .15;
+      $('#practiceState').textContent = 'Calibrating microphone';
+      freqEl.textContent = 'Listening to the room…';
+    } else {
+      if ($('#practiceState').textContent === 'Calibrating microphone') $('#practiceState').textContent = 'Listening';
+      practiceHandleDetection(detectTwoNotes());
+    }
+    practiceRAF = requestAnimationFrame(practiceLoop);
+  }
+
+  async function startPracticeListening() {
+    if (!practiceSequence.length && !loadPracticeSequence($('#practiceText').value, 'typed notes')) return;
+    if (practiceIndex >= practiceSequence.length) {
+      practiceIndex = 0; practiceCorrect = 0; practiceAttempts = 0; practiceStreak = 0;
+      renderPractice();
+    }
+    stopNotePlayback();
+    notice.style.display = 'none';
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false } });
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      source = ctx.createMediaStreamSource(stream);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 8192;
+      analyser.smoothingTimeConstant = .42;
+      sampleBuffer = new Float32Array(analyser.fftSize);
+      spectrum = new Float32Array(analyser.frequencyBinCount);
+      source.connect(analyser);
+      noiseFloor = -92;
+      activeNotes.clear(); candidateFrames.clear(); missingFrames.clear();
+      startTime = performance.now();
+      calibratingUntil = 1;
+      practiceListening = true;
+      recording = true;
+      record.disabled = true;
+      record.classList.add('recording');
+      record.textContent = '● Listening';
+      stop.disabled = false;
+      $('#practiceState').textContent = 'Calibrating microphone';
+      $('#practiceFeedback').className = 'practice-feedback';
+      $('#practiceFeedback').innerHTML = '<strong>Listening:</strong><span>Play the highlighted note or chord on your real piano.</span>';
+      practiceRAF = requestAnimationFrame(practiceLoop);
+    } catch(e) {
+      notice.textContent = e.name === 'NotAllowedError'
+        ? 'Microphone permission was not allowed. Allow the microphone in browser settings.'
+        : 'The microphone could not start on this device.';
+      notice.style.display = 'block';
+    }
+  }
+
+  function stopPracticeListening(updateText = true) {
+    cancelAnimationFrame(practiceRAF);
+    practiceListening = false;
+    recording = false;
+    stream?.getTracks().forEach(t => t.stop());
+    stream = null;
+    try { ctx?.close(); } catch(e) {}
+    ctx = null; analyser = null;
+    record.disabled = false;
+    record.classList.remove('recording');
+    record.textContent = '● Start Listening';
+    stop.disabled = true;
+    levelEl.style.width = '0';
+    noteEl.textContent = '—';
+    if (updateText && practiceSequence.length && practiceIndex < practiceSequence.length) {
+      $('#practiceState').textContent = 'Paused';
+      freqEl.textContent = 'Practice paused';
+    }
+    renderPractice();
+  }
+
+  function hearPracticeTarget() {
+    if (!practiceSequence.length || practiceIndex >= practiceSequence.length) return;
+    const ac = ensurePlayback();
+    const when = ac.currentTime + .03;
+    practiceSequence[practiceIndex].midis.forEach(m => pianoTone(m, when, .75));
+  }
+
+
+  function nowTime() {
+    if (recording && mode === 'mic') return (performance.now() - startTime) / 1000;
+    if (recording && mode === 'tap') return (performance.now() - tapOrigin) / 1000;
+    return notes.length ? notes[notes.length - 1].start + notes[notes.length - 1].duration : 0;
+  }
+
+  function loop(stamp) {
+    const now = (performance.now() - startTime) / 1000;
+    if (stamp - lastScan > 45 && analyser) {
+      analyser.getFloatTimeDomainData(sampleBuffer);
+      let rms = 0;
+      for (const v of sampleBuffer) rms += v * v;
+      rms = Math.sqrt(rms / sampleBuffer.length);
+      levelEl.style.width = Math.min(100, rms * 650) + '%';
+      if (now < calibratingUntil) {
+        analyser.getFloatFrequencyData(spectrum);
+        let sum = 0, n = 0;
+        for (let i = 6; i < Math.min(spectrum.length, 1200); i++) { sum += spectrum[i]; n++; }
+        noiseFloor = noiseFloor * .85 + (sum / Math.max(1, n)) * .15;
+        visualMode.textContent = 'Calibrating';
+        freqEl.textContent = 'Listening to the room…';
+      } else updateDetection(detectTwoNotes(), now);
+      lastScan = stamp;
+    }
+    if (stamp - lastDraw > 90) {
+      timer.textContent = fmt(now);
+      render();
+      lastDraw = stamp;
+    }
+    raf = requestAnimationFrame(loop);
+  }
+
+  function setMode(next) {
+    if (recording) return toast('Stop recording first');
+    mode = next;
+    document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === next));
+    $('#practiceCard').classList.toggle('on', next === 'practice');
+    $('#viewRoll').disabled = next === 'practice';
+    if (next === 'practice') {
+      performanceEl.classList.remove('roll-on');
+      $('#stageTitle').textContent = 'Practice bars';
+    } else if ($('#stageTitle').textContent === 'Practice bars') {
+      $('#stageTitle').textContent = 'Falling notes';
+    }
+    $('#subtitle').textContent = next === 'mic'
+      ? 'Play one or two notes at a time for the cleanest reading.'
+      : next === 'tap'
+      ? 'Tap the keyboard or use A S D F G H J K. Hold to sustain.'
+      : next === 'vocal'
+      ? 'Import piano/audio and detect up to two simultaneous notes.'
+      : 'Load written notes, then play them on your real piano while the microphone follows you.';
+    freqEl.textContent = next === 'mic'
+      ? 'Waiting for microphone'
+      : next === 'tap'
+      ? 'Tap a key to capture'
+      : next === 'vocal'
+      ? 'Choose an audio file'
+      : 'Load notes, then press Start Listening';
+    record.textContent = next === 'practice' ? '● Start Listening' : '● Record';
+    if (next === 'practice') renderPractice();
+    else renderPerformance();
+  }
+
+  async function begin() {
+    if (mode === 'practice') { startPracticeListening(); return; }
+    if (mode === 'vocal') { $('#vocalFile').click(); return; }
+    if (mode === 'tap') { beginTapSession(); return; }
+    try {
+      stopNotePlayback();
+      notice.style.display = 'none';
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      source = ctx.createMediaStreamSource(stream);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 8192;
+      analyser.smoothingTimeConstant = .42;
+      sampleBuffer = new Float32Array(analyser.fftSize);
+      spectrum = new Float32Array(analyser.frequencyBinCount);
+      source.connect(analyser);
+      chunks = []; notes = []; activeNotes.clear(); candidateFrames.clear(); missingFrames.clear();
+      noiseFloor = -92; lastScan = 0; lastDraw = 0;
+      recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+      recorder.onstop = finishAudio;
+      recorder.start();
+      startTime = performance.now();
+      calibratingUntil = 1;
+      recording = true;
+      record.disabled = true;
+      record.classList.add('recording');
+      stop.disabled = false;
+      clear.disabled = true;
+      $('#playNotes').disabled = true;
+      sessionStatus.textContent = 'Calibrating, then recording';
+      startMetronome();
+      raf = requestAnimationFrame(loop);
+    } catch (e) {
+      notice.textContent = e.name === 'NotAllowedError'
+        ? 'Microphone permission was not allowed. Allow the microphone in browser settings.'
+        : 'The microphone could not start on this device.';
+      notice.style.display = 'block';
+    }
+  }
+
+  function beginTapSession() {
+    stopNotePlayback();
+    notes = []; activeNotes.clear();
+    tapOrigin = performance.now();
+    tapClock = 0;
+    recording = true;
+    record.disabled = true;
+    record.classList.add('recording');
+    stop.disabled = false;
+    sessionStatus.textContent = 'Tap recording';
+    visualMode.textContent = 'Tap keys';
+    freqEl.textContent = 'Holding a key holds the note';
+    startMetronome();
+    const tick = () => {
+      if (!recording || mode !== 'tap') return;
+      timer.textContent = fmt((performance.now() - tapOrigin) / 1000);
+      render();
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  }
+
+  function startTap(midi) {
+    if (activeNotes.has(midi)) return;
+    const ac = ensurePlayback();
+    pianoTone(midi, ac.currentTime + .005, 4.5);
+    lightKey(midi, true);
+    noteEl.innerHTML = `${names[(midi%12+12)%12]}<small>${Math.floor(midi/12)-1}</small>`;
+    freqEl.textContent = `${(a4()*Math.pow(2,(midi-69)/12)).toFixed(1)} Hz`;
+    if (!recording) return;
+    const t = mode === 'mic' ? (performance.now() - startTime) / 1000 : (performance.now() - (tapOrigin || performance.now())) / 1000;
+    const info = noteInfo(a4() * Math.pow(2, (midi - 69) / 12));
+    activeNotes.set(midi, { ...info, start: Math.max(0, t), end: t, duration: .08, source: 'tap' });
+  }
+
+  function endTap(midi) {
+    lightKey(midi, false);
+    if (!recording || !activeNotes.has(midi)) return;
+    const t = mode === 'mic' ? (performance.now() - startTime) / 1000 : (performance.now() - tapOrigin) / 1000;
+    closeMidi(midi, t);
+    render();
+  }
+
+  function end() {
+    if (mode === 'practice') { stopPracticeListening(); return; }
+    cancelAnimationFrame(raf);
+    const now = mode === 'tap' ? (performance.now() - tapOrigin) / 1000 : (performance.now() - startTime) / 1000;
+    closeAll(now);
+    stopMetronome();
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    stream?.getTracks().forEach(t => t.stop());
+    ctx?.close();
+    ctx = null; analyser = null;
+    recording = false;
+    record.disabled = false;
+    record.classList.remove('recording');
+    stop.disabled = true;
+    clear.disabled = false;
+    sessionStatus.textContent = `${notes.length} notes · ${fmt(now)}`;
+    noteEl.textContent = '—';
+    freqEl.textContent = 'Recording finished';
+    levelEl.style.width = '0';
+    persist();
+    render();
+  }
+
+  function finishAudio() {
+    if (audioURL) URL.revokeObjectURL(audioURL);
+    const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+    audioURL = URL.createObjectURL(blob);
+    $('#audio').src = audioURL;
+    $('#audioWrap').hidden = false;
+    $('#saveAudio').textContent = 'Save audio';
+    $('#saveAudio').onclick = () => download(blob, 'piano-recording.webm');
+    $('#playNotes').disabled = !notes.length;
+  }
+
+  function ensurePlayback() {
+    if (!playbackCtx || playbackCtx.state === 'closed') {
+      playbackCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const ac = playbackCtx;
+      const compressor = ac.createDynamicsCompressor();
+      const dry = ac.createGain();
+      const wet = ac.createGain();
+      const reverb = ac.createConvolver();
+      playbackMaster = ac.createGain();
+      playbackMaster.gain.value = +$('#volume').value;
+      compressor.threshold.value = -16; compressor.knee.value = 18; compressor.ratio.value = 3;
+      compressor.attack.value = .006; compressor.release.value = .28;
+      dry.gain.value = .9; wet.gain.value = .12;
+      const impulse = ac.createBuffer(2, Math.floor(ac.sampleRate * 1.15), ac.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const d = impulse.getChannelData(c);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.8);
+      }
+      reverb.buffer = impulse;
+      playbackMaster.connect(dry).connect(compressor);
+      playbackMaster.connect(reverb).connect(wet).connect(compressor);
+      compressor.connect(ac.destination);
+    }
+    if (playbackCtx.state === 'suspended') playbackCtx.resume();
+    playbackMaster.gain.value = +$('#volume').value;
+    return playbackCtx;
+  }
+
+  function pianoTone(midi, when, duration = .5) {
+    const ac = ensurePlayback();
+    const shift = +$('#transpose').value || 0;
+    midi = Math.max(21, Math.min(108, midi + shift));
+    const f = a4() * Math.pow(2, (midi - 69) / 12);
+    const low = Math.max(0, 60 - midi);
+    const ring = Math.min(4.8, 1.25 + low * .04 + duration * .65);
+    const filter = ac.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.Q.value = .35;
+    filter.frequency.setValueAtTime(Math.min(7200, 2600 + f * 5), when);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(1100, f * 3), when + ring);
+    filter.connect(playbackMaster);
+    [[1,.82,1],[2.002,.36,.72],[3.006,.18,.5],[4.012,.09,.38]].forEach(([p, amp, decay]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      const end = when + Math.max(.45, ring * decay);
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f * p, when);
+      o.detune.value = (Math.random() - .5) * 1.8;
+      g.gain.setValueAtTime(.0001, when);
+      g.gain.exponentialRampToValueAtTime(.24 * amp, when + .008);
+      g.gain.exponentialRampToValueAtTime(.0001, end);
+      o.connect(g).connect(filter);
+      o.start(when); o.stop(end + .08);
+      playbackNodes.push(o);
+      o.onended = () => { const i = playbackNodes.indexOf(o); if (i >= 0) playbackNodes.splice(i, 1); };
+    });
+    const len = Math.max(1, Math.floor(ac.sampleRate * .025));
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const hit = ac.createBufferSource(), hg = ac.createGain(), hp = ac.createBiquadFilter();
+    hit.buffer = buf; hp.type = 'bandpass'; hp.frequency.value = Math.min(4800, 900 + f * 2); hp.Q.value = .7;
+    hg.gain.setValueAtTime(.022, when); hg.gain.exponentialRampToValueAtTime(.0001, when + .035);
+    hit.connect(hp).connect(hg).connect(playbackMaster);
+    hit.start(when);
+  }
+
+  function previewNote(midi) {
+    const ac = ensurePlayback();
+    pianoTone(midi, ac.currentTime + .01, .65);
+    lightKey(midi);
+    setTimeout(() => lightKey(midi, false), 650);
+  }
+
+  function clickMetro(ac, when) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.value = 880; o.type = 'square';
+    g.gain.setValueAtTime(.0001, when);
+    g.gain.exponentialRampToValueAtTime(.08, when + .005);
+    g.gain.exponentialRampToValueAtTime(.0001, when + .06);
+    o.connect(g).connect(ac.destination);
+    o.start(when); o.stop(when + .08);
+  }
+
+  function startMetronome() {
+    stopMetronome();
+    if (!$('#metronome').checked) return;
+    const ac = ensurePlayback();
+    const beat = 60 / Math.max(40, +$('#bpm').value);
+    let next = ac.currentTime + .05;
+    const pulse = () => {
+      if (!recording || !$('#metronome').checked) return;
+      clickMetro(ac, next);
+      next += 60 / Math.max(40, +$('#bpm').value);
+      metroId = setTimeout(pulse, Math.max(20, (next - ac.currentTime - 0.02) * 1000));
+    };
+    pulse();
+  }
+  function stopMetronome() { clearTimeout(metroId); }
+
+  function stopNotePlayback() {
+    playing = false;
+    clearTimeout(playbackTimer);
+    clearInterval(playbackScheduler);
+    cancelAnimationFrame(playbackRAF);
+    playbackNodes.forEach(o => { try { o.stop(); } catch(e){} });
+    playbackNodes = [];
+    $('#playNotes').disabled = !notes.length;
+    $('#stopNotes').disabled = true;
+    $('#playNotes').textContent = '▶ Play';
+    sessionStatus.textContent = notes.length ? `${notes.length} notes ready` : 'No recording';
+    render();
+  }
+
+  async function playCapturedNotes() {
+    if (!notes.length) return;
+    if (playing) stopNotePlayback();
+    const ac = ensurePlayback();
+    try { if (ac.state !== 'running') await ac.resume(); } catch(e) {
+      sessionStatus.textContent = 'Audio is blocked — tap Play again'; return;
+    }
+    const speed = +$('#speed').value || 1;
+    const ordered = [...notes].filter(n => Number.isFinite(n.midi) && Number.isFinite(n.start) && Number.isFinite(n.duration)).sort((a,b) => a.start - b.start);
+    if (!ordered.length) { sessionStatus.textContent = 'No playable notes were found'; return; }
+    const first = ordered[0].start;
+    const last = Math.max(...ordered.map(n => n.start + n.duration));
+    const span = (last - first) / speed;
+    const lead = .06, base = ac.currentTime + lead;
+    let next = 0;
+    playing = true;
+    playbackNodes = [];
+    const schedule = () => {
+      if (!playing) return;
+      const horizon = (ac.currentTime - base + 3) * speed;
+      while (next < ordered.length && ordered[next].start - first <= horizon) {
+        const n = ordered[next++];
+        pianoTone(n.midi, base + (n.start - first) / speed, Math.max(.12, Math.min(2.2, n.duration / speed)));
+      }
+    };
+    schedule();
+    playbackScheduler = setInterval(schedule, 400);
+    $('#playNotes').disabled = false;
+    $('#stopNotes').disabled = false;
+    $('#playNotes').textContent = '↻ Restart';
+    sessionStatus.textContent = `Playing ${ordered.length} notes`;
+    const animate = () => {
+      if (!playing) return;
+      const t = (ac.currentTime - base) * speed;
+      renderPerformance(t);
+      playbackRAF = requestAnimationFrame(animate);
+    };
+    playbackRAF = requestAnimationFrame(animate);
+    const finish = () => {
+      if ($('#loop').checked && playing) { stopNotePlayback(); playCapturedNotes(); }
+      else stopNotePlayback();
+    };
+    playbackTimer = setTimeout(finish, (span + lead + 1) * 1000);
+  }
+
+  function vocalWorker() {
+    self.onmessage = e => {
+      const samples = e.data.samples;
+      const sr = e.data.sr;
+
+      // 2048 samples at 8 kHz gives enough frequency resolution for a
+      // practical two-voice piano detector while still being mobile-friendly.
+      const frame = 2048, hop = 512, N = frame, half = N >> 1;
+      const total = Math.max(0, Math.floor((samples.length - frame) / hop));
+      const re = new Float64Array(N), im = new Float64Array(N);
+      const rev = new Uint32Array(N), windowFn = new Float64Array(N);
+      const bits = Math.round(Math.log2(N));
+      let lastProgress = -1;
+
+      // Precompute bit reversal and Hann window once.
+      for (let i = 0; i < N; i++) {
+        let x = i, r = 0;
+        for (let b = 0; b < bits; b++) { r = (r << 1) | (x & 1); x >>= 1; }
+        rev[i] = r;
+        windowFn[i] = .5 - .5 * Math.cos(2 * Math.PI * i / (N - 1));
+      }
+
+      const fft = () => {
+        for (let len = 2; len <= N; len <<= 1) {
+          const ang = -2 * Math.PI / len;
+          const stepR = Math.cos(ang), stepI = Math.sin(ang);
+          const halfLen = len >> 1;
+          for (let base = 0; base < N; base += len) {
+            let wr = 1, wi = 0;
+            for (let j = 0; j < halfLen; j++) {
+              const a = base + j, b = a + halfLen;
+              const tr = wr * re[b] - wi * im[b];
+              const ti = wr * im[b] + wi * re[b];
+              const ur = re[a], ui = im[a];
+              re[a] = ur + tr; im[a] = ui + ti;
+              re[b] = ur - tr; im[b] = ui - ti;
+              const nwr = wr * stepR - wi * stepI;
+              wi = wr * stepI + wi * stepR;
+              wr = nwr;
+            }
+          }
+        }
+      };
+
+      const ampAt = freq => {
+        const pos = freq * N / sr;
+        const center = Math.round(pos);
+        let best = 0;
+        for (let k = Math.max(1, center - 1); k <= Math.min(half - 1, center + 1); k++) {
+          const mag2 = re[k] * re[k] + im[k] * im[k];
+          if (mag2 > best) best = mag2;
+        }
+        return Math.sqrt(best);
+      };
+
+      const detectFrame = off => {
+        let mean = 0, rms = 0;
+        for (let i = 0; i < N; i++) mean += samples[off + i];
+        mean /= N;
+
+        for (let i = 0; i < N; i++) {
+          const v = samples[off + i] - mean;
+          rms += v * v;
+          re[rev[i]] = v * windowFn[i];
+          im[rev[i]] = 0;
+        }
+        rms = Math.sqrt(rms / N);
+        if (rms < .006) return [];
+
+        fft();
+
+        const candidates = [];
+        for (let midi = 36; midi <= 84; midi++) {
+          const freq = 440 * Math.pow(2, (midi - 69) / 12);
+          const fund = ampAt(freq);
+          let score = fund * 1.75;
+          if (freq * 2 < sr / 2) score += ampAt(freq * 2) * .38;
+          if (freq * 3 < sr / 2) score += ampAt(freq * 3) * .21;
+          if (freq * 4 < sr / 2) score += ampAt(freq * 4) * .11;
+          candidates.push({ midi, freq, fund, score });
+        }
+
+        candidates.sort((a,b) => b.score - a.score);
+        const maxScore = candidates[0]?.score || 0;
+        let maxFund = 0;
+        for (const c of candidates) if (c.fund > maxFund) maxFund = c.fund;
+
+        const picked = [];
+        for (const c of candidates) {
+          if (!maxScore || c.score < maxScore * .22 || c.fund < maxFund * .055) continue;
+
+          // Avoid neighboring-bin leakage turning one key into two notes.
+          if (picked.some(p => Math.abs(p.midi - c.midi) <= 1)) continue;
+
+          // Reject a weaker 2x/3x/4x harmonic of a note already selected.
+          let harmonic = false;
+          for (const p of picked) {
+            const ratio = Math.max(c.freq, p.freq) / Math.min(c.freq, p.freq);
+            const nearHarmonic = [2,3,4].some(h => Math.abs(ratio - h) < .035);
+            if (nearHarmonic && c.fund < p.fund * .48) { harmonic = true; break; }
+          }
+          if (harmonic) continue;
+
+          picked.push(c);
+          if (picked.length === 2) break;
+        }
+
+        return picked.sort((a,b) => a.midi - b.midi);
+      };
+
+      // Keep continuity so a single surviving note stays in its previous lane.
+      const rawLow = [], rawHigh = [];
+      const laneMemory = [{ midi:null, miss:99 }, { midi:null, miss:99 }];
+
+      const assignLanes = detected => {
+        let low = null, high = null;
+
+        if (detected.length >= 2) {
+          low = detected[0].midi;
+          high = detected[1].midi;
+        } else if (detected.length === 1) {
+          const m = detected[0].midi;
+          const lowPrev = laneMemory[0].midi, highPrev = laneMemory[1].midi;
+
+          if (lowPrev !== null && highPrev !== null) {
+            if (Math.abs(m - lowPrev) <= Math.abs(m - highPrev)) low = m;
+            else high = m;
+          } else if (lowPrev !== null && Math.abs(m - lowPrev) <= 5) {
+            low = m;
+          } else if (highPrev !== null && Math.abs(m - highPrev) <= 5) {
+            high = m;
+          } else {
+            low = m;
+          }
+        }
+
+        [low, high].forEach((m, lane) => {
+          if (m === null) {
+            laneMemory[lane].miss++;
+            if (laneMemory[lane].miss > 4) laneMemory[lane].midi = null;
+          } else {
+            laneMemory[lane].midi = m;
+            laneMemory[lane].miss = 0;
+          }
+        });
+
+        rawLow.push(low);
+        rawHigh.push(high);
+      };
+
+      for (let fi = 0; fi < total; fi++) {
+        assignLanes(detectFrame(fi * hop));
+        const pct = Math.floor(fi / Math.max(1, total) * 100);
+        if (pct >= lastProgress + 4) {
+          lastProgress = pct;
+          self.postMessage({ progress:pct });
+        }
+      }
+
+      // A note must survive several nearby frames before it is accepted.
+      const stabilize = raw => raw.map((m, i) => {
+        const values = [];
+        for (let j = Math.max(0, i - 2); j <= Math.min(raw.length - 1, i + 2); j++) {
+          if (raw[j] !== null) values.push(raw[j]);
+        }
+        if (values.length < 3) return null;
+        values.sort((a,b) => a - b);
+        const median = values[Math.floor(values.length / 2)];
+        const close = values.filter(v => Math.abs(v - median) <= 1);
+        if (close.length < 3) return null;
+        return Math.round(close.reduce((a,b) => a + b, 0) / close.length);
+      });
+
+      const out = [];
+
+      const emitLane = (laneData, lane) => {
+        let cur = null, start = 0, vals = [], gap = 0;
+
+        const flush = end => {
+          if (cur === null) return;
+          const duration = (end - start) * hop / sr;
+          if (duration >= .12) {
+            vals.sort((a,b) => a - b);
+            const midi = vals[Math.floor(vals.length / 2)];
+            const freq = 440 * Math.pow(2, (midi - 69) / 12);
+            out.push({
+              midi,
+              start: start * hop / sr,
+              end: end * hop / sr,
+              duration,
+              freq,
+              lane,
+              confidence: Math.min(.99, .55 + Math.min(.44, vals.length / 14 * .44))
+            });
+          }
+          cur = null;
+          vals = [];
+          gap = 0;
+        };
+
+        laneData.forEach((m, i) => {
+          if (m === null) {
+            if (cur !== null && ++gap <= 1) return;
+            flush(i - gap + 1);
+            return;
+          }
+
+          gap = 0;
+          if (cur === null) {
+            cur = m;
+            start = i;
+            vals = [m];
+            return;
+          }
+
+          if (Math.abs(m - cur) <= 1) {
+            vals.push(m);
+            cur = Math.round(vals.reduce((a,b) => a + b, 0) / vals.length);
+          } else {
+            flush(i);
+            cur = m;
+            start = i;
+            vals = [m];
+          }
+        });
+
+        flush(laneData.length);
+      };
+
+      emitLane(stabilize(rawLow), 'low');
+      emitLane(stabilize(rawHigh), 'high');
+
+      // Two notes may intentionally share the same start time.
+      out.sort((a,b) => a.start - b.start || a.midi - b.midi);
+      self.postMessage({ done:out });
+    };
+  }
+
+  function buildWaveform(decoded) {
+    const bins = 1200, peaks = new Float32Array(bins), channels=[];
+    for(let c=0;c<decoded.numberOfChannels;c++) channels.push(decoded.getChannelData(c));
+    const step=Math.max(1,Math.floor(decoded.length/bins));
+    for(let i=0;i<bins;i++){
+      const start=i*step,end=Math.min(decoded.length,start+step); let peak=0;
+      for(let s=start;s<end;s+=Math.max(1,Math.floor(step/24))){let v=0;for(const ch of channels)v+=Math.abs(ch[s]||0);v/=channels.length;if(v>peak)peak=v}
+      peaks[i]=peak;
+    }
+    wavePeaks=peaks; importedDuration=decoded.duration; $('#waveCard').classList.add('on'); drawWaveform();
+  }
+
+  function drawWaveform() {
+    const canvas=$('#waveform'); if(!canvas||!wavePeaks)return;
+    const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1),w=Math.max(1,Math.floor(rect.width*dpr)),h=Math.max(1,Math.floor(rect.height*dpr));
+    if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}
+    const g=canvas.getContext('2d');g.clearRect(0,0,w,h);g.fillStyle='#0c0c0f';g.fillRect(0,0,w,h);g.strokeStyle='#c9a45d';g.lineWidth=Math.max(1,dpr);
+    const mid=h/2;g.beginPath();for(let x=0;x<w;x++){const i=Math.min(wavePeaks.length-1,Math.floor(x/w*wavePeaks.length)),amp=Math.min(1,wavePeaks[i]*2.8)*h*.43;g.moveTo(x,mid-amp);g.lineTo(x,mid+amp)}g.stroke();
+    const audio=$('#audio'),t=audio?.currentTime||0;if(importedDuration>0){const x=Math.max(0,Math.min(w,t/importedDuration*w));g.strokeStyle='#e7635d';g.lineWidth=2*dpr;g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke()}
+    $('#waveTime').textContent=`${fmt(t)} / ${fmt(importedDuration||0)}`;
+  }
+
+  function updateAnalysisStats() {
+    const low=notes.filter(n=>n.lane==='low').length,high=notes.filter(n=>n.lane==='high').length;
+    const conf=notes.filter(n=>Number.isFinite(n.confidence));const avg=conf.length?Math.round(conf.reduce((s,n)=>s+n.confidence,0)/conf.length*100):0;
+    $('#analysisBadge').textContent=notes.length?'Analyzed':'No notes';
+    $('#waveStats').textContent=notes.length?`LOW ${low} · HIGH ${high} · avg confidence ${avg}%`:'No stable notes detected';
+  }
+
+  function stopAudition() { stopNotePlayback(); const a=$('#audio'); if(a){a.pause();a.currentTime=0} drawWaveform(); }
+  async function playOriginal() { stopNotePlayback(); const a=$('#audio'); if(!a.src)return; a.currentTime=0; try{await a.play()}catch(e){toast('Tap again to allow audio')} }
+  async function playBoth() { const a=$('#audio'); if(!a.src||!notes.length)return; stopAudition(); a.currentTime=0; try{await a.play()}catch(e){} playCapturedNotes(); }
+
+  async function importVocal(file) {
+    if (!file) return;
+    stopNotePlayback();
+    const btn = $('#importVocal');
+    btn.disabled = true; record.disabled = true;
+    visualMode.textContent = 'Decoding';
+    sessionStatus.textContent = 'Opening audio…';
+    notice.style.display = 'none';
+    try {
+      const buffer = await file.arrayBuffer();
+      const decodeCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const decoded = await decodeCtx.decodeAudioData(buffer.slice(0));
+      buildWaveform(decoded);
+      await decodeCtx.close();
+      const targetRate = 8000;
+      const maxSeconds = Math.min(decoded.duration, 300);
+      const out = new Float32Array(Math.floor(maxSeconds * targetRate));
+      const ratio = decoded.sampleRate / targetRate;
+      const channels = [];
+      for (let c = 0; c < decoded.numberOfChannels; c++) channels.push(decoded.getChannelData(c));
+      for (let i = 0; i < out.length; i++) {
+        const a = Math.floor(i * ratio), b = Math.min(decoded.length, Math.max(a + 1, Math.floor((i + 1) * ratio)));
+        let sum = 0, n = 0;
+        for (let s = a; s < b; s++) for (const ch of channels) { sum += ch[s]; n++; }
+        out[i] = n ? sum / n : 0;
+      }
+      const worker = new Worker(URL.createObjectURL(new Blob([`(${vocalWorker.toString()})()`], { type: 'text/javascript' })));
+      visualMode.textContent = 'Analyzing';
+      sessionStatus.textContent = 'Finding low and high voices…';
+      worker.onmessage = ev => {
+        if (ev.data.progress !== undefined) { visualMode.textContent = `Analyzing ${ev.data.progress}%`; return; }
+        if (ev.data.done) {
+          worker.terminate();
+          notes = ev.data.done.map(n => ({ ...n, name: names[n.midi % 12], oct: Math.floor(n.midi / 12) - 1, cents: 0 }));
+          activeNotes.clear();
+          render();
+          count.textContent = notes.length;
+          timer.textContent = fmt(decoded.duration);
+          $('#playNotes').disabled = !notes.length;
+          clear.disabled = false;
+          sessionStatus.textContent = notes.length ? `${notes.length} notes found across two voices` : 'No stable notes found';
+          visualMode.textContent = notes.length ? 'Two-voice import' : 'No melody';
+          updateAnalysisStats();
+          if (audioURL) URL.revokeObjectURL(audioURL);
+          audioURL = URL.createObjectURL(file);
+          $('#audio').src = audioURL;
+          $('#audioWrap').hidden = false;
+          $('#saveAudio').textContent = 'Save original';
+          $('#saveAudio').onclick = () => download(file, file.name);
+          persist();
+          btn.disabled = false; record.disabled = false;
+        }
+      };
+      worker.postMessage({ samples: out, sr: targetRate }, [out.buffer]);
+    } catch (e) {
+      notice.textContent = 'This audio file could not be analyzed. Try a clear MP3 or WAV piano/audio recording.';
+      notice.style.display = 'block';
+      visualMode.textContent = 'Import failed';
+      sessionStatus.textContent = 'Could not analyze file';
+      btn.disabled = false; record.disabled = false;
+    }
+  }
+
+  function vlq(n) {
+    const bytes = [n & 0x7f];
+    n >>= 7;
+    while (n > 0) { bytes.unshift((n & 0x7f) | 0x80); n >>= 7; }
+    return bytes;
+  }
+
+  function notesToMidi(list) {
+    const shift=+$('#transpose').value||0,ticks=480,bpm=+$('#bpm').value||90,ticksPerSec=ticks*bpm/60,events=[];
+    const ordered=[...list].sort((a,b)=>a.start-b.start),first=ordered[0]?ordered[0].start:0;
+    ordered.forEach(n=>{const startTick=Math.max(0,Math.round((n.start-first)*ticksPerSec)),durTick=Math.max(30,Math.round(n.duration*ticksPerSec)),midi=Math.max(0,Math.min(127,n.midi+shift)),vel=Math.max(45,Math.min(118,Math.round(70+(n.confidence||.65)*45)));events.push({t:startTick,data:[0x90,midi,vel]});events.push({t:startTick+durTick,data:[0x80,midi,64]})});
+    events.sort((a,b)=>a.t-b.t||a.data[0]-b.data[0]);const micros=Math.round(60000000/bpm),track=[0x00,0xff,0x51,0x03,(micros>>16)&255,(micros>>8)&255,micros&255];let last=0;
+    events.forEach(ev=>{track.push(...vlq(ev.t-last),...ev.data);last=ev.t});track.push(0x00,0xff,0x2f,0x00);
+    const header=[0x4d,0x54,0x68,0x64,0,0,0,6,0,0,0,1,1,0xe0],th=[0x4d,0x54,0x72,0x6b,(track.length>>24)&255,(track.length>>16)&255,(track.length>>8)&255,track.length&255];return new Uint8Array([...header,...th,...track]);
+  }
+
+  function download(blob, name) {
+    const a = document.createElement('a');
+    a.href = blob instanceof Blob ? URL.createObjectURL(blob) : URL.createObjectURL(new Blob([blob]));
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1200);
+  }
+
+  function copyNotes() {
+    if (!notes.length) return;
+    const text = notes.map(n => `${n.name || names[(n.midi%12+12)%12]}${n.oct ?? Math.floor(n.midi/12)-1}`).join(' ');
+    navigator.clipboard.writeText(text).then(() => toast('Copied ' + text)).catch(() => toast(text));
+  }
+
+  function undo() {
+    if (!notes.length) return;
+    notes.pop();
+    persist();
+    render();
+    sessionStatus.textContent = notes.length ? `${notes.length} notes` : 'No recording';
+  }
+
+  function hardClear() {
+    stopNotePlayback();
+    notes = []; activeNotes.clear(); candidateFrames.clear(); missingFrames.clear();
+    persist();
+    render();
+    count.textContent = 0;
+    timer.textContent = '00:00.0';
+    sessionStatus.textContent = 'No recording';
+    $('#audioWrap').hidden = true;
+    $('#waveCard').classList.remove('on'); wavePeaks=null; importedDuration=0; selectedNoteIndex=-1;
+    clear.disabled = true;
+    $('#playNotes').disabled = true;
+    $('#saveMidi').disabled = true;
+  }
+
+  buildPiano();
+  restore();
+  loadPracticeSequence($('#practiceText').value, 'example');
+  $('#practiceCard').classList.remove('on');
+  clearKeys();
+  addEventListener('resize', () => { renderPerformance(playing ? 0 : null); drawWaveform(); });
+
+  record.onclick = begin;
+  stop.onclick = end;
+  $('#importVocal').onclick = () => $('#vocalFile').click();
+  $('#vocalFile').onchange = e => { importVocal(e.target.files[0]); e.target.value = ''; };
+  $('#playNotes').onclick = playCapturedNotes;
+  $('#stopNotes').onclick = stopNotePlayback;
+  $('#undo').onclick = undo;
+  clear.onclick = hardClear;
+  $('#saveMidi').onclick = () => {
+    if (!notes.length) return;
+    download(new Blob([notesToMidi(notes)], { type: 'audio/midi' }), 'piano-notes.mid');
+    toast('MIDI downloaded');
+  };
+  $('#saveNotes').onclick = () => {
+    const rows = ['note,octave,start_seconds,duration_seconds,frequency_hz', ...notes.map(n => `${n.name},${n.oct},${n.start.toFixed(3)},${n.duration.toFixed(3)},${(n.freq||0).toFixed(2)}`)];
+    download(new Blob([rows.join('\n')], { type: 'text/csv' }), 'piano-notes.csv');
+  };
+  $('#saveJson').onclick = () => download(new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' }), 'piano-notes.json');
+  $('#copyText').onclick = copyNotes;
+  $('#helpBtn').onclick = () => $('#help').classList.add('on');
+  $('#helpClose').onclick = () => $('#help').classList.remove('on');
+  $('#help').onclick = e => { if (e.target.id === 'help') e.target.classList.remove('on'); };
+  $('#refA').onclick = () => previewNote(69);
+  $('#volume').oninput = () => { if (playbackMaster) playbackMaster.gain.value = +$('#volume').value; };
+  $('#bpm').oninput = () => $('#bpmVal').textContent = $('#bpm').value;
+  $('#modeMic').onclick = () => setMode('mic');
+  $('#modeTap').onclick = () => setMode('tap');
+  $('#modeVocal').onclick = () => setMode('vocal');
+  $('#modePractice').onclick = () => setMode('practice');
+  $('#practiceImport').onclick = () => $('#practiceFile').click();
+  $('#practiceFile').onchange = e => { loadPracticeFile(e.target.files[0]); e.target.value = ''; };
+  $('#practiceLoadText').onclick = () => loadPracticeSequence($('#practiceText').value, 'typed notes');
+  $('#practiceHear').onclick = hearPracticeTarget;
+  $('#practicePrev').onclick = () => { if (practiceIndex > 0) { practiceIndex--; practiceAwaitRelease=false; renderPractice(); } };
+  $('#practiceNext').onclick = () => { if (practiceSequence.length && practiceIndex < practiceSequence.length) { practiceIndex++; practiceAwaitRelease=false; renderPractice(); } };
+  $('#practiceRestart').onclick = () => { practiceIndex=0; practiceCorrect=0; practiceAttempts=0; practiceStreak=0; practiceAwaitRelease=false; renderPractice(); $('#practiceFeedback').className='practice-feedback'; $('#practiceFeedback').innerHTML='<strong>Restarted:</strong><span>Press Start Listening when ready.</span>'; };
+  $('#practiceOctave').onchange = () => { if ($('#practiceText').value.trim()) loadPracticeSequence($('#practiceText').value, 'typed notes'); };
+  $('#viewFall').onclick = () => {
+    performanceEl.classList.remove('roll-on');
+    $('#stageTitle').textContent = mode === 'practice' ? 'Practice bars' : 'Falling notes';
+    renderPerformance();
+  };
+  $('#viewRoll').onclick = () => {
+    if (mode === 'practice') { toast('Practice mode uses the bar view'); return; }
+    performanceEl.classList.add('roll-on');
+    $('#stageTitle').textContent = 'Piano roll';
+    renderPerformance();
+    updateSelectedReadout();
+  };
+
+  $('#pitchDown').onclick=()=>editSelected('pitchDown');
+  $('#pitchUp').onclick=()=>editSelected('pitchUp');
+  $('#timeLeft').onclick=()=>editSelected('timeLeft');
+  $('#timeRight').onclick=()=>editSelected('timeRight');
+  $('#shorter').onclick=()=>editSelected('shorter');
+  $('#longer').onclick=()=>editSelected('longer');
+  $('#deleteSelected').onclick=()=>editSelected('delete');
+  $('#quantize').onclick=quantizeNotes;
+  $('#playOriginal').onclick=playOriginal;
+  $('#playDetected').onclick=()=>{const a=$('#audio');a?.pause();playCapturedNotes()};
+  $('#playBoth').onclick=playBoth;
+  $('#stopAudition').onclick=stopAudition;
+  $('#audio').addEventListener('timeupdate',drawWaveform);
+  $('#audio').addEventListener('ended',drawWaveform);
+  $('#waveform').onclick=e=>{if(!importedDuration)return;const r=e.currentTarget.getBoundingClientRect(),t=Math.max(0,Math.min(importedDuration,(e.clientX-r.left)/r.width*importedDuration));$('#audio').currentTime=t;drawWaveform()};
+  addEventListener('pointermove',moveRollDrag);
+  addEventListener('pointerup',endRollDrag);
+
+  addEventListener('keydown', e => {
+    if (e.target.matches('input,select,textarea')) return;
+    if (e.code === 'Space') { e.preventDefault(); recording ? end() : begin(); return; }
+    if (e.key === 'z' && !e.metaKey && !e.ctrlKey) { undo(); return; }
+    if (e.key === '?' || e.key === '/') { $('#help').classList.toggle('on'); return; }
+    const midi = KEYMAP[e.key.toLowerCase()];
+    if (midi && !e.repeat) startTap(midi);
+  });
+  addEventListener('keyup', e => {
+    const midi = KEYMAP[e.key.toLowerCase()];
+    if (midi) endTap(midi);
+  });
+})();
+</script>
+</body>
+</html>
