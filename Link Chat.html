@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Browser Link Chat</title>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#131a2c;
+      --panel2:#1a2338;
+      --line:#2a3550;
+      --text:#edf2ff;
+      --muted:#9aa7c2;
+      --accent:#4dd0e1;
+      --good:#66e0a3;
+      --bad:#ff7d7d;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:linear-gradient(180deg,#08101e,#0c1221 45%,#0a0f1b);
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+    }
+    .app{
+      width:min(900px,100%);
+      height:min(760px,92vh);
+      display:grid;
+      grid-template-rows:auto auto 1fr auto;
+      background:rgba(19,26,44,.96);
+      border:1px solid var(--line);
+      border-radius:20px;
+      overflow:hidden;
+      box-shadow:0 30px 80px rgba(0,0,0,.4);
+    }
+    header{
+      padding:18px 20px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:1px solid var(--line);
+      gap:14px;
+    }
+    h1{font-size:20px;margin:0}
+    .status{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:var(--muted);
+      font-size:14px;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background:#667085;
+      box-shadow:0 0 0 4px rgba(255,255,255,.03);
+    }
+    .dot.good{background:var(--good)}
+    .dot.bad{background:var(--bad)}
+    .connect{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+      padding:16px 20px;
+      border-bottom:1px solid var(--line);
+      background:#10172a;
+    }
+    .card{
+      background:var(--panel2);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:14px;
+    }
+    .label{
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+      margin-bottom:8px;
+    }
+    .row{display:flex;gap:8px}
+    input, textarea, button{
+      font:inherit;
+    }
+    input, textarea{
+      width:100%;
+      border:1px solid var(--line);
+      background:#0c1323;
+      color:var(--text);
+      border-radius:10px;
+      outline:none;
+    }
+    input{padding:11px 12px}
+    input:focus,textarea:focus{border-color:var(--accent)}
+    button{
+      border:0;
+      border-radius:10px;
+      padding:11px 14px;
+      background:var(--accent);
+      color:#061218;
+      font-weight:700;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    button.secondary{
+      background:#263451;
+      color:var(--text);
+    }
+    button:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+    #messages{
+      padding:20px;
+      overflow:auto;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      background:
+        radial-gradient(circle at 15% 10%,rgba(77,208,225,.05),transparent 28%),
+        #0d1425;
+    }
+    .msg{
+      max-width:78%;
+      padding:10px 13px;
+      border-radius:14px;
+      line-height:1.4;
+      word-wrap:break-word;
+      white-space:pre-wrap;
+    }
+    .mine{
+      align-self:flex-end;
+      background:#27586a;
+      border-bottom-right-radius:4px;
+    }
+    .theirs{
+      align-self:flex-start;
+      background:#222d46;
+      border-bottom-left-radius:4px;
+    }
+    .system{
+      align-self:center;
+      max-width:90%;
+      color:var(--muted);
+      background:transparent;
+      font-size:13px;
+      text-align:center;
+    }
+    .meta{
+      font-size:11px;
+      color:#b9c4db;
+      opacity:.7;
+      margin-top:4px;
+    }
+    .composer{
+      padding:14px;
+      border-top:1px solid var(--line);
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:10px;
+      background:#10172a;
+    }
+    textarea{
+      resize:none;
+      min-height:52px;
+      max-height:140px;
+      padding:13px;
+    }
+    .small{
+      color:var(--muted);
+      font-size:12px;
+      margin-top:8px;
+    }
+    @media(max-width:700px){
+      .app{height:95vh}
+      .connect{grid-template-columns:1fr}
+      .msg{max-width:88%}
+      header{align-items:flex-start;flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Browser Link Chat</h1>
+      <div class="small">Direct browser-to-browser text chat</div>
+    </div>
+    <div class="status">
+      <span id="dot" class="dot"></span>
+      <span id="statusText">Starting…</span>
+    </div>
+  </header>
+
+  <section class="connect">
+    <div class="card">
+      <div class="label">Your connection code</div>
+      <div class="row">
+        <input id="myId" readonly value="Creating…" />
+        <button id="copyBtn" class="secondary">Copy</button>
+      </div>
+      <div class="small">Send this code to the other browser.</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Connect to another browser</div>
+      <div class="row">
+        <input id="remoteId" placeholder="Paste their code here" />
+        <button id="connectBtn">Connect</button>
+      </div>
+      <div class="small">Only one side needs to press Connect.</div>
+    </div>
+  </section>
+
+  <main id="messages">
+    <div class="msg system">Waiting for a connection…</div>
+  </main>
+
+  <section class="composer">
+    <textarea id="messageInput" placeholder="Write a message…" disabled></textarea>
+    <button id="sendBtn" disabled>Send</button>
+  </section>
+</div>
+
+<script>
+(() => {
+  const myId = document.getElementById('myId');
+  const remoteId = document.getElementById('remoteId');
+  const connectBtn = document.getElementById('connectBtn');
+  const copyBtn = document.getElementById('copyBtn');
+  const messages = document.getElementById('messages');
+  const messageInput = document.getElementById('messageInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const statusText = document.getElementById('statusText');
+  const dot = document.getElementById('dot');
+
+  let peer;
+  let conn = null;
+
+  function setStatus(text, mode='idle') {
+    statusText.textContent = text;
+    dot.className = 'dot' + (mode === 'good' ? ' good' : mode === 'bad' ? ' bad' : '');
+  }
+
+  function systemMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'msg system';
+    div.textContent = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function addMessage(text, mine) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + (mine ? 'mine' : 'theirs');
+
+    const body = document.createElement('div');
+    body.textContent = text;
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = (mine ? 'You' : 'Other browser') + ' • ' +
+      new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+    div.appendChild(body);
+    div.appendChild(meta);
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function activateConnection(connection) {
+    if (conn && conn.open) {
+      try { conn.close(); } catch {}
+    }
+
+    conn = connection;
+
+    conn.on('open', () => {
+      setStatus('Connected', 'good');
+      messageInput.disabled = false;
+      sendBtn.disabled = false;
+      connectBtn.disabled = false;
+      systemMessage('Connection established.');
+      messageInput.focus();
+    });
+
+    conn.on('data', data => {
+      if (data && data.type === 'chat') {
+        addMessage(String(data.text ?? ''), false);
+      }
+    });
+
+    conn.on('close', () => {
+      setStatus('Disconnected', 'bad');
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+      systemMessage('The other browser disconnected.');
+    });
+
+    conn.on('error', err => {
+      console.error(err);
+      setStatus('Connection error', 'bad');
+      systemMessage('Connection error.');
+    });
+  }
+
+  function startPeer() {
+    setStatus('Creating connection code…');
+
+    peer = new Peer();
+
+    peer.on('open', id => {
+      myId.value = id;
+      setStatus('Ready');
+    });
+
+    peer.on('connection', incoming => {
+      systemMessage('Incoming connection…');
+      activateConnection(incoming);
+    });
+
+    peer.on('error', err => {
+      console.error(err);
+      setStatus('Network error', 'bad');
+
+      if (err.type === 'peer-unavailable') {
+        systemMessage('That connection code was not found. Check the code and try again.');
+      } else {
+        systemMessage('A network error occurred. Reload the page and try again.');
+      }
+
+      connectBtn.disabled = false;
+    });
+
+    peer.on('disconnected', () => {
+      setStatus('Reconnecting…');
+      try { peer.reconnect(); } catch {}
+    });
+  }
+
+  connectBtn.addEventListener('click', () => {
+    const id = remoteId.value.trim();
+
+    if (!id) {
+      systemMessage('Enter the other browser’s connection code first.');
+      return;
+    }
+
+    if (!peer || peer.destroyed) {
+      systemMessage('Connection service is not ready yet.');
+      return;
+    }
+
+    if (id === peer.id) {
+      systemMessage('Use the code from the other browser, not your own code.');
+      return;
+    }
+
+    setStatus('Connecting…');
+    connectBtn.disabled = true;
+
+    const connection = peer.connect(id, {
+      reliable: true,
+      serialization: 'json'
+    });
+
+    activateConnection(connection);
+
+    setTimeout(() => {
+      if (!connection.open) connectBtn.disabled = false;
+    }, 5000);
+  });
+
+  function sendMessage() {
+    const text = messageInput.value.trim();
+    if (!text || !conn || !conn.open) return;
+
+    conn.send({ type:'chat', text });
+    addMessage(text, true);
+    messageInput.value = '';
+    messageInput.focus();
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+
+  messageInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  copyBtn.addEventListener('click', async () => {
+    const value = myId.value;
+    if (!value || value === 'Creating…') return;
+
+    try {
+      await navigator.clipboard.writeText(value);
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => copyBtn.textContent = 'Copy', 1200);
+    } catch {
+      myId.select();
+      document.execCommand('copy');
+    }
+  });
+
+  startPeer();
+})();
+</script>
+</body>
+</html>
