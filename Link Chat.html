@@ -7,181 +7,310 @@
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     :root{
-      --bg:#0b1020;
-      --panel:#131a2c;
-      --panel2:#1a2338;
-      --line:#2a3550;
-      --text:#edf2ff;
-      --muted:#9aa7c2;
-      --accent:#4dd0e1;
-      --good:#66e0a3;
-      --bad:#ff7d7d;
+      --bg:#0a0d12;
+      --panel:#10151d;
+      --line:#242d39;
+      --text:#f2f6fb;
+      --muted:#8793a3;
+      --accent:#7dd3fc;
+      --accent-strong:#38bdf8;
+      --good:#67e8a5;
+      --warn:#facc6b;
+      --bad:#fb7185;
+      --mine:#173447;
+      --theirs:#1b2430;
     }
+
     *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%}
+
     body{
-      margin:0;
       min-height:100vh;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:linear-gradient(180deg,#08101e,#0c1221 45%,#0a0f1b);
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
       color:var(--text);
+      background:
+        radial-gradient(circle at top left,rgba(56,189,248,.08),transparent 30%),
+        radial-gradient(circle at bottom right,rgba(125,211,252,.05),transparent 32%),
+        var(--bg);
       display:flex;
       align-items:center;
       justify-content:center;
-      padding:18px;
+      padding:20px;
     }
+
     .app{
-      width:min(900px,100%);
-      height:min(760px,92vh);
-      display:grid;
-      grid-template-rows:auto auto 1fr auto;
-      background:rgba(19,26,44,.96);
-      border:1px solid var(--line);
-      border-radius:20px;
+      width:min(860px,100%);
+      height:min(780px,94vh);
+      background:rgba(16,21,29,.97);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:24px;
       overflow:hidden;
-      box-shadow:0 30px 80px rgba(0,0,0,.4);
+      display:grid;
+      grid-template-rows:auto auto auto 1fr auto;
+      box-shadow:0 30px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.025);
+      backdrop-filter:blur(18px);
     }
+
     header{
-      padding:18px 20px;
+      padding:18px 22px;
       display:flex;
       align-items:center;
       justify-content:space-between;
+      gap:16px;
       border-bottom:1px solid var(--line);
-      gap:14px;
+      background:rgba(12,16,22,.9);
     }
-    h1{font-size:20px;margin:0}
+
+    h1{margin:0;font-size:18px;font-weight:700}
+    .subtitle{margin-top:4px;color:var(--muted);font-size:12px}
+
     .status{
       display:flex;
       align-items:center;
       gap:8px;
       color:var(--muted);
-      font-size:14px;
+      font-size:12px;
+      white-space:nowrap;
+      padding:8px 11px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background:#0d1218;
     }
+
     .dot{
-      width:10px;height:10px;border-radius:50%;
-      background:#667085;
-      box-shadow:0 0 0 4px rgba(255,255,255,.03);
+      width:8px;height:8px;border-radius:50%;
+      background:#5b6572;
+      box-shadow:0 0 0 4px rgba(255,255,255,.02);
     }
-    .dot.good{background:var(--good)}
+    .dot.good{background:var(--good);box-shadow:0 0 14px rgba(103,232,165,.4)}
+    .dot.warn{background:var(--warn)}
     .dot.bad{background:var(--bad)}
-    .connect{
+
+    .connectArea{
+      padding:14px 18px;
       display:grid;
       grid-template-columns:1fr 1fr;
-      gap:14px;
-      padding:16px 20px;
+      gap:12px;
       border-bottom:1px solid var(--line);
-      background:#10172a;
+      background:#0d1218;
     }
-    .card{
-      background:var(--panel2);
+
+    .box{
+      background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.015));
       border:1px solid var(--line);
-      border-radius:14px;
-      padding:14px;
+      border-radius:16px;
+      padding:13px;
+      min-width:0;
     }
+
     .label{
-      font-size:12px;
-      text-transform:uppercase;
-      letter-spacing:.08em;
       color:var(--muted);
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.11em;
       margin-bottom:8px;
     }
-    .row{display:flex;gap:8px}
-    input, textarea, button{
-      font:inherit;
+
+    .nameRow{
+      display:grid;
+      grid-template-columns:90px 1fr;
+      align-items:center;
+      gap:8px;
+      margin-bottom:8px;
     }
-    input, textarea{
+
+    .nameLabel{
+      color:#7e8b9a;
+      font-size:11px;
+    }
+
+    .row{display:flex;gap:8px;min-width:0}
+
+    input,textarea,button{font:inherit}
+
+    input,textarea{
       width:100%;
-      border:1px solid var(--line);
-      background:#0c1323;
+      min-width:0;
+      background:#0a0f15;
       color:var(--text);
-      border-radius:10px;
+      border:1px solid #283241;
+      border-radius:11px;
       outline:none;
+      transition:.18s ease;
     }
-    input{padding:11px 12px}
-    input:focus,textarea:focus{border-color:var(--accent)}
+
+    input{padding:10px 11px}
+
+    textarea{
+      resize:none;
+      min-height:54px;
+      max-height:150px;
+      padding:13px 14px;
+    }
+
+    input:focus,textarea:focus{
+      border-color:#3b82a0;
+      box-shadow:0 0 0 3px rgba(56,189,248,.08);
+    }
+
+    .codeValue{
+      flex:1;
+      min-width:0;
+      min-height:42px;
+      padding:10px 11px;
+      display:flex;
+      align-items:center;
+      background:#0a0f15;
+      color:#dce9f4;
+      border:1px solid #283241;
+      border-radius:11px;
+      font:11px ui-monospace,SFMono-Regular,Consolas,monospace;
+      line-height:1.35;
+      overflow-wrap:anywhere;
+      word-break:break-all;
+      user-select:all;
+    }
+
     button{
       border:0;
-      border-radius:10px;
-      padding:11px 14px;
-      background:var(--accent);
-      color:#061218;
+      border-radius:11px;
+      padding:10px 14px;
       font-weight:700;
       cursor:pointer;
+      transition:.18s ease;
       white-space:nowrap;
     }
-    button.secondary{
-      background:#263451;
-      color:var(--text);
+
+    button:hover:not(:disabled){transform:translateY(-1px)}
+
+    .primary{
+      background:linear-gradient(180deg,var(--accent),var(--accent-strong));
+      color:#071018;
+      box-shadow:0 8px 20px rgba(56,189,248,.16);
     }
-    button:disabled{
-      opacity:.45;
-      cursor:not-allowed;
+
+    .secondary{
+      background:#17202b;
+      color:#c9d2dd;
+      border:1px solid #2d3948;
     }
+
+    button:disabled{opacity:.42;cursor:not-allowed;transform:none}
+
+    .hint{
+      margin-top:7px;
+      color:#6f7d8d;
+      font-size:11px;
+      line-height:1.4;
+    }
+
+    .connectionNote{
+      min-height:34px;
+      display:flex;
+      align-items:center;
+      padding:8px 18px;
+      border-bottom:1px solid var(--line);
+      background:#0b1016;
+      color:#8392a2;
+      font-size:11px;
+    }
+
+    .connectionNote.good{color:#91d9b7}
+    .connectionNote.warn{color:#d8bf7b}
+    .connectionNote.bad{color:#dc8b96}
+
     #messages{
-      padding:20px;
       overflow:auto;
+      padding:20px;
       display:flex;
       flex-direction:column;
-      gap:10px;
+      gap:11px;
       background:
-        radial-gradient(circle at 15% 10%,rgba(77,208,225,.05),transparent 28%),
-        #0d1425;
+        linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px),
+        #0c1117;
+      background-size:34px 34px;
     }
+
+    .msgWrap{
+      max-width:76%;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    .msgWrap.mine{align-self:flex-end;align-items:flex-end}
+    .msgWrap.theirs{align-self:flex-start;align-items:flex-start}
+
+    .msgName{
+      padding:0 4px;
+      color:#7f8d9d;
+      font-size:10px;
+      font-weight:600;
+    }
+
     .msg{
-      max-width:78%;
-      padding:10px 13px;
-      border-radius:14px;
-      line-height:1.4;
-      word-wrap:break-word;
-      white-space:pre-wrap;
-    }
-    .mine{
-      align-self:flex-end;
-      background:#27586a;
-      border-bottom-right-radius:4px;
-    }
-    .theirs{
-      align-self:flex-start;
-      background:#222d46;
-      border-bottom-left-radius:4px;
-    }
-    .system{
-      align-self:center;
-      max-width:90%;
-      color:var(--muted);
-      background:transparent;
+      padding:11px 13px;
+      border-radius:16px;
+      line-height:1.45;
       font-size:13px;
-      text-align:center;
+      white-space:pre-wrap;
+      word-break:break-word;
+      border:1px solid rgba(255,255,255,.05);
     }
+
+    .mine .msg{
+      background:var(--mine);
+      border-bottom-right-radius:6px;
+    }
+
+    .theirs .msg{
+      background:var(--theirs);
+      border-bottom-left-radius:6px;
+    }
+
     .meta{
-      font-size:11px;
-      color:#b9c4db;
-      opacity:.7;
-      margin-top:4px;
+      padding:0 4px;
+      font-size:10px;
+      color:#718091;
     }
-    .composer{
-      padding:14px;
+
+    .composerWrap{
       border-top:1px solid var(--line);
+      background:#0d1218;
+    }
+
+    .sendReason{
+      min-height:28px;
+      display:flex;
+      align-items:center;
+      padding:7px 14px 0;
+      color:#788696;
+      font-size:11px;
+    }
+
+    .composer{
+      padding:8px 14px 14px;
       display:grid;
       grid-template-columns:1fr auto;
       gap:10px;
-      background:#10172a;
+      align-items:end;
     }
-    textarea{
-      resize:none;
-      min-height:52px;
-      max-height:140px;
-      padding:13px;
+
+    .send{
+      min-width:88px;
+      height:54px;
     }
-    .small{
-      color:var(--muted);
-      font-size:12px;
-      margin-top:8px;
-    }
+
     @media(max-width:700px){
-      .app{height:95vh}
-      .connect{grid-template-columns:1fr}
-      .msg{max-width:88%}
+      body{padding:10px}
+      .app{height:96vh;border-radius:18px}
       header{align-items:flex-start;flex-direction:column}
+      .connectArea{grid-template-columns:1fr}
+      .msgWrap{max-width:88%}
+      .composer{grid-template-columns:1fr}
+      .send{width:100%;height:auto}
+      .nameRow{grid-template-columns:72px 1fr}
     }
   </style>
 </head>
@@ -190,7 +319,7 @@
   <header>
     <div>
       <h1>Browser Link Chat</h1>
-      <div class="small">Direct browser-to-browser text chat</div>
+      <div class="subtitle">Direct chat with automatic reconnect and message recovery</div>
     </div>
     <div class="status">
       <span id="dot" class="dot"></span>
@@ -198,193 +327,532 @@
     </div>
   </header>
 
-  <section class="connect">
-    <div class="card">
-      <div class="label">Your connection code</div>
+  <section class="connectArea">
+    <div class="box">
+      <div class="label">This browser</div>
+
+      <div class="nameRow">
+        <span class="nameLabel">Your name</span>
+        <input id="displayName" maxlength="40" placeholder="Your name">
+      </div>
+
       <div class="row">
-        <input id="myId" readonly value="Creating…" />
+        <div id="myId" class="codeValue">Creating…</div>
         <button id="copyBtn" class="secondary">Copy</button>
       </div>
-      <div class="small">Send this code to the other browser.</div>
+
+      <div class="hint">This code is saved on this browser and reused after reloads.</div>
     </div>
 
-    <div class="card">
+    <div class="box">
       <div class="label">Connect to another browser</div>
+
       <div class="row">
-        <input id="remoteId" placeholder="Paste their code here" />
-        <button id="connectBtn">Connect</button>
+        <input id="remoteId" placeholder="Paste their full code here">
+        <button id="connectBtn" class="primary">Connect</button>
       </div>
-      <div class="small">Only one side needs to press Connect.</div>
+
+      <div class="hint">After the first connection, this browser remembers the room partner and reconnects automatically.</div>
     </div>
   </section>
 
-  <main id="messages">
-    <div class="msg system">Waiting for a connection…</div>
-  </main>
+  <div id="connectionNote" class="connectionNote">
+    Preparing the connection…
+  </div>
 
-  <section class="composer">
-    <textarea id="messageInput" placeholder="Write a message…" disabled></textarea>
-    <button id="sendBtn" disabled>Send</button>
-  </section>
+  <main id="messages"></main>
+
+  <div class="composerWrap">
+    <div id="sendReason" class="sendReason">
+      Send is disabled until this browser finishes starting.
+    </div>
+    <section class="composer">
+      <textarea id="messageInput" placeholder="Write a message…" disabled></textarea>
+      <button id="sendBtn" class="primary send" disabled>Send</button>
+    </section>
+  </div>
 </div>
 
 <script>
 (() => {
-  const myId = document.getElementById('myId');
-  const remoteId = document.getElementById('remoteId');
+  const STORAGE = {
+    peerId: 'browserLink.peerId.v3',
+    remoteId: 'browserLink.remoteId.v3',
+    name: 'browserLink.name.v3',
+    remoteName: 'browserLink.remoteName.v3',
+    history: 'browserLink.history.v3',
+    outbox: 'browserLink.outbox.v3',
+    seen: 'browserLink.seen.v3'
+  };
+
+  const MAX_HISTORY = 250;
+  const MAX_SEEN = 500;
+
+  const myIdEl = document.getElementById('myId');
+  const remoteIdEl = document.getElementById('remoteId');
+  const displayNameEl = document.getElementById('displayName');
   const connectBtn = document.getElementById('connectBtn');
   const copyBtn = document.getElementById('copyBtn');
-  const messages = document.getElementById('messages');
+  const messagesEl = document.getElementById('messages');
   const messageInput = document.getElementById('messageInput');
   const sendBtn = document.getElementById('sendBtn');
   const statusText = document.getElementById('statusText');
   const dot = document.getElementById('dot');
+  const connectionNote = document.getElementById('connectionNote');
+  const sendReason = document.getElementById('sendReason');
 
-  let peer;
+  let peer = null;
   let conn = null;
+  let peerReady = false;
+  let reconnectTimer = null;
+  let reconnecting = false;
+  let unread = 0;
+
+  let history = loadJSON(STORAGE.history, []);
+  let outbox = loadJSON(STORAGE.outbox, []);
+  let seenIds = new Set(loadJSON(STORAGE.seen, []));
+
+  let remoteName = localStorage.getItem(STORAGE.remoteName) || 'Other browser';
+
+  function loadJSON(key, fallback) {
+    try {
+      const value = JSON.parse(localStorage.getItem(key));
+      return value ?? fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function saveJSON(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function makeStablePeerId() {
+    const saved = localStorage.getItem(STORAGE.peerId);
+    if (saved) return saved;
+
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const id = 'blc-' + [...bytes].map(b => b.toString(16).padStart(2,'0')).join('');
+    localStorage.setItem(STORAGE.peerId, id);
+    return id;
+  }
+
+  function makeMessageId() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return [...bytes].map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+
+  function myName() {
+    return (displayNameEl.value.trim() || 'Me').slice(0, 40);
+  }
 
   function setStatus(text, mode='idle') {
     statusText.textContent = text;
-    dot.className = 'dot' + (mode === 'good' ? ' good' : mode === 'bad' ? ' bad' : '');
+    dot.className = 'dot' + (mode === 'good' ? ' good' : mode === 'warn' ? ' warn' : mode === 'bad' ? ' bad' : '');
   }
 
-  function systemMessage(text) {
-    const div = document.createElement('div');
-    div.className = 'msg system';
-    div.textContent = text;
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
+  function setNote(text, mode='') {
+    connectionNote.textContent = text;
+    connectionNote.className = 'connectionNote' + (mode ? ' ' + mode : '');
   }
 
-  function addMessage(text, mine) {
-    const div = document.createElement('div');
-    div.className = 'msg ' + (mine ? 'mine' : 'theirs');
+  function updateComposerState() {
+    if (!peerReady) {
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+      sendReason.textContent = 'Send is disabled while this browser is still starting.';
+      return;
+    }
 
-    const body = document.createElement('div');
-    body.textContent = text;
+    messageInput.disabled = false;
+    sendBtn.disabled = false;
+
+    if (conn && conn.open) {
+      sendReason.textContent = outbox.length
+        ? `${outbox.length} message${outbox.length === 1 ? '' : 's'} waiting for delivery confirmation.`
+        : 'Connected — messages are sent immediately.';
+    } else {
+      sendReason.textContent = 'Offline — you can still press Send. The message will be queued and delivered after reconnection.';
+    }
+  }
+
+  function renderHistory() {
+    messagesEl.innerHTML = '';
+    for (const item of history) renderMessage(item);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function renderMessage(item) {
+    const wrap = document.createElement('div');
+    wrap.className = 'msgWrap ' + (item.mine ? 'mine' : 'theirs');
+
+    const name = document.createElement('div');
+    name.className = 'msgName';
+    name.textContent = item.name || (item.mine ? myName() : remoteName);
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg';
+    bubble.textContent = item.text;
 
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = (mine ? 'You' : 'Other browser') + ' • ' +
-      new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const when = new Date(item.time || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    meta.textContent = when + (item.mine && item.pending ? ' • waiting' : '');
 
-    div.appendChild(body);
-    div.appendChild(meta);
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
+    wrap.append(name, bubble, meta);
+    messagesEl.appendChild(wrap);
+  }
+
+  function saveHistory() {
+    history = history.slice(-MAX_HISTORY);
+    saveJSON(STORAGE.history, history);
+  }
+
+  function addLocalMessage(message) {
+    history.push(message);
+    saveHistory();
+    renderHistory();
+  }
+
+  function markDelivered(id) {
+    let changed = false;
+    outbox = outbox.filter(msg => {
+      if (msg.id === id) {
+        changed = true;
+        return false;
+      }
+      return true;
+    });
+
+    if (changed) {
+      saveJSON(STORAGE.outbox, outbox);
+      for (const item of history) {
+        if (item.id === id) item.pending = false;
+      }
+      saveHistory();
+      renderHistory();
+      updateComposerState();
+    }
+  }
+
+  function rememberSeen(id) {
+    seenIds.add(id);
+    const arr = [...seenIds].slice(-MAX_SEEN);
+    seenIds = new Set(arr);
+    saveJSON(STORAGE.seen, arr);
+  }
+
+  function setRemoteName(name) {
+    if (!name) return;
+    remoteName = String(name).slice(0, 40);
+    localStorage.setItem(STORAGE.remoteName, remoteName);
+  }
+
+  function sendHello() {
+    if (!conn || !conn.open) return;
+    conn.send({
+      kind: 'hello',
+      name: myName(),
+      peerId: peer.id,
+      time: Date.now()
+    });
+  }
+
+  function sendAck(id) {
+    if (!conn || !conn.open) return;
+    try {
+      conn.send({kind:'ack', id});
+    } catch {}
+  }
+
+  function flushOutbox() {
+    if (!conn || !conn.open) return;
+
+    for (const msg of outbox) {
+      try {
+        conn.send({
+          kind: 'chat',
+          id: msg.id,
+          text: msg.text,
+          name: msg.name,
+          time: msg.time
+        });
+      } catch {
+        break;
+      }
+    }
+
+    updateComposerState();
   }
 
   function activateConnection(connection) {
-    if (conn && conn.open) {
+    if (!connection) return;
+
+    if (conn && conn !== connection && conn.open) {
       try { conn.close(); } catch {}
     }
 
     conn = connection;
 
     conn.on('open', () => {
+      reconnecting = false;
       setStatus('Connected', 'good');
-      messageInput.disabled = false;
-      sendBtn.disabled = false;
+      setNote('Connected. If either browser briefly sleeps or switches apps, the page will try to restore the link automatically.', 'good');
       connectBtn.disabled = false;
-      systemMessage('Connection established.');
-      messageInput.focus();
+      sendHello();
+      flushOutbox();
+      updateComposerState();
     });
 
     conn.on('data', data => {
-      if (data && data.type === 'chat') {
-        addMessage(String(data.text ?? ''), false);
+      if (!data || typeof data !== 'object') return;
+
+      if (data.kind === 'hello') {
+        setRemoteName(data.name || 'Other browser');
+        return;
+      }
+
+      if (data.kind === 'ack') {
+        markDelivered(data.id);
+        return;
+      }
+
+      if (data.kind === 'chat') {
+        if (!data.id) return;
+
+        setRemoteName(data.name || remoteName);
+
+        if (!seenIds.has(data.id)) {
+          rememberSeen(data.id);
+
+          history.push({
+            id: data.id,
+            text: String(data.text ?? ''),
+            name: data.name || remoteName,
+            time: data.time || Date.now(),
+            mine: false,
+            pending: false
+          });
+
+          saveHistory();
+          renderHistory();
+
+          if (document.hidden) {
+            unread++;
+            document.title = `(${unread}) Browser Link Chat`;
+          }
+        }
+
+        sendAck(data.id);
       }
     });
 
     conn.on('close', () => {
-      setStatus('Disconnected', 'bad');
-      messageInput.disabled = true;
-      sendBtn.disabled = true;
-      systemMessage('The other browser disconnected.');
+      if (conn === connection) conn = null;
+      setStatus('Reconnecting…', 'warn');
+      setNote('The live link dropped. Your room partner is saved, and the page will keep trying to reconnect. Unconfirmed messages stay queued.', 'warn');
+      updateComposerState();
+      scheduleReconnect(700);
     });
 
-    conn.on('error', err => {
-      console.error(err);
-      setStatus('Connection error', 'bad');
-      systemMessage('Connection error.');
+    conn.on('error', () => {
+      if (conn === connection) conn = null;
+      setStatus('Reconnecting…', 'warn');
+      setNote('Connection interrupted. Retrying automatically; queued messages will not be discarded.', 'warn');
+      updateComposerState();
+      scheduleReconnect(1000);
     });
   }
 
-  function startPeer() {
-    setStatus('Creating connection code…');
+  function shouldInitiate(remoteId) {
+    if (!peer || !peer.id || !remoteId) return false;
+    return peer.id.localeCompare(remoteId) < 0;
+  }
 
-    peer = new Peer();
+  function tryAutoConnect(force=false) {
+    if (!peerReady || !peer || peer.destroyed) return;
+    if (conn && conn.open) return;
+
+    const remoteId = (remoteIdEl.value.trim() || localStorage.getItem(STORAGE.remoteId) || '').trim();
+    if (!remoteId || remoteId === peer.id) return;
+
+    remoteIdEl.value = remoteId;
+
+    if (!force && !shouldInitiate(remoteId)) {
+      setStatus('Waiting for room partner…', 'warn');
+      setNote('Room remembered. Waiting for the other browser to reconnect to this saved code.', 'warn');
+      scheduleReconnect(2500);
+      return;
+    }
+
+    if (reconnecting) return;
+    reconnecting = true;
+
+    setStatus('Reconnecting…', 'warn');
+
+    try {
+      const connection = peer.connect(remoteId, {
+        reliable: true,
+        serialization: 'json'
+      });
+
+      activateConnection(connection);
+
+      setTimeout(() => {
+        reconnecting = false;
+        if (!connection.open) {
+          try { connection.close(); } catch {}
+          scheduleReconnect(1800);
+        }
+      }, 4500);
+    } catch {
+      reconnecting = false;
+      scheduleReconnect(1800);
+    }
+  }
+
+  function scheduleReconnect(delay=1500) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => tryAutoConnect(false), delay);
+  }
+
+  function startPeer() {
+    const stableId = makeStablePeerId();
+    myIdEl.textContent = stableId;
+    setStatus('Starting…');
+    setNote('Preparing your saved browser identity…');
+
+    if (peer && !peer.destroyed) {
+      try { peer.destroy(); } catch {}
+    }
+
+    peer = new Peer(stableId);
 
     peer.on('open', id => {
-      myId.value = id;
+      peerReady = true;
+      myIdEl.textContent = id;
       setStatus('Ready');
+      setNote(localStorage.getItem(STORAGE.remoteId)
+        ? 'Saved room found. Reconnecting automatically…'
+        : 'Ready. Share your code or paste the other browser’s code once.');
+      updateComposerState();
+      tryAutoConnect(false);
     });
 
     peer.on('connection', incoming => {
-      systemMessage('Incoming connection…');
-      activateConnection(incoming);
-    });
+      const savedRemote = localStorage.getItem(STORAGE.remoteId);
 
-    peer.on('error', err => {
-      console.error(err);
-      setStatus('Network error', 'bad');
-
-      if (err.type === 'peer-unavailable') {
-        systemMessage('That connection code was not found. Check the code and try again.');
+      if (!savedRemote || savedRemote === incoming.peer) {
+        if (!savedRemote) {
+          localStorage.setItem(STORAGE.remoteId, incoming.peer);
+          remoteIdEl.value = incoming.peer;
+        }
+        activateConnection(incoming);
       } else {
-        systemMessage('A network error occurred. Reload the page and try again.');
+        try { incoming.close(); } catch {}
       }
-
-      connectBtn.disabled = false;
     });
 
     peer.on('disconnected', () => {
-      setStatus('Reconnecting…');
-      try { peer.reconnect(); } catch {}
+      peerReady = false;
+      setStatus('Restoring service…', 'warn');
+      setNote('The signaling service disconnected. Trying to restore the same browser code…', 'warn');
+      updateComposerState();
+
+      setTimeout(() => {
+        try {
+          if (!peer.destroyed) peer.reconnect();
+        } catch {}
+      }, 700);
+    });
+
+    peer.on('error', err => {
+      if (err.type === 'unavailable-id') {
+        peerReady = false;
+        setStatus('Restoring code…', 'warn');
+        setNote('Your saved code is still being released by the previous connection. Retrying the same code automatically.', 'warn');
+
+        setTimeout(startPeer, 1800);
+        return;
+      }
+
+      if (err.type === 'peer-unavailable') {
+        reconnecting = false;
+        setStatus('Waiting for room partner…', 'warn');
+        setNote('The other browser is not online yet. This page will keep trying; queued messages stay saved.', 'warn');
+        scheduleReconnect(2500);
+        return;
+      }
+
+      setStatus('Connection issue', 'bad');
+      setNote('A network problem interrupted the link. Automatic retry is still enabled.', 'bad');
+      reconnecting = false;
+      scheduleReconnect(2500);
     });
   }
 
   connectBtn.addEventListener('click', () => {
-    const id = remoteId.value.trim();
+    const id = remoteIdEl.value.trim();
 
     if (!id) {
-      systemMessage('Enter the other browser’s connection code first.');
+      setNote('Paste the full connection code from the other browser first.', 'bad');
       return;
     }
 
-    if (!peer || peer.destroyed) {
-      systemMessage('Connection service is not ready yet.');
+    if (!peerReady) {
+      setNote('This browser is still starting. Your connection code must be ready before linking.', 'warn');
       return;
     }
 
     if (id === peer.id) {
-      systemMessage('Use the code from the other browser, not your own code.');
+      setNote('That is this browser’s own code. Paste the code from the other browser.', 'bad');
       return;
     }
 
-    setStatus('Connecting…');
-    connectBtn.disabled = true;
+    localStorage.setItem(STORAGE.remoteId, id);
+    remoteIdEl.value = id;
+    setNote('Room partner saved. Connecting…', 'warn');
 
-    const connection = peer.connect(id, {
-      reliable: true,
-      serialization: 'json'
-    });
-
-    activateConnection(connection);
-
-    setTimeout(() => {
-      if (!connection.open) connectBtn.disabled = false;
-    }, 5000);
+    reconnecting = false;
+    tryAutoConnect(true);
   });
 
   function sendMessage() {
     const text = messageInput.value.trim();
-    if (!text || !conn || !conn.open) return;
+    if (!text || !peerReady) return;
 
-    conn.send({ type:'chat', text });
-    addMessage(text, true);
+    const msg = {
+      id: makeMessageId(),
+      text,
+      name: myName(),
+      time: Date.now(),
+      mine: true,
+      pending: true
+    };
+
+    outbox.push({
+      id: msg.id,
+      text: msg.text,
+      name: msg.name,
+      time: msg.time
+    });
+
+    saveJSON(STORAGE.outbox, outbox);
+    addLocalMessage(msg);
+
     messageInput.value = '';
     messageInput.focus();
+
+    flushOutbox();
+
+    if (!conn || !conn.open) {
+      setStatus('Queued', 'warn');
+      setNote('Message saved locally. It will be delivered automatically when the room reconnects.', 'warn');
+      tryAutoConnect(false);
+    }
   }
 
   sendBtn.addEventListener('click', sendMessage);
@@ -396,8 +864,19 @@
     }
   });
 
+  displayNameEl.addEventListener('input', () => {
+    localStorage.setItem(STORAGE.name, myName());
+    if (conn && conn.open) sendHello();
+
+    for (const item of history) {
+      if (item.mine) item.name = myName();
+    }
+    saveHistory();
+    renderHistory();
+  });
+
   copyBtn.addEventListener('click', async () => {
-    const value = myId.value;
+    const value = myIdEl.textContent.trim();
     if (!value || value === 'Creating…') return;
 
     try {
@@ -405,11 +884,49 @@
       copyBtn.textContent = 'Copied';
       setTimeout(() => copyBtn.textContent = 'Copy', 1200);
     } catch {
-      myId.select();
-      document.execCommand('copy');
+      const range = document.createRange();
+      range.selectNodeContents(myIdEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
     }
   });
 
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      unread = 0;
+      document.title = 'Browser Link Chat';
+
+      if (peer && peer.disconnected && !peer.destroyed) {
+        try { peer.reconnect(); } catch {}
+      }
+
+      setTimeout(() => tryAutoConnect(false), 200);
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    unread = 0;
+    document.title = 'Browser Link Chat';
+    setTimeout(() => tryAutoConnect(false), 200);
+  });
+
+  window.addEventListener('online', () => {
+    setTimeout(() => tryAutoConnect(false), 200);
+  });
+
+  window.addEventListener('beforeunload', () => {
+    localStorage.setItem(STORAGE.name, myName());
+  });
+
+  const savedName = localStorage.getItem(STORAGE.name);
+  displayNameEl.value = savedName || 'Me';
+
+  const savedRemote = localStorage.getItem(STORAGE.remoteId);
+  if (savedRemote) remoteIdEl.value = savedRemote;
+
+  renderHistory();
+  updateComposerState();
   startPeer();
 })();
 </script>
