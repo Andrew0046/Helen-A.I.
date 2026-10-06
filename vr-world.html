@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#05070b" />
+  <title>Frequency VR World</title>
+
+  <!-- A-Frame 1.7.1 -->
+  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #05070b;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      touch-action: none;
+    }
+
+    #bootUI {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(20, 34, 48, 0.88), rgba(3, 5, 8, 0.97));
+      color: white;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .panel {
+      width: min(92vw, 440px);
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(5, 9, 14, .88);
+      border-radius: 18px;
+      padding: 18px;
+      box-sizing: border-box;
+      box-shadow: 0 18px 50px rgba(0,0,0,.35);
+    }
+
+    .panel h1 {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+    }
+
+    .panel p {
+      margin: 0 0 14px;
+      color: #bcc6d3;
+      line-height: 1.4;
+      font-size: .95rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      min-height: 48px;
+      flex: 1 1 160px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 13px;
+      background: #15212d;
+      color: white;
+      font-size: 16px;
+      padding: 10px 14px;
+    }
+
+    button:active {
+      transform: scale(.98);
+    }
+
+    #status {
+      margin-top: 12px;
+      min-height: 1.4em;
+      color: #8fd8ff;
+      font-size: .9rem;
+    }
+
+    #miniHUD {
+      position: fixed;
+      left: 12px;
+      top: 12px;
+      z-index: 10;
+      pointer-events: none;
+      color: white;
+      background: rgba(0,0,0,.34);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      padding: 8px 10px;
+      font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      backdrop-filter: blur(8px);
+    }
+
+    .hide {
+      display: none !important;
+    }
+
+    .a-enter-vr {
+      right: 12px !important;
+      bottom: 12px !important;
+    }
+  </style>
+
+  <script>
+    // Lightweight floor grid built with Three.js lines.
+    AFRAME.registerComponent('grid-floor', {
+      schema: {
+        width: {type: 'number', default: 40},
+        height: {type: 'number', default: 40},
+        cellSize: {type: 'number', default: 1},
+        sectionSize: {type: 'number', default: 5},
+        color: {type: 'color', default: '#1f4657'},
+        sectionColor: {type: 'color', default: '#2e758d'}
+      },
+
+      init: function () {
+        const group = new THREE.Group();
+        const w = this.data.width;
+        const h = this.data.height;
+
+        const minorMat = new THREE.LineBasicMaterial({
+          color: this.data.color,
+          transparent: true,
+          opacity: 0.42
+        });
+
+        const majorMat = new THREE.LineBasicMaterial({
+          color: this.data.sectionColor,
+          transparent: true,
+          opacity: 0.7
+        });
+
+        const makeLine = (x1, z1, x2, z2, major) => {
+          const geo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(x1, 0, z1),
+            new THREE.Vector3(x2, 0, z2)
+          ]);
+          const line = new THREE.Line(geo, major ? majorMat : minorMat);
+          group.add(line);
+        };
+
+        for (let x = -w / 2; x <= w / 2 + 0.001; x += this.data.cellSize) {
+          const step = Math.round((x + w / 2) / this.data.cellSize);
+          const major = step % this.data.sectionSize === 0;
+          makeLine(x, -h / 2, x, h / 2, major);
+        }
+
+        for (let z = -h / 2; z <= h / 2 + 0.001; z += this.data.cellSize) {
+          const step = Math.round((z + h / 2) / this.data.cellSize);
+          const major = step % this.data.sectionSize === 0;
+          makeLine(-w / 2, z, w / 2, z, major);
+        }
+
+        this.group = group;
+        this.minorMat = minorMat;
+        this.majorMat = majorMat;
+        this.el.setObject3D('grid-floor', group);
+      },
+
+      remove: function () {
+        this.group?.traverse(obj => obj.geometry?.dispose?.());
+        this.minorMat?.dispose();
+        this.majorMat?.dispose();
+        this.el.removeObject3D('grid-floor');
+      }
+    });
+
+    // A single 3D line whose points can be changed every frame.
+    AFRAME.registerComponent('frequency-wave', {
+      schema: {
+        bins: { type: 'int', default: 96 },
+        width: { type: 'number', default: 10 },
+        height: { type: 'number', default: 3.2 },
+        gain: { type: 'number', default: 1.7 },
+        zDepth: { type: 'number', default: 0.55 },
+        smoothing: { type: 'number', default: 0.70 }
+      },
+
+      init: function () {
+        this.count = this.data.bins;
+        this.positions = new Float32Array(this.count * 3);
+        this.last = new Float32Array(this.count);
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute(
+          'position',
+          new THREE.BufferAttribute(this.positions, 3)
+        );
+
+        const material = new THREE.LineBasicMaterial({
+          color: new THREE.Color(0.25, 0.85, 1.0),
+          transparent: true,
+          opacity: 0.95
+        });
+
+        this.line = new THREE.Line(geometry, material);
+        this.el.setObject3D('freq-line', this.line);
+      },
+
+      tick: function (time) {
+        const spectrum = window.freqVR?.frequencyData;
+        const micReady = !!window.freqVR?.micReady;
+        const n = this.count;
+        const t = time * 0.001;
+
+        for (let i = 0; i < n; i++) {
+          const x = ((i / (n - 1)) - 0.5) * this.data.width;
+
+          let level;
+          if (micReady && spectrum && spectrum.length) {
+            const index = Math.floor((i / (n - 1)) * Math.min(spectrum.length - 1, 260));
+            const raw = spectrum[index] / 255;
+            level = Math.pow(raw, 1.35);
+          } else {
+            // Calm idle animation before microphone permission.
+            level = 0.06 + 0.035 * Math.sin(t * 2.0 + i * 0.33);
+          }
+
+          this.last[i] =
+            this.last[i] * this.data.smoothing +
+            level * (1 - this.data.smoothing);
+
+          const y =
+            0.3 +
+            this.last[i] * this.data.height * this.data.gain +
+            Math.sin(i * 0.22 + t * 1.5) * 0.045;
+
+          const z =
+            Math.sin(i * 0.19 + t * 1.1) *
+            this.data.zDepth *
+            (0.25 + this.last[i]);
+
+          const p = i * 3;
+          this.positions[p] = x;
+          this.positions[p + 1] = y;
+          this.positions[p + 2] = z;
+        }
+
+        const attr = this.line.geometry.attributes.position;
+        attr.needsUpdate = true;
+        this.line.geometry.computeBoundingSphere();
+
+        if (window.freqVR?.averageLevel != null) {
+          const energy = window.freqVR.averageLevel;
+          const hue = 0.52 + Math.min(0.13, energy * 0.18);
+          this.line.material.color.setHSL(hue, 0.82, 0.62);
+          this.line.material.opacity = 0.66 + Math.min(0.32, energy * 0.75);
+        }
+      },
+
+      remove: function () {
+        if (this.line) {
+          this.line.geometry.dispose();
+          this.line.material.dispose();
+          this.el.removeObject3D('freq-line');
+        }
+      }
+    });
+
+    // A circular spectrum made from vertical bars around the player.
+    AFRAME.registerComponent('frequency-ring', {
+      schema: {
+        bars: { type: 'int', default: 48 },
+        radius: { type: 'number', default: 5.2 },
+        baseY: { type: 'number', default: 0.05 },
+        maxHeight: { type: 'number', default: 3.6 }
+      },
+
+      init: function () {
+        this.group = new THREE.Group();
+        this.el.setObject3D('frequency-ring', this.group);
+        this.items = [];
+        this.last = new Float32Array(this.data.bars);
+
+        const geo = new THREE.BoxGeometry(0.045, 1, 0.045);
+
+        for (let i = 0; i < this.data.bars; i++) {
+          const mat = new THREE.MeshBasicMaterial({
+            color: new THREE.Color().setHSL(0.53 + (i / this.data.bars) * 0.08, 0.8, 0.58),
+            transparent: true,
+            opacity: 0.72
+          });
+
+          const mesh = new THREE.Mesh(geo, mat);
+
+          // Front 210-degree arc: comfortable for Cardboard use.
+          const angle = THREE.MathUtils.degToRad(-105 + (i / (this.data.bars - 1)) * 210);
+          mesh.userData.angle = angle;
+
+          mesh.position.x = Math.sin(angle) * this.data.radius;
+          mesh.position.z = -Math.cos(angle) * this.data.radius;
+
+          this.group.add(mesh);
+          this.items.push(mesh);
+        }
+
+        this.geometry = geo;
+      },
+
+      tick: function () {
+        const data = window.freqVR?.frequencyData;
+        const micReady = !!window.freqVR?.micReady;
+        const avg = window.freqVR?.averageLevel || 0;
+
+        for (let i = 0; i < this.items.length; i++) {
+          let level = 0.05;
+
+          if (micReady && data && data.length) {
+            // Weight toward musically useful low/mid spectrum.
+            const normalized = i / Math.max(1, this.items.length - 1);
+            const index = Math.floor(Math.pow(normalized, 1.55) * Math.min(data.length - 1, 340));
+            level = Math.pow(data[index] / 255, 1.4);
+          }
+
+          this.last[i] = this.last[i] * 0.78 + level * 0.22;
+
+          const h = 0.22 + this.last[i] * this.data.maxHeight;
+          const mesh = this.items[i];
+
+          mesh.scale.y = h;
+          mesh.position.y = this.data.baseY + h * 0.5;
+
+          const lightness = Math.min(0.72, 0.46 + this.last[i] * 0.24 + avg * 0.06);
+          mesh.material.color.setHSL(0.52 + (i / this.items.length) * 0.11, 0.82, lightness);
+        }
+      },
+
+      remove: function () {
+        this.items.forEach(m => m.material.dispose());
+        if (this.geometry) this.geometry.dispose();
+        this.el.removeObject3D('frequency-ring');
+      }
+    });
+
+    // Slow environmental "breathing" driven by overall mic volume.
+    AFRAME.registerComponent('audio-reactive-core', {
+      tick: function (time) {
+        const avg = window.freqVR?.averageLevel || 0;
+        const pulse = 1 + avg * 0.8 + Math.sin(time * 0.0018) * 0.06;
+        this.el.object3D.scale.setScalar(pulse);
+      }
+    });
+  </script>
+</head>
+
+<body>
+  <div id="bootUI">
+    <div class="panel">
+      <h1>Frequency VR World</h1>
+      <p>
+        Put the phone sideways in your Cardboard headset after starting the microphone.
+        The glowing lines and spectrum pillars react to sound around you.
+      </p>
+
+      <div class="row">
+        <button id="startBtn" type="button">Start World + Mic</button>
+        <button id="demoBtn" type="button">Demo Without Mic</button>
+      </div>
+
+      <div id="status">Ready.</div>
+    </div>
+  </div>
+
+  <div id="miniHUD">
+    FREQ VR<br>
+    <span id="micState">MIC: OFF</span><br>
+    <span id="energyState">ENERGY: 0.00</span>
+  </div>
+
+  <a-scene
+    id="scene"
+    background="color: #05070b"
+    fog="type: exponential; color: #05070b; density: 0.027"
+    renderer="antialias: true; colorManagement: true; highRefreshRate: true"
+    vr-mode-ui="enabled: true"
+    device-orientation-permission-ui="enabled: true">
+
+    <!-- Soft world lighting -->
+    <a-entity light="type: ambient; intensity: 0.45; color: #89a7c2"></a-entity>
+    <a-entity
+      light="type: directional; intensity: 0.8; color: #9fdcff"
+      position="-2 5 2">
+    </a-entity>
+
+    <!-- Ground -->
+    <a-plane
+      rotation="-90 0 0"
+      width="60"
+      height="60"
+      color="#0a0f14"
+      material="roughness: 1; metalness: 0.1">
+    </a-plane>
+
+    <!-- Grid -->
+    <a-entity
+      position="0 0.012 0"
+      grid-floor="width: 40; height: 40; cellSize: 1; sectionSize: 5; color: #1f4657; sectionColor: #2e758d">
+    </a-entity>
+
+    <!-- Central landmark -->
+    <a-cylinder
+      position="0 1.05 -7"
+      radius="0.8"
+      height="2.1"
+      color="#111a22"
+      metalness="0.55"
+      roughness="0.35">
+    </a-cylinder>
+
+    <a-sphere
+      position="0 2.4 -7"
+      radius="0.42"
+      color="#5fdcff"
+      material="emissive: #2ba5c8; emissiveIntensity: 1.2"
+      audio-reactive-core>
+    </a-sphere>
+
+    <!-- Main floating waveform -->
+    <a-entity
+      position="0 1.15 -5.3"
+      frequency-wave="bins: 120; width: 9.6; height: 2.6; gain: 1.5; zDepth: 0.42;">
+    </a-entity>
+
+    <!-- A second line slightly farther back for depth -->
+    <a-entity
+      position="0 1.05 -5.8"
+      scale="0.88 0.88 0.88"
+      rotation="0 0 180"
+      frequency-wave="bins: 84; width: 9; height: 2.1; gain: 1.2; zDepth: 0.28;">
+    </a-entity>
+
+    <!-- Frequency pillars around the front -->
+    <a-entity frequency-ring="bars: 56; radius: 6.8; maxHeight: 4.0;"></a-entity>
+
+    <!-- Atmospheric objects -->
+    <a-ring
+      position="0 0.04 -7"
+      rotation="-90 0 0"
+      radius-inner="1.4"
+      radius-outer="1.46"
+      color="#2ea4c5"
+      material="transparent: true; opacity: 0.6">
+    </a-ring>
+
+    <a-ring
+      position="0 0.035 -7"
+      rotation="-90 0 0"
+      radius-inner="2.4"
+      radius-outer="2.43"
+      color="#315c72"
+      material="transparent: true; opacity: 0.45">
+    </a-ring>
+
+    <!-- Player -->
+    <a-entity id="rig" position="0 1.6 2.2">
+      <a-camera
+        id="camera"
+        look-controls="pointerLockEnabled: false; touchEnabled: true"
+        wasd-controls-enabled="false">
+
+        <!-- Gaze reticle -->
+        <a-entity
+          cursor="fuse: false"
+          position="0 0 -1"
+          geometry="primitive: ring; radiusInner: 0.006; radiusOuter: 0.010"
+          material="color: #bdefff; shader: flat; opacity: 0.75">
+        </a-entity>
+      </a-camera>
+    </a-entity>
+
+    <!-- Floating world labels -->
+    <a-text
+      value="FREQUENCY FIELD"
+      align="center"
+      width="5"
+      color="#d6f5ff"
+      position="0 4.1 -7.5">
+    </a-text>
+
+    <a-text
+      value="Turn your head to look around"
+      align="center"
+      width="4"
+      color="#7fa5b6"
+      position="0 3.65 -7.45">
+    </a-text>
+
+  </a-scene>
+
+  <script>
+        const bootUI = document.getElementById('bootUI');
+    const statusEl = document.getElementById('status');
+    const startBtn = document.getElementById('startBtn');
+    const demoBtn = document.getElementById('demoBtn');
+    const micState = document.getElementById('micState');
+    const energyState = document.getElementById('energyState');
+
+    window.freqVR = {
+      audioContext: null,
+      analyser: null,
+      stream: null,
+      frequencyData: new Uint8Array(512),
+      micReady: false,
+      averageLevel: 0
+    };
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function updateAudio() {
+      const s = window.freqVR;
+
+      if (s.analyser && s.micReady) {
+        s.analyser.getByteFrequencyData(s.frequencyData);
+
+        let sum = 0;
+        const usable = Math.min(s.frequencyData.length, 360);
+        for (let i = 0; i < usable; i++) {
+          sum += s.frequencyData[i] / 255;
+        }
+
+        const avg = usable ? sum / usable : 0;
+        s.averageLevel = s.averageLevel * 0.78 + avg * 0.22;
+      } else {
+        const time = performance.now() * 0.001;
+        for (let i = 0; i < s.frequencyData.length; i++) {
+          s.frequencyData[i] =
+            18 +
+            Math.max(0, Math.sin(time * 2 + i * 0.08)) * 18 +
+            Math.max(0, Math.sin(time * 0.6 + i * 0.025)) * 10;
+        }
+        s.averageLevel = 0.055;
+      }
+
+      energyState.textContent = 'ENERGY: ' + s.averageLevel.toFixed(2);
+      requestAnimationFrame(updateAudio);
+    }
+
+    async function startMicrophone() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Microphone access is not available in this browser.');
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          channelCount: 1
+        },
+        video: false
+      });
+
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const audioContext = new AudioContextClass();
+
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.74;
+      analyser.minDecibels = -90;
+      analyser.maxDecibels = -18;
+
+      source.connect(analyser);
+
+      window.freqVR.audioContext = audioContext;
+      window.freqVR.analyser = analyser;
+      window.freqVR.stream = stream;
+      window.freqVR.frequencyData = new Uint8Array(analyser.frequencyBinCount);
+      window.freqVR.micReady = true;
+      window.freqVR.averageLevel = 0;
+
+      micState.textContent = 'MIC: LIVE';
+    }
+
+    async function startWorld(withMic) {
+      startBtn.disabled = true;
+      demoBtn.disabled = true;
+
+      if (withMic) {
+        setStatus('Requesting microphone permission…');
+
+        try {
+          await startMicrophone();
+          setStatus('Microphone live. Enter VR when ready.');
+        } catch (err) {
+          console.warn(err);
+          setStatus('Mic was unavailable, so the visual demo is running instead.');
+          micState.textContent = 'MIC: DEMO';
+        }
+      } else {
+        micState.textContent = 'MIC: DEMO';
+        setStatus('Demo mode ready.');
+      }
+
+      // Ask for orientation permission on iOS devices that require a user gesture.
+      try {
+        if (
+          typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function'
+        ) {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission !== 'granted') {
+            console.warn('Device orientation permission not granted.');
+          }
+        }
+      } catch (err) {
+        console.warn('Orientation permission:', err);
+      }
+
+      setTimeout(() => {
+        bootUI.classList.add('hide');
+      }, 350);
+    }
+
+    startBtn.addEventListener('click', () => startWorld(true));
+    demoBtn.addEventListener('click', () => startWorld(false));
+
+    document.addEventListener('visibilitychange', async () => {
+      if (
+        document.visibilityState === 'visible' &&
+        window.freqVR.audioContext?.state === 'suspended'
+      ) {
+        try {
+          await window.freqVR.audioContext.resume();
+        } catch {}
+      }
+    });
+
+    window.addEventListener('beforeunload', () => {
+      window.freqVR.stream?.getTracks().forEach(track => track.stop());
+      window.freqVR.audioContext?.close?.();
+    });
+
+    updateAudio();
+  </script>
+</body>
+</html>
