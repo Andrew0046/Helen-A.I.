@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BuildView XR V4.2 — Unified Clean Workspace</title>
+    <title>BuildView XR V4.3 — Player Anchored Menu</title>
     
 
 
@@ -816,7 +816,7 @@ button:hover,
 
     // Compact menu pages keep the primary VR view clear.
     let menuPage = "OBJECT";       // OBJECT | ASSETS | MORE
-    let menuDockMode = "WORLD";   // WORLD | OBJECT
+    let menuDockMode = "PLAYER";  // PLAYER | OBJECT
     const MAX_MENU_VISIBLE = 8;
 
     let pendingRestore = false;
@@ -1085,10 +1085,10 @@ button:hover,
     }
 
     function toggleMenuDock() {
-        menuDockMode = menuDockMode === "WORLD" ? "OBJECT" : "WORLD";
+        menuDockMode = menuDockMode === "PLAYER" ? "OBJECT" : "PLAYER";
         menuGroup.userData.locked = false;
         updateMenuPosition(true);
-        setBuilderMessage(`MENU DOCK: ${menuDockMode}`);
+        setBuilderMessage(`Menu position: ${menuDockMode === "PLAYER" ? "Player" : "Object"}`);
         updateMenuDisplay();
     }
 
@@ -1109,7 +1109,7 @@ button:hover,
                 { label:"Scale -10%", action:"SCALE_DOWN", type:"sys" },
                 { label:"Align to Floor", action:"ALIGN_FLOOR", type:"sys" },
                 { label:"Center in View", action:"CENTER_VIEW", type:"sys" },
-                { label:`Menu Position: ${menuDockMode}`, action:"TOGGLE_DOCK", type:"sys" },
+                { label:`Menu Position: ${menuDockMode === "PLAYER" ? "Player" : "Object"}`, action:"TOGGLE_DOCK", type:"sys" },
                 { label:"Advanced Tools", action:"PAGE_MORE", type:"nav" }
             ];
         }
@@ -2289,36 +2289,54 @@ button:hover,
     }
 
     function updateMenuPosition(force = false) {
-        if (!isMenuOpen || !menuGroup || !camera) return;
+        if (!isMenuOpen || !menuGroup || !camera || !dolly) return;
 
-        // IMPORTANT: gaze is the menu selector. The menu must NOT be parented
-        // to the headset/camera, otherwise turning to look at it makes it move
-        // away with the user's head. WORLD mode freezes it where it was opened.
-        if (menuDockMode === "WORLD") {
+        // PLAYER mode:
+        // The panel is parented to the player's dolly/body rig, NOT the headset.
+        // This means it travels with the user but does not chase every head turn,
+        // so gaze selection still works normally.
+        if (menuDockMode === "PLAYER") {
             if (!force && menuGroup.userData.locked) return;
 
-            if (menuGroup.parent !== scene) scene.attach(menuGroup);
-
+            const viewPos = getViewPosition(new THREE.Vector3());
             const dir = getViewDirection(new THREE.Vector3());
+
+            // Keep the menu level even if the user opened it while looking down
+            // at the floor-mounted menu button.
             dir.y = 0;
             if (dir.lengthSq() < 0.0001) dir.set(0, 0, -1);
             dir.normalize();
 
-            const worldPos = getViewPosition(new THREE.Vector3());
-            const targetPos = worldPos.clone().add(dir.multiplyScalar(2.25));
+            const up = new THREE.Vector3(0, 1, 0);
+            const right = new THREE.Vector3().crossVectors(dir, up).normalize();
 
-            menuGroup.position.copy(targetPos);
-            menuGroup.position.y = worldPos.y - 0.05;
-            menuGroup.lookAt(worldPos.x, menuGroup.position.y, worldPos.z);
+            // Close enough to read and gaze-select, slightly offset to the right.
+            const targetWorld = viewPos.clone()
+                .addScaledVector(dir, 1.55)
+                .addScaledVector(right, 0.22);
+
+            targetWorld.y = viewPos.y - 0.08;
+
+            if (menuGroup.parent !== dolly) {
+                dolly.attach(menuGroup);
+            }
+
+            // Convert the desired world location to dolly-local coordinates.
+            const localTarget = dolly.worldToLocal(targetWorld.clone());
+            menuGroup.position.copy(localTarget);
+
+            // Face the user once when it opens. Head movement afterward does
+            // not drag the panel around.
+            menuGroup.lookAt(viewPos);
+
             menuGroup.userData.locked = true;
             return;
         }
 
-        // OBJECT mode also remains in world space; it is placed beside the
-        // selected environment instead of following the user's head.
+        // OBJECT mode: place beside the selected environment/model.
         const obj = getSelectedObject();
         if (!obj || !obj.parent) {
-            menuDockMode = "WORLD";
+            menuDockMode = "PLAYER";
             menuGroup.userData.locked = false;
             updateMenuPosition(true);
             return;
@@ -2329,14 +2347,17 @@ button:hover,
         const box = new THREE.Box3().setFromObject(obj);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        const sideOffset = THREE.MathUtils.clamp(size.x * 0.55 + 0.45, 0.7, 1.8);
-        const verticalOffset = THREE.MathUtils.clamp(size.y * 0.20, 0.15, 0.8);
+
+        // Clamp heavily so a huge building cannot throw the menu far away.
+        const sideOffset = THREE.MathUtils.clamp(size.x * 0.08 + 0.55, 0.65, 1.20);
+        const verticalOffset = THREE.MathUtils.clamp(size.y * 0.08, 0.10, 0.55);
 
         menuGroup.position.set(
             center.x + sideOffset,
             center.y + verticalOffset,
             center.z
         );
+
         menuGroup.lookAt(getViewPosition(new THREE.Vector3()));
         menuGroup.userData.locked = true;
     }
@@ -2623,7 +2644,7 @@ button:hover,
         ctx.font = '24px Arial';
         ctx.textAlign = 'right';
         ctx.fillStyle = '#7a828b';
-        ctx.fillText(menuDockMode === "WORLD" ? "World menu" : "Object menu", w - 58, 72);
+        ctx.fillText(menuDockMode === "PLAYER" ? "Player menu" : "Object menu", w - 58, 72);
 
         ctx.strokeStyle = '#e3e6ea';
         ctx.lineWidth = 2;
