@@ -3,60 +3,549 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>HELEN: VR ENVIRONMENT V3.5</title>
-    <style>
-        body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action:none; }
+    <title>BuildView XR V4.2 — Unified Clean Workspace</title>
+    
 
-        #overlay {
-            position:absolute; top:0; left:0; width:100%; height:100%;
-            background:rgba(0,0,0,0.95); color:#00ffff;
-            display:flex; flex-direction:column; align-items:center; justify-content:center;
-            z-index:100;
-        }
 
-        h1 { font-size:40px; text-shadow:0 0 10px #00ffff; margin-bottom:10px; }
+<style>
+:root{
+  --page:#f6f7f8;
+  --surface:#fff;
+  --soft:#f0f2f4;
+  --text:#171a1e;
+  --muted:#6f7680;
+  --line:#e3e6ea;
+  --dark:#1d2126;
+  --danger:#b4475b;
+  --shadow:0 12px 38px rgba(20,25,32,.08);
+}
 
-        .status {
-            margin-top:10px; font-size:14px; color:#aaa; text-align:center;
-            line-height:1.5; white-space:pre-wrap;
-        }
+*{box-sizing:border-box}
+html,body{width:100%;height:100%}
 
-        .btn-group {
-            display:flex; flex-direction:column; gap:15px; margin-top:20px;
-            width:80%; max-width:300px;
-        }
+body{
+  margin:0;
+  overflow:hidden;
+  background:var(--page);
+  color:var(--text);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  touch-action:none;
+}
 
-        button {
-            padding:15px; font-size:16px; font-weight:bold; font-family:'Courier New', monospace;
-            background:transparent; color:#00ffff; border:2px solid #00ffff;
-            cursor:pointer; text-transform:uppercase; transition:0.2s;
-        }
+#overlay{
+  position:absolute;
+  inset:0;
+  z-index:100;
+  overflow:auto;
+  background:linear-gradient(180deg,#fff 0%,#f6f7f8 58%,#eef1f3 100%);
+}
 
-        button:hover { background:#00ffff; color:#000; }
+.site-shell{
+  width:min(1180px,calc(100% - 40px));
+  margin:0 auto;
+  padding:22px 0 54px;
+}
 
-        .danger-btn { border-color:#ff0055; color:#ff0055; margin-top:8px; }
-        .danger-btn:hover { background:#ff0055; color:#fff; }
+.site-nav{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  padding:6px 0 24px;
+}
 
-        .file-count {
-            color:#00ff00; font-size:12px; margin-top:-10px;
-            text-align:right; display:none;
-        }
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-weight:800;
+  font-size:20px;
+  letter-spacing:-.02em;
+}
 
-        .controls-hint {
-            font-size:11px; color:#666; margin-top:20px;
-            text-align:left; width:100%;
-        }
+.brand-mark{
+  width:38px;height:38px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  background:#1b1f24;
+  color:#fff;
+  font-size:13px;
+  box-shadow:0 5px 18px rgba(0,0,0,.12);
+}
 
-        #restore-msg {
-            color:#ffff00; font-weight:bold; display:none; margin-bottom:10px;
-        }
+.nav-links{
+  display:flex;
+  align-items:center;
+  gap:22px;
+  color:var(--muted);
+  font-size:14px;
+}
 
-        #flash {
-            position:absolute; top:0; left:0; width:100%; height:100%;
-            background:#fff; opacity:0; pointer-events:none; z-index:200;
-            transition:opacity 0.1s;
-        }
-    </style>
+.nav-pill{
+  padding:10px 14px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--text);
+  font-weight:600;
+}
+
+.hero{
+  display:grid;
+  grid-template-columns:1.08fr .92fr;
+  gap:44px;
+  align-items:center;
+  min-height:450px;
+  padding:52px 0 40px;
+}
+
+.eyebrow{
+  display:inline-flex;
+  align-items:center;
+  margin-bottom:18px;
+  padding:8px 12px;
+  border-radius:999px;
+  background:var(--soft);
+  color:#4a525b;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+h1{
+  margin:0;
+  font-size:clamp(3rem,6vw,5.8rem);
+  line-height:.96;
+  letter-spacing:-.06em;
+  font-weight:800;
+  color:#171a1e;
+}
+
+.hero-sub{
+  margin:24px 0 0;
+  max-width:620px;
+  font-size:18px;
+  line-height:1.7;
+  color:var(--muted);
+}
+
+.hero-note{
+  margin-top:24px;
+  display:flex;
+  gap:22px;
+  flex-wrap:wrap;
+  color:#4d545c;
+  font-size:14px;
+}
+
+.hero-note span{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+
+.dot{
+  width:7px;height:7px;border-radius:50%;
+  background:#8a939d;
+}
+
+.hero-panel{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:28px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+
+.hero-visual{
+  min-height:330px;
+  padding:28px;
+  display:flex;
+  align-items:center;
+  background:linear-gradient(145deg,#ebeef1,#f8f9fa 54%,#e7eaed);
+}
+
+.mock-window{
+  width:100%;
+  aspect-ratio:16/10;
+  border-radius:18px;
+  background:#fff;
+  border:1px solid #dfe3e7;
+  box-shadow:0 16px 35px rgba(31,38,46,.11);
+  overflow:hidden;
+}
+
+.mock-top{
+  height:32px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:0 12px;
+  border-bottom:1px solid #e9ebee;
+  background:#fafbfc;
+}
+
+.mock-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:#d6dade;
+}
+
+.mock-room{
+  height:calc(100% - 32px);
+  position:relative;
+  background:linear-gradient(145deg,#dadfe3,#f4f5f6 58%,#cfd4d9);
+}
+
+.room-wall{
+  position:absolute;
+  left:11%;top:15%;
+  width:78%;height:68%;
+  border-radius:8px;
+  background:#f8f8f6;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.04);
+}
+
+.room-floor{
+  position:absolute;
+  left:8%;bottom:8%;
+  width:84%;height:32%;
+  background:linear-gradient(180deg,#d9d5cf,#c7c1b9);
+  clip-path:polygon(10% 0,90% 0,100% 100%,0 100%);
+}
+
+.room-window{
+  position:absolute;
+  left:18%;top:24%;
+  width:26%;height:30%;
+  border:6px solid #f5f6f6;
+  background:linear-gradient(180deg,#c9d7df,#edf2f4);
+}
+
+.room-island{
+  position:absolute;
+  left:42%;bottom:20%;
+  width:34%;height:18%;
+  border-radius:6px 6px 3px 3px;
+  background:#d0cec9;
+  box-shadow:0 8px 16px rgba(0,0,0,.12);
+}
+
+.room-island::before{
+  content:"";
+  position:absolute;
+  left:-4%;top:-12%;
+  width:108%;height:16%;
+  border-radius:4px;
+  background:#fafafa;
+  box-shadow:0 2px 5px rgba(0,0,0,.08);
+}
+
+.panel-caption{
+  padding:18px 22px 22px;
+}
+
+.panel-caption strong{
+  display:block;
+  font-size:15px;
+  margin-bottom:4px;
+}
+
+.panel-caption span{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.45;
+}
+
+.section{padding-top:28px}
+
+.section-head{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:24px;
+  margin-bottom:18px;
+}
+
+.section-title{
+  margin:0;
+  font-size:26px;
+  letter-spacing:-.03em;
+  font-weight:750;
+}
+
+.section-sub{
+  max-width:620px;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.65;
+}
+
+.launch-grid{
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:18px;
+}
+
+.card{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:22px;
+  box-shadow:0 7px 26px rgba(20,25,32,.05);
+}
+
+.action-card{padding:22px}
+.action-list{display:grid;gap:10px}
+
+button,
+#vr-btn-container button,
+#vr-btn-container a{
+  width:100%;
+  min-height:62px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:15px 16px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--text);
+  font-family:inherit;
+  text-align:left;
+  text-decoration:none;
+  cursor:pointer;
+  transition:background .15s ease,border-color .15s ease,transform .15s ease,box-shadow .15s ease;
+}
+
+button:hover,
+#vr-btn-container button:hover,
+#vr-btn-container a:hover{
+  background:#f9fafb;
+  border-color:#ccd2d8;
+  transform:translateY(-1px);
+  box-shadow:0 7px 18px rgba(24,30,36,.07);
+}
+
+.primary-action{
+  background:#1d2126 !important;
+  color:#fff !important;
+  border-color:#1d2126 !important;
+}
+
+.primary-action:hover{
+  background:#111418 !important;
+  border-color:#111418 !important;
+}
+
+.btn-icon{
+  width:38px;height:38px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  background:var(--soft);
+  font-size:17px;
+}
+
+.primary-action .btn-icon{background:rgba(255,255,255,.12)}
+
+.btn-copy{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+  flex:1;
+}
+
+.btn-title{
+  font-size:15px;
+  font-weight:700;
+  color:inherit;
+}
+
+.btn-sub{
+  font-size:12.5px;
+  line-height:1.45;
+  color:#7c848d;
+}
+
+.primary-action .btn-sub{color:#c9ced3}
+
+.btn-arrow{
+  color:#a5acb4;
+  margin-left:auto;
+  font-size:18px;
+}
+
+.secondary-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.status-card{padding:22px}
+.status-list{display:grid;gap:14px}
+
+.status-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding-bottom:13px;
+  border-bottom:1px solid #eceef0;
+}
+
+.status-row:last-child{
+  border-bottom:0;
+  padding-bottom:0;
+}
+
+.status-label{
+  color:#4d545c;
+  font-size:13px;
+  font-weight:650;
+}
+
+.status-value{
+  color:var(--muted);
+  font-size:13px;
+  text-align:right;
+}
+
+#restore-msg{
+  display:none;
+  margin-bottom:12px;
+  padding:11px 13px;
+  border-radius:12px;
+  background:#eef8f3;
+  border:1px solid #d8eee2;
+  color:#26744f;
+  font-size:13px;
+  font-weight:650;
+}
+
+.file-count{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:58px;
+  padding:14px 15px;
+  border-radius:14px;
+  background:#f8f9fa;
+  border:1px solid var(--line);
+  color:#414850;
+  font-size:13px;
+  font-weight:650;
+}
+
+.file-count small{
+  color:#8a929a;
+  font-size:12px;
+  font-weight:500;
+}
+
+.controls{
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid var(--line);
+}
+
+.controls-title{
+  margin-bottom:10px;
+  font-size:12px;
+  font-weight:750;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#868e97;
+}
+
+.control-row{
+  display:grid;
+  grid-template-columns:92px 1fr;
+  gap:12px;
+  padding:8px 0;
+  font-size:13px;
+  line-height:1.55;
+}
+
+.control-tag{
+  color:#3f454c;
+  font-weight:700;
+}
+
+.control-text{color:var(--muted)}
+
+.danger-btn{
+  margin-top:10px;
+  justify-content:center !important;
+  color:var(--danger) !important;
+  background:#fff !important;
+  border-color:#eed7dd !important;
+}
+
+.danger-btn:hover{
+  background:#fff8fa !important;
+  border-color:#e6bdc8 !important;
+}
+
+.footer{
+  margin-top:34px;
+  padding-top:22px;
+  border-top:1px solid var(--line);
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  color:#9299a1;
+  font-size:12px;
+  line-height:1.6;
+}
+
+#flash{
+  position:absolute;
+  inset:0;
+  background:#fff;
+  opacity:0;
+  pointer-events:none;
+  z-index:200;
+  transition:opacity .1s;
+}
+
+@media(max-width:920px){
+  .hero,.launch-grid{grid-template-columns:1fr}
+  .hero{gap:26px;padding-top:36px}
+}
+
+@media(max-width:620px){
+  .site-shell{
+    width:min(100% - 24px,1180px);
+    padding-top:14px;
+  }
+
+  .nav-links{display:none}
+  .hero{padding-top:24px}
+
+  h1{
+    font-size:clamp(2.8rem,12vw,4.2rem);
+  }
+
+  .secondary-actions{grid-template-columns:1fr}
+
+  .section-head,.footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .control-row{
+    grid-template-columns:1fr;
+    gap:3px;
+  }
+}
+</style>
+
+
+
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
@@ -82,35 +571,188 @@
 
 <input type="file" id="intel-input" multiple accept="*/*" style="display:none">
 
+
+
+
 <div id="overlay">
-    <h1>HELEN VR ENVIRONMENT</h1>
-    <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
+  <main class="site-shell">
+    <nav class="site-nav">
+      <div class="brand">
+        <div class="brand-mark">BV</div>
+        <span>BuildView XR</span>
+      </div>
 
-    <div class="status" id="system-status">
-        [ VR ENVIRONMENT READY ]<br>
-        LOAD A 3D SPACE • SCALE IT • STEP INSIDE.<br>
-        ADVANCED TOOLS REMAIN AVAILABLE UNDER MORE.
-    </div>
+      <div class="nav-links">
+        <span>Workspace</span>
+        <span>VR Preview</span>
+        <span class="nav-pill">HELEN Engine</span>
+      </div>
+    </nav>
 
-    <div class="btn-group" id="main-controls">
-        <button onclick="document.getElementById('intel-input').click()">📦 LOAD 3D SPACE / ASSETS</button>
-        <button onclick="requestTiltAccess()">📱 ENABLE TILT DRIVE</button>
-        <button onclick="enterCinemaMode()">🎥 CINEMA FOR VR</button>
-        <div id="file-status" class="file-count">0 FILES LOADED</div>
-        <div id="vr-btn-container"></div>
-        <button onclick="resetSystem()" class="danger-btn">[ RESET SYSTEM ]</button>
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">3D space visualization</div>
+        <h1>See the project<br>before it is built.</h1>
 
-        <div class="controls-hint">
-            [A/X] SELECT / RELEASE 3D SPACE<br>
-            [X/SQUARE] MOVE / ROTATE / SCALE MODE<br>
-            [LEFT/RIGHT STICK] TRANSFORM / EXPLORE<br>
-            [B/CIRCLE] CANCEL MANIPULATION<br>
-            [GAZE RED] OPEN COMPACT SIDE MENU
+        <p class="hero-sub">
+          Import a room, renovation, interior, or construction model.
+          Set up the scene on desktop, then step inside it in VR to review scale,
+          layout, and the finished look.
+        </p>
+
+        <div class="hero-note">
+          <span><span class="dot"></span>Desktop setup</span>
+          <span><span class="dot"></span>Controller support</span>
+          <span><span class="dot"></span>VR walkthrough</span>
         </div>
-    </div>
+      </div>
+
+      <div class="hero-panel">
+        <div class="hero-visual">
+          <div class="mock-window" aria-hidden="true">
+            <div class="mock-top">
+              <span class="mock-dot"></span>
+              <span class="mock-dot"></span>
+              <span class="mock-dot"></span>
+            </div>
+            <div class="mock-room">
+              <div class="room-wall"></div>
+              <div class="room-floor"></div>
+              <div class="room-window"></div>
+              <div class="room-island"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-caption">
+          <strong>Project workspace</strong>
+          <span>Prepare your 3D environment, scale it, and preview it from a human point of view.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2 class="section-title">Start your workspace</h2>
+        <div class="section-sub">
+          Import the project first, then use desktop mode for setup or VR for immersive review.
+        </div>
+      </div>
+
+      <div class="launch-grid">
+        <div class="card action-card">
+          <div id="restore-msg">Saved setup found — you can resume where you left off.</div>
+
+          <div class="action-list" id="main-controls">
+            <button class="primary-action" onclick="document.getElementById('intel-input').click()">
+              <span class="btn-icon">📁</span>
+              <span class="btn-copy">
+                <span class="btn-title">Import Project Files</span>
+                <span class="btn-sub">Load your 3D model, images, media, and project references.</span>
+              </span>
+              <span class="btn-arrow">›</span>
+            </button>
+
+            <button onclick="enterDesktopMode()" id="desktop-btn">
+              <span class="btn-icon">🖥️</span>
+              <span class="btn-copy">
+                <span class="btn-title">Open Desktop Workspace</span>
+                <span class="btn-sub">Set up, position, rotate, scale, and inspect the scene in your browser.</span>
+              </span>
+              <span class="btn-arrow">›</span>
+            </button>
+
+            <div id="vr-btn-container"></div>
+
+            <div class="secondary-actions">
+              <button onclick="requestTiltAccess()">
+                <span class="btn-icon">📱</span>
+                <span class="btn-copy">
+                  <span class="btn-title">Motion Controls</span>
+                  <span class="btn-sub">Enable phone tilt movement.</span>
+                </span>
+              </button>
+
+              <button onclick="enterCinemaMode()">
+                <span class="btn-icon">🎬</span>
+                <span class="btn-copy">
+                  <span class="btn-title">Presentation Mode</span>
+                  <span class="btn-sub">Open project media in VR.</span>
+                </span>
+              </button>
+            </div>
+
+            <div id="file-status" class="file-count">
+              <span>No project files loaded</span>
+              <small>Import a project to begin</small>
+            </div>
+
+            <button onclick="resetSystem()" class="danger-btn">Reset Workspace</button>
+          </div>
+        </div>
+
+        <aside class="card status-card">
+          <h3 class="section-title" style="font-size:20px;margin-bottom:18px;">Project status</h3>
+
+          <div class="status-list">
+            <div class="status-row">
+              <div class="status-label">Workspace</div>
+              <div class="status-value" id="landing-workspace-state">Ready for project setup</div>
+            </div>
+
+            <div class="status-row">
+              <div class="status-label">Files</div>
+              <div class="status-value" id="landing-asset-count">No files loaded yet</div>
+            </div>
+
+            <div class="status-row">
+              <div class="status-label">Use</div>
+              <div class="status-value">Construction & design preview</div>
+            </div>
+
+            <div class="status-row">
+              <div class="status-label">Modes</div>
+              <div class="status-value">Desktop + VR</div>
+            </div>
+          </div>
+
+          <div class="controls">
+            <div class="controls-title">Quick controls</div>
+
+            <div class="control-row">
+              <div class="control-tag">Desktop</div>
+              <div class="control-text">W/A/S/D move · drag mouse to look · M menu · Space select</div>
+            </div>
+
+            <div class="control-row">
+              <div class="control-tag">Controller</div>
+              <div class="control-text">A/X grab · B/Circle delete · right stick rotate/scale · Square menu</div>
+            </div>
+
+            <div class="control-row">
+              <div class="control-tag">VR</div>
+              <div class="control-text">Use gaze to select menu items while the controller handles movement and objects.</div>
+            </div>
+          </div>
+
+          <div style="display:none" id="system-status">
+            Import a 3D environment, scale it, position it, and preview it in desktop or VR.
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>BuildView XR · Powered by HELEN Engine</span>
+      <span>Construction, renovation, interior design, and immersive project review.</span>
+    </footer>
+  </main>
 </div>
 
 <script type="module">
+
+
+
     import * as THREE from 'three';
     import { VRButton } from 'three/addons/webxr/VRButton.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -174,7 +816,7 @@
 
     // Compact menu pages keep the primary VR view clear.
     let menuPage = "OBJECT";       // OBJECT | ASSETS | MORE
-    let menuDockMode = "CAMERA";  // CAMERA | OBJECT
+    let menuDockMode = "WORLD";   // WORLD | OBJECT
     const MAX_MENU_VISIBLE = 8;
 
     let pendingRestore = false;
@@ -183,6 +825,16 @@
     let previousMousePosition = { x:0, y:0 };
     const MOUSE_SENSITIVITY = 0.02;
     const VR_WALK_SPEED = 0.05;
+
+    // --- DESKTOP WORKSPACE ---
+    let desktopMode = false;
+    let desktopLookActive = false;
+    let desktopYaw = 0;
+    let desktopPitch = 0;
+    const desktopKeys = new Set();
+    const DESKTOP_MOVE_SPEED = 0.08;
+    const DESKTOP_VERTICAL_SPEED = 0.06;
+    const DESKTOP_LOOK_SPEED = 0.004;
 
     let isTiltActive = false;
     let tiltCalibration = { beta:0, gamma:0 };
@@ -226,6 +878,76 @@
     const _strafeDir = new THREE.Vector3();
     const _camRight = new THREE.Vector3();
     const _camUp = new THREE.Vector3();
+
+    // --- VR INPUT / VIEW HELPERS ---
+    // Standard Bluetooth gamepads are exposed through navigator.getGamepads().
+    // WebXR motion controllers may instead exist only on XRSession.inputSources.
+    function getActivePad() {
+        if (navigator.getGamepads) {
+            const pads = navigator.getGamepads();
+            for (let i = 0; i < pads.length; i++) {
+                const p = pads[i];
+                if (p && p.connected !== false && p.buttons && p.buttons.length) return p;
+            }
+        }
+
+        if (renderer && renderer.xr && renderer.xr.isPresenting) {
+            const session = renderer.xr.getSession();
+            if (session && session.inputSources) {
+                for (const source of session.inputSources) {
+                    if (source && source.gamepad) return source.gamepad;
+                }
+            }
+        }
+        return null;
+    }
+
+    function readPadAxes(pad) {
+        const a = pad && pad.axes ? Array.from(pad.axes) : [];
+        let leftX = 0, leftY = 0, rightX = 0, rightY = 0;
+
+        if (pad && pad.mapping === 'xr-standard') {
+            // Most WebXR controllers expose the thumbstick on axes 2/3.
+            // Some expose only two axes, so keep a fallback.
+            if (a.length >= 4) {
+                leftX = a[2] || 0;
+                leftY = a[3] || 0;
+                rightX = a[0] || 0;
+                rightY = a[1] || 0;
+            } else {
+                leftX = a[0] || 0;
+                leftY = a[1] || 0;
+            }
+        } else {
+            leftX = a[0] || 0;
+            leftY = a[1] || 0;
+            rightX = a[2] || 0;
+            rightY = a[3] || 0;
+        }
+
+        return { leftX, leftY, rightX, rightY };
+    }
+
+    function getViewCamera() {
+        if (renderer && renderer.xr && renderer.xr.isPresenting) {
+            const xrCamera = renderer.xr.getCamera(camera);
+            if (xrCamera && xrCamera.cameras && xrCamera.cameras.length) {
+                return xrCamera.cameras[0];
+            }
+            if (xrCamera) return xrCamera;
+        }
+        return camera;
+    }
+
+    function getViewDirection(target) {
+        const viewCamera = getViewCamera();
+        viewCamera.getWorldDirection(target);
+        return target;
+    }
+
+    function getViewPosition(target) {
+        return getViewCamera().getWorldPosition(target);
+    }
 
     const AI_FOLLOW_DIST = 2.5;
     const AI_BACKUP_DIST = 0.8;
@@ -298,7 +1020,7 @@
     function resetSelectedTransform() {
         const obj = getSelectedObject();
         if (!obj) {
-            setBuilderMessage("SELECT AN OBJECT FIRST");
+            setBuilderMessage("Select an object first");
             return;
         }
         obj.rotation.set(0, 0, 0);
@@ -309,12 +1031,12 @@
     function centerSelectedInView() {
         const obj = getSelectedObject();
         if (!obj) {
-            setBuilderMessage("SELECT AN OBJECT FIRST");
+            setBuilderMessage("Select an object first");
             return;
         }
         const dir = new THREE.Vector3();
         camera.getWorldDirection(dir);
-        const p = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2.5));
+        const p = getViewPosition(new THREE.Vector3()).add(dir.multiplyScalar(2.5));
         obj.position.copy(p);
         if (obj.userData.isModel) obj.position.y = Math.max(0, obj.position.y);
         setBuilderMessage("CENTERED IN VIEW");
@@ -323,20 +1045,20 @@
     function deleteSelected() {
         const obj = getSelectedObject();
         if (!obj) {
-            setBuilderMessage("SELECT AN OBJECT FIRST");
+            setBuilderMessage("Select an object first");
             return;
         }
         deleteObject(obj);
         activeObject.obj = null;
         grabbedObject = null;
-        setBuilderMessage("OBJECT DELETED");
+        setBuilderMessage("Object deleted");
     }
 
 
     function scaleSelected(factor) {
         const obj = getSelectedObject();
         if (!obj) {
-            setBuilderMessage("SELECT A 3D OBJECT FIRST");
+            setBuilderMessage("Select a 3D object first");
             return;
         }
         obj.scale.multiplyScalar(factor);
@@ -345,25 +1067,25 @@
             obj.scale.y = Math.max(0.01, Math.round(obj.scale.y / SNAP_SCALE) * SNAP_SCALE);
             obj.scale.z = Math.max(0.01, Math.round(obj.scale.z / SNAP_SCALE) * SNAP_SCALE);
         }
-        setBuilderMessage(factor > 1 ? "SCALE INCREASED" : "SCALE REDUCED");
+        setBuilderMessage(factor > 1 ? "Scale increased" : "Scale reduced");
         lastHudState = "";
     }
 
     function alignSelectedToFloor() {
         const obj = getSelectedObject();
         if (!obj) {
-            setBuilderMessage("SELECT A 3D OBJECT FIRST");
+            setBuilderMessage("Select a 3D object first");
             return;
         }
         const box = new THREE.Box3().setFromObject(obj);
         if (!box.isEmpty()) {
             obj.position.y += -box.min.y;
-            setBuilderMessage("ALIGNED TO FLOOR");
+            setBuilderMessage("Aligned to floor");
         }
     }
 
     function toggleMenuDock() {
-        menuDockMode = menuDockMode === "CAMERA" ? "OBJECT" : "CAMERA";
+        menuDockMode = menuDockMode === "WORLD" ? "OBJECT" : "WORLD";
         menuGroup.userData.locked = false;
         updateMenuPosition(true);
         setBuilderMessage(`MENU DOCK: ${menuDockMode}`);
@@ -381,21 +1103,21 @@
     function getMenuEntries() {
         if (menuPage === "OBJECT") {
             return [
-                { label:"[3D ASSETS >", action:"PAGE_ASSETS", type:"nav" },
-                { label:`[MODE: ${transformMode}]`, action:"CYCLE_MODE", type:"sys" },
-                { label:"[SCALE +10%]", action:"SCALE_UP", type:"sys" },
-                { label:"[SCALE -10%]", action:"SCALE_DOWN", type:"sys" },
-                { label:"[ALIGN TO FLOOR]", action:"ALIGN_FLOOR", type:"sys" },
-                { label:"[CENTER IN VIEW]", action:"CENTER_VIEW", type:"sys" },
-                { label:`[MENU: ${menuDockMode}]`, action:"TOGGLE_DOCK", type:"sys" },
-                { label:"[MORE >", action:"PAGE_MORE", type:"nav" }
+                { label:"3D Assets", action:"PAGE_ASSETS", type:"nav" },
+                { label:`Mode: ${transformMode}`, action:"CYCLE_MODE", type:"sys" },
+                { label:"Scale +10%", action:"SCALE_UP", type:"sys" },
+                { label:"Scale -10%", action:"SCALE_DOWN", type:"sys" },
+                { label:"Align to Floor", action:"ALIGN_FLOOR", type:"sys" },
+                { label:"Center in View", action:"CENTER_VIEW", type:"sys" },
+                { label:`Menu Position: ${menuDockMode}`, action:"TOGGLE_DOCK", type:"sys" },
+                { label:"Advanced Tools", action:"PAGE_MORE", type:"nav" }
             ];
         }
 
         if (menuPage === "ASSETS") {
             const assets = get3DAssets();
             const entries = [
-                { label:"[< OBJECT]", action:"PAGE_OBJECT", type:"nav" }
+                { label:"Back to Environment", action:"PAGE_OBJECT", type:"nav" }
             ];
 
             if (assets.length === 0) {
@@ -421,18 +1143,18 @@
 
         const legacyAssets = getLegacyAssets();
         const entries = [
-            { label:"[< OBJECT]", action:"PAGE_OBJECT", type:"nav" },
-            { label:"[SAVE PROJECT]", action:"SAVE", type:"sys" },
-            { label:"[LOAD PROJECT]", action:"LOAD", type:"sys" },
-            { label:"[RESET TRANSFORM]", action:"RESET", type:"sys" },
-            { label:`[SNAP: ${snapEnabled ? "ON" : "OFF"}]`, action:"SNAP", type:"sys" },
-            { label:"[DUPLICATE SELECTED]", action:"DUPLICATE", type:"sys" },
-            { label:"[DELETE SELECTED]", action:"DELETE", type:"danger" },
-            { label:"[CLEAR WORKSPACE]", action:"CLEAR", type:"danger" },
-            { label:"[CINEMA MODE]", action:"CINEMA", type:"legacy" },
-            { label:"[VOICE COMMANDS]", action:"VOICE", type:"legacy" },
-            { label:"[LOCAL VISUAL CAPTURE]", action:"VISUAL", type:"legacy" },
-            { label:"[WIPE LOCAL MEMORY]", action:"WIPE", type:"legacy" }
+            { label:"Back to Environment", action:"PAGE_OBJECT", type:"nav" },
+            { label:"Save Project Setup", action:"SAVE", type:"sys" },
+            { label:"Load Project Setup", action:"LOAD", type:"sys" },
+            { label:"Reset Transform", action:"RESET", type:"sys" },
+            { label:`Snap: ${snapEnabled ? "On" : "Off"}`, action:"SNAP", type:"sys" },
+            { label:"Duplicate Selected", action:"DUPLICATE", type:"sys" },
+            { label:"Delete Selected", action:"DELETE", type:"danger" },
+            { label:"Clear Workspace", action:"CLEAR", type:"danger" },
+            { label:"Presentation Mode", action:"CINEMA", type:"legacy" },
+            { label:"Voice Commands", action:"VOICE", type:"legacy" },
+            { label:"Local Visual Capture", action:"VISUAL", type:"legacy" },
+            { label:"Clear Local Memory", action:"WIPE", type:"legacy" }
         ];
 
         legacyAssets.forEach(item => {
@@ -456,6 +1178,127 @@
         }
         selectionHelper.visible = true;
         selectionHelper.setFromObject(obj);
+    }
+
+
+    window.enterDesktopMode = function() {
+        desktopMode = true;
+        document.getElementById('overlay').style.display = 'none';
+        aiStatus = "DESKTOP";
+        lastHudState = "";
+
+        // Start from current camera orientation.
+        desktopYaw = dolly ? dolly.rotation.y : 0;
+        desktopPitch = camera ? camera.rotation.x : 0;
+
+        setBuilderMessage("DESKTOP WORKSPACE ACTIVE", 2200); refreshOverlayStatus();
+    };
+
+    function leaveDesktopMode() {
+        desktopMode = false;
+        desktopKeys.clear();
+        desktopLookActive = false;
+        document.getElementById('overlay').style.display = 'flex';
+        aiStatus = "STANDBY";
+        lastHudState = "";
+    }
+
+    function toggleWorkspaceMenu() {
+        if (!menuGroup) return;
+
+        isMenuOpen = !isMenuOpen;
+        menuGroup.visible = isMenuOpen;
+
+        if (isMenuOpen) {
+            menuPage = "OBJECT";
+            menuScrollIndex = 0;
+            hoveredFileIndex = -1;
+            menuGroup.userData.locked = false;
+            updateMenuDisplay();
+            updateMenuPosition(true);
+        } else {
+            menuGroup.userData.locked = false;
+        }
+
+        lastHudState = "";
+    }
+
+    function desktopSelectOrRelease() {
+        if (isMenuOpen) {
+            if (hoveredFileIndex !== -1) spawnFromMenu(hoveredFileIndex);
+            return;
+        }
+
+        if (grabbedObject) {
+            applySnapToObject(grabbedObject);
+            grabbedObject = null;
+            setBuilderMessage("Object released");
+            return;
+        }
+
+        if (activeObject.obj) {
+            grabbedObject = activeObject.obj;
+            setBuilderMessage(`SELECTED: ${grabbedObject.userData.label || "OBJECT"}`);
+        } else {
+            setBuilderMessage("LOOK AT AN OBJECT FIRST");
+        }
+    }
+
+    function setTransformModeDesktop(mode) {
+        transformMode = mode;
+        setBuilderMessage(`MODE: ${mode}`);
+        lastHudState = "";
+    }
+
+    function handleDesktopKeyboard() {
+        if (!desktopMode || renderer.xr.isPresenting) return;
+
+        const forward = new THREE.Vector3();
+        getViewDirection(forward);
+        forward.y = 0;
+        if (forward.lengthSq() < 0.0001) forward.set(0, 0, -1);
+        forward.normalize();
+
+        const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+
+        if (!grabbedObject) {
+            if (desktopKeys.has('KeyW')) dolly.position.addScaledVector(forward, DESKTOP_MOVE_SPEED);
+            if (desktopKeys.has('KeyS')) dolly.position.addScaledVector(forward, -DESKTOP_MOVE_SPEED);
+            if (desktopKeys.has('KeyA')) dolly.position.addScaledVector(right, -DESKTOP_MOVE_SPEED);
+            if (desktopKeys.has('KeyD')) dolly.position.addScaledVector(right, DESKTOP_MOVE_SPEED);
+            if (desktopKeys.has('KeyQ')) dolly.position.y -= DESKTOP_VERTICAL_SPEED;
+            if (desktopKeys.has('KeyE')) dolly.position.y += DESKTOP_VERTICAL_SPEED;
+            return;
+        }
+
+        const obj = grabbedObject;
+        const step = snapEnabled ? SNAP_POSITION : 0.05;
+        const rotStep = snapEnabled ? SNAP_ROTATION : THREE.MathUtils.degToRad(2);
+        const scaleStep = snapEnabled ? SNAP_SCALE : 0.02;
+
+        if (transformMode === "MOVE") {
+            if (desktopKeys.has('ArrowLeft')) obj.position.x -= step;
+            if (desktopKeys.has('ArrowRight')) obj.position.x += step;
+            if (desktopKeys.has('ArrowUp')) obj.position.z -= step;
+            if (desktopKeys.has('ArrowDown')) obj.position.z += step;
+            if (desktopKeys.has('PageUp')) obj.position.y += step;
+            if (desktopKeys.has('PageDown')) obj.position.y -= step;
+        } else if (transformMode === "ROTATE") {
+            if (desktopKeys.has('ArrowLeft')) obj.rotation.y -= rotStep;
+            if (desktopKeys.has('ArrowRight')) obj.rotation.y += rotStep;
+            if (desktopKeys.has('ArrowUp')) obj.rotation.x -= rotStep;
+            if (desktopKeys.has('ArrowDown')) obj.rotation.x += rotStep;
+            if (desktopKeys.has('PageUp')) obj.rotation.z += rotStep;
+            if (desktopKeys.has('PageDown')) obj.rotation.z -= rotStep;
+        } else if (transformMode === "SCALE") {
+            let factor = 1;
+            if (desktopKeys.has('ArrowUp') || desktopKeys.has('ArrowRight')) factor += scaleStep;
+            if (desktopKeys.has('ArrowDown') || desktopKeys.has('ArrowLeft')) factor -= scaleStep;
+            if (factor !== 1) {
+                factor = Math.max(0.05, factor);
+                obj.scale.multiplyScalar(factor);
+            }
+        }
     }
 
     window.resetSystem = function() {
@@ -709,11 +1552,44 @@
     initVoice();
 
     if (localStorage.getItem('helen_layout_ai')) {
-        document.getElementById('restore-msg').style.display = 'block';
+        const restoreMsg = document.getElementById('restore-msg');
+        restoreMsg.style.display = 'block';
+        restoreMsg.textContent = 'Saved setup found — you can resume where you left off.';
         pendingRestore = true;
     }
 
+    refreshOverlayStatus();
+
+
+    
+    function refreshOverlayStatus() {
+        const count = CUSTOM_DATABASE.length;
+        const countText = count === 0
+            ? "No files loaded yet"
+            : `${count} file${count === 1 ? "" : "s"} loaded`;
+
+        const landingCount = document.getElementById('landing-asset-count');
+        if (landingCount) landingCount.textContent = countText;
+
+        const fileStatus = document.getElementById('file-status');
+        if (fileStatus) {
+            fileStatus.innerHTML = count === 0
+                ? `<span>No project files loaded</span><small>Import a project to begin</small>`
+                : `<span>${count} project file${count === 1 ? "" : "s"} loaded</span><small>Ready for workspace setup</small>`;
+        }
+
+        const workspaceState = document.getElementById('landing-workspace-state');
+        if (workspaceState) {
+            workspaceState.textContent = count === 0
+                ? "Ready for project setup"
+                : "Project files imported";
+        }
+    }
+
+
+
     const input = document.getElementById('intel-input');
+
 
     input.addEventListener('change', async e => {
         if (e.target.files.length > 0) {
@@ -761,11 +1637,9 @@
                 }
             }
 
-            const status = document.getElementById('file-status');
-            status.textContent = `${CUSTOM_DATABASE.length} FILE${CUSTOM_DATABASE.length === 1 ? '' : 'S'} LOADED`;
-            status.style.display = 'block';
+            refreshOverlayStatus();
 
-            sysMessage = `${CUSTOM_DATABASE.length} INTEL FILES READY`;
+            sysMessage = `${CUSTOM_DATABASE.length} PROJECT FILE${CUSTOM_DATABASE.length === 1 ? '' : 'S'} READY`;
             updateMenuDisplay();
 
             input.value = '';
@@ -782,7 +1656,7 @@
         }));
 
         localStorage.setItem('helen_layout_ai', JSON.stringify(layout));
-        sysMessage = "MISSION SAVED";
+        sysMessage = "PROJECT SETUP SAVED";
         updateMenuDisplay();
 
         setTimeout(() => {
@@ -795,7 +1669,7 @@
         const raw = localStorage.getItem('helen_layout_ai');
 
         if (!raw) {
-            sysMessage = "NO DATA FOUND";
+            sysMessage = "NO SAVED SETUP FOUND";
             updateMenuDisplay();
             return;
         }
@@ -846,7 +1720,7 @@
     function clearMission() {
         localStorage.removeItem('helen_layout_ai');
         [...targets].forEach(t => deleteObject(t));
-        sysMessage = "DATABASE WIPED";
+        sysMessage = "WORKSPACE CLEARED";
         updateMenuDisplay();
     }
 
@@ -1144,28 +2018,30 @@
     function initMouseControl() {
         function getPos(e) {
             if (e.touches && e.touches.length > 0) {
-                return {
-                    x:e.touches[0].clientX,
-                    y:e.touches[0].clientY
-                };
+                return { x:e.touches[0].clientX, y:e.touches[0].clientY };
             }
-
             return { x:e.clientX, y:e.clientY };
         }
 
         window.addEventListener('contextmenu', e => e.preventDefault());
 
         const onDown = e => {
-            if (e.button === 2) {
-                isMenuOpen = !isMenuOpen;
-                menuGroup.visible = isMenuOpen;
-                if (isMenuOpen) {
-                    menuPage = "OBJECT";
-                    menuScrollIndex = 0;
-                    hoveredFileIndex = -1;
-                    updateMenuDisplay();
-                    updateMenuPosition(true);
+            if (desktopMode && !renderer.xr.isPresenting) {
+                if (e.button === 2) {
+                    toggleWorkspaceMenu();
+                    return;
                 }
+
+                if (e.button === 0) {
+                    desktopLookActive = true;
+                    isMouseDown = true;
+                    previousMousePosition = getPos(e);
+                    return;
+                }
+            }
+
+            if (e.button === 2) {
+                toggleWorkspaceMenu();
                 return;
             }
 
@@ -1177,21 +2053,36 @@
             }
         };
 
-        const onUp = () => {
+        const onUp = e => {
             isMouseDown = false;
+            desktopLookActive = false;
         };
 
         const onMove = e => {
-            if (!isMouseDown || !dolly || isMenuOpen) return;
+            if (!isMouseDown || !dolly) return;
             if (e.preventDefault) e.preventDefault();
 
-            if (!renderer.xr.isPresenting) {
-                const pos = getPos(e);
-                const deltaX = pos.x - previousMousePosition.x;
-                const deltaY = pos.y - previousMousePosition.y;
-                previousMousePosition = pos;
+            const pos = getPos(e);
+            const deltaX = pos.x - previousMousePosition.x;
+            const deltaY = pos.y - previousMousePosition.y;
+            previousMousePosition = pos;
 
-                camera.getWorldDirection(_moveDir);
+            if (desktopMode && !renderer.xr.isPresenting && desktopLookActive) {
+                desktopYaw -= deltaX * DESKTOP_LOOK_SPEED;
+                desktopPitch -= deltaY * DESKTOP_LOOK_SPEED;
+                desktopPitch = THREE.MathUtils.clamp(
+                    desktopPitch,
+                    -Math.PI / 2 + 0.05,
+                    Math.PI / 2 - 0.05
+                );
+
+                dolly.rotation.y = desktopYaw;
+                camera.rotation.x = desktopPitch;
+                return;
+            }
+
+            if (!renderer.xr.isPresenting && !isMenuOpen) {
+                getViewDirection(_moveDir);
                 _moveDir.y = 0;
                 _moveDir.normalize();
 
@@ -1231,7 +2122,7 @@
             color,
             side:THREE.DoubleSide,
             transparent:true,
-            opacity:0.5
+            opacity:0.86
         });
 
         const arrow = new THREE.Mesh(geo, mat);
@@ -1259,21 +2150,21 @@
 
         cockpitPanels = [];
 
-        const fwd = createChevron(0x00ff00);
+        const fwd = createChevron(0xffffff);
         fwd.position.set(0, 0.5, 0);
         fwd.userData = { action:"FORWARD", baseScale:1.5 };
         fwd.scale.setScalar(1.5);
         cockpitGroup.add(fwd);
         cockpitPanels.push(fwd);
 
-        const left = createChevron(0x00ffff);
+        const left = createChevron(0xdde3e8);
         left.position.set(-0.6, 0, 0);
         left.rotation.z = Math.PI / 2;
         left.userData = { action:"LEFT", baseScale:1 };
         cockpitGroup.add(left);
         cockpitPanels.push(left);
 
-        const right = createChevron(0x00ffff);
+        const right = createChevron(0xdde3e8);
         right.position.set(0.6, 0, 0);
         right.rotation.z = -Math.PI / 2;
         right.userData = { action:"RIGHT", baseScale:1 };
@@ -1283,7 +2174,7 @@
         const menuBtnGeo = new THREE.PlaneGeometry(0.3, 0.3);
 
         const menuBtnMat = new THREE.MeshBasicMaterial({
-            color:0xff0055,
+            color:0xffffff,
             side:THREE.DoubleSide,
             transparent:true,
             opacity:0.5
@@ -1296,7 +2187,7 @@
         const edges = new THREE.EdgesGeometry(menuBtnGeo);
         const line = new THREE.LineSegments(
             edges,
-            new THREE.LineBasicMaterial({ color:0xff0055 })
+            new THREE.LineBasicMaterial({ color:0x8e98a3 })
         );
 
         menuBtn.add(line);
@@ -1320,6 +2211,12 @@
 
     function handleCockpit() {
         if (!cockpitGroup || cinemaMode) return;
+        if (desktopMode && !renderer.xr.isPresenting) {
+            cockpitGroup.visible = false;
+            return;
+        } else if (cockpitGroup) {
+            cockpitGroup.visible = true;
+        }
 
         const time = Date.now() * 0.003;
         cockpitGroup.position.y = -1.6 + Math.sin(time) * 0.02;
@@ -1380,7 +2277,7 @@
         currentRot = THREE.MathUtils.lerp(currentRot, targetRot, 0.1);
 
         if (Math.abs(currentSpeed) > 0.001) {
-            camera.getWorldDirection(_moveDir);
+            getViewDirection(_moveDir);
             _moveDir.y = 0;
             _moveDir.normalize();
             dolly.position.addScaledVector(_moveDir, currentSpeed);
@@ -1394,24 +2291,36 @@
     function updateMenuPosition(force = false) {
         if (!isMenuOpen || !menuGroup || !camera) return;
 
-        // CAMERA dock is the safe default. It sits to the lower-right of the
-        // user's view so the reticle and object stay visible.
-        if (menuDockMode === "CAMERA") {
-            if (menuGroup.parent !== camera) camera.attach(menuGroup);
-            menuGroup.position.set(0.72, -0.08, -1.45);
-            menuGroup.rotation.set(0, -0.10, 0);
+        // IMPORTANT: gaze is the menu selector. The menu must NOT be parented
+        // to the headset/camera, otherwise turning to look at it makes it move
+        // away with the user's head. WORLD mode freezes it where it was opened.
+        if (menuDockMode === "WORLD") {
+            if (!force && menuGroup.userData.locked) return;
+
+            if (menuGroup.parent !== scene) scene.attach(menuGroup);
+
+            const dir = getViewDirection(new THREE.Vector3());
+            dir.y = 0;
+            if (dir.lengthSq() < 0.0001) dir.set(0, 0, -1);
+            dir.normalize();
+
+            const worldPos = getViewPosition(new THREE.Vector3());
+            const targetPos = worldPos.clone().add(dir.multiplyScalar(2.25));
+
+            menuGroup.position.copy(targetPos);
+            menuGroup.position.y = worldPos.y - 0.05;
+            menuGroup.lookAt(worldPos.x, menuGroup.position.y, worldPos.z);
             menuGroup.userData.locked = true;
             return;
         }
 
-        // Optional OBJECT dock: place the menu beside the selected object.
+        // OBJECT mode also remains in world space; it is placed beside the
+        // selected environment instead of following the user's head.
         const obj = getSelectedObject();
         if (!obj || !obj.parent) {
-            menuDockMode = "CAMERA";
-            if (menuGroup.parent !== camera) camera.attach(menuGroup);
-            menuGroup.position.set(0.72, -0.08, -1.45);
-            menuGroup.rotation.set(0, -0.10, 0);
-            menuGroup.userData.locked = true;
+            menuDockMode = "WORLD";
+            menuGroup.userData.locked = false;
+            updateMenuPosition(true);
             return;
         }
 
@@ -1420,18 +2329,15 @@
         const box = new THREE.Box3().setFromObject(obj);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-
-        // Clamp the offset so very large rooms do not throw the panel far away.
-        const sideOffset = THREE.MathUtils.clamp(size.x * 0.55 + 0.45, 0.6, 1.8);
-        const verticalOffset = THREE.MathUtils.clamp(size.y * 0.25, 0.15, 1.0);
+        const sideOffset = THREE.MathUtils.clamp(size.x * 0.55 + 0.45, 0.7, 1.8);
+        const verticalOffset = THREE.MathUtils.clamp(size.y * 0.20, 0.15, 0.8);
 
         menuGroup.position.set(
             center.x + sideOffset,
             center.y + verticalOffset,
             center.z
         );
-
-        menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
+        menuGroup.lookAt(getViewPosition(new THREE.Vector3()));
         menuGroup.userData.locked = true;
     }
 
@@ -1537,13 +2443,59 @@
         initMouseControl();
         createCockpit();
 
-        const btn = VRButton.createButton(renderer);
-        btn.className = "primary";
-        btn.innerHTML = "ENTER VR";
-        document.getElementById('vr-btn-container').appendChild(btn);
+        const vrContainer = document.getElementById('vr-btn-container');
+
+        if (navigator.xr && navigator.xr.isSessionSupported) {
+            navigator.xr.isSessionSupported('immersive-vr')
+                .then(supported => {
+                    if (supported) {
+                        const btn = VRButton.createButton(renderer);
+                        btn.className = "";
+                        btn.innerHTML = `
+                            <span class="btn-icon">🥽</span>
+                            <span class="btn-copy">
+                                <span class="btn-title">Enter VR Preview</span>
+                                <span class="btn-sub">Launch the project as an immersive walkthrough.</span>
+                            </span>
+                            <span class="btn-arrow">›</span>
+                        `;
+                        vrContainer.appendChild(btn);
+
+                        const landingVr = document.getElementById('landing-workspace-state');
+                        if (landingVr && CUSTOM_DATABASE.length === 0) {
+                            landingVr.textContent = "Ready for project setup";
+                        }
+                    } else {
+                        const msg = document.createElement('div');
+                        msg.className = "file-count";
+                        msg.innerHTML = `<span>VR headset not detected</span><small>Use the desktop workspace on this device</small>`;
+                        vrContainer.appendChild(msg);
+                    }
+                })
+                .catch(() => {
+                    const msg = document.createElement('div');
+                    msg.className = "status";
+                    msg.textContent = "VR CHECK FAILED — DESKTOP MODE AVAILABLE";
+                    vrContainer.appendChild(msg);
+                });
+        } else {
+            const msg = document.createElement('div');
+            msg.className = "file-count";
+            msg.innerHTML = `<span>VR not available in this browser</span><small>Desktop workspace is ready</small>`;
+            vrContainer.appendChild(msg);
+        }
 
         renderer.xr.addEventListener('sessionstart', () => {
+            desktopMode = false;
+            desktopKeys.clear();
             document.getElementById('overlay').style.display = 'none';
+            console.log('[BuildView] XR session started. Input sources will be read from both WebXR and Gamepad APIs.');
+        });
+
+        renderer.xr.addEventListener('sessionend', () => {
+            document.getElementById('overlay').style.display = 'flex';
+            aiStatus = "STANDBY";
+            lastHudState = "";
         });
 
         createMenuSystem();
@@ -1555,6 +2507,33 @@
         });
 
         window.addEventListener('keydown', e => {
+            if (desktopMode && !renderer.xr.isPresenting) {
+                // Keep browser scrolling / button activation from stealing workspace keys.
+                if ([
+                    'Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+                    'PageUp','PageDown'
+                ].includes(e.code)) {
+                    e.preventDefault();
+                }
+
+                desktopKeys.add(e.code);
+
+                if (!e.repeat) {
+                    if (e.code === 'KeyM') toggleWorkspaceMenu();
+                    if (e.code === 'Space') desktopSelectOrRelease();
+                    if (e.code === 'Digit1') setTransformModeDesktop("MOVE");
+                    if (e.code === 'Digit2') setTransformModeDesktop("ROTATE");
+                    if (e.code === 'Digit3') setTransformModeDesktop("SCALE");
+                    if (e.code === 'KeyR') resetSelectedTransform();
+                    if (e.code === 'KeyC') centerSelectedInView();
+                    if (e.code === 'Delete') deleteSelected();
+                    if (e.code === 'Escape') {
+                        if (isMenuOpen) toggleWorkspaceMenu();
+                        else leaveDesktopMode();
+                    }
+                }
+            }
+
             if (
                 e.key === 'f' &&
                 targets.length > 0 &&
@@ -1563,6 +2542,16 @@
                 targets[0].userData.isPaused =
                     !targets[0].userData.isPaused;
             }
+        });
+
+        window.addEventListener('keyup', e => {
+            desktopKeys.delete(e.code);
+        });
+
+        window.addEventListener('blur', () => {
+            desktopKeys.clear();
+            desktopLookActive = false;
+            isMouseDown = false;
         });
 
         animate();
@@ -1578,8 +2567,8 @@
         menuCtx = canvas.getContext('2d');
         menuTexture = new THREE.CanvasTexture(canvas);
 
-        // Smaller than V3.4 so it no longer covers the center of the VR view.
-        const geometry = new THREE.PlaneGeometry(0.95, 0.95);
+        // Compact enough to stay out of the way, but large enough to read by gaze.
+        const geometry = new THREE.PlaneGeometry(1.30, 1.30);
 
         const material = new THREE.MeshBasicMaterial({
             map:menuTexture,
@@ -1594,17 +2583,15 @@
 
         const outline = new THREE.LineSegments(
             new THREE.EdgesGeometry(geometry),
-            new THREE.LineBasicMaterial({ color:0x00ffff, depthTest:false })
+            new THREE.LineBasicMaterial({ color:0xd7dce1, depthTest:false })
         );
         outline.renderOrder = 51;
         menuGroup.add(outline);
 
-        // Default to a camera-attached side dock.
-        camera.add(menuGroup);
-        menuGroup.position.set(0.72, -0.08, -1.45);
-        menuGroup.rotation.set(0, -0.10, 0);
+        // Keep the menu in WORLD space. It is positioned and frozen when opened.
+        scene.add(menuGroup);
         menuGroup.visible = false;
-        menuGroup.userData.locked = true;
+        menuGroup.userData.locked = false;
 
         updateMenuDisplay();
     }
@@ -1619,51 +2606,47 @@
         const totalItems = entries.length;
 
         const pageTitles = {
-            OBJECT:"ENVIRONMENT // OBJECT",
-            ASSETS:"3D ENVIRONMENTS",
-            MORE:"MORE // LEGACY"
+            OBJECT:"Environment",
+            ASSETS:"3D Assets",
+            MORE:"Advanced Tools"
         };
 
         ctx.clearRect(0, 0, w, h);
-        ctx.fillStyle = 'rgba(0, 10, 20, 0.94)';
+        ctx.fillStyle = 'rgba(250, 251, 252, 0.97)';
         ctx.fillRect(0, 0, w, h);
 
-        // Slim title area.
-        ctx.fillStyle = '#00ffff';
-        ctx.font = 'bold 46px Courier New';
+        ctx.fillStyle = '#171a1e';
+        ctx.font = '700 48px Arial';
         ctx.textAlign = 'left';
-        ctx.fillText(pageTitles[menuPage] || "VR MENU", 56, 70);
+        ctx.fillText(pageTitles[menuPage] || "Workspace", 58, 76);
 
-        ctx.font = '24px Courier New';
+        ctx.font = '24px Arial';
         ctx.textAlign = 'right';
-        ctx.fillStyle = '#7fdde0';
-        ctx.fillText(menuDockMode, w - 56, 68);
+        ctx.fillStyle = '#7a828b';
+        ctx.fillText(menuDockMode === "WORLD" ? "World menu" : "Object menu", w - 58, 72);
 
-        ctx.strokeStyle = '#00ffff';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#e3e6ea';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(50, 96);
-        ctx.lineTo(w - 50, 96);
+        ctx.moveTo(54, 104);
+        ctx.lineTo(w - 54, 104);
         ctx.stroke();
 
         const maxScroll = Math.max(0, totalItems - MAX_MENU_VISIBLE);
         menuScrollIndex = Math.max(0, Math.min(menuScrollIndex, maxScroll));
 
         if (totalItems > MAX_MENU_VISIBLE) {
-            const trackTop = 130;
-            const trackHeight = 690;
+            const trackTop = 142;
+            const trackHeight = 650;
             const scrollPercent = maxScroll ? menuScrollIndex / maxScroll : 0;
             const thumbHeight = Math.max(90, (MAX_MENU_VISIBLE / totalItems) * trackHeight);
             const thumbY = trackTop + scrollPercent * (trackHeight - thumbHeight);
 
-            ctx.fillStyle = 'rgba(0,255,255,0.12)';
-            ctx.fillRect(w - 28, trackTop, 8, trackHeight);
-            ctx.fillStyle = '#00ffff';
-            ctx.fillRect(w - 28, thumbY, 8, thumbHeight);
+            ctx.fillStyle = '#eceff2';
+            ctx.fillRect(w - 30, trackTop, 7, trackHeight);
+            ctx.fillStyle = '#aab1b8';
+            ctx.fillRect(w - 30, thumbY, 7, thumbHeight);
         }
-
-        ctx.textAlign = 'left';
-        ctx.font = 'bold 40px Courier New';
 
         const startY = 170;
         const rowH = 88;
@@ -1677,57 +2660,59 @@
             const isHovered = realIndex === hoveredFileIndex;
 
             if (isHovered) {
-                ctx.fillStyle = 'rgba(0,255,255,0.24)';
+                ctx.fillStyle = '#eef1f3';
                 ctx.fillRect(42, y - 53, w - 92, 68);
             }
 
-            if (item.type === "danger") ctx.fillStyle = '#ff5a7d';
-            else if (item.type === "nav") ctx.fillStyle = '#ffffff';
-            else if (item.type === "info") ctx.fillStyle = '#777777';
-            else if (item.type === "legacy") ctx.fillStyle = '#9b8cff';
-            else if (item.type === "sys") ctx.fillStyle = '#00ffff';
-            else ctx.fillStyle = '#00c8c8';
+            let color = '#4f565e';
+            if (item.type === "danger") color = '#b4475b';
+            else if (item.type === "nav") color = '#171a1e';
+            else if (item.type === "sys") color = '#2f343a';
+            else if (item.type === "legacy") color = '#69717a';
+            else if (item.type === "info") color = '#9aa1a8';
+            else color = '#394047';
 
-            const prefix = isHovered ? "> " : "  ";
+            ctx.fillStyle = color;
+            ctx.textAlign = 'left';
+            ctx.font = isHovered ? '700 38px Arial' : '600 38px Arial';
+
+            const prefix = isHovered ? "› " : "  ";
             let label = `${prefix}${item.label}`;
-
-            // Prevent long filenames from overflowing the compact panel.
-            if (label.length > 30) label = label.slice(0, 27) + "...";
-            ctx.fillText(label, 58, y);
+            label = label.replace(/\[/g, '').replace(/\]/g, '');
+            if (label.length > 32) label = label.slice(0, 29) + "...";
+            ctx.fillText(label, 62, y);
 
             if (!["sys","nav","danger","legacy","info"].includes(item.type)) {
-                ctx.font = '22px Courier New';
-                ctx.fillStyle = '#777';
+                ctx.font = '22px Arial';
+                ctx.fillStyle = '#9aa1a8';
                 ctx.textAlign = 'right';
-                ctx.fillText(String(item.type).toUpperCase(), w - 52, y);
-                ctx.textAlign = 'left';
-                ctx.font = 'bold 40px Courier New';
+                ctx.fillText(String(item.type).toUpperCase(), w - 58, y);
             }
         }
 
-        // Footer is deliberately minimal to avoid visual clutter.
-        ctx.strokeStyle = 'rgba(0,255,255,0.25)';
+        ctx.strokeStyle = '#e3e6ea';
         ctx.beginPath();
-        ctx.moveTo(50, 900);
-        ctx.lineTo(w - 50, 900);
+        ctx.moveTo(54, 892);
+        ctx.lineTo(w - 54, 892);
         ctx.stroke();
 
-        ctx.font = '22px Courier New';
-        ctx.fillStyle = '#6d8f94';
-        ctx.textAlign = 'left';
         const selected = getSelectedObject();
+        ctx.textAlign = 'left';
+        ctx.font = '22px Arial';
+        ctx.fillStyle = '#7a828b';
         ctx.fillText(
-            selected ? `SELECTED: ${(selected.userData.label || "OBJECT").slice(0, 26)}` : "SELECTED: NONE",
-            56, 944
+            selected ? `Selected: ${(selected.userData.label || "Object").slice(0, 30)}` : "Selected: none",
+            58,
+            936
         );
 
         if (sysMessage) {
-            ctx.fillStyle = 'rgba(0,255,120,0.92)';
-            ctx.fillRect(50, 965, w - 100, 42);
-            ctx.fillStyle = '#00150b';
+            ctx.fillStyle = '#eef5f1';
+            ctx.fillRect(54, 958, w - 108, 44);
+            ctx.fillStyle = '#26744f';
             ctx.textAlign = 'center';
-            ctx.font = 'bold 24px Courier New';
-            ctx.fillText(String(sysMessage).slice(0, 48), w / 2, 994);
+            ctx.font = '700 23px Arial';
+            ctx.fillText(String(sysMessage).slice(0, 52), w / 2, 988);
         }
 
         menuTexture.needsUpdate = true;
@@ -1842,7 +2827,7 @@
 
                 const dir = new THREE.Vector3();
                 camera.getWorldDirection(dir);
-                const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
+                const pos = getViewPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
 
                 if (item.type === 'fbx' || item.type === 'glb') {
                     pos.y = 0;
@@ -2071,7 +3056,7 @@
 
         const skel = model.userData.skeleton;
 
-        const playerPos = camera.getWorldPosition(new THREE.Vector3());
+        const playerPos = getViewPosition(new THREE.Vector3());
 
         const flatPlayerPos = new THREE.Vector3(
             playerPos.x,
@@ -2267,7 +3252,7 @@
         if (rotation) {
             screen.rotation.copy(rotation);
         } else {
-            const pPos = camera.getWorldPosition(new THREE.Vector3());
+            const pPos = getViewPosition(new THREE.Vector3());
             screen.lookAt(pPos.x, screen.position.y, pPos.z);
         }
 
@@ -2473,7 +3458,7 @@
             isMouseDown &&
             !cinemaMode
         ) {
-            camera.getWorldDirection(_moveDir);
+            getViewDirection(_moveDir);
             _moveDir.y = 0;
             _moveDir.normalize();
 
@@ -2511,7 +3496,7 @@
                 Math.abs(fwd) > 0.0001 ||
                 Math.abs(strafe) > 0.0001
             ) {
-                camera.getWorldDirection(_moveDir);
+                getViewDirection(_moveDir);
                 _moveDir.y = 0;
                 _moveDir.normalize();
 
@@ -2744,125 +3729,227 @@
             }
         }
 
-        const pads = navigator.getGamepads();
-        let pad = null;
-
-        for (let i = 0; i < pads.length; i++) {
-            if (
-                pads[i] &&
-                pads[i].buttons.length > 0
-            ) {
-                pad = pads[i];
-                break;
-            }
-        }
-
+        const pad = getActivePad();
         if (!pad) return;
 
+        const axes = readPadAxes(pad);
+        const leftStickX = axes.leftX;
+        const leftStickY = axes.leftY;
+        const rightStickX = axes.rightX;
+        const rightStickY = axes.rightY;
+
+        // Original controller layout:
+        // A / X       = grab / release
+        // B / Circle  = delete selected / grabbed object
+        // Square      = open / close gaze menu
+        // Triangle    = cycle camera vision mode
+        // Left stick  = move user, or move grabbed object X/Y
+        // Triggers    = move grabbed object closer / farther
+        // Right stick X = rotate grabbed object
+        // Right stick Y = scale grabbed 3D model
+
+        // Standard controllers normally use 6/7 for L2/R2.
+        // Keep the XR fallback for WebXR controllers.
+        const l2 = pad.mapping === 'xr-standard'
+            ? (pad.buttons[1] ? pad.buttons[1].value : 0)
+            : (pad.buttons[6] ? pad.buttons[6].value : 0);
+
+        const r2 = pad.mapping === 'xr-standard'
+            ? (pad.buttons[0] ? pad.buttons[0].value : 0)
+            : (pad.buttons[7] ? pad.buttons[7].value : 0);
+
         if (isMenuOpen) {
-            if (pad.axes.length > 3 && Math.abs(pad.axes[3]) > 0.5) {
+            // Menu selection remains gaze-based. Stick only scrolls.
+            if (Math.abs(leftStickY) > 0.5) {
                 const now = Date.now();
+
                 if (now - lastMenuScrollTime > 150) {
                     const fullListSize = getMenuEntries().length;
-                    if (pad.axes[3] > 0) menuScrollIndex++;
+
+                    if (leftStickY > 0) menuScrollIndex++;
                     else menuScrollIndex--;
-                    menuScrollIndex = Math.max(0, Math.min(menuScrollIndex, Math.max(0, fullListSize - MAX_MENU_VISIBLE)));
+
+                    menuScrollIndex = Math.max(
+                        0,
+                        Math.min(
+                            menuScrollIndex,
+                            Math.max(0, fullListSize - MAX_MENU_VISIBLE)
+                        )
+                    );
+
                     lastMenuScrollTime = now;
                     updateMenuDisplay();
                 }
             }
 
-            if (pad.buttons[0] && pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) {
+            // A / X can activate the item currently highlighted by gaze.
+            if (
+                pad.buttons[0] &&
+                pad.buttons[0].pressed &&
+                !lastBtn.x &&
+                hoveredFileIndex !== -1
+            ) {
                 spawnFromMenu(hoveredFileIndex);
             }
-        } else {
+        }
+        else {
             // A / X: grab or release the object in the center reticle.
-            if (pad.buttons[0] && pad.buttons[0].pressed && !lastBtn.x) {
-                if (grabbedObject) grabbedObject = null;
-                else if (activeObject.obj) grabbedObject = activeObject.obj;
+            if (
+                pad.buttons[0] &&
+                pad.buttons[0].pressed &&
+                !lastBtn.x
+            ) {
+                if (grabbedObject) {
+                    // Snap once when released, not continuously while scaling.
+                    applySnapToObject(grabbedObject);
+                    grabbedObject = null;
+                    setBuilderMessage("Object released");
+                }
+                else if (activeObject.obj) {
+                    grabbedObject = activeObject.obj;
+                    setBuilderMessage(
+                        `SELECTED: ${grabbedObject.userData.label || "OBJECT"}`
+                    );
+                }
+
                 lastHudState = "";
             }
 
-            // B / Circle: safe cancel. Deletion lives in the workspace menu.
-            if (pad.buttons[1] && pad.buttons[1].pressed && !lastBtn.circle) {
-                grabbedObject = null;
-                lastHudState = "";
-            }
+            // B / Circle: ORIGINAL DELETE behavior restored.
+            if (
+                pad.buttons[1] &&
+                pad.buttons[1].pressed &&
+                !lastBtn.circle
+            ) {
+                const targetToDelete =
+                    grabbedObject || activeObject.obj;
 
-            // X / Square: cycle transform mode.
-            if (pad.buttons[2] && pad.buttons[2].pressed && !lastBtn.square) {
-                cycleTransformMode();
-            }
-
-            // Y / Triangle: duplicate selected model.
-            if (pad.buttons[3] && pad.buttons[3].pressed && !lastBtn.triangle) {
-                duplicateSelected();
+                if (targetToDelete) {
+                    deleteObject(targetToDelete);
+                    activeObject.obj = null;
+                    grabbedObject = null;
+                    setBuilderMessage("Object deleted");
+                    lastHudState = "";
+                }
             }
         }
 
-        const leftStickX = pad.axes.length > 0 ? pad.axes[0] : 0;
-        const leftStickY = pad.axes.length > 1 ? pad.axes[1] : 0;
-        const rightStickX = pad.axes.length > 2 ? pad.axes[2] : 0;
-        const rightStickY = pad.axes.length > 3 ? pad.axes[3] : 0;
-        const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
-        const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
+        if (grabbedObject && !isMenuOpen) {
+            // LEFT STICK: move selected object sideways and vertically.
+            if (
+                Math.abs(leftStickX) > 0.1 ||
+                Math.abs(leftStickY) > 0.1
+            ) {
+                getViewDirection(_moveDir);
+                _moveDir.y = 0;
 
-        if (grabbedObject) {
-            if (transformMode === "MOVE") {
-                if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
-                    camera.getWorldDirection(_moveDir);
-                    _moveDir.y = 0;
-                    _moveDir.normalize();
-                    _camRight.crossVectors(camera.up, _moveDir).normalize();
-                    _camUp.copy(camera.up);
-                    grabbedObject.position.addScaledVector(_camRight, leftStickX * SPEED);
-                    grabbedObject.position.addScaledVector(_camUp, -leftStickY * SPEED);
+                if (_moveDir.lengthSq() < 0.0001) {
+                    _moveDir.set(0, 0, -1);
                 }
 
-                if (Math.abs(r2) > 0.1 || Math.abs(l2) > 0.1) {
-                    const dir = new THREE.Vector3().subVectors(
+                _moveDir.normalize();
+
+                _camRight
+                    .crossVectors(camera.up, _moveDir)
+                    .normalize();
+
+                _camUp.copy(camera.up);
+
+                grabbedObject.position.addScaledVector(
+                    _camRight,
+                    leftStickX * SPEED
+                );
+
+                grabbedObject.position.addScaledVector(
+                    _camUp,
+                    -leftStickY * SPEED
+                );
+            }
+
+            // TRIGGERS: move object toward / away from the viewer.
+            if (
+                Math.abs(r2) > 0.1 ||
+                Math.abs(l2) > 0.1
+            ) {
+                const dir = new THREE.Vector3()
+                    .subVectors(
                         grabbedObject.position,
-                        camera.getWorldPosition(new THREE.Vector3())
-                    ).normalize();
-                    grabbedObject.position.addScaledVector(dir, (r2 - l2) * MOVE_SPEED);
-                }
-            }
-            else if (transformMode === "ROTATE") {
-                if (Math.abs(rightStickX) > 0.1) grabbedObject.rotation.y += rightStickX * ROTATE_SPEED;
-                if (Math.abs(rightStickY) > 0.1) grabbedObject.rotation.x += rightStickY * ROTATE_SPEED;
-                if (Math.abs(r2 - l2) > 0.1) grabbedObject.rotation.z += (r2 - l2) * ROTATE_SPEED;
-            }
-            else if (transformMode === "SCALE") {
-                const scaleInput = Math.abs(rightStickY) > 0.1 ? -rightStickY : (r2 - l2);
-                if (Math.abs(scaleInput) > 0.1) {
-                    const factor = Math.max(0.94, Math.min(1.06, 1 + scaleInput * SCALE_SPEED));
-                    grabbedObject.scale.multiplyScalar(factor);
-                }
+                        getViewPosition(new THREE.Vector3())
+                    )
+                    .normalize();
+
+                grabbedObject.position.addScaledVector(
+                    dir,
+                    (r2 - l2) * MOVE_SPEED
+                );
             }
 
-            applySnapToObject(grabbedObject);
+            // RIGHT STICK X: rotate object left / right.
+            if (Math.abs(rightStickX) > 0.1) {
+                grabbedObject.rotation.y +=
+                    rightStickX * ROTATE_SPEED;
+            }
+
+            // RIGHT STICK Y: restore the original continuous model scale.
+            // IMPORTANT: do NOT snap every frame; that was preventing small
+            // scale changes from accumulating.
+            if (Math.abs(rightStickY) > 0.1) {
+                if (grabbedObject.userData.isModel) {
+                    const factor =
+                        1 + (rightStickY * -SCALE_SPEED);
+
+                    if (factor > 0.01) {
+                        grabbedObject.scale.multiplyScalar(factor);
+                    }
+                }
+                else {
+                    // Original non-model behavior: tilt screens/media.
+                    grabbedObject.rotation.x +=
+                        rightStickY * ROTATE_SPEED;
+                }
+            }
         }
         else if (!isMenuOpen) {
-            // When nothing is grabbed, left stick moves the user through the workspace.
-            if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
-                camera.getWorldDirection(_moveDir);
+            // LEFT STICK: move the viewer when no object is grabbed.
+            if (
+                Math.abs(leftStickX) > 0.1 ||
+                Math.abs(leftStickY) > 0.1
+            ) {
+                getViewDirection(_moveDir);
                 _moveDir.y = 0;
+
+                if (_moveDir.lengthSq() < 0.0001) {
+                    _moveDir.set(0, 0, -1);
+                }
+
                 _moveDir.normalize();
-                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
-                dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
-                dolly.position.addScaledVector(_strafeDir, leftStickX * SPEED);
+
+                _strafeDir
+                    .crossVectors(camera.up, _moveDir)
+                    .normalize();
+
+                dolly.position.addScaledVector(
+                    _moveDir,
+                    -leftStickY * SPEED
+                );
+
+                dolly.position.addScaledVector(
+                    _strafeDir,
+                    leftStickX * SPEED
+                );
             }
         }
 
+        // D-PAD DOWN: voice controls (original behavior).
         if (
             pad.buttons[13] &&
             pad.buttons[13].pressed &&
             !lastBtn.dpadDown
         ) {
             if (recognition) {
-                if (isListening)
+                if (isListening) {
                     recognition.stop();
-                else {
+                } else {
                     try {
                         recognition.start();
                     } catch (e) {}
@@ -2875,6 +3962,7 @@
                 ? pad.buttons[13].pressed
                 : false;
 
+        // D-PAD LEFT: local visual capture.
         if (
             pad.buttons[14] &&
             pad.buttons[14].pressed &&
@@ -2888,12 +3976,24 @@
                 ? pad.buttons[14].pressed
                 : false;
 
+        // D-PAD UP: pause / resume selected model agent behavior.
         if (
             pad.buttons[12] &&
             pad.buttons[12].pressed &&
             !lastBtn.dpadUp
         ) {
-            toggleSnap();
+            const obj = getSelectedObject();
+
+            if (obj && obj.userData.isModel) {
+                obj.userData.isPaused =
+                    !obj.userData.isPaused;
+
+                setBuilderMessage(
+                    obj.userData.isPaused
+                        ? "MODEL HOLDING"
+                        : "MODEL ACTIVE"
+                );
+            }
         }
 
         lastBtn.dpadUp =
@@ -2901,12 +4001,24 @@
                 ? pad.buttons[12].pressed
                 : false;
 
+        // D-PAD RIGHT: original head-tracking toggle for supported models.
         if (
             pad.buttons[15] &&
             pad.buttons[15].pressed &&
             !lastBtn.dpadRight
         ) {
-            resetSelectedTransform();
+            const obj = getSelectedObject();
+
+            if (obj && obj.userData.isModel) {
+                obj.userData.enableHeadTracking =
+                    !obj.userData.enableHeadTracking;
+
+                setBuilderMessage(
+                    obj.userData.enableHeadTracking
+                        ? "HEAD TRACKING ON"
+                        : "HEAD TRACKING OFF"
+                );
+            }
         }
 
         lastBtn.dpadRight =
@@ -2914,159 +4026,163 @@
                 ? pad.buttons[15].pressed
                 : false;
 
-        lastBtn.square = pad.buttons[2] ? pad.buttons[2].pressed : false;
-        lastBtn.x = pad.buttons[0] ? pad.buttons[0].pressed : false;
-        lastBtn.triangle = pad.buttons[3] ? pad.buttons[3].pressed : false;
-        lastBtn.circle = pad.buttons[1] ? pad.buttons[1].pressed : false;
+        // SQUARE: ORIGINAL menu toggle restored.
+        if (
+            pad.buttons[2] &&
+            pad.buttons[2].pressed &&
+            !lastBtn.square
+        ) {
+            toggleWorkspaceMenu();
+        }
+
+        // TRIANGLE: ORIGINAL vision-mode cycle restored.
+        if (
+            pad.buttons[3] &&
+            pad.buttons[3].pressed &&
+            !lastBtn.triangle
+        ) {
+            visionMode = (visionMode + 1) % 3;
+
+            if (camMaterial) {
+                camMaterial.uniforms.uMode.value =
+                    visionMode;
+            }
+
+            lastHudState = "";
+        }
+
+        lastBtn.square =
+            pad.buttons[2]
+                ? pad.buttons[2].pressed
+                : false;
+
+        lastBtn.x =
+            pad.buttons[0]
+                ? pad.buttons[0].pressed
+                : false;
+
+        lastBtn.triangle =
+            pad.buttons[3]
+                ? pad.buttons[3].pressed
+                : false;
+
+        lastBtn.circle =
+            pad.buttons[1]
+                ? pad.buttons[1].pressed
+                : false;
     }
 
     function updateHUD() {
         if (!hudContext) return;
 
         const currentState =
-            `M:${isMenuOpen}` +
-            `|S:${isSpeaking}` +
-            `|L:${isListening}` +
-            `|V:${visionMode}` +
+            `M:${isMenuOpen}|S:${isSpeaking}|L:${isListening}|V:${visionMode}` +
             `|G:${grabbedObject ? 'YES' : 'NO'}` +
             `|T:${activeObject.obj ? activeObject.obj.uuid : 'NONE'}` +
-            `|A:${aiStatus}` +
-            `|P:${gazeProgress.toFixed(2)}` +
-            `|TM:${transformMode}|SN:${snapEnabled}`;
+            `|A:${aiStatus}|P:${gazeProgress.toFixed(2)}|D:${desktopMode}`;
 
         if (currentState === lastHudState) return;
-
         lastHudState = currentState;
 
         const ctx = hudContext;
         const w = 1024;
         const h = 1024;
-
-        ctx.clearRect(0, 0, w, h);
-
-        ctx.textAlign = 'right';
-        ctx.font = 'bold 30px Courier New';
-
-        if (!isMenuOpen && visionMode === 1) {
-            ctx.fillStyle = '#00ffff';
-            ctx.fillText("VISION: [CYBER]", w - 40, 60);
-        }
-        else if (!isMenuOpen && visionMode === 2) {
-            ctx.fillStyle = '#ff0000';
-            ctx.fillText("VISION: [VOID]", w - 40, 60);
-        }
-        else if (!isMenuOpen) {
-            ctx.fillStyle = 'rgba(0,255,255,0.5)';
-            ctx.fillText("VISION: [NORMAL]", w - 40, 60);
-        }
-
-        if (!isMenuOpen) {
-            ctx.textAlign = 'right';
-            ctx.font = 'bold 24px Courier New';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(`MODE: [${transformMode}]  SNAP: [${snapEnabled ? "ON" : "OFF"}]`, w - 40, 98);
-        }
-
-        ctx.textAlign = 'left';
-
-        ctx.fillStyle =
-            isSpeaking
-                ? '#00ff00'
-                : (
-                    isListening
-                        ? '#ff0055'
-                        : '#00ffff'
-                );
-
-        ctx.fillText(
-            `HELEN: [${aiStatus}]`,
-            40,
-            60
-        );
-
         const cx = w / 2;
         const cy = h / 2;
 
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.textAlign = 'left';
+        ctx.font = '600 24px Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.84)';
+        ctx.fillText("BuildView XR", 42, 54);
+
+        ctx.font = '20px Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.56)';
+        const modeLabel = renderer?.xr?.isPresenting
+            ? "VR Preview"
+            : (desktopMode ? "Desktop Workspace" : "Workspace");
+        ctx.fillText(modeLabel, 42, 82);
+
+        if (!isMenuOpen && visionMode !== 0) {
+            ctx.textAlign = 'right';
+            ctx.font = '600 20px Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.66)';
+            ctx.fillText(visionMode === 1 ? "Edge View" : "Dark View", w - 42, 56);
+        }
+
         if (gazeProgress > 0.05) {
             ctx.beginPath();
-            ctx.arc(
-                cx,
-                cy,
-                60,
-                -Math.PI / 2,
-                (-Math.PI / 2) +
-                    (Math.PI * 2 * gazeProgress)
-            );
-
-            ctx.lineWidth = 10;
-            ctx.strokeStyle = '#00ffff';
+            ctx.arc(cx, cy, 48, -Math.PI/2, (-Math.PI/2) + (Math.PI * 2 * gazeProgress));
+            ctx.lineWidth = 7;
+            ctx.strokeStyle = 'rgba(255,255,255,0.85)';
             ctx.stroke();
         }
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.76)';
+        ctx.lineWidth = 2;
 
         if (isMenuOpen) {
-            ctx.strokeStyle = 'rgba(0,255,255,0.7)';
-            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+            ctx.arc(cx, cy, 9, 0, Math.PI * 2);
             ctx.stroke();
-        }
-        else if (activeObject.obj) {
+        } else if (activeObject.obj) {
             if (grabbedObject) {
-                ctx.strokeStyle = '#ff0055';
-                ctx.lineWidth = 6;
                 ctx.beginPath();
-                ctx.arc(cx, cy, 50, 0, 2 * Math.PI);
+                ctx.arc(cx, cy, 34, 0, Math.PI * 2);
                 ctx.stroke();
 
-                ctx.fillStyle = '#ff0055';
-                ctx.textAlign = 'center';
-                ctx.font = '24px Courier New';
-
-                ctx.fillText(`EDITING: ${transformMode}`, cx, cy + 80);
-
-                if (transformMode === "MOVE") {
-                    ctx.fillText("[L-STICK] X/Y  [TRIGGERS] DEPTH", cx, cy + 112);
-                } else if (transformMode === "ROTATE") {
-                    ctx.fillText("[R-STICK] PITCH/YAW  [TRIGGERS] ROLL", cx, cy + 112);
-                } else {
-                    ctx.fillText("[R-STICK / TRIGGERS] UNIFORM SCALE", cx, cy + 112);
-                }
-
-                ctx.fillText("[A/X] RELEASE  [X/SQUARE] NEXT MODE", cx, cy + 144);
-                ctx.fillText("[Y/TRIANGLE] DUPLICATE  [B/CIRCLE] CANCEL", cx, cy + 176);
-            }
-            else {
-                ctx.strokeStyle = '#00ffff';
-                ctx.lineWidth = 4;
-                ctx.beginPath();
-                ctx.arc(cx, cy, 40, 0, 2 * Math.PI);
-                ctx.stroke();
+                ctx.fillStyle = 'rgba(18,22,28,0.72)';
+                ctx.fillRect(cx - 235, h - 160, 470, 100);
 
                 ctx.textAlign = 'center';
-                ctx.font = '20px Courier New';
-                ctx.fillStyle = '#fff';
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '600 23px Arial';
+                ctx.fillText(grabbedObject.userData.label || "Selected object", cx, h - 122);
 
+                ctx.font = '19px Arial';
+                ctx.fillStyle = 'rgba(255,255,255,0.72)';
                 ctx.fillText(
-                    activeObject.obj.userData.label ||
-                        "TARGET",
+                    "Left stick move  •  Triggers depth  •  Right stick rotate / scale",
                     cx,
-                    cy + 80
+                    h - 90
                 );
+            } else {
+                ctx.beginPath();
+                ctx.arc(cx, cy, 26, 0, Math.PI * 2);
+                ctx.stroke();
 
-                ctx.fillStyle = '#00ff00';
-                ctx.fillText("[A/X] GRAB  [X/SQUARE] MODE  [Y/TRIANGLE] DUPLICATE", cx, cy + 120);
+                ctx.fillStyle = 'rgba(18,22,28,0.66)';
+                ctx.fillRect(cx - 190, cy + 58, 380, 52);
+
+                ctx.textAlign = 'center';
+                ctx.font = '600 20px Arial';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(activeObject.obj.userData.label || "Object", cx, cy + 91);
             }
-        }
-        else {
-            ctx.strokeStyle = '#00ff00';
-            ctx.lineWidth = 2;
-
+        } else {
             ctx.beginPath();
-            ctx.moveTo(cx - 20, cy);
-            ctx.lineTo(cx + 20, cy);
-            ctx.moveTo(cx, cy - 20);
-            ctx.lineTo(cx, cy + 20);
+            ctx.moveTo(cx - 12, cy);
+            ctx.lineTo(cx + 12, cy);
+            ctx.moveTo(cx, cy - 12);
+            ctx.lineTo(cx, cy + 12);
             ctx.stroke();
+        }
+
+        if (desktopMode && !renderer.xr.isPresenting && !isMenuOpen) {
+            ctx.fillStyle = 'rgba(18,22,28,0.68)';
+            ctx.fillRect(cx - 270, h - 58, 540, 34);
+
+            ctx.textAlign = 'center';
+            ctx.font = '18px Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.76)';
+            ctx.fillText(
+                grabbedObject
+                    ? "Arrows / Page Up-Down transform  •  Space release"
+                    : "WASD move  •  Drag mouse look  •  Space select  •  M menu",
+                cx,
+                h - 35
+            );
         }
 
         hudTexture.needsUpdate = true;
@@ -3074,6 +4190,7 @@
 
     function animate() {
         renderer.setAnimationLoop(() => {
+            handleDesktopKeyboard();
             handleInput();
             handleCockpit();
             updateHUD();
@@ -3092,7 +4209,17 @@
         });
     }
 
-    scanCameras().then(init3D);
+    // Boot the 3D workspace immediately. Camera access is optional and must
+    // never block desktop editing on a computer without VR/camera permission.
+    init3D();
+
+    const mobileLike =
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+
+    if (mobileLike && navigator.mediaDevices?.getUserMedia) {
+        scanCameras().catch(() => {});
+    }
 </script>
 </body>
 </html>
