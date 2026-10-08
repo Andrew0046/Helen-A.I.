@@ -1,0 +1,3098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>HELEN: VR ENVIRONMENT V3.5</title>
+    <style>
+        body { margin:0; overflow:hidden; background:#000; font-family:'Courier New', monospace; touch-action:none; }
+
+        #overlay {
+            position:absolute; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.95); color:#00ffff;
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            z-index:100;
+        }
+
+        h1 { font-size:40px; text-shadow:0 0 10px #00ffff; margin-bottom:10px; }
+
+        .status {
+            margin-top:10px; font-size:14px; color:#aaa; text-align:center;
+            line-height:1.5; white-space:pre-wrap;
+        }
+
+        .btn-group {
+            display:flex; flex-direction:column; gap:15px; margin-top:20px;
+            width:80%; max-width:300px;
+        }
+
+        button {
+            padding:15px; font-size:16px; font-weight:bold; font-family:'Courier New', monospace;
+            background:transparent; color:#00ffff; border:2px solid #00ffff;
+            cursor:pointer; text-transform:uppercase; transition:0.2s;
+        }
+
+        button:hover { background:#00ffff; color:#000; }
+
+        .danger-btn { border-color:#ff0055; color:#ff0055; margin-top:8px; }
+        .danger-btn:hover { background:#ff0055; color:#fff; }
+
+        .file-count {
+            color:#00ff00; font-size:12px; margin-top:-10px;
+            text-align:right; display:none;
+        }
+
+        .controls-hint {
+            font-size:11px; color:#666; margin-top:20px;
+            text-align:left; width:100%;
+        }
+
+        #restore-msg {
+            color:#ffff00; font-weight:bold; display:none; margin-bottom:10px;
+        }
+
+        #flash {
+            position:absolute; top:0; left:0; width:100%; height:100%;
+            background:#fff; opacity:0; pointer-events:none; z-index:200;
+            transition:opacity 0.1s;
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "webxr-polyfill": "https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.module.js"
+        }
+    }
+    </script>
+</head>
+<body>
+
+<video id="camera-feed" autoplay muted playsinline style="display:none;"></video>
+<canvas id="vision-canvas" style="display:none;"></canvas>
+<div id="flash"></div>
+
+<input type="file" id="intel-input" multiple accept="*/*" style="display:none">
+
+<div id="overlay">
+    <h1>HELEN VR ENVIRONMENT</h1>
+    <div id="restore-msg">⚠️ MISSION LOG FOUND</div>
+
+    <div class="status" id="system-status">
+        [ VR ENVIRONMENT READY ]<br>
+        LOAD A 3D SPACE • SCALE IT • STEP INSIDE.<br>
+        ADVANCED TOOLS REMAIN AVAILABLE UNDER MORE.
+    </div>
+
+    <div class="btn-group" id="main-controls">
+        <button onclick="document.getElementById('intel-input').click()">📦 LOAD 3D SPACE / ASSETS</button>
+        <button onclick="requestTiltAccess()">📱 ENABLE TILT DRIVE</button>
+        <button onclick="enterCinemaMode()">🎥 CINEMA FOR VR</button>
+        <div id="file-status" class="file-count">0 FILES LOADED</div>
+        <div id="vr-btn-container"></div>
+        <button onclick="resetSystem()" class="danger-btn">[ RESET SYSTEM ]</button>
+
+        <div class="controls-hint">
+            [A/X] SELECT / RELEASE 3D SPACE<br>
+            [X/SQUARE] MOVE / ROTATE / SCALE MODE<br>
+            [LEFT/RIGHT STICK] TRANSFORM / EXPLORE<br>
+            [B/CIRCLE] CANCEL MANIPULATION<br>
+            [GAZE RED] OPEN COMPACT SIDE MENU
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { VRButton } from 'three/addons/webxr/VRButton.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+
+    let scene, camera, renderer, dolly;
+    let hudTexture, hudContext;
+    let camMaterial, videoTrack, currentStream;
+    let raycaster = new THREE.Raycaster();
+    let audioListener;
+
+    let reticle;
+    let cockpitGroup;
+    let cockpitPanels = [];
+    let lastMenuToggleTime = 0;
+    let menuButtonArmed = true;
+
+    let currentSpeed = 0;
+    let targetSpeed = 0;
+    let currentRot = 0;
+    let targetRot = 0;
+
+    const MAX_SPEED = 0.08;
+    const MAX_ROT = 0.04;
+
+    let recognition;
+    let synth = window.speechSynthesis;
+    let isListening = false;
+    let isSpeaking = false;
+    let aiStatus = "STANDBY";
+
+    let chatHistory = [];
+    try {
+        const saved = localStorage.getItem('helen_chat_history');
+        if (saved) chatHistory = JSON.parse(saved);
+    } catch (e) {}
+
+    let CUSTOM_DATABASE = [];
+    const DEFAULT_DATABASE = [
+        {
+            type:'image',
+            src:'https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg',
+            label:'DEFAULT.JPG'
+        }
+    ];
+
+    let targets = [];
+    let activeObject = { obj:null, progress:0 };
+    let grabbedObject = null;
+
+    // --- VR ENVIRONMENT WORKSPACE ---
+    // Older capabilities remain in the code, but the default menu exposes
+    // only the controls needed to load, scale, place, and inspect 3D spaces.
+    let workspaceGrid = null;
+    let selectionHelper = null;
+    let transformMode = "MOVE";
+    let snapEnabled = true;
+    const SNAP_POSITION = 0.25;
+    const SNAP_ROTATION = THREE.MathUtils.degToRad(15);
+    const SNAP_SCALE = 0.10;
+
+    // Compact menu pages keep the primary VR view clear.
+    let menuPage = "OBJECT";       // OBJECT | ASSETS | MORE
+    let menuDockMode = "CAMERA";  // CAMERA | OBJECT
+    const MAX_MENU_VISIBLE = 8;
+
+    let pendingRestore = false;
+
+    let isMouseDown = false;
+    let previousMousePosition = { x:0, y:0 };
+    const MOUSE_SENSITIVITY = 0.02;
+    const VR_WALK_SPEED = 0.05;
+
+    let isTiltActive = false;
+    let tiltCalibration = { beta:0, gamma:0 };
+    let currentTilt = { beta:0, gamma:0 };
+    const TILT_DEADZONE = 5;
+    const TILT_SPEED = 0.002;
+
+    let cinemaMode = false;
+    let cinemaScreen = null;
+    let cinemaFrame = null;
+    let currentCinemaVideoIndex = 0;
+
+    let menuGroup, menuMesh, menuCtx, menuTexture;
+    let isMenuOpen = false;
+    let hoveredFileIndex = -1;
+    let menuScrollIndex = 0;
+    let lastMenuScrollTime = 0;
+    let sysMessage = "";
+
+    let menuSelectionTimer = 0;
+    let gazeProgress = 0;
+    let hoveredPageButton = null;
+
+    let lastHudState = "";
+
+    let activeCamId = null;
+    let allBackCameras = [];
+    let visionMode = 0;
+
+    let lastBtn = {
+        x:false, circle:false, square:false, triangle:false, bumper:false,
+        dpadDown:false, dpadUp:false, dpadLeft:false, dpadRight:false
+    };
+
+    const SPEED = 0.1;
+    const ROTATE_SPEED = 0.05;
+    const MOVE_SPEED = 0.05;
+    const SCALE_SPEED = 0.02;
+
+    const _moveDir = new THREE.Vector3();
+    const _strafeDir = new THREE.Vector3();
+    const _camRight = new THREE.Vector3();
+    const _camUp = new THREE.Vector3();
+
+    const AI_FOLLOW_DIST = 2.5;
+    const AI_BACKUP_DIST = 0.8;
+    const AI_WALK_SPEED = 0.03;
+
+    function setBuilderMessage(message, ms = 1600) {
+        sysMessage = message;
+        updateMenuDisplay();
+        setTimeout(() => {
+            if (sysMessage === message) {
+                sysMessage = "";
+                updateMenuDisplay();
+            }
+        }, ms);
+    }
+
+    function cycleTransformMode() {
+        const modes = ["MOVE", "ROTATE", "SCALE"];
+        const i = modes.indexOf(transformMode);
+        transformMode = modes[(i + 1) % modes.length];
+        setBuilderMessage(`MODE: ${transformMode}`);
+        lastHudState = "";
+    }
+
+    function toggleSnap() {
+        snapEnabled = !snapEnabled;
+        setBuilderMessage(`SNAP: ${snapEnabled ? "ON" : "OFF"}`);
+        lastHudState = "";
+    }
+
+    function applySnapToObject(obj) {
+        if (!snapEnabled || !obj) return;
+        if (transformMode === "MOVE") {
+            obj.position.x = Math.round(obj.position.x / SNAP_POSITION) * SNAP_POSITION;
+            obj.position.y = Math.round(obj.position.y / SNAP_POSITION) * SNAP_POSITION;
+            obj.position.z = Math.round(obj.position.z / SNAP_POSITION) * SNAP_POSITION;
+        } else if (transformMode === "ROTATE") {
+            obj.rotation.x = Math.round(obj.rotation.x / SNAP_ROTATION) * SNAP_ROTATION;
+            obj.rotation.y = Math.round(obj.rotation.y / SNAP_ROTATION) * SNAP_ROTATION;
+            obj.rotation.z = Math.round(obj.rotation.z / SNAP_ROTATION) * SNAP_ROTATION;
+        } else if (transformMode === "SCALE") {
+            obj.scale.x = Math.max(0.05, Math.round(obj.scale.x / SNAP_SCALE) * SNAP_SCALE);
+            obj.scale.y = Math.max(0.05, Math.round(obj.scale.y / SNAP_SCALE) * SNAP_SCALE);
+            obj.scale.z = Math.max(0.05, Math.round(obj.scale.z / SNAP_SCALE) * SNAP_SCALE);
+        }
+    }
+
+    function getSelectedObject() {
+        return grabbedObject || activeObject.obj;
+    }
+
+    function duplicateSelected() {
+        const obj = getSelectedObject();
+        if (!obj) {
+            setBuilderMessage("SELECT A MODEL FIRST");
+            return;
+        }
+        const source = obj.userData.sourceData;
+        if (!source || !(source.type === 'glb' || source.type === 'fbx')) {
+            setBuilderMessage("DUPLICATE: MODELS ONLY");
+            return;
+        }
+        const p = obj.position.clone().add(new THREE.Vector3(0.5, 0, 0.5));
+        const r = obj.rotation.clone();
+        const sc = obj.scale.clone();
+        spawnModel(p, source, r, sc);
+        setBuilderMessage("MODEL DUPLICATED");
+    }
+
+    function resetSelectedTransform() {
+        const obj = getSelectedObject();
+        if (!obj) {
+            setBuilderMessage("SELECT AN OBJECT FIRST");
+            return;
+        }
+        obj.rotation.set(0, 0, 0);
+        if (obj.userData.defaultScale) obj.scale.copy(obj.userData.defaultScale);
+        setBuilderMessage("TRANSFORM RESET");
+    }
+
+    function centerSelectedInView() {
+        const obj = getSelectedObject();
+        if (!obj) {
+            setBuilderMessage("SELECT AN OBJECT FIRST");
+            return;
+        }
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        const p = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(2.5));
+        obj.position.copy(p);
+        if (obj.userData.isModel) obj.position.y = Math.max(0, obj.position.y);
+        setBuilderMessage("CENTERED IN VIEW");
+    }
+
+    function deleteSelected() {
+        const obj = getSelectedObject();
+        if (!obj) {
+            setBuilderMessage("SELECT AN OBJECT FIRST");
+            return;
+        }
+        deleteObject(obj);
+        activeObject.obj = null;
+        grabbedObject = null;
+        setBuilderMessage("OBJECT DELETED");
+    }
+
+
+    function scaleSelected(factor) {
+        const obj = getSelectedObject();
+        if (!obj) {
+            setBuilderMessage("SELECT A 3D OBJECT FIRST");
+            return;
+        }
+        obj.scale.multiplyScalar(factor);
+        if (snapEnabled) {
+            obj.scale.x = Math.max(0.01, Math.round(obj.scale.x / SNAP_SCALE) * SNAP_SCALE);
+            obj.scale.y = Math.max(0.01, Math.round(obj.scale.y / SNAP_SCALE) * SNAP_SCALE);
+            obj.scale.z = Math.max(0.01, Math.round(obj.scale.z / SNAP_SCALE) * SNAP_SCALE);
+        }
+        setBuilderMessage(factor > 1 ? "SCALE INCREASED" : "SCALE REDUCED");
+        lastHudState = "";
+    }
+
+    function alignSelectedToFloor() {
+        const obj = getSelectedObject();
+        if (!obj) {
+            setBuilderMessage("SELECT A 3D OBJECT FIRST");
+            return;
+        }
+        const box = new THREE.Box3().setFromObject(obj);
+        if (!box.isEmpty()) {
+            obj.position.y += -box.min.y;
+            setBuilderMessage("ALIGNED TO FLOOR");
+        }
+    }
+
+    function toggleMenuDock() {
+        menuDockMode = menuDockMode === "CAMERA" ? "OBJECT" : "CAMERA";
+        menuGroup.userData.locked = false;
+        updateMenuPosition(true);
+        setBuilderMessage(`MENU DOCK: ${menuDockMode}`);
+        updateMenuDisplay();
+    }
+
+    function get3DAssets() {
+        return CUSTOM_DATABASE.filter(item => item.type === "glb" || item.type === "fbx");
+    }
+
+    function getLegacyAssets() {
+        return CUSTOM_DATABASE.filter(item => item.type !== "glb" && item.type !== "fbx");
+    }
+
+    function getMenuEntries() {
+        if (menuPage === "OBJECT") {
+            return [
+                { label:"[3D ASSETS >", action:"PAGE_ASSETS", type:"nav" },
+                { label:`[MODE: ${transformMode}]`, action:"CYCLE_MODE", type:"sys" },
+                { label:"[SCALE +10%]", action:"SCALE_UP", type:"sys" },
+                { label:"[SCALE -10%]", action:"SCALE_DOWN", type:"sys" },
+                { label:"[ALIGN TO FLOOR]", action:"ALIGN_FLOOR", type:"sys" },
+                { label:"[CENTER IN VIEW]", action:"CENTER_VIEW", type:"sys" },
+                { label:`[MENU: ${menuDockMode}]`, action:"TOGGLE_DOCK", type:"sys" },
+                { label:"[MORE >", action:"PAGE_MORE", type:"nav" }
+            ];
+        }
+
+        if (menuPage === "ASSETS") {
+            const assets = get3DAssets();
+            const entries = [
+                { label:"[< OBJECT]", action:"PAGE_OBJECT", type:"nav" }
+            ];
+
+            if (assets.length === 0) {
+                entries.push({
+                    label:"NO 3D FILES LOADED",
+                    action:"NOOP",
+                    type:"info"
+                });
+            } else {
+                assets.forEach((item, i) => {
+                    entries.push({
+                        label:item.label,
+                        action:"SPAWN_3D",
+                        assetIndex:i,
+                        asset:item,
+                        type:item.type
+                    });
+                });
+            }
+
+            return entries;
+        }
+
+        const legacyAssets = getLegacyAssets();
+        const entries = [
+            { label:"[< OBJECT]", action:"PAGE_OBJECT", type:"nav" },
+            { label:"[SAVE PROJECT]", action:"SAVE", type:"sys" },
+            { label:"[LOAD PROJECT]", action:"LOAD", type:"sys" },
+            { label:"[RESET TRANSFORM]", action:"RESET", type:"sys" },
+            { label:`[SNAP: ${snapEnabled ? "ON" : "OFF"}]`, action:"SNAP", type:"sys" },
+            { label:"[DUPLICATE SELECTED]", action:"DUPLICATE", type:"sys" },
+            { label:"[DELETE SELECTED]", action:"DELETE", type:"danger" },
+            { label:"[CLEAR WORKSPACE]", action:"CLEAR", type:"danger" },
+            { label:"[CINEMA MODE]", action:"CINEMA", type:"legacy" },
+            { label:"[VOICE COMMANDS]", action:"VOICE", type:"legacy" },
+            { label:"[LOCAL VISUAL CAPTURE]", action:"VISUAL", type:"legacy" },
+            { label:"[WIPE LOCAL MEMORY]", action:"WIPE", type:"legacy" }
+        ];
+
+        legacyAssets.forEach(item => {
+            entries.push({
+                label:item.label,
+                action:"SPAWN_LEGACY",
+                asset:item,
+                type:item.type
+            });
+        });
+
+        return entries;
+    }
+
+    function updateSelectionVisual() {
+        if (!selectionHelper) return;
+        const obj = getSelectedObject();
+        if (!obj || !obj.parent) {
+            selectionHelper.visible = false;
+            return;
+        }
+        selectionHelper.visible = true;
+        selectionHelper.setFromObject(obj);
+    }
+
+    window.resetSystem = function() {
+        localStorage.removeItem('helen_layout_ai');
+        localStorage.removeItem('helen_chat_history');
+        location.reload();
+    };
+
+    window.requestTiltAccess = function() {
+        if (
+            typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function'
+        ) {
+            DeviceOrientationEvent.requestPermission()
+                .then(response => {
+                    if (response === 'granted') activateTiltListener();
+                    else alert("Permission denied.");
+                })
+                .catch(console.error);
+        } else {
+            activateTiltListener();
+        }
+    };
+
+    function activateTiltListener() {
+        sysMessage = "TILT DRIVE ACTIVE";
+        updateMenuDisplay();
+        isTiltActive = true;
+
+        let calibrated = false;
+
+        window.addEventListener('deviceorientation', event => {
+            if (event.beta == null || event.gamma == null) return;
+
+            if (!calibrated) {
+                tiltCalibration.beta = event.beta;
+                tiltCalibration.gamma = event.gamma;
+                calibrated = true;
+            }
+
+            currentTilt.beta = THREE.MathUtils.lerp(
+                currentTilt.beta,
+                event.beta - tiltCalibration.beta,
+                0.1
+            );
+
+            currentTilt.gamma = THREE.MathUtils.lerp(
+                currentTilt.gamma,
+                event.gamma - tiltCalibration.gamma,
+                0.1
+            );
+        });
+    }
+
+    function initVoice() {
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition =
+                window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                aiStatus = "LISTENING...";
+                updateHUD();
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                if (aiStatus === "LISTENING...") aiStatus = "STANDBY";
+                updateHUD();
+            };
+
+            recognition.onerror = () => {
+                isListening = false;
+                aiStatus = "VOICE ERROR";
+                updateHUD();
+            };
+
+            recognition.onresult = event => {
+                const transcript = event.results[0][0].transcript;
+                console.log("HELEN INPUT:", transcript);
+                aiStatus = "INPUT RECEIVED";
+                updateHUD();
+                handleHelenInput(transcript);
+            };
+        }
+    }
+
+    function handleHelenInput(text) {
+        const command = text.trim().toLowerCase();
+
+        if (command.includes("save mission")) {
+            saveMission();
+            speak("Mission saved.");
+            return;
+        }
+
+        if (command.includes("load mission") || command.includes("restore mission")) {
+            loadMission();
+            speak("Mission restore requested.");
+            return;
+        }
+
+        if (command.includes("clear mission") || command.includes("clear all")) {
+            clearMission();
+            speak("Mission cleared.");
+            return;
+        }
+
+        if (command.includes("open menu")) {
+            isMenuOpen = true;
+            menuGroup.visible = true;
+            updateMenuDisplay();
+            updateMenuPosition(true);
+            speak("Menu open.");
+            return;
+        }
+
+        if (command.includes("close menu")) {
+            isMenuOpen = false;
+            menuGroup.visible = false;
+            speak("Menu closed.");
+            return;
+        }
+
+        if (command.includes("scan") || command.includes("visual")) {
+            performVisualScan();
+            return;
+        }
+
+        if (command.includes("move mode")) {
+            transformMode = "MOVE";
+            setBuilderMessage("MODE: MOVE");
+            return;
+        }
+        if (command.includes("rotate mode")) {
+            transformMode = "ROTATE";
+            setBuilderMessage("MODE: ROTATE");
+            return;
+        }
+        if (command.includes("scale mode")) {
+            transformMode = "SCALE";
+            setBuilderMessage("MODE: SCALE");
+            return;
+        }
+        if (command.includes("duplicate")) {
+            duplicateSelected();
+            return;
+        }
+        if (command.includes("reset transform")) {
+            resetSelectedTransform();
+            return;
+        }
+        if (command.includes("snap")) {
+            toggleSnap();
+            return;
+        }
+        if (command.includes("cinema")) {
+            window.enterCinemaMode();
+            return;
+        }
+
+        sysMessage = `LOCAL INPUT: ${text.toUpperCase()}`;
+        aiStatus = "LOCAL CORE";
+        updateMenuDisplay();
+        updateHUD();
+
+        setTimeout(() => {
+            sysMessage = "";
+            aiStatus = "STANDBY";
+            updateMenuDisplay();
+            updateHUD();
+        }, 2500);
+    }
+
+    function speak(text) {
+        if (!synth) return;
+
+        if (synth.speaking) synth.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.1;
+        utterance.pitch = 1.0;
+
+        const voices = synth.getVoices();
+        const preferred = voices.find(v =>
+            v.name.includes("Google US English") ||
+            v.name.includes("Female")
+        );
+
+        if (preferred) utterance.voice = preferred;
+
+        utterance.onstart = () => {
+            isSpeaking = true;
+            aiStatus = "SPEAKING";
+            updateHUD();
+        };
+
+        utterance.onend = () => {
+            isSpeaking = false;
+            aiStatus = "STANDBY";
+            updateHUD();
+        };
+
+        synth.speak(utterance);
+    }
+
+    async function performVisualScan() {
+        const video = document.getElementById('camera-feed');
+
+        if (!video.videoWidth || !video.videoHeight) {
+            sysMessage = "CAMERA NOT READY";
+            aiStatus = "VISION ERROR";
+            updateMenuDisplay();
+            updateHUD();
+            return;
+        }
+
+        aiStatus = "CAPTURING VISUALS...";
+        updateHUD();
+
+        const flash = document.getElementById('flash');
+        flash.style.opacity = 0.8;
+        setTimeout(() => { flash.style.opacity = 0; }, 100);
+
+        const canvas = document.getElementById('vision-canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        sysMessage = `LOCAL FRAME CAPTURED ${canvas.width}x${canvas.height}`;
+        aiStatus = "VISION BUFFER READY";
+        updateMenuDisplay();
+        updateHUD();
+
+        speak("Visual frame captured locally.");
+
+        setTimeout(() => {
+            sysMessage = "";
+            aiStatus = "STANDBY";
+            updateMenuDisplay();
+            updateHUD();
+        }, 2500);
+    }
+
+    initVoice();
+
+    if (localStorage.getItem('helen_layout_ai')) {
+        document.getElementById('restore-msg').style.display = 'block';
+        pendingRestore = true;
+    }
+
+    const input = document.getElementById('intel-input');
+
+    input.addEventListener('change', async e => {
+        if (e.target.files.length > 0) {
+            CUSTOM_DATABASE = [];
+
+            for (let i = 0; i < e.target.files.length; i++) {
+                const file = e.target.files[i];
+                const name = file.name.toUpperCase();
+                let type = 'image';
+
+                if (name.endsWith('.PDF')) type = 'pdf';
+                else if (name.endsWith('.FBX')) type = 'fbx';
+                else if (
+                    name.endsWith('.GLB') ||
+                    name.endsWith('.GLTF') ||
+                    name.endsWith('.VRM')
+                ) type = 'glb';
+                else if (
+                    name.endsWith('.MP3') ||
+                    name.endsWith('.WAV') ||
+                    name.endsWith('.OGG')
+                ) type = 'audio';
+                else if (name.endsWith('.CSV')) type = 'chart';
+                else if (file.type.startsWith('video')) type = 'video';
+                else if (file.type.startsWith('image')) type = 'image';
+
+                if (type === 'pdf') {
+                    const buffer = await file.arrayBuffer();
+                    CUSTOM_DATABASE.push({ type:'pdf', buffer, label:name });
+                } else if (type === 'chart') {
+                    const text = await file.text();
+                    CUSTOM_DATABASE.push({ type:'chart', data:text, label:name });
+                } else if (type === 'audio') {
+                    CUSTOM_DATABASE.push({
+                        type:'audio',
+                        src:URL.createObjectURL(file),
+                        label:name
+                    });
+                } else {
+                    CUSTOM_DATABASE.push({
+                        type,
+                        src:URL.createObjectURL(file),
+                        label:name
+                    });
+                }
+            }
+
+            const status = document.getElementById('file-status');
+            status.textContent = `${CUSTOM_DATABASE.length} FILE${CUSTOM_DATABASE.length === 1 ? '' : 'S'} LOADED`;
+            status.style.display = 'block';
+
+            sysMessage = `${CUSTOM_DATABASE.length} INTEL FILES READY`;
+            updateMenuDisplay();
+
+            input.value = '';
+        }
+    });
+
+    function saveMission() {
+        const layout = targets.map(root => ({
+            label:root.userData.label,
+            pos:{ x:root.position.x, y:root.position.y, z:root.position.z },
+            rot:{ x:root.rotation.x, y:root.rotation.y, z:root.rotation.z },
+            scale:{ x:root.scale.x, y:root.scale.y, z:root.scale.z },
+            type:root.userData.type
+        }));
+
+        localStorage.setItem('helen_layout_ai', JSON.stringify(layout));
+        sysMessage = "MISSION SAVED";
+        updateMenuDisplay();
+
+        setTimeout(() => {
+            sysMessage = "";
+            updateMenuDisplay();
+        }, 2000);
+    }
+
+    function loadMission() {
+        const raw = localStorage.getItem('helen_layout_ai');
+
+        if (!raw) {
+            sysMessage = "NO DATA FOUND";
+            updateMenuDisplay();
+            return;
+        }
+
+        const layout = JSON.parse(raw);
+        let restoredCount = 0;
+        let missingCount = 0;
+
+        layout.forEach(item => {
+            const dbItem = CUSTOM_DATABASE.find(f => f.label === item.label);
+
+            if (!dbItem) {
+                missingCount++;
+                return;
+            }
+
+            const pos = new THREE.Vector3(item.pos.x, item.pos.y, item.pos.z);
+            const rot = new THREE.Euler(item.rot.x, item.rot.y, item.rot.z);
+            const scale = item.scale
+                ? new THREE.Vector3(item.scale.x, item.scale.y, item.scale.z)
+                : null;
+
+            if (dbItem.type === 'fbx' || dbItem.type === 'glb') {
+                spawnModel(pos, dbItem, rot, scale);
+            } else if (dbItem.type === 'audio') {
+                spawnAudio(pos, dbItem);
+            } else if (dbItem.type === 'chart') {
+                spawnChart(pos, dbItem);
+            } else {
+                spawnScreen(pos, dbItem, rot);
+            }
+
+            restoredCount++;
+        });
+
+        sysMessage = missingCount
+            ? `RESTORED ${restoredCount} | RELOAD ${missingCount} FILES`
+            : `RESTORED ${restoredCount} UNITS`;
+
+        updateMenuDisplay();
+
+        setTimeout(() => {
+            sysMessage = "";
+            updateMenuDisplay();
+        }, 3000);
+    }
+
+    function clearMission() {
+        localStorage.removeItem('helen_layout_ai');
+        [...targets].forEach(t => deleteObject(t));
+        sysMessage = "DATABASE WIPED";
+        updateMenuDisplay();
+    }
+
+    async function scanCameras() {
+        try {
+            const firstStream = await navigator.mediaDevices.getUserMedia({
+                video:{ facingMode:{ ideal:'environment' } },
+                audio:false
+            });
+
+            firstStream.getTracks().forEach(t => t.stop());
+
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(d => d.kind === 'videoinput');
+
+            const back = cameras.filter(d => {
+                const label = d.label.toLowerCase();
+                return !label.includes('front') && !label.includes('user');
+            });
+
+            allBackCameras = (back.length ? back : cameras).map(c => c.deviceId);
+
+            await startCameraStream(allBackCameras[0]);
+        } catch (err) {
+            console.warn("Camera scan failed:", err);
+            await startCameraStream(null);
+        }
+    }
+
+    async function startCameraStream(preferredId) {
+        if (currentStream) {
+            currentStream.getTracks().forEach(t => t.stop());
+        }
+
+        try {
+            const constraints = preferredId
+                ? {
+                    video:{
+                        deviceId:{ exact:preferredId },
+                        width:{ ideal:1280 },
+                        height:{ ideal:720 }
+                    },
+                    audio:false
+                }
+                : {
+                    video:{
+                        facingMode:{ ideal:'environment' },
+                        width:{ ideal:1280 },
+                        height:{ ideal:720 }
+                    },
+                    audio:false
+                };
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            const video = document.getElementById('camera-feed');
+
+            video.srcObject = stream;
+
+            await new Promise(resolve => {
+                video.onloadedmetadata = resolve;
+            });
+
+            await video.play();
+
+            currentStream = stream;
+            videoTrack = stream.getVideoTracks()[0];
+            activeCamId = preferredId;
+
+            if (camMaterial) {
+                const texture = new THREE.VideoTexture(video);
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.generateMipmaps = false;
+
+                camMaterial.uniforms.tDiffuse.value = texture;
+                camMaterial.uniforms.uResolution.value.set(
+                    video.videoWidth || 1280,
+                    video.videoHeight || 720
+                );
+            }
+        } catch (err) {
+            console.warn("Camera start failed:", err);
+        }
+    }
+
+    window.enterCinemaMode = function() {
+        const videos = CUSTOM_DATABASE.filter(item => item.type === 'video');
+
+        if (videos.length === 0) {
+            alert("No video files loaded.\n\nUse LOAD INTEL to add MP4 videos first.");
+            return;
+        }
+
+        if (renderer.xr.isPresenting) {
+            setupCinemaEnvironment();
+            return;
+        }
+
+        if (!navigator.xr) {
+            alert("WebXR immersive VR is not available on this browser.");
+            return;
+        }
+
+        const sessionInit = {
+            optionalFeatures:['local-floor', 'bounded-floor', 'hand-tracking', 'layers']
+        };
+
+        navigator.xr.requestSession('immersive-vr', sessionInit)
+            .then(session => {
+                renderer.xr.setSession(session);
+                setupCinemaEnvironment();
+
+                session.addEventListener('end', () => {
+                    cinemaMode = false;
+                    if (cockpitGroup) cockpitGroup.visible = true;
+                    scene.background = null;
+                    scene.fog = null;
+                    sysMessage = "CINEMA ENDED";
+                    updateMenuDisplay();
+                });
+            })
+            .catch(e => {
+                alert("VR NOT SUPPORTED OR CANCELLED: " + e);
+            });
+    };
+
+    function setupCinemaEnvironment() {
+        const videos = CUSTOM_DATABASE.filter(item => item.type === 'video');
+        if (videos.length === 0) return;
+
+        cinemaMode = true;
+        currentCinemaVideoIndex = 0;
+
+        if (cockpitGroup) cockpitGroup.visible = false;
+
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.Fog(0x000011, 10, 50);
+
+        dolly.position.set(0, 0, 0);
+        dolly.rotation.set(0, 0, 0);
+        camera.position.set(0, 1.6, 12);
+
+        spawnCinemaScreen(videos[0]);
+
+        sysMessage = "CINEMA MODE ACTIVE";
+        updateMenuDisplay();
+    }
+
+    function spawnCinemaScreen(videoItem) {
+        if (cinemaScreen) {
+            if (cinemaScreen.userData.videoElement) {
+                cinemaScreen.userData.videoElement.pause();
+                cinemaScreen.userData.videoElement.src = "";
+            }
+
+            if (cinemaScreen.material?.map) cinemaScreen.material.map.dispose();
+            if (cinemaScreen.material) cinemaScreen.material.dispose();
+            if (cinemaScreen.geometry) cinemaScreen.geometry.dispose();
+
+            scene.remove(cinemaScreen);
+            targets = targets.filter(t => t !== cinemaScreen);
+            cinemaScreen = null;
+        }
+
+        if (cinemaFrame) {
+            if (cinemaFrame.material) cinemaFrame.material.dispose();
+            if (cinemaFrame.geometry) cinemaFrame.geometry.dispose();
+            scene.remove(cinemaFrame);
+            cinemaFrame = null;
+        }
+
+        const radius = 18;
+        const height = 9;
+        const thetaLength = Math.PI * 0.75;
+
+        const geometry = new THREE.CylinderGeometry(
+            radius, radius, height, 64, 1, true,
+            -thetaLength / 2, thetaLength
+        );
+        geometry.rotateY(Math.PI);
+
+        const material = new THREE.MeshBasicMaterial({
+            side:THREE.DoubleSide
+        });
+
+        cinemaScreen = new THREE.Mesh(geometry, material);
+        cinemaScreen.position.set(0, 5, -radius * 0.6);
+
+        const videoElem = document.createElement('video');
+        videoElem.src = videoItem.src;
+        videoElem.crossOrigin = "anonymous";
+        videoElem.loop = true;
+        videoElem.muted = false;
+        videoElem.playsInline = true;
+        videoElem.play().catch(() => {});
+
+        const texture = new THREE.VideoTexture(videoElem);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        material.map = texture;
+
+        cinemaScreen.userData = {
+            isScreen:true,
+            isCinema:true,
+            label:videoItem.label,
+            type:'video',
+            videoElement:videoElem,
+            videoIndex:currentCinemaVideoIndex
+        };
+
+        const frameGeo = new THREE.CylinderGeometry(
+            radius + 0.6, radius + 0.6, height + 1.2,
+            64, 1, true, -thetaLength / 2, thetaLength
+        );
+
+        const frameMat = new THREE.MeshBasicMaterial({
+            color:0x0a0a0a,
+            side:THREE.DoubleSide
+        });
+
+        cinemaFrame = new THREE.Mesh(frameGeo, frameMat);
+        cinemaFrame.position.copy(cinemaScreen.position);
+
+        scene.add(cinemaFrame);
+        scene.add(cinemaScreen);
+        targets.push(cinemaScreen);
+    }
+
+    function switchCinemaVideo(direction) {
+        const videos = CUSTOM_DATABASE.filter(item => item.type === 'video');
+        if (videos.length === 0) return;
+
+        currentCinemaVideoIndex =
+            (currentCinemaVideoIndex + direction + videos.length) % videos.length;
+
+        spawnCinemaScreen(videos[currentCinemaVideoIndex]);
+    }
+
+    const vertexShader = `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `;
+
+    const fragmentShader = `
+        uniform sampler2D tDiffuse;
+        uniform float uMode;
+        uniform vec2 uResolution;
+        varying vec2 vUv;
+
+        void main() {
+            vec4 color = texture2D(tDiffuse, vUv);
+
+            if (uMode > 1.5) {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            }
+            else if (uMode > 0.5) {
+                float x = 1.0 / uResolution.x;
+                float y = 1.0 / uResolution.y;
+
+                vec4 horizEdge =
+                    -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) +
+                    -2.0 * texture2D(tDiffuse, vUv + vec2(-x,  0.0)) +
+                    -1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) +
+                     1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) +
+                     2.0 * texture2D(tDiffuse, vUv + vec2( x,  0.0)) +
+                     1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
+
+                vec4 vertEdge =
+                    -1.0 * texture2D(tDiffuse, vUv + vec2(-x, -y)) +
+                    -2.0 * texture2D(tDiffuse, vUv + vec2( 0.0, -y)) +
+                    -1.0 * texture2D(tDiffuse, vUv + vec2( x, -y)) +
+                     1.0 * texture2D(tDiffuse, vUv + vec2(-x,  y)) +
+                     2.0 * texture2D(tDiffuse, vUv + vec2( 0.0,  y)) +
+                     1.0 * texture2D(tDiffuse, vUv + vec2( x,  y));
+
+                vec3 edge = sqrt(
+                    (horizEdge.rgb * horizEdge.rgb) +
+                    (vertEdge.rgb * vertEdge.rgb)
+                );
+
+                float val = length(edge);
+
+                if (val > 0.15)
+                    gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * val * 2.0;
+                else
+                    gl_FragColor = vec4(0.0, 0.05, 0.1, 1.0);
+            }
+            else {
+                gl_FragColor = color;
+            }
+        }
+    `;
+
+    function initMouseControl() {
+        function getPos(e) {
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x:e.touches[0].clientX,
+                    y:e.touches[0].clientY
+                };
+            }
+
+            return { x:e.clientX, y:e.clientY };
+        }
+
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
+        const onDown = e => {
+            if (e.button === 2) {
+                isMenuOpen = !isMenuOpen;
+                menuGroup.visible = isMenuOpen;
+                if (isMenuOpen) {
+                    menuPage = "OBJECT";
+                    menuScrollIndex = 0;
+                    hoveredFileIndex = -1;
+                    updateMenuDisplay();
+                    updateMenuPosition(true);
+                }
+                return;
+            }
+
+            if (isMenuOpen) return;
+
+            if (e.button === 0 || e.type === 'touchstart') {
+                isMouseDown = true;
+                previousMousePosition = getPos(e);
+            }
+        };
+
+        const onUp = () => {
+            isMouseDown = false;
+        };
+
+        const onMove = e => {
+            if (!isMouseDown || !dolly || isMenuOpen) return;
+            if (e.preventDefault) e.preventDefault();
+
+            if (!renderer.xr.isPresenting) {
+                const pos = getPos(e);
+                const deltaX = pos.x - previousMousePosition.x;
+                const deltaY = pos.y - previousMousePosition.y;
+                previousMousePosition = pos;
+
+                camera.getWorldDirection(_moveDir);
+                _moveDir.y = 0;
+                _moveDir.normalize();
+
+                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
+
+                dolly.position.addScaledVector(
+                    _moveDir,
+                    -deltaY * MOUSE_SENSITIVITY
+                );
+
+                dolly.position.addScaledVector(
+                    _strafeDir,
+                    deltaX * MOUSE_SENSITIVITY
+                );
+            }
+        };
+
+        window.addEventListener('mousedown', onDown);
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchstart', onDown, { passive:false });
+        window.addEventListener('touchend', onUp);
+        window.addEventListener('touchmove', onMove, { passive:false });
+    }
+
+    function createChevron(color) {
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 0.3);
+        shape.lineTo(0.3, -0.2);
+        shape.lineTo(0, -0.1);
+        shape.lineTo(-0.3, -0.2);
+        shape.lineTo(0, 0.3);
+
+        const geo = new THREE.ShapeGeometry(shape);
+
+        const mat = new THREE.MeshBasicMaterial({
+            color,
+            side:THREE.DoubleSide,
+            transparent:true,
+            opacity:0.5
+        });
+
+        const arrow = new THREE.Mesh(geo, mat);
+
+        const glow = new THREE.Mesh(
+            new THREE.CircleGeometry(0.35, 32),
+            new THREE.MeshBasicMaterial({
+                color,
+                transparent:true,
+                opacity:0.1
+            })
+        );
+
+        arrow.add(glow);
+        return arrow;
+    }
+
+    function createCockpit() {
+        if (cockpitGroup) dolly.remove(cockpitGroup);
+
+        cockpitGroup = new THREE.Group();
+        cockpitGroup.position.set(0, -1.6, -1.0);
+        cockpitGroup.rotation.x = -Math.PI / 2 + 0.2;
+        dolly.add(cockpitGroup);
+
+        cockpitPanels = [];
+
+        const fwd = createChevron(0x00ff00);
+        fwd.position.set(0, 0.5, 0);
+        fwd.userData = { action:"FORWARD", baseScale:1.5 };
+        fwd.scale.setScalar(1.5);
+        cockpitGroup.add(fwd);
+        cockpitPanels.push(fwd);
+
+        const left = createChevron(0x00ffff);
+        left.position.set(-0.6, 0, 0);
+        left.rotation.z = Math.PI / 2;
+        left.userData = { action:"LEFT", baseScale:1 };
+        cockpitGroup.add(left);
+        cockpitPanels.push(left);
+
+        const right = createChevron(0x00ffff);
+        right.position.set(0.6, 0, 0);
+        right.rotation.z = -Math.PI / 2;
+        right.userData = { action:"RIGHT", baseScale:1 };
+        cockpitGroup.add(right);
+        cockpitPanels.push(right);
+
+        const menuBtnGeo = new THREE.PlaneGeometry(0.3, 0.3);
+
+        const menuBtnMat = new THREE.MeshBasicMaterial({
+            color:0xff0055,
+            side:THREE.DoubleSide,
+            transparent:true,
+            opacity:0.5
+        });
+
+        const menuBtn = new THREE.Mesh(menuBtnGeo, menuBtnMat);
+        menuBtn.position.set(0, -0.4, 0);
+        menuBtn.userData = { action:"TOGGLE_MENU", baseScale:1 };
+
+        const edges = new THREE.EdgesGeometry(menuBtnGeo);
+        const line = new THREE.LineSegments(
+            edges,
+            new THREE.LineBasicMaterial({ color:0xff0055 })
+        );
+
+        menuBtn.add(line);
+        cockpitGroup.add(menuBtn);
+        cockpitPanels.push(menuBtn);
+
+        if (!reticle) {
+            const ringGeo = new THREE.RingGeometry(0.015, 0.02, 32);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color:0xffffff,
+                depthTest:false,
+                opacity:0.8,
+                transparent:true
+            });
+
+            reticle = new THREE.Mesh(ringGeo, ringMat);
+            reticle.position.z = -1;
+            camera.add(reticle);
+        }
+    }
+
+    function handleCockpit() {
+        if (!cockpitGroup || cinemaMode) return;
+
+        const time = Date.now() * 0.003;
+        cockpitGroup.position.y = -1.6 + Math.sin(time) * 0.02;
+
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        const intersects = raycaster.intersectObjects(cockpitPanels, false);
+
+        targetSpeed = 0;
+        targetRot = 0;
+
+        cockpitPanels.forEach(p => {
+            p.material.opacity = 0.4;
+            p.scale.setScalar(p.userData.baseScale);
+            if (p.children[0]) p.children[0].rotation.z += 0.01;
+        });
+
+        let lookingAtMenuButton = false;
+
+        if (intersects.length > 0) {
+            const p = intersects[0].object;
+            p.material.opacity = 1.0;
+            p.scale.setScalar(p.userData.baseScale * 1.2);
+
+            if (p.userData.action === "FORWARD") targetSpeed = MAX_SPEED;
+            if (p.userData.action === "LEFT") targetRot = MAX_ROT;
+            if (p.userData.action === "RIGHT") targetRot = -MAX_ROT;
+
+            if (p.userData.action === "TOGGLE_MENU") {
+                lookingAtMenuButton = true;
+
+                const now = Date.now();
+
+                if (menuButtonArmed && now - lastMenuToggleTime > 700) {
+                    isMenuOpen = !isMenuOpen;
+                    menuGroup.visible = isMenuOpen;
+
+                    if (isMenuOpen) {
+                        menuPage = "OBJECT";
+                        menuScrollIndex = 0;
+                        hoveredFileIndex = -1;
+                        updateMenuDisplay();
+                        updateMenuPosition(true);
+                    } else {
+                        menuGroup.userData.locked = false;
+                    }
+
+                    menuButtonArmed = false;
+                    lastMenuToggleTime = now;
+                }
+            }
+        }
+
+        if (!lookingAtMenuButton) {
+            menuButtonArmed = true;
+        }
+
+        currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, 0.1);
+        currentRot = THREE.MathUtils.lerp(currentRot, targetRot, 0.1);
+
+        if (Math.abs(currentSpeed) > 0.001) {
+            camera.getWorldDirection(_moveDir);
+            _moveDir.y = 0;
+            _moveDir.normalize();
+            dolly.position.addScaledVector(_moveDir, currentSpeed);
+        }
+
+        if (Math.abs(currentRot) > 0.001) {
+            dolly.rotation.y += currentRot;
+        }
+    }
+
+    function updateMenuPosition(force = false) {
+        if (!isMenuOpen || !menuGroup || !camera) return;
+
+        // CAMERA dock is the safe default. It sits to the lower-right of the
+        // user's view so the reticle and object stay visible.
+        if (menuDockMode === "CAMERA") {
+            if (menuGroup.parent !== camera) camera.attach(menuGroup);
+            menuGroup.position.set(0.72, -0.08, -1.45);
+            menuGroup.rotation.set(0, -0.10, 0);
+            menuGroup.userData.locked = true;
+            return;
+        }
+
+        // Optional OBJECT dock: place the menu beside the selected object.
+        const obj = getSelectedObject();
+        if (!obj || !obj.parent) {
+            menuDockMode = "CAMERA";
+            if (menuGroup.parent !== camera) camera.attach(menuGroup);
+            menuGroup.position.set(0.72, -0.08, -1.45);
+            menuGroup.rotation.set(0, -0.10, 0);
+            menuGroup.userData.locked = true;
+            return;
+        }
+
+        if (menuGroup.parent !== scene) scene.attach(menuGroup);
+
+        const box = new THREE.Box3().setFromObject(obj);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        // Clamp the offset so very large rooms do not throw the panel far away.
+        const sideOffset = THREE.MathUtils.clamp(size.x * 0.55 + 0.45, 0.6, 1.8);
+        const verticalOffset = THREE.MathUtils.clamp(size.y * 0.25, 0.15, 1.0);
+
+        menuGroup.position.set(
+            center.x + sideOffset,
+            center.y + verticalOffset,
+            center.z
+        );
+
+        menuGroup.lookAt(camera.getWorldPosition(new THREE.Vector3()));
+        menuGroup.userData.locked = true;
+    }
+
+    function init3D() {
+        scene = new THREE.Scene();
+
+        dolly = new THREE.Group();
+        dolly.position.set(0, 0, 5);
+        scene.add(dolly);
+
+        camera = new THREE.PerspectiveCamera(
+            70,
+            window.innerWidth / window.innerHeight,
+            0.01,
+            100
+        );
+
+        dolly.add(camera);
+
+        audioListener = new THREE.AudioListener();
+        camera.add(audioListener);
+
+        const video = document.getElementById('camera-feed');
+        const vidTex = new THREE.VideoTexture(video);
+        vidTex.colorSpace = THREE.SRGBColorSpace;
+        vidTex.generateMipmaps = false;
+
+        camMaterial = new THREE.ShaderMaterial({
+            uniforms:{
+                tDiffuse:{ value:vidTex },
+                uMode:{ value:0.0 },
+                uResolution:{
+                    value:new THREE.Vector2(
+                        video.videoWidth || window.innerWidth,
+                        video.videoHeight || window.innerHeight
+                    )
+                }
+            },
+            vertexShader,
+            fragmentShader,
+            depthTest:false,
+            depthWrite:false
+        });
+
+        const camPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(50, 30),
+            camMaterial
+        );
+
+        camPlane.position.z = -20;
+        camera.add(camPlane);
+
+        const hudCanvas = document.createElement('canvas');
+        hudCanvas.width = 1024;
+        hudCanvas.height = 1024;
+
+        hudContext = hudCanvas.getContext('2d');
+        hudTexture = new THREE.CanvasTexture(hudCanvas);
+        hudTexture.minFilter = THREE.LinearFilter;
+
+        const hudMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(1.5, 1.5),
+            new THREE.MeshBasicMaterial({
+                map:hudTexture,
+                transparent:true,
+                opacity:0.9,
+                depthTest:false
+            })
+        );
+
+        hudMesh.position.set(0, 0, -1.5);
+        camera.add(hudMesh);
+
+        const light = new THREE.DirectionalLight(0xffffff, 2);
+        light.position.set(0, 5, 5);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
+
+        workspaceGrid = new THREE.GridHelper(30, 60, 0x00ffff, 0x123344);
+        workspaceGrid.position.y = 0;
+        workspaceGrid.material.transparent = true;
+        workspaceGrid.material.opacity = 0.35;
+        scene.add(workspaceGrid);
+
+        selectionHelper = new THREE.BoxHelper(new THREE.Object3D(), 0x00ffff);
+        selectionHelper.material.depthTest = false;
+        selectionHelper.material.transparent = true;
+        selectionHelper.material.opacity = 0.9;
+        selectionHelper.visible = false;
+        scene.add(selectionHelper);
+
+        renderer = new THREE.WebGLRenderer({
+            antialias:true,
+            alpha:true,
+            powerPreference:"high-performance"
+        });
+
+        renderer.setPixelRatio(1);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        initMouseControl();
+        createCockpit();
+
+        const btn = VRButton.createButton(renderer);
+        btn.className = "primary";
+        btn.innerHTML = "ENTER VR";
+        document.getElementById('vr-btn-container').appendChild(btn);
+
+        renderer.xr.addEventListener('sessionstart', () => {
+            document.getElementById('overlay').style.display = 'none';
+        });
+
+        createMenuSystem();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.addEventListener('keydown', e => {
+            if (
+                e.key === 'f' &&
+                targets.length > 0 &&
+                targets[0].userData.isModel
+            ) {
+                targets[0].userData.isPaused =
+                    !targets[0].userData.isPaused;
+            }
+        });
+
+        animate();
+    }
+
+    function createMenuSystem() {
+        menuGroup = new THREE.Group();
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 1024;
+
+        menuCtx = canvas.getContext('2d');
+        menuTexture = new THREE.CanvasTexture(canvas);
+
+        // Smaller than V3.4 so it no longer covers the center of the VR view.
+        const geometry = new THREE.PlaneGeometry(0.95, 0.95);
+
+        const material = new THREE.MeshBasicMaterial({
+            map:menuTexture,
+            transparent:true,
+            side:THREE.DoubleSide,
+            depthTest:false
+        });
+
+        menuMesh = new THREE.Mesh(geometry, material);
+        menuMesh.renderOrder = 50;
+        menuGroup.add(menuMesh);
+
+        const outline = new THREE.LineSegments(
+            new THREE.EdgesGeometry(geometry),
+            new THREE.LineBasicMaterial({ color:0x00ffff, depthTest:false })
+        );
+        outline.renderOrder = 51;
+        menuGroup.add(outline);
+
+        // Default to a camera-attached side dock.
+        camera.add(menuGroup);
+        menuGroup.position.set(0.72, -0.08, -1.45);
+        menuGroup.rotation.set(0, -0.10, 0);
+        menuGroup.visible = false;
+        menuGroup.userData.locked = true;
+
+        updateMenuDisplay();
+    }
+
+    function updateMenuDisplay() {
+        if (!menuCtx || !menuTexture) return;
+
+        const ctx = menuCtx;
+        const w = 1024;
+        const h = 1024;
+        const entries = getMenuEntries();
+        const totalItems = entries.length;
+
+        const pageTitles = {
+            OBJECT:"ENVIRONMENT // OBJECT",
+            ASSETS:"3D ENVIRONMENTS",
+            MORE:"MORE // LEGACY"
+        };
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(0, 10, 20, 0.94)';
+        ctx.fillRect(0, 0, w, h);
+
+        // Slim title area.
+        ctx.fillStyle = '#00ffff';
+        ctx.font = 'bold 46px Courier New';
+        ctx.textAlign = 'left';
+        ctx.fillText(pageTitles[menuPage] || "VR MENU", 56, 70);
+
+        ctx.font = '24px Courier New';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#7fdde0';
+        ctx.fillText(menuDockMode, w - 56, 68);
+
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(50, 96);
+        ctx.lineTo(w - 50, 96);
+        ctx.stroke();
+
+        const maxScroll = Math.max(0, totalItems - MAX_MENU_VISIBLE);
+        menuScrollIndex = Math.max(0, Math.min(menuScrollIndex, maxScroll));
+
+        if (totalItems > MAX_MENU_VISIBLE) {
+            const trackTop = 130;
+            const trackHeight = 690;
+            const scrollPercent = maxScroll ? menuScrollIndex / maxScroll : 0;
+            const thumbHeight = Math.max(90, (MAX_MENU_VISIBLE / totalItems) * trackHeight);
+            const thumbY = trackTop + scrollPercent * (trackHeight - thumbHeight);
+
+            ctx.fillStyle = 'rgba(0,255,255,0.12)';
+            ctx.fillRect(w - 28, trackTop, 8, trackHeight);
+            ctx.fillStyle = '#00ffff';
+            ctx.fillRect(w - 28, thumbY, 8, thumbHeight);
+        }
+
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 40px Courier New';
+
+        const startY = 170;
+        const rowH = 88;
+
+        for (let i = 0; i < MAX_MENU_VISIBLE; i++) {
+            const realIndex = menuScrollIndex + i;
+            if (realIndex >= totalItems) break;
+
+            const item = entries[realIndex];
+            const y = startY + i * rowH;
+            const isHovered = realIndex === hoveredFileIndex;
+
+            if (isHovered) {
+                ctx.fillStyle = 'rgba(0,255,255,0.24)';
+                ctx.fillRect(42, y - 53, w - 92, 68);
+            }
+
+            if (item.type === "danger") ctx.fillStyle = '#ff5a7d';
+            else if (item.type === "nav") ctx.fillStyle = '#ffffff';
+            else if (item.type === "info") ctx.fillStyle = '#777777';
+            else if (item.type === "legacy") ctx.fillStyle = '#9b8cff';
+            else if (item.type === "sys") ctx.fillStyle = '#00ffff';
+            else ctx.fillStyle = '#00c8c8';
+
+            const prefix = isHovered ? "> " : "  ";
+            let label = `${prefix}${item.label}`;
+
+            // Prevent long filenames from overflowing the compact panel.
+            if (label.length > 30) label = label.slice(0, 27) + "...";
+            ctx.fillText(label, 58, y);
+
+            if (!["sys","nav","danger","legacy","info"].includes(item.type)) {
+                ctx.font = '22px Courier New';
+                ctx.fillStyle = '#777';
+                ctx.textAlign = 'right';
+                ctx.fillText(String(item.type).toUpperCase(), w - 52, y);
+                ctx.textAlign = 'left';
+                ctx.font = 'bold 40px Courier New';
+            }
+        }
+
+        // Footer is deliberately minimal to avoid visual clutter.
+        ctx.strokeStyle = 'rgba(0,255,255,0.25)';
+        ctx.beginPath();
+        ctx.moveTo(50, 900);
+        ctx.lineTo(w - 50, 900);
+        ctx.stroke();
+
+        ctx.font = '22px Courier New';
+        ctx.fillStyle = '#6d8f94';
+        ctx.textAlign = 'left';
+        const selected = getSelectedObject();
+        ctx.fillText(
+            selected ? `SELECTED: ${(selected.userData.label || "OBJECT").slice(0, 26)}` : "SELECTED: NONE",
+            56, 944
+        );
+
+        if (sysMessage) {
+            ctx.fillStyle = 'rgba(0,255,120,0.92)';
+            ctx.fillRect(50, 965, w - 100, 42);
+            ctx.fillStyle = '#00150b';
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 24px Courier New';
+            ctx.fillText(String(sysMessage).slice(0, 48), w / 2, 994);
+        }
+
+        menuTexture.needsUpdate = true;
+    }
+
+    function wipeMemory() {
+        chatHistory = [];
+        localStorage.removeItem('helen_chat_history');
+        sysMessage = "LOCAL MEMORY WIPED";
+        speak("Local memory cleared.");
+        updateMenuDisplay();
+    }
+
+    function executeMenuEntry(entry) {
+        if (!entry || entry.action === "NOOP") return;
+
+        switch (entry.action) {
+            case "PAGE_OBJECT":
+                menuPage = "OBJECT";
+                menuScrollIndex = 0;
+                hoveredFileIndex = -1;
+                break;
+
+            case "PAGE_ASSETS":
+                menuPage = "ASSETS";
+                menuScrollIndex = 0;
+                hoveredFileIndex = -1;
+                break;
+
+            case "PAGE_MORE":
+                menuPage = "MORE";
+                menuScrollIndex = 0;
+                hoveredFileIndex = -1;
+                break;
+
+            case "CYCLE_MODE":
+                cycleTransformMode();
+                break;
+
+            case "SCALE_UP":
+                scaleSelected(1.10);
+                break;
+
+            case "SCALE_DOWN":
+                scaleSelected(0.90);
+                break;
+
+            case "ALIGN_FLOOR":
+                alignSelectedToFloor();
+                break;
+
+            case "CENTER_VIEW":
+                centerSelectedInView();
+                break;
+
+            case "TOGGLE_DOCK":
+                toggleMenuDock();
+                break;
+
+            case "SAVE":
+                saveMission();
+                break;
+
+            case "LOAD":
+                loadMission();
+                break;
+
+            case "RESET":
+                resetSelectedTransform();
+                break;
+
+            case "SNAP":
+                toggleSnap();
+                break;
+
+            case "DUPLICATE":
+                duplicateSelected();
+                break;
+
+            case "DELETE":
+                deleteSelected();
+                break;
+
+            case "CLEAR":
+                clearMission();
+                break;
+
+            case "CINEMA":
+                window.enterCinemaMode();
+                break;
+
+            case "VOICE":
+                if (recognition) {
+                    try { recognition.start(); } catch (e) {}
+                } else {
+                    setBuilderMessage("VOICE NOT READY");
+                }
+                break;
+
+            case "VISUAL":
+                performVisualScan();
+                break;
+
+            case "WIPE":
+                wipeMemory();
+                break;
+
+            case "SPAWN_3D":
+            case "SPAWN_LEGACY": {
+                const item = entry.asset;
+                if (!item) break;
+
+                const dir = new THREE.Vector3();
+                camera.getWorldDirection(dir);
+                const pos = camera.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(3));
+
+                if (item.type === 'fbx' || item.type === 'glb') {
+                    pos.y = 0;
+                    spawnModel(pos, item);
+                } else if (item.type === 'audio') {
+                    pos.y = 1.6;
+                    spawnAudio(pos, item);
+                } else if (item.type === 'chart') {
+                    pos.y = 1.0;
+                    spawnChart(pos, item);
+                } else {
+                    pos.y = 1.6;
+                    spawnScreen(pos, item);
+                }
+
+                isMenuOpen = false;
+                menuGroup.visible = false;
+                menuGroup.userData.locked = false;
+                break;
+            }
+        }
+
+        updateMenuDisplay();
+        updateMenuPosition(true);
+        lastHudState = "";
+    }
+
+    function spawnFromMenu(index) {
+        const entries = getMenuEntries();
+        const entry = entries[index];
+        executeMenuEntry(entry);
+    }
+
+    function spawnAudio(position, data) {
+        const geo = new THREE.IcosahedronGeometry(0.3, 1);
+
+        const mat = new THREE.MeshBasicMaterial({
+            color:0x00ff00,
+            wireframe:true
+        });
+
+        const orb = new THREE.Mesh(geo, mat);
+        orb.position.copy(position);
+
+        const sound = new THREE.Audio(audioListener);
+        const loader = new THREE.AudioLoader();
+
+        loader.load(data.src, buffer => {
+            sound.setBuffer(buffer);
+            sound.setLoop(true);
+            sound.setVolume(0.5);
+        });
+
+        orb.userData = {
+            isScreen:true,
+            isAudio:true,
+            sound,
+            isPlaying:false,
+            label:data.label,
+            type:'audio'
+        };
+
+        const border = new THREE.Mesh(
+            new THREE.BoxGeometry(0.7, 0.7, 0.7),
+            new THREE.MeshBasicMaterial({ visible:false })
+        );
+
+        orb.add(border);
+        scene.add(orb);
+        targets.push(orb);
+    }
+
+    function spawnChart(position, data) {
+        const lines = data.data.split('\n');
+        const chartGroup = new THREE.Group();
+        chartGroup.position.copy(position);
+
+        let maxVal = 0;
+        const parsed = [];
+
+        lines.forEach(l => {
+            const parts = l.split(',');
+
+            if (parts.length >= 2) {
+                const label = parts[0].trim();
+                const val = parseFloat(parts[1]);
+
+                if (!isNaN(val)) {
+                    parsed.push({ label, val });
+                    if (val > maxVal) maxVal = val;
+                }
+            }
+        });
+
+        if (maxVal <= 0) maxVal = 1;
+
+        const baseSize = 0.2;
+        const spacing = 0.3;
+
+        parsed.forEach((item, i) => {
+            const h = (item.val / maxVal) * 1.5;
+
+            const geo = new THREE.BoxGeometry(
+                baseSize,
+                Math.max(h, 0.01),
+                baseSize
+            );
+
+            const mat = new THREE.MeshBasicMaterial({
+                color:0x00ffff,
+                transparent:true,
+                opacity:0.8
+            });
+
+            const bar = new THREE.Mesh(geo, mat);
+
+            bar.position.set(
+                (i * spacing) - ((parsed.length * spacing) / 2),
+                h / 2,
+                0
+            );
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 128;
+
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 40px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(item.label, 128, 50);
+
+            ctx.fillStyle = '#00ffff';
+            ctx.fillText(item.val, 128, 100);
+
+            const tex = new THREE.CanvasTexture(canvas);
+
+            const labelMesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.4, 0.2),
+                new THREE.MeshBasicMaterial({
+                    map:tex,
+                    transparent:true,
+                    side:THREE.DoubleSide
+                })
+            );
+
+            labelMesh.position.y = h + 0.2;
+            bar.add(labelMesh);
+            chartGroup.add(bar);
+        });
+
+        const baseGeo = new THREE.PlaneGeometry(
+            Math.max(parsed.length * spacing + 0.2, 0.5),
+            0.5
+        );
+
+        const baseMat = new THREE.MeshBasicMaterial({
+            color:0x005555,
+            side:THREE.DoubleSide
+        });
+
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.rotation.x = -Math.PI / 2;
+        chartGroup.add(base);
+
+        chartGroup.userData = {
+            isScreen:true,
+            isChart:true,
+            label:data.label,
+            type:'chart'
+        };
+
+        const hitBox = new THREE.Mesh(
+            new THREE.BoxGeometry(
+                Math.max(parsed.length * spacing, 0.5),
+                1.5,
+                0.5
+            ),
+            new THREE.MeshBasicMaterial({ visible:false })
+        );
+
+        hitBox.position.y = 0.75;
+        chartGroup.add(hitBox);
+
+        scene.add(chartGroup);
+        targets.push(chartGroup);
+    }
+
+    function mapBones(model) {
+        const skeleton = {
+            hips:null,
+            spine:null,
+            head:null,
+            neck:null,
+            leftLeg:null,
+            rightLeg:null,
+            leftArm:null,
+            rightArm:null
+        };
+
+        model.traverse(o => {
+            if (o.isMesh) {
+                o.castShadow = false;
+                o.receiveShadow = false;
+                if (o.material) o.material.side = THREE.DoubleSide;
+            }
+
+            if (!o.isBone) return;
+
+            const n = o.name;
+
+            if (n === 'J_Bip_L_UpperArm') skeleton.leftArm = o;
+            if (n === 'J_Bip_R_UpperArm') skeleton.rightArm = o;
+            if (n === 'J_Bip_C_Neck') skeleton.neck = o;
+            if (n === 'J_Bip_C_Head') skeleton.head = o;
+            if (n === 'J_Bip_C_Spine') skeleton.spine = o;
+            if (n === 'J_Bip_L_UpperLeg') skeleton.leftLeg = o;
+            if (n === 'J_Bip_R_UpperLeg') skeleton.rightLeg = o;
+        });
+
+        return skeleton;
+    }
+
+    function updateAI(model) {
+        if (!model.userData.skeleton) return;
+
+        const skel = model.userData.skeleton;
+
+        const playerPos = camera.getWorldPosition(new THREE.Vector3());
+
+        const flatPlayerPos = new THREE.Vector3(
+            playerPos.x,
+            model.position.y,
+            playerPos.z
+        );
+
+        const dist = model.position.distanceTo(flatPlayerPos);
+        const time = Date.now() * 0.001;
+
+        if (model.userData.enableHeadTracking !== false && !grabbedObject) {
+            model.lookAt(flatPlayerPos);
+        }
+
+        if (model.userData.isPaused) {
+            if (skel.leftLeg)
+                skel.leftLeg.rotation.x =
+                    THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
+
+            if (skel.rightLeg)
+                skel.rightLeg.rotation.x =
+                    THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
+
+            if (skel.spine) {
+                skel.spine.rotation.x = Math.sin(time * 2) * 0.05;
+                skel.spine.rotation.y = Math.sin(time) * 0.02;
+            }
+
+            return;
+        }
+
+        if (dist < AI_BACKUP_DIST) {
+            const dir = new THREE.Vector3()
+                .subVectors(model.position, flatPlayerPos)
+                .normalize();
+
+            model.position.add(
+                dir.multiplyScalar(AI_WALK_SPEED * 0.5)
+            );
+        }
+        else if (dist > AI_FOLLOW_DIST) {
+            const dir = new THREE.Vector3()
+                .subVectors(flatPlayerPos, model.position)
+                .normalize();
+
+            model.position.add(
+                dir.multiplyScalar(AI_WALK_SPEED)
+            );
+
+            if (skel.leftLeg && skel.rightLeg) {
+                skel.leftLeg.rotation.x = Math.sin(time * 10) * 0.5;
+                skel.rightLeg.rotation.x = -Math.sin(time * 10) * 0.5;
+            }
+        }
+        else {
+            if (skel.leftLeg)
+                skel.leftLeg.rotation.x =
+                    THREE.MathUtils.lerp(skel.leftLeg.rotation.x, 0, 0.1);
+
+            if (skel.rightLeg)
+                skel.rightLeg.rotation.x =
+                    THREE.MathUtils.lerp(skel.rightLeg.rotation.x, 0, 0.1);
+
+            if (skel.spine) {
+                skel.spine.rotation.x = Math.sin(time * 2) * 0.05;
+                skel.spine.rotation.y = Math.sin(time) * 0.02;
+            }
+        }
+    }
+
+    function spawnModel(position, data, rotation = null, scale = null) {
+        const placeholder = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5, 0.5, 0.5),
+            new THREE.MeshBasicMaterial({
+                color:0x0000ff,
+                wireframe:true
+            })
+        );
+
+        placeholder.position.copy(position);
+
+        placeholder.userData = {
+            isScreen:true,
+            isModel:true,
+            label:"LOADING...",
+            type:data.type
+        };
+
+        scene.add(placeholder);
+        targets.push(placeholder);
+
+        const loader =
+            data.type === 'fbx'
+                ? new FBXLoader()
+                : new GLTFLoader();
+
+        loader.load(
+            data.src,
+            loaded => {
+                scene.remove(placeholder);
+                targets = targets.filter(t => t !== placeholder);
+
+                const model =
+                    data.type === 'fbx'
+                        ? loaded
+                        : loaded.scene;
+
+                model.traverse(child => {
+                    if (child.isMesh) {
+                        child.raycast = function() {};
+                    }
+                });
+
+                const box = new THREE.Box3().setFromObject(model);
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z) || 1;
+                const scaleFactor = 1.0 / maxDim;
+
+                model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+                if (scale) model.scale.copy(scale);
+
+                model.position.copy(position);
+
+                if (rotation) model.rotation.copy(rotation);
+
+                const helperGeo = new THREE.BoxGeometry(
+                    Math.max(size.x, 0.1),
+                    Math.max(size.y, 0.1),
+                    Math.max(size.z, 0.1)
+                );
+
+                const helperMat = new THREE.MeshBasicMaterial({
+                    color:0x00ffff,
+                    wireframe:true,
+                    transparent:true,
+                    opacity:0.5
+                });
+
+                const helperMesh = new THREE.Mesh(
+                    helperGeo,
+                    helperMat
+                );
+
+                helperMesh.position.y = size.y / 2;
+                helperMesh.raycast = THREE.Mesh.prototype.raycast;
+                model.add(helperMesh);
+
+                const skel = mapBones(model);
+
+                model.userData = {
+                    isScreen:true,
+                    isModel:true,
+                    label:data.label,
+                    type:data.type,
+                    skeleton:skel,
+                    aiActive:false,
+                    isPaused:false,
+                    enableHeadTracking:true,
+                    sourceData:data,
+                    defaultScale:model.scale.clone()
+                };
+
+                scene.add(model);
+                targets.push(model);
+
+                sysMessage = "LOCAL AGENT DEPLOYED";
+                updateMenuDisplay();
+            },
+            undefined,
+            error => {
+                console.error(error);
+                placeholder.material.color.setHex(0xff0000);
+                placeholder.userData.label = "ERROR: LOAD FAILED";
+                sysMessage = "LOAD ERROR";
+                updateMenuDisplay();
+            }
+        );
+    }
+
+    async function spawnScreen(position, data, rotation = null) {
+        const geometry = new THREE.PlaneGeometry(1, 1);
+
+        const material = new THREE.MeshBasicMaterial({
+            side:THREE.DoubleSide,
+            transparent:true,
+            opacity:0.9
+        });
+
+        const screen = new THREE.Mesh(geometry, material);
+        screen.position.copy(position);
+
+        if (rotation) {
+            screen.rotation.copy(rotation);
+        } else {
+            const pPos = camera.getWorldPosition(new THREE.Vector3());
+            screen.lookAt(pPos.x, screen.position.y, pPos.z);
+        }
+
+        screen.userData = {
+            isScreen:true,
+            label:data.label,
+            type:data.type
+        };
+
+        const addGhostBorder = color => {
+            const border = new THREE.LineSegments(
+                new THREE.EdgesGeometry(geometry),
+                new THREE.LineBasicMaterial({ color })
+            );
+
+            border.raycast = function() {};
+            screen.add(border);
+        };
+
+        const createPageButton = dir => {
+            const s = new THREE.Shape();
+
+            if (dir === 'next') {
+                s.moveTo(0, 0.2);
+                s.lineTo(0.2, 0);
+                s.lineTo(0, -0.2);
+            } else {
+                s.moveTo(0, 0.2);
+                s.lineTo(-0.2, 0);
+                s.lineTo(0, -0.2);
+            }
+
+            const mesh = new THREE.Mesh(
+                new THREE.ShapeGeometry(s),
+                new THREE.MeshBasicMaterial({
+                    color:0x00ffff,
+                    side:THREE.DoubleSide
+                })
+            );
+
+            mesh.userData = {
+                isButton:true,
+                action:dir === 'next'
+                    ? 'NEXT_PAGE'
+                    : 'PREV_PAGE'
+            };
+
+            mesh.position.set(
+                dir === 'next' ? 0.7 : -0.7,
+                0,
+                0.05
+            );
+
+            screen.add(mesh);
+        };
+
+        if (data.type === 'pdf') {
+            const clonedBuffer = data.buffer.slice(0);
+            const pdf = await pdfjsLib.getDocument(clonedBuffer).promise;
+
+            screen.userData.pdfDoc = pdf;
+            screen.userData.pageNum = 1;
+            screen.userData.totalPages = pdf.numPages;
+
+            addGhostBorder(0xffff00);
+            createPageButton('next');
+            createPageButton('prev');
+
+            await renderPdfPageToTexture(screen, 1);
+        }
+        else if (data.type === 'video') {
+            const videoElem = document.createElement('video');
+            videoElem.src = data.src;
+            videoElem.crossOrigin = "anonymous";
+            videoElem.loop = true;
+            videoElem.muted = true;
+            videoElem.playsInline = true;
+
+            videoElem.play().catch(() => {});
+
+            const tex = new THREE.VideoTexture(videoElem);
+            tex.colorSpace = THREE.SRGBColorSpace;
+
+            screen.material.map = tex;
+            screen.userData.videoElement = videoElem;
+            screen.scale.set(3, 1.8, 1);
+
+            addGhostBorder(0x00ffff);
+        }
+        else {
+            const tex = new THREE.TextureLoader().load(data.src);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+            screen.material.map = tex;
+
+            const img = new Image();
+            img.src = data.src;
+
+            img.onload = () => {
+                const aspect = img.width / img.height;
+                screen.scale.set(1.8 * aspect, 1.8, 1);
+            };
+
+            addGhostBorder(0x00ffff);
+        }
+
+        scene.add(screen);
+        targets.push(screen);
+    }
+
+    async function renderPdfPageToTexture(mesh, pageNum) {
+        if (!mesh.userData.pdfDoc || mesh.userData.isRendering) return;
+
+        mesh.userData.isRendering = true;
+
+        try {
+            const pdf = mesh.userData.pdfDoc;
+
+            pageNum = Math.max(1, Math.min(pageNum, pdf.numPages));
+            mesh.userData.pageNum = pageNum;
+
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale:3.0 });
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({
+                canvasContext:ctx,
+                viewport
+            }).promise;
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+            if (mesh.material.map) mesh.material.map.dispose();
+
+            mesh.material.map = tex;
+            mesh.material.needsUpdate = true;
+
+            const aspectRatio =
+                viewport.width / viewport.height;
+
+            mesh.scale.set(
+                1.8 * aspectRatio,
+                1.8,
+                1
+            );
+        } catch (e) {
+            console.error(e);
+        }
+
+        mesh.userData.isRendering = false;
+    }
+
+    function disposeObject(obj) {
+        obj.traverse?.(child => {
+            if (child.geometry) child.geometry.dispose?.();
+
+            if (child.material) {
+                const materials =
+                    Array.isArray(child.material)
+                        ? child.material
+                        : [child.material];
+
+                materials.forEach(mat => {
+                    if (mat.map) mat.map.dispose?.();
+                    mat.dispose?.();
+                });
+            }
+        });
+    }
+
+    function deleteObject(obj) {
+        if (obj.userData.videoElement) {
+            obj.userData.videoElement.pause();
+            obj.userData.videoElement.src = "";
+            obj.userData.videoElement.load();
+        }
+
+        if (
+            obj.userData.sound &&
+            obj.userData.sound.isPlaying
+        ) {
+            obj.userData.sound.stop();
+        }
+
+        disposeObject(obj);
+        scene.remove(obj);
+        targets = targets.filter(t => t !== obj);
+    }
+
+    function handleInput() {
+        if (
+            renderer.xr.isPresenting &&
+            isMouseDown &&
+            !cinemaMode
+        ) {
+            camera.getWorldDirection(_moveDir);
+            _moveDir.y = 0;
+            _moveDir.normalize();
+
+            dolly.position.addScaledVector(
+                _moveDir,
+                VR_WALK_SPEED
+            );
+        }
+
+        if (
+            isTiltActive &&
+            !grabbedObject &&
+            !cinemaMode
+        ) {
+            let fwd = 0;
+            let strafe = 0;
+
+            if (Math.abs(currentTilt.beta) > TILT_DEADZONE) {
+                fwd = (
+                    currentTilt.beta > 0
+                        ? currentTilt.beta - TILT_DEADZONE
+                        : currentTilt.beta + TILT_DEADZONE
+                ) * TILT_SPEED;
+            }
+
+            if (Math.abs(currentTilt.gamma) > TILT_DEADZONE) {
+                strafe = (
+                    currentTilt.gamma > 0
+                        ? currentTilt.gamma - TILT_DEADZONE
+                        : currentTilt.gamma + TILT_DEADZONE
+                ) * TILT_SPEED;
+            }
+
+            if (
+                Math.abs(fwd) > 0.0001 ||
+                Math.abs(strafe) > 0.0001
+            ) {
+                camera.getWorldDirection(_moveDir);
+                _moveDir.y = 0;
+                _moveDir.normalize();
+
+                _strafeDir
+                    .crossVectors(camera.up, _moveDir)
+                    .normalize();
+
+                dolly.position.addScaledVector(_moveDir, fwd);
+                dolly.position.addScaledVector(_strafeDir, strafe);
+            }
+        }
+
+        gazeProgress = 0;
+
+        targets.forEach(t => {
+            if (t.userData.isAudio && t.userData.isPlaying) {
+                const s =
+                    1.0 +
+                    Math.sin(Date.now() * 0.01) * 0.2;
+
+                t.scale.set(s, s, s);
+            }
+        });
+
+        if (isMenuOpen && menuMesh) {
+            raycaster.setFromCamera(
+                new THREE.Vector2(0, 0),
+                camera
+            );
+
+            const intersects =
+                raycaster.intersectObject(menuMesh);
+
+            if (intersects.length > 0) {
+                const uvY = intersects[0].uv.y;
+
+                // Canvas rows occupy roughly 0.12..0.82 of the panel.
+                if (uvY < 0.86 && uvY > 0.10) {
+                    const visualIdx = Math.floor((0.86 - uvY) / 0.086);
+
+                    if (visualIdx >= 0 && visualIdx < MAX_MENU_VISIBLE) {
+                        const realIdx = visualIdx + menuScrollIndex;
+                        const fullListSize = getMenuEntries().length;
+
+                        if (realIdx < fullListSize) {
+                            if (hoveredFileIndex !== realIdx) {
+                                hoveredFileIndex = realIdx;
+                                menuSelectionTimer = Date.now();
+                                updateMenuDisplay();
+                            } else {
+                                const elapsed =
+                                    Date.now() - menuSelectionTimer;
+
+                                gazeProgress =
+                                    Math.min(elapsed / 1500, 1.0);
+
+                                if (elapsed > 1500) {
+                                    spawnFromMenu(realIdx);
+                                    hoveredFileIndex = -1;
+                                    menuSelectionTimer =
+                                        Date.now() + 5000;
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                if (hoveredFileIndex !== -1) {
+                    hoveredFileIndex = -1;
+                    updateMenuDisplay();
+                }
+            }
+        }
+        else {
+            if (cinemaMode && cinemaScreen) {
+                const forward = new THREE.Vector3();
+                camera.getWorldDirection(forward);
+
+                const yawSignal = forward.x;
+
+                if (Math.abs(yawSignal) > 0.65) {
+                    const action =
+                        yawSignal > 0
+                            ? 'NEXT_VIDEO'
+                            : 'PREV_VIDEO';
+
+                    if (
+                        !hoveredPageButton ||
+                        hoveredPageButton.action !== action
+                    ) {
+                        hoveredPageButton = { action };
+                        menuSelectionTimer = Date.now();
+                    } else {
+                        const elapsed =
+                            Date.now() - menuSelectionTimer;
+
+                        gazeProgress =
+                            Math.min(elapsed / 1200, 1.0);
+
+                        if (elapsed > 1200) {
+                            switchCinemaVideo(
+                                action === 'NEXT_VIDEO'
+                                    ? 1
+                                    : -1
+                            );
+
+                            menuSelectionTimer =
+                                Date.now() + 1000;
+                        }
+                    }
+
+                    return;
+                } else {
+                    hoveredPageButton = null;
+                }
+            }
+
+            raycaster.setFromCamera(
+                new THREE.Vector2(0, 0),
+                camera
+            );
+
+            const intersects =
+                raycaster.intersectObjects(targets, true);
+
+            if (intersects.length > 0) {
+                let hit = intersects[0].object;
+
+                if (hit.userData.isButton) {
+                    if (hoveredPageButton !== hit) {
+                        hoveredPageButton = hit;
+                        menuSelectionTimer = Date.now();
+                    } else {
+                        const elapsed =
+                            Date.now() - menuSelectionTimer;
+
+                        gazeProgress =
+                            Math.min(elapsed / 1500, 1.0);
+
+                        if (elapsed > 1500) {
+                            const screen = hit.parent;
+
+                            const dir =
+                                hit.userData.action === 'NEXT_PAGE'
+                                    ? 1
+                                    : -1;
+
+                            if (
+                                screen &&
+                                screen.userData.type === 'pdf'
+                            ) {
+                                const newPage =
+                                    screen.userData.pageNum + dir;
+
+                                if (
+                                    newPage >= 1 &&
+                                    newPage <=
+                                        screen.userData.totalPages
+                                ) {
+                                    renderPdfPageToTexture(
+                                        screen,
+                                        newPage
+                                    );
+                                }
+                            }
+
+                            menuSelectionTimer =
+                                Date.now() + 2000;
+                        }
+                    }
+                }
+                else {
+                    hoveredPageButton = null;
+
+                    while (
+                        hit.parent &&
+                        !hit.userData.isScreen &&
+                        hit !== scene
+                    ) {
+                        hit = hit.parent;
+                    }
+
+                    if (
+                        hit.userData.isScreen ||
+                        hit.userData.isModel
+                    ) {
+                        if (hit.userData.isAudio) {
+                            if (grabbedObject !== hit) {
+                                if (activeObject.obj !== hit) {
+                                    activeObject.obj = hit;
+                                    menuSelectionTimer = Date.now();
+                                } else {
+                                    const elapsed =
+                                        Date.now() - menuSelectionTimer;
+
+                                    gazeProgress =
+                                        Math.min(
+                                            elapsed / 1500,
+                                            1.0
+                                        );
+
+                                    if (elapsed > 1500) {
+                                        if (
+                                            hit.userData.sound.isPlaying
+                                        ) {
+                                            hit.userData.sound.pause();
+                                            hit.userData.isPlaying = false;
+                                            hit.scale.set(1, 1, 1);
+                                        } else {
+                                            hit.userData.sound.play();
+                                            hit.userData.isPlaying = true;
+                                        }
+
+                                        menuSelectionTimer =
+                                            Date.now() + 2000;
+                                    }
+                                }
+                            }
+                        } else {
+                            if (!grabbedObject)
+                                activeObject.obj = hit;
+                        }
+                    }
+                }
+            }
+            else {
+                hoveredPageButton = null;
+                if (!grabbedObject)
+                    activeObject.obj = null;
+            }
+        }
+
+        const pads = navigator.getGamepads();
+        let pad = null;
+
+        for (let i = 0; i < pads.length; i++) {
+            if (
+                pads[i] &&
+                pads[i].buttons.length > 0
+            ) {
+                pad = pads[i];
+                break;
+            }
+        }
+
+        if (!pad) return;
+
+        if (isMenuOpen) {
+            if (pad.axes.length > 3 && Math.abs(pad.axes[3]) > 0.5) {
+                const now = Date.now();
+                if (now - lastMenuScrollTime > 150) {
+                    const fullListSize = getMenuEntries().length;
+                    if (pad.axes[3] > 0) menuScrollIndex++;
+                    else menuScrollIndex--;
+                    menuScrollIndex = Math.max(0, Math.min(menuScrollIndex, Math.max(0, fullListSize - MAX_MENU_VISIBLE)));
+                    lastMenuScrollTime = now;
+                    updateMenuDisplay();
+                }
+            }
+
+            if (pad.buttons[0] && pad.buttons[0].pressed && !lastBtn.x && hoveredFileIndex !== -1) {
+                spawnFromMenu(hoveredFileIndex);
+            }
+        } else {
+            // A / X: grab or release the object in the center reticle.
+            if (pad.buttons[0] && pad.buttons[0].pressed && !lastBtn.x) {
+                if (grabbedObject) grabbedObject = null;
+                else if (activeObject.obj) grabbedObject = activeObject.obj;
+                lastHudState = "";
+            }
+
+            // B / Circle: safe cancel. Deletion lives in the workspace menu.
+            if (pad.buttons[1] && pad.buttons[1].pressed && !lastBtn.circle) {
+                grabbedObject = null;
+                lastHudState = "";
+            }
+
+            // X / Square: cycle transform mode.
+            if (pad.buttons[2] && pad.buttons[2].pressed && !lastBtn.square) {
+                cycleTransformMode();
+            }
+
+            // Y / Triangle: duplicate selected model.
+            if (pad.buttons[3] && pad.buttons[3].pressed && !lastBtn.triangle) {
+                duplicateSelected();
+            }
+        }
+
+        const leftStickX = pad.axes.length > 0 ? pad.axes[0] : 0;
+        const leftStickY = pad.axes.length > 1 ? pad.axes[1] : 0;
+        const rightStickX = pad.axes.length > 2 ? pad.axes[2] : 0;
+        const rightStickY = pad.axes.length > 3 ? pad.axes[3] : 0;
+        const l2 = pad.buttons[6] ? pad.buttons[6].value : 0;
+        const r2 = pad.buttons[7] ? pad.buttons[7].value : 0;
+
+        if (grabbedObject) {
+            if (transformMode === "MOVE") {
+                if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
+                    camera.getWorldDirection(_moveDir);
+                    _moveDir.y = 0;
+                    _moveDir.normalize();
+                    _camRight.crossVectors(camera.up, _moveDir).normalize();
+                    _camUp.copy(camera.up);
+                    grabbedObject.position.addScaledVector(_camRight, leftStickX * SPEED);
+                    grabbedObject.position.addScaledVector(_camUp, -leftStickY * SPEED);
+                }
+
+                if (Math.abs(r2) > 0.1 || Math.abs(l2) > 0.1) {
+                    const dir = new THREE.Vector3().subVectors(
+                        grabbedObject.position,
+                        camera.getWorldPosition(new THREE.Vector3())
+                    ).normalize();
+                    grabbedObject.position.addScaledVector(dir, (r2 - l2) * MOVE_SPEED);
+                }
+            }
+            else if (transformMode === "ROTATE") {
+                if (Math.abs(rightStickX) > 0.1) grabbedObject.rotation.y += rightStickX * ROTATE_SPEED;
+                if (Math.abs(rightStickY) > 0.1) grabbedObject.rotation.x += rightStickY * ROTATE_SPEED;
+                if (Math.abs(r2 - l2) > 0.1) grabbedObject.rotation.z += (r2 - l2) * ROTATE_SPEED;
+            }
+            else if (transformMode === "SCALE") {
+                const scaleInput = Math.abs(rightStickY) > 0.1 ? -rightStickY : (r2 - l2);
+                if (Math.abs(scaleInput) > 0.1) {
+                    const factor = Math.max(0.94, Math.min(1.06, 1 + scaleInput * SCALE_SPEED));
+                    grabbedObject.scale.multiplyScalar(factor);
+                }
+            }
+
+            applySnapToObject(grabbedObject);
+        }
+        else if (!isMenuOpen) {
+            // When nothing is grabbed, left stick moves the user through the workspace.
+            if (Math.abs(leftStickX) > 0.1 || Math.abs(leftStickY) > 0.1) {
+                camera.getWorldDirection(_moveDir);
+                _moveDir.y = 0;
+                _moveDir.normalize();
+                _strafeDir.crossVectors(camera.up, _moveDir).normalize();
+                dolly.position.addScaledVector(_moveDir, -leftStickY * SPEED);
+                dolly.position.addScaledVector(_strafeDir, leftStickX * SPEED);
+            }
+        }
+
+        if (
+            pad.buttons[13] &&
+            pad.buttons[13].pressed &&
+            !lastBtn.dpadDown
+        ) {
+            if (recognition) {
+                if (isListening)
+                    recognition.stop();
+                else {
+                    try {
+                        recognition.start();
+                    } catch (e) {}
+                }
+            }
+        }
+
+        lastBtn.dpadDown =
+            pad.buttons[13]
+                ? pad.buttons[13].pressed
+                : false;
+
+        if (
+            pad.buttons[14] &&
+            pad.buttons[14].pressed &&
+            !lastBtn.dpadLeft
+        ) {
+            performVisualScan();
+        }
+
+        lastBtn.dpadLeft =
+            pad.buttons[14]
+                ? pad.buttons[14].pressed
+                : false;
+
+        if (
+            pad.buttons[12] &&
+            pad.buttons[12].pressed &&
+            !lastBtn.dpadUp
+        ) {
+            toggleSnap();
+        }
+
+        lastBtn.dpadUp =
+            pad.buttons[12]
+                ? pad.buttons[12].pressed
+                : false;
+
+        if (
+            pad.buttons[15] &&
+            pad.buttons[15].pressed &&
+            !lastBtn.dpadRight
+        ) {
+            resetSelectedTransform();
+        }
+
+        lastBtn.dpadRight =
+            pad.buttons[15]
+                ? pad.buttons[15].pressed
+                : false;
+
+        lastBtn.square = pad.buttons[2] ? pad.buttons[2].pressed : false;
+        lastBtn.x = pad.buttons[0] ? pad.buttons[0].pressed : false;
+        lastBtn.triangle = pad.buttons[3] ? pad.buttons[3].pressed : false;
+        lastBtn.circle = pad.buttons[1] ? pad.buttons[1].pressed : false;
+    }
+
+    function updateHUD() {
+        if (!hudContext) return;
+
+        const currentState =
+            `M:${isMenuOpen}` +
+            `|S:${isSpeaking}` +
+            `|L:${isListening}` +
+            `|V:${visionMode}` +
+            `|G:${grabbedObject ? 'YES' : 'NO'}` +
+            `|T:${activeObject.obj ? activeObject.obj.uuid : 'NONE'}` +
+            `|A:${aiStatus}` +
+            `|P:${gazeProgress.toFixed(2)}` +
+            `|TM:${transformMode}|SN:${snapEnabled}`;
+
+        if (currentState === lastHudState) return;
+
+        lastHudState = currentState;
+
+        const ctx = hudContext;
+        const w = 1024;
+        const h = 1024;
+
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.textAlign = 'right';
+        ctx.font = 'bold 30px Courier New';
+
+        if (!isMenuOpen && visionMode === 1) {
+            ctx.fillStyle = '#00ffff';
+            ctx.fillText("VISION: [CYBER]", w - 40, 60);
+        }
+        else if (!isMenuOpen && visionMode === 2) {
+            ctx.fillStyle = '#ff0000';
+            ctx.fillText("VISION: [VOID]", w - 40, 60);
+        }
+        else if (!isMenuOpen) {
+            ctx.fillStyle = 'rgba(0,255,255,0.5)';
+            ctx.fillText("VISION: [NORMAL]", w - 40, 60);
+        }
+
+        if (!isMenuOpen) {
+            ctx.textAlign = 'right';
+            ctx.font = 'bold 24px Courier New';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(`MODE: [${transformMode}]  SNAP: [${snapEnabled ? "ON" : "OFF"}]`, w - 40, 98);
+        }
+
+        ctx.textAlign = 'left';
+
+        ctx.fillStyle =
+            isSpeaking
+                ? '#00ff00'
+                : (
+                    isListening
+                        ? '#ff0055'
+                        : '#00ffff'
+                );
+
+        ctx.fillText(
+            `HELEN: [${aiStatus}]`,
+            40,
+            60
+        );
+
+        const cx = w / 2;
+        const cy = h / 2;
+
+        if (gazeProgress > 0.05) {
+            ctx.beginPath();
+            ctx.arc(
+                cx,
+                cy,
+                60,
+                -Math.PI / 2,
+                (-Math.PI / 2) +
+                    (Math.PI * 2 * gazeProgress)
+            );
+
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = '#00ffff';
+            ctx.stroke();
+        }
+
+        if (isMenuOpen) {
+            ctx.strokeStyle = 'rgba(0,255,255,0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        else if (activeObject.obj) {
+            if (grabbedObject) {
+                ctx.strokeStyle = '#ff0055';
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 50, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ff0055';
+                ctx.textAlign = 'center';
+                ctx.font = '24px Courier New';
+
+                ctx.fillText(`EDITING: ${transformMode}`, cx, cy + 80);
+
+                if (transformMode === "MOVE") {
+                    ctx.fillText("[L-STICK] X/Y  [TRIGGERS] DEPTH", cx, cy + 112);
+                } else if (transformMode === "ROTATE") {
+                    ctx.fillText("[R-STICK] PITCH/YAW  [TRIGGERS] ROLL", cx, cy + 112);
+                } else {
+                    ctx.fillText("[R-STICK / TRIGGERS] UNIFORM SCALE", cx, cy + 112);
+                }
+
+                ctx.fillText("[A/X] RELEASE  [X/SQUARE] NEXT MODE", cx, cy + 144);
+                ctx.fillText("[Y/TRIANGLE] DUPLICATE  [B/CIRCLE] CANCEL", cx, cy + 176);
+            }
+            else {
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 40, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                ctx.textAlign = 'center';
+                ctx.font = '20px Courier New';
+                ctx.fillStyle = '#fff';
+
+                ctx.fillText(
+                    activeObject.obj.userData.label ||
+                        "TARGET",
+                    cx,
+                    cy + 80
+                );
+
+                ctx.fillStyle = '#00ff00';
+                ctx.fillText("[A/X] GRAB  [X/SQUARE] MODE  [Y/TRIANGLE] DUPLICATE", cx, cy + 120);
+            }
+        }
+        else {
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            ctx.moveTo(cx - 20, cy);
+            ctx.lineTo(cx + 20, cy);
+            ctx.moveTo(cx, cy - 20);
+            ctx.lineTo(cx, cy + 20);
+            ctx.stroke();
+        }
+
+        hudTexture.needsUpdate = true;
+    }
+
+    function animate() {
+        renderer.setAnimationLoop(() => {
+            handleInput();
+            handleCockpit();
+            updateHUD();
+
+            targets.forEach(t => {
+                if (
+                    t.userData.isModel &&
+                    t.userData.aiActive
+                ) {
+                    updateAI(t);
+                }
+            });
+
+            updateSelectionVisual();
+            renderer.render(scene, camera);
+        });
+    }
+
+    scanCameras().then(init3D);
+</script>
+</body>
+</html>
