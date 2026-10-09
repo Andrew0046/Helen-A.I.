@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>BuildView XR — Client View VR</title>
+<title>BuildView XR — Guided VR Client</title>
 <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <style>
 :root{
@@ -223,6 +223,25 @@ video{
 .vr-center-dot.left{left:25%}
 .vr-center-dot.right{left:75%}
 
+
+.tracking-pill{
+  position:absolute;
+  left:50%;
+  bottom:max(14px,env(safe-area-inset-bottom));
+  transform:translateX(-50%);
+  z-index:31;
+  padding:8px 12px;
+  border-radius:999px;
+  background:rgba(20,24,30,.72);
+  border:1px solid rgba(255,255,255,.14);
+  color:#fff;
+  font-size:11px;
+  font-weight:700;
+  white-space:nowrap;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
 </style>
 </head>
 <body>
@@ -236,7 +255,7 @@ video{
     <h1>Client View</h1>
     <p class="sub">
       Enter the session code provided by the project presenter.
-      You will receive a clean live view of the 3D environment.
+      You will receive a clean live view of the 3D environment. In VR, turn your head to look around independently while the presenter guides your movement.
     </p>
 
     <label for="session-code">Session code</label>
@@ -248,8 +267,8 @@ video{
     <div id="status" class="status">Waiting for a session code.</div>
 
     <div class="note">
-      Keep this page open while viewing. The presenter controls the camera in this first prototype.
-      A stable internet connection is needed for the browser-to-browser connection.
+      Keep this page open while viewing. The presenter guides where you move through the project,
+      while your headset controls where you look. A stable connection is recommended.
     </div>
   </section>
 </div>
@@ -281,6 +300,7 @@ video{
   <div class="vr-center-dot left"></div>
   <div class="vr-center-dot right"></div>
   <button id="vr-exit-btn" class="vr-exit">Exit VR</button>
+  <div id="tracking-pill" class="tracking-pill">Head tracking starting…</div>
 </div>
 
 <script>
@@ -297,6 +317,7 @@ video{
   const vrLeftVideo = document.getElementById('vr-left-video');
   const vrRightVideo = document.getElementById('vr-right-video');
   const vrExitBtn = document.getElementById('vr-exit-btn');
+  const trackingPill = document.getElementById('tracking-pill');
 
   let peer = null;
   let connection = null;
@@ -304,11 +325,119 @@ video{
   let latestStream = null;
   let vrActive = false;
 
+  let orientationListening = false;
+  let latestOrientation = null;
+  let orientationSendTimer = 0;
+  let lastOrientationSentAt = 0;
+
   function setStatus(msg){
     statusEl.textContent = msg;
   }
 
+  function sendToStudio(message){
+    if(connection && connection.open){
+      try{ connection.send(message); }catch(e){}
+    }
+  }
+
+  function getScreenOrientationAngle(){
+    if(screen.orientation && typeof screen.orientation.angle === 'number'){
+      return screen.orientation.angle;
+    }
+
+    if(typeof window.orientation === 'number'){
+      return window.orientation;
+    }
+
+    return 0;
+  }
+
+  function handleDeviceOrientation(event){
+    if(!vrActive) return;
+
+    if(
+      event.alpha == null &&
+      event.beta == null &&
+      event.gamma == null
+    ){
+      return;
+    }
+
+    latestOrientation = {
+      type:'head-orientation',
+      alpha:Number(event.alpha) || 0,
+      beta:Number(event.beta) || 0,
+      gamma:Number(event.gamma) || 0,
+      screen:getScreenOrientationAngle()
+    };
+  }
+
+  function orientationLoop(time){
+    if(!orientationListening) return;
+
+    // Roughly 30 updates/sec keeps the data connection responsive without
+    // flooding it more than the video stream can realistically reflect.
+    if(
+      latestOrientation &&
+      time - lastOrientationSentAt >= 33
+    ){
+      sendToStudio(latestOrientation);
+      lastOrientationSentAt = time;
+    }
+
+    orientationSendTimer = requestAnimationFrame(orientationLoop);
+  }
+
+  async function startHeadTracking(){
+    if(orientationListening) return true;
+
+    if(typeof DeviceOrientationEvent === 'undefined'){
+      trackingPill.textContent = 'Head tracking unavailable on this device';
+      return false;
+    }
+
+    try{
+      if(typeof DeviceOrientationEvent.requestPermission === 'function'){
+        const result = await DeviceOrientationEvent.requestPermission();
+
+        if(result !== 'granted'){
+          trackingPill.textContent = 'Motion permission was not granted';
+          return false;
+        }
+      }
+    }catch(e){
+      trackingPill.textContent = 'Could not enable motion sensors';
+      return false;
+    }
+
+    window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+    orientationListening = true;
+    latestOrientation = null;
+    lastOrientationSentAt = 0;
+    orientationSendTimer = requestAnimationFrame(orientationLoop);
+
+    sendToStudio({type:'head-tracking', active:true});
+    trackingPill.textContent = 'Head tracking active';
+    return true;
+  }
+
+  function stopHeadTracking(){
+    if(orientationListening){
+      window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
+      orientationListening = false;
+
+      if(orientationSendTimer){
+        cancelAnimationFrame(orientationSendTimer);
+        orientationSendTimer = 0;
+      }
+    }
+
+    latestOrientation = null;
+    sendToStudio({type:'head-tracking', active:false});
+  }
+
   function cleanup(){
+    stopHeadTracking();
     try { mediaCall?.close(); } catch(e){}
     try { connection?.close(); } catch(e){}
     try { peer?.destroy(); } catch(e){}
@@ -425,6 +554,9 @@ video{
     try{ await vrLeftVideo.play(); }catch(e){}
     try{ await vrRightVideo.play(); }catch(e){}
 
+    // Must happen from this user tap on iPhone/iPad.
+    await startHeadTracking();
+
     try{
       if(screen.orientation && screen.orientation.lock){
         await screen.orientation.lock('landscape');
@@ -440,6 +572,7 @@ video{
 
   async function exitVR(){
     vrActive = false;
+    stopHeadTracking();
     vrStage.classList.remove('active');
 
     try{
@@ -461,6 +594,7 @@ video{
   document.addEventListener('fullscreenchange', () => {
     if(!document.fullscreenElement && vrActive){
       vrActive = false;
+      stopHeadTracking();
       vrStage.classList.remove('active');
     }
   });
