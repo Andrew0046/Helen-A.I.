@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BuildView XR V4.3 — Player Anchored Menu</title>
+    <title>BuildView XR V4.4 — No Floor Line</title>
     
 
 
@@ -726,7 +726,7 @@ button:hover,
 
             <div class="control-row">
               <div class="control-tag">Controller</div>
-              <div class="control-text">A/X grab · B/Circle delete · right stick rotate/scale · Square menu</div>
+              <div class="control-text">Left stick move · right stick look · A/X grab · B/Circle delete · Square menu</div>
             </div>
 
             <div class="control-row">
@@ -835,6 +835,8 @@ button:hover,
     const DESKTOP_MOVE_SPEED = 0.08;
     const DESKTOP_VERTICAL_SPEED = 0.06;
     const DESKTOP_LOOK_SPEED = 0.004;
+    const DESKTOP_PAD_LOOK_SPEED = 0.035;
+    const GAMEPAD_DEADZONE = 0.14;
 
     let isTiltActive = false;
     let tiltCalibration = { beta:0, gamma:0 };
@@ -926,6 +928,14 @@ button:hover,
         }
 
         return { leftX, leftY, rightX, rightY };
+    }
+
+    function applyGamepadDeadzone(value, deadzone = GAMEPAD_DEADZONE) {
+        const abs = Math.abs(value);
+        if (abs <= deadzone) return 0;
+
+        const scaled = (abs - deadzone) / (1 - deadzone);
+        return Math.sign(value) * Math.min(1, scaled);
     }
 
     function getViewCamera() {
@@ -2440,7 +2450,8 @@ button:hover,
         workspaceGrid = new THREE.GridHelper(30, 60, 0x00ffff, 0x123344);
         workspaceGrid.position.y = 0;
         workspaceGrid.material.transparent = true;
-        workspaceGrid.material.opacity = 0.35;
+        workspaceGrid.material.opacity = 0.18;
+        workspaceGrid.visible = false; // Hide default desktop floor/horizon line
         scene.add(workspaceGrid);
 
         selectionHelper = new THREE.BoxHelper(new THREE.Object3D(), 0x00ffff);
@@ -2573,6 +2584,17 @@ button:hover,
             desktopKeys.clear();
             desktopLookActive = false;
             isMouseDown = false;
+        });
+
+        window.addEventListener('gamepadconnected', e => {
+            const name = e.gamepad?.id ? e.gamepad.id.slice(0, 44) : "Controller";
+            setBuilderMessage(`Controller connected: ${name}`, 2400);
+            lastHudState = "";
+        });
+
+        window.addEventListener('gamepaddisconnected', () => {
+            setBuilderMessage("Controller disconnected", 1800);
+            lastHudState = "";
         });
 
         animate();
@@ -3754,10 +3776,10 @@ button:hover,
         if (!pad) return;
 
         const axes = readPadAxes(pad);
-        const leftStickX = axes.leftX;
-        const leftStickY = axes.leftY;
-        const rightStickX = axes.rightX;
-        const rightStickY = axes.rightY;
+        const leftStickX = applyGamepadDeadzone(axes.leftX);
+        const leftStickY = applyGamepadDeadzone(axes.leftY);
+        const rightStickX = applyGamepadDeadzone(axes.rightX);
+        const rightStickY = applyGamepadDeadzone(axes.rightY);
 
         // Original controller layout:
         // A / X       = grab / release
@@ -3931,10 +3953,10 @@ button:hover,
             }
         }
         else if (!isMenuOpen) {
-            // LEFT STICK: move the viewer when no object is grabbed.
+            // LEFT STICK: move the viewer in both desktop and VR.
             if (
-                Math.abs(leftStickX) > 0.1 ||
-                Math.abs(leftStickY) > 0.1
+                Math.abs(leftStickX) > 0 ||
+                Math.abs(leftStickY) > 0
             ) {
                 getViewDirection(_moveDir);
                 _moveDir.y = 0;
@@ -3958,6 +3980,29 @@ button:hover,
                     _strafeDir,
                     leftStickX * SPEED
                 );
+            }
+
+            // DESKTOP ONLY: the headset normally supplies view rotation in VR.
+            // On a computer, use the right stick as the camera/look control.
+            if (
+                desktopMode &&
+                !renderer.xr.isPresenting &&
+                (
+                    Math.abs(rightStickX) > 0 ||
+                    Math.abs(rightStickY) > 0
+                )
+            ) {
+                desktopYaw -= rightStickX * DESKTOP_PAD_LOOK_SPEED;
+                desktopPitch -= rightStickY * DESKTOP_PAD_LOOK_SPEED;
+
+                desktopPitch = THREE.MathUtils.clamp(
+                    desktopPitch,
+                    -Math.PI / 2 + 0.05,
+                    Math.PI / 2 - 0.05
+                );
+
+                dolly.rotation.y = desktopYaw;
+                camera.rotation.x = desktopPitch;
             }
         }
 
@@ -4200,7 +4245,7 @@ button:hover,
             ctx.fillText(
                 grabbedObject
                     ? "Arrows / Page Up-Down transform  •  Space release"
-                    : "WASD move  •  Drag mouse look  •  Space select  •  M menu",
+                    : "WASD / left stick move  •  Mouse / right stick look  •  Space / A select  •  M / Square menu",
                 cx,
                 h - 35
             );
