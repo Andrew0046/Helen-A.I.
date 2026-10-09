@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>BuildView XR — Client View</title>
+<title>BuildView XR — Client View VR</title>
 <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <style>
 :root{
@@ -162,6 +162,67 @@ video{
   .code-row{grid-template-columns:1fr}
   button{width:100%}
 }
+
+.vr-stage{
+  position:absolute;
+  inset:0;
+  display:none;
+  background:#000;
+  z-index:20;
+}
+.vr-stage.active{
+  display:flex;
+}
+.vr-eye{
+  position:relative;
+  width:50%;
+  height:100%;
+  overflow:hidden;
+  background:#000;
+}
+.vr-eye video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  background:#000;
+}
+.vr-divider{
+  position:absolute;
+  left:50%;
+  top:0;
+  bottom:0;
+  width:1px;
+  background:rgba(255,255,255,.08);
+  transform:translateX(-.5px);
+  pointer-events:none;
+}
+.vr-exit{
+  position:absolute;
+  top:max(12px,env(safe-area-inset-top));
+  right:max(12px,env(safe-area-inset-right));
+  z-index:30;
+  min-height:40px!important;
+  padding:0 14px!important;
+  border-radius:999px!important;
+  background:rgba(20,24,30,.72)!important;
+  border:1px solid rgba(255,255,255,.16)!important;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  font-size:12px!important;
+}
+.vr-center-dot{
+  position:absolute;
+  top:50%;
+  width:7px;
+  height:7px;
+  border:1px solid rgba(255,255,255,.5);
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+.vr-center-dot.left{left:25%}
+.vr-center-dot.right{left:75%}
+
 </style>
 </head>
 <body>
@@ -197,10 +258,29 @@ video{
   <video id="client-video" autoplay playsinline muted></video>
   <div class="viewer-bar">
     <div class="viewer-pill" id="viewer-status">Connected</div>
-    <div class="viewer-pill">
-      <button id="fullscreen-btn">Full Screen</button>
+    <div style="display:flex;gap:8px;">
+      <div class="viewer-pill">
+        <button id="vr-btn">Enter VR</button>
+      </div>
+      <div class="viewer-pill">
+        <button id="fullscreen-btn">Full Screen</button>
+      </div>
     </div>
   </div>
+</div>
+
+<div id="vr-stage" class="vr-stage">
+  <div class="vr-eye">
+    <video id="vr-left-video" autoplay playsinline muted></video>
+  </div>
+  <div class="vr-eye">
+    <video id="vr-right-video" autoplay playsinline muted></video>
+  </div>
+
+  <div class="vr-divider"></div>
+  <div class="vr-center-dot left"></div>
+  <div class="vr-center-dot right"></div>
+  <button id="vr-exit-btn" class="vr-exit">Exit VR</button>
 </div>
 
 <script>
@@ -212,10 +292,17 @@ video{
   const video = document.getElementById('client-video');
   const viewerStatus = document.getElementById('viewer-status');
   const fullscreenBtn = document.getElementById('fullscreen-btn');
+  const vrBtn = document.getElementById('vr-btn');
+  const vrStage = document.getElementById('vr-stage');
+  const vrLeftVideo = document.getElementById('vr-left-video');
+  const vrRightVideo = document.getElementById('vr-right-video');
+  const vrExitBtn = document.getElementById('vr-exit-btn');
 
   let peer = null;
   let connection = null;
   let mediaCall = null;
+  let latestStream = null;
+  let vrActive = false;
 
   function setStatus(msg){
     statusEl.textContent = msg;
@@ -228,6 +315,7 @@ video{
     mediaCall = null;
     connection = null;
     peer = null;
+    latestStream = null;
   }
 
   async function connect(){
@@ -255,6 +343,7 @@ video{
       call.answer();
 
       call.on('stream', stream => {
+        latestStream = stream;
         video.srcObject = stream;
         viewer.classList.add('active');
         viewerStatus.textContent = 'BuildView XR · Live';
@@ -318,6 +407,62 @@ video{
 
   codeInput.addEventListener('input', () => {
     codeInput.value = codeInput.value.replace(/\D/g,'').slice(0,6);
+  });
+
+
+  async function enterVR(){
+    if(!latestStream){
+      setStatus('Connect to the presenter first.');
+      return;
+    }
+
+    vrActive = true;
+    vrStage.classList.add('active');
+
+    vrLeftVideo.srcObject = latestStream;
+    vrRightVideo.srcObject = latestStream;
+
+    try{ await vrLeftVideo.play(); }catch(e){}
+    try{ await vrRightVideo.play(); }catch(e){}
+
+    try{
+      if(screen.orientation && screen.orientation.lock){
+        await screen.orientation.lock('landscape');
+      }
+    }catch(e){}
+
+    try{
+      if(!document.fullscreenElement){
+        await vrStage.requestFullscreen();
+      }
+    }catch(e){}
+  }
+
+  async function exitVR(){
+    vrActive = false;
+    vrStage.classList.remove('active');
+
+    try{
+      if(document.fullscreenElement){
+        await document.exitFullscreen();
+      }
+    }catch(e){}
+
+    try{
+      if(screen.orientation && screen.orientation.unlock){
+        screen.orientation.unlock();
+      }
+    }catch(e){}
+  }
+
+  vrBtn.addEventListener('click', enterVR);
+  vrExitBtn.addEventListener('click', exitVR);
+
+  document.addEventListener('fullscreenchange', () => {
+    if(!document.fullscreenElement && vrActive){
+      vrActive = false;
+      vrStage.classList.remove('active');
+    }
   });
 
   fullscreenBtn.addEventListener('click', async () => {
