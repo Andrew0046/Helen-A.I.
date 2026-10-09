@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BuildView XR — Client View</title>
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<style>
+:root{
+  --bg:#f5f6f7;
+  --surface:#fff;
+  --text:#171a1e;
+  --muted:#707780;
+  --line:#e2e5e8;
+  --dark:#1d2126;
+}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0}
+body{
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:linear-gradient(180deg,#fff,#f1f3f4);
+  color:var(--text);
+}
+.shell{
+  min-height:100%;
+  display:grid;
+  place-items:center;
+  padding:24px;
+}
+.card{
+  width:min(560px,100%);
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:24px;
+  box-shadow:0 18px 50px rgba(20,25,32,.10);
+  padding:28px;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:26px;
+  font-weight:800;
+  font-size:20px;
+}
+.mark{
+  width:40px;height:40px;border-radius:12px;
+  display:grid;place-items:center;
+  background:#1d2126;color:#fff;font-size:13px;
+}
+h1{
+  margin:0;
+  font-size:34px;
+  line-height:1.05;
+  letter-spacing:-.04em;
+}
+.sub{
+  margin:12px 0 24px;
+  color:var(--muted);
+  line-height:1.65;
+  font-size:15px;
+}
+label{
+  display:block;
+  margin-bottom:8px;
+  color:#555c64;
+  font-size:13px;
+  font-weight:700;
+}
+.code-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+}
+input{
+  width:100%;
+  min-width:0;
+  height:54px;
+  padding:0 16px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  outline:none;
+  background:#fafbfc;
+  font:700 22px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:.12em;
+  color:var(--text);
+}
+input:focus{border-color:#9ca5ae;background:#fff}
+button{
+  min-height:54px;
+  padding:0 18px;
+  border-radius:14px;
+  border:1px solid var(--dark);
+  background:var(--dark);
+  color:#fff;
+  font:700 14px inherit;
+  cursor:pointer;
+}
+.status{
+  margin-top:14px;
+  padding:12px 14px;
+  border-radius:12px;
+  background:#f7f8f9;
+  border:1px solid var(--line);
+  color:#606871;
+  font-size:13px;
+  line-height:1.5;
+}
+.note{
+  margin-top:16px;
+  color:#8a9199;
+  font-size:12px;
+  line-height:1.6;
+}
+.viewer{
+  position:fixed;
+  inset:0;
+  display:none;
+  background:#000;
+  z-index:10;
+}
+.viewer.active{display:block}
+video{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:contain;
+  background:#000;
+}
+.viewer-bar{
+  position:absolute;
+  left:14px;
+  right:14px;
+  top:max(14px,env(safe-area-inset-top));
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  pointer-events:none;
+}
+.viewer-pill{
+  pointer-events:auto;
+  padding:9px 12px;
+  border-radius:999px;
+  background:rgba(20,24,30,.72);
+  color:#fff;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  font-size:12px;
+  font-weight:700;
+}
+.viewer-pill button{
+  min-height:auto;
+  padding:0;
+  border:0;
+  background:transparent;
+  font:inherit;
+}
+@media(max-width:560px){
+  .shell{padding:16px}
+  .card{padding:22px;border-radius:20px}
+  .code-row{grid-template-columns:1fr}
+  button{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <section class="card">
+    <div class="brand">
+      <div class="mark">BV</div>
+      <span>BuildView XR</span>
+    </div>
+
+    <h1>Client View</h1>
+    <p class="sub">
+      Enter the session code provided by the project presenter.
+      You will receive a clean live view of the 3D environment.
+    </p>
+
+    <label for="session-code">Session code</label>
+    <div class="code-row">
+      <input id="session-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000">
+      <button id="connect-btn">Connect</button>
+    </div>
+
+    <div id="status" class="status">Waiting for a session code.</div>
+
+    <div class="note">
+      Keep this page open while viewing. The presenter controls the camera in this first prototype.
+      A stable internet connection is needed for the browser-to-browser connection.
+    </div>
+  </section>
+</div>
+
+<div id="viewer" class="viewer">
+  <video id="client-video" autoplay playsinline muted></video>
+  <div class="viewer-bar">
+    <div class="viewer-pill" id="viewer-status">Connected</div>
+    <div class="viewer-pill">
+      <button id="fullscreen-btn">Full Screen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const codeInput = document.getElementById('session-code');
+  const connectBtn = document.getElementById('connect-btn');
+  const statusEl = document.getElementById('status');
+  const viewer = document.getElementById('viewer');
+  const video = document.getElementById('client-video');
+  const viewerStatus = document.getElementById('viewer-status');
+  const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+  let peer = null;
+  let connection = null;
+  let mediaCall = null;
+
+  function setStatus(msg){
+    statusEl.textContent = msg;
+  }
+
+  function cleanup(){
+    try { mediaCall?.close(); } catch(e){}
+    try { connection?.close(); } catch(e){}
+    try { peer?.destroy(); } catch(e){}
+    mediaCall = null;
+    connection = null;
+    peer = null;
+  }
+
+  async function connect(){
+    const code = codeInput.value.replace(/\D/g,'').slice(0,6);
+    codeInput.value = code;
+
+    if(code.length !== 6){
+      setStatus('Enter the 6-digit code from the presenter.');
+      return;
+    }
+
+    if(!window.Peer){
+      setStatus('Connection library did not load. Check your internet connection.');
+      return;
+    }
+
+    cleanup();
+    setStatus('Connecting to presenter…');
+    connectBtn.disabled = true;
+
+    peer = new window.Peer(undefined, {debug:0});
+
+    peer.on('call', call => {
+      mediaCall = call;
+      call.answer();
+
+      call.on('stream', stream => {
+        video.srcObject = stream;
+        viewer.classList.add('active');
+        viewerStatus.textContent = 'BuildView XR · Live';
+        setStatus('Connected.');
+
+        video.play().catch(() => {});
+      });
+
+      call.on('close', () => {
+        viewerStatus.textContent = 'Video disconnected';
+      });
+
+      call.on('error', () => {
+        viewerStatus.textContent = 'Video connection error';
+      });
+    });
+
+    peer.on('open', () => {
+      connection = peer.connect(`buildview-${code}`, {
+        reliable:true,
+        metadata:{ app:'BuildView XR Client' }
+      });
+
+      connection.on('open', () => {
+        setStatus('Presenter found. Waiting for the clean camera…');
+      });
+
+      connection.on('data', data => {
+        if(data && data.type === 'busy'){
+          setStatus('This presenter already has a client connected.');
+        }
+      });
+
+      connection.on('close', () => {
+        setStatus('The presenter disconnected.');
+        viewerStatus.textContent = 'Presenter disconnected';
+        connectBtn.disabled = false;
+      });
+
+      connection.on('error', () => {
+        setStatus('Could not open the client connection.');
+        connectBtn.disabled = false;
+      });
+    });
+
+    peer.on('error', err => {
+      const type = err?.type || '';
+      if(type === 'peer-unavailable'){
+        setStatus('Session not found. Check the code and make sure the presenter started the session.');
+      } else {
+        setStatus(`Connection error: ${type || err?.message || 'unknown'}`);
+      }
+      connectBtn.disabled = false;
+    });
+  }
+
+  connectBtn.addEventListener('click', connect);
+  codeInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter') connect();
+  });
+
+  codeInput.addEventListener('input', () => {
+    codeInput.value = codeInput.value.replace(/\D/g,'').slice(0,6);
+  });
+
+  fullscreenBtn.addEventListener('click', async () => {
+    try{
+      if(!document.fullscreenElement){
+        await viewer.requestFullscreen();
+      }else{
+        await document.exitFullscreen();
+      }
+    }catch(e){}
+  });
+
+  window.addEventListener('beforeunload', cleanup);
+})();
+</script>
+</body>
+</html>
