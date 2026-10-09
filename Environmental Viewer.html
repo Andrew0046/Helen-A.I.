@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BuildView XR V5.1 — Free Object Release</title>
+    <title>BuildView XR V5.2 — Guided Client Head Tracking</title>
     
 
 
@@ -907,7 +907,7 @@ button:hover,
   <div class="remote-head">
     <div>
       <h3>Remote Client View</h3>
-      <p>Stream a second, clean camera from this project to the client page.</p>
+      <p>Guide the client's position while their headset controls where they look.</p>
     </div>
     <button class="remote-close" onclick="toggleRemotePanel(false)">×</button>
   </div>
@@ -929,8 +929,8 @@ button:hover,
 
   <div class="remote-help">
     The client receives only the clean project camera. Studio HUD, selection outlines,
-    the gaze menu, and your editing interface are hidden from the client render.
-    When your gaze menu opens, the client camera automatically holds its viewing direction.
+    the gaze menu, and your editing interface stay hidden. In VR, your movement guides
+    the client's position while their own headset controls the Client Camera direction.
   </div>
 </div>
 
@@ -958,9 +958,25 @@ button:hover,
     let remoteSessionCode = "";
     let remoteViewHold = false;
     let remotePoseReady = false;
+    let remoteClientHeadTracking = false;
+    let remoteHeadBaselineReady = false;
+
     const remoteHeldQuaternion = new THREE.Quaternion();
     const remoteTempPosition = new THREE.Vector3();
     const remoteTempQuaternion = new THREE.Quaternion();
+
+    // Client phone/headset orientation state.
+    const remoteDeviceQuaternion = new THREE.Quaternion();
+    const remoteBaseDeviceQuaternion = new THREE.Quaternion();
+    const remoteBaseWorldQuaternion = new THREE.Quaternion();
+    const remoteHeadDeltaQuaternion = new THREE.Quaternion();
+
+    const remoteDeviceEuler = new THREE.Euler();
+    const remoteDeviceScreenQuaternion = new THREE.Quaternion();
+    const remoteDeviceZAxis = new THREE.Vector3(0, 0, 1);
+    const remoteDeviceCorrection = new THREE.Quaternion(
+        -Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)
+    );
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     let audioListener;
@@ -2580,6 +2596,33 @@ button:hover,
     }
 
 
+    function quaternionFromDeviceOrientation(alphaDeg, betaDeg, gammaDeg, screenDeg = 0) {
+        const degToRad = THREE.MathUtils.degToRad;
+
+        const alpha = degToRad(Number(alphaDeg) || 0);
+        const beta = degToRad(Number(betaDeg) || 0);
+        const gamma = degToRad(Number(gammaDeg) || 0);
+        const orient = degToRad(Number(screenDeg) || 0);
+
+        // Equivalent to the orientation mapping historically used by
+        // Three.js DeviceOrientationControls.
+        remoteDeviceEuler.set(beta, alpha, -gamma, 'YXZ');
+        remoteDeviceQuaternion.setFromEuler(remoteDeviceEuler);
+        remoteDeviceQuaternion.multiply(remoteDeviceCorrection);
+        remoteDeviceQuaternion.multiply(
+            remoteDeviceScreenQuaternion.setFromAxisAngle(
+                remoteDeviceZAxis,
+                -orient
+            )
+        );
+
+        return remoteDeviceQuaternion;
+    }
+
+    function resetRemoteHeadBaseline() {
+        remoteHeadBaselineReady = false;
+    }
+
     function setRemoteStatus(message) {
         const el = document.getElementById('remote-status');
         if (el) el.textContent = message;
@@ -2634,10 +2677,29 @@ button:hover,
         viewCamera.getWorldPosition(remoteTempPosition);
         viewCamera.getWorldQuaternion(remoteTempQuaternion);
 
-        // Position follows the presenter. Orientation can be held manually,
-        // and it also auto-holds while the gaze menu is open.
+        // GUIDED TOUR POSITION:
+        // Client stays physically with the presenter as the presenter walks.
         clientCamera.position.copy(remoteTempPosition);
 
+        // INDEPENDENT CLIENT HEAD:
+        // Once the client enters VR and sends headset orientation, their
+        // rotation is no longer copied from the presenter's camera.
+        if (remoteClientHeadTracking && remoteHeadBaselineReady) {
+            remoteHeadDeltaQuaternion
+                .copy(remoteBaseDeviceQuaternion)
+                .invert()
+                .multiply(remoteDeviceQuaternion);
+
+            clientCamera.quaternion
+                .copy(remoteBaseWorldQuaternion)
+                .multiply(remoteHeadDeltaQuaternion);
+
+            clientCamera.updateMatrixWorld(true);
+            return;
+        }
+
+        // Fallback before the client's headset sensors begin:
+        // follow presenter view exactly as the original prototype did.
         const shouldHold = remoteViewHold || isMenuOpen;
 
         if (!shouldHold || !remotePoseReady) {
@@ -2770,8 +2832,50 @@ button:hover,
                 }
             });
 
+            conn.on('data', data => {
+                if (!data || typeof data !== "object") return;
+
+                if (data.type === "head-tracking") {
+                    remoteClientHeadTracking = !!data.active;
+                    resetRemoteHeadBaseline();
+
+                    if (!remoteClientHeadTracking) {
+                        remotePoseReady = false;
+                        setRemoteStatus("Client left headset tracking. View follows presenter again.");
+                    } else {
+                        setRemoteStatus("Client headset connected — you guide movement, client controls their view.");
+                    }
+                    return;
+                }
+
+                if (data.type === "head-orientation") {
+                    const q = quaternionFromDeviceOrientation(
+                        data.alpha,
+                        data.beta,
+                        data.gamma,
+                        data.screen
+                    );
+
+                    remoteDeviceQuaternion.copy(q);
+
+                    if (!remoteHeadBaselineReady) {
+                        const viewCamera = getViewCamera();
+                        viewCamera.getWorldQuaternion(remoteBaseWorldQuaternion);
+
+                        remoteBaseDeviceQuaternion.copy(remoteDeviceQuaternion);
+                        remoteHeadBaselineReady = true;
+                        remoteClientHeadTracking = true;
+
+                        setRemoteStatus("Guided tour active — client head movement is independent.");
+                    }
+                }
+            });
+
             conn.on('close', () => {
                 if (remoteConnection === conn) remoteConnection = null;
+                remoteClientHeadTracking = false;
+                resetRemoteHeadBaseline();
+                remotePoseReady = false;
                 setRemoteStatus("Client disconnected. Session code is still active.");
             });
 
@@ -2802,6 +2906,9 @@ button:hover,
         }
 
         remoteSessionCode = "";
+        remoteClientHeadTracking = false;
+        resetRemoteHeadBaseline();
+        remotePoseReady = false;
         setRemoteCode("");
         setRemoteStatus("No session running.");
     };
