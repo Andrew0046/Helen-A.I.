@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BuildView XR V4.4 — No Floor Line</title>
+    <title>BuildView XR V5.0 — Remote Studio</title>
     
 
 
@@ -542,6 +542,146 @@ button:hover,
     gap:3px;
   }
 }
+
+.remote-launch{
+  position:fixed;
+  right:22px;
+  top:22px;
+  z-index:160;
+  display:none;
+  align-items:center;
+  gap:8px;
+  padding:11px 14px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  background:rgba(18,22,28,.80);
+  color:#fff;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  font:600 13px Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  cursor:pointer;
+  box-shadow:0 12px 30px rgba(0,0,0,.20);
+}
+
+.remote-panel{
+  position:fixed;
+  right:22px;
+  top:22px;
+  z-index:170;
+  width:min(390px,calc(100vw - 30px));
+  max-height:calc(100vh - 44px);
+  overflow:auto;
+  display:none;
+  padding:18px;
+  border:1px solid #e2e5e8;
+  border-radius:20px;
+  background:rgba(255,255,255,.97);
+  color:#171a1e;
+  box-shadow:0 22px 70px rgba(0,0,0,.22);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+
+.remote-panel.open{display:block}
+.remote-panel h3{
+  margin:0;
+  font-size:19px;
+  letter-spacing:-.02em;
+}
+.remote-panel p{
+  margin:6px 0 0;
+  color:#6f7680;
+  font-size:13px;
+  line-height:1.55;
+}
+.remote-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:14px;
+}
+.remote-close{
+  width:34px!important;
+  min-height:34px!important;
+  height:34px!important;
+  padding:0!important;
+  justify-content:center!important;
+  border-radius:10px!important;
+  font-size:18px!important;
+}
+.remote-codebox{
+  margin-top:12px;
+  padding:14px;
+  border:1px solid #e3e6ea;
+  border-radius:14px;
+  background:#f7f8f9;
+}
+.remote-label{
+  color:#7b838c;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.remote-code{
+  margin-top:5px;
+  font:800 28px/1.1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:.12em;
+  color:#171a1e;
+}
+.remote-status{
+  margin-top:8px;
+  color:#5e6670;
+  font-size:12px;
+  line-height:1.45;
+}
+.remote-preview{
+  margin-top:14px;
+  overflow:hidden;
+  border:1px solid #e3e6ea;
+  border-radius:14px;
+  background:#111;
+  aspect-ratio:16/9;
+}
+.remote-preview canvas{
+  display:block;
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover;
+}
+.remote-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:12px;
+}
+.remote-actions button{
+  min-height:44px!important;
+  padding:10px 12px!important;
+  border-radius:12px!important;
+  justify-content:center!important;
+  font-size:13px!important;
+}
+.remote-actions .wide{grid-column:1/-1}
+.remote-primary{
+  background:#1d2126!important;
+  color:#fff!important;
+  border-color:#1d2126!important;
+}
+.remote-danger{
+  color:#a23b4e!important;
+  border-color:#ead0d6!important;
+}
+.remote-help{
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid #eceef0;
+  color:#7b838c;
+  font-size:12px;
+  line-height:1.55;
+}
+
 </style>
 
 
@@ -552,6 +692,8 @@ button:hover,
         pdfjsLib.GlobalWorkerOptions.workerSrc =
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
+
+    <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 
     <script type="importmap">
     {
@@ -664,6 +806,15 @@ button:hover,
 
             <div id="vr-btn-container"></div>
 
+            <button onclick="toggleRemotePanel()">
+              <span class="btn-icon">↗</span>
+              <span class="btn-copy">
+                <span class="btn-title">Remote Client View</span>
+                <span class="btn-sub">Create a session code and stream a clean camera to a client page.</span>
+              </span>
+              <span class="btn-arrow">›</span>
+            </button>
+
             <div class="secondary-actions">
               <button onclick="requestTiltAccess()">
                 <span class="btn-icon">📱</span>
@@ -749,6 +900,40 @@ button:hover,
   </main>
 </div>
 
+
+<button id="remote-launch" class="remote-launch" onclick="toggleRemotePanel()">Client View</button>
+
+<div id="remote-panel" class="remote-panel">
+  <div class="remote-head">
+    <div>
+      <h3>Remote Client View</h3>
+      <p>Stream a second, clean camera from this project to the client page.</p>
+    </div>
+    <button class="remote-close" onclick="toggleRemotePanel(false)">×</button>
+  </div>
+
+  <div class="remote-codebox">
+    <div class="remote-label">Session code</div>
+    <div id="remote-code" class="remote-code">------</div>
+    <div id="remote-status" class="remote-status">No session running.</div>
+  </div>
+
+  <div id="remote-preview" class="remote-preview"></div>
+
+  <div class="remote-actions">
+    <button class="remote-primary wide" onclick="startRemoteSession()">Start New Session</button>
+    <button onclick="copyRemoteCode()">Copy Code</button>
+    <button id="remote-hold-btn" onclick="toggleRemoteHold()">Hold Client View</button>
+    <button class="remote-danger wide" onclick="stopRemoteSession()">Stop Session</button>
+  </div>
+
+  <div class="remote-help">
+    The client receives only the clean project camera. Studio HUD, selection outlines,
+    the gaze menu, and your editing interface are hidden from the client render.
+    When your gaze menu opens, the client camera automatically holds its viewing direction.
+  </div>
+</div>
+
 <script type="module">
 
 
@@ -760,6 +945,22 @@ button:hover,
 
     let scene, camera, renderer, dolly;
     let hudTexture, hudContext;
+    let hudMesh = null;
+    let camPlane = null;
+
+    // --- REMOTE CLIENT VIEW ---
+    let clientCamera = null;
+    let clientRenderer = null;
+    let clientStream = null;
+    let remotePeer = null;
+    let remoteConnection = null;
+    let remoteMediaCall = null;
+    let remoteSessionCode = "";
+    let remoteViewHold = false;
+    let remotePoseReady = false;
+    const remoteHeldQuaternion = new THREE.Quaternion();
+    const remoteTempPosition = new THREE.Vector3();
+    const remoteTempQuaternion = new THREE.Quaternion();
     let camMaterial, videoTrack, currentStream;
     let raycaster = new THREE.Raycaster();
     let audioListener;
@@ -1194,6 +1395,10 @@ button:hover,
     window.enterDesktopMode = function() {
         desktopMode = true;
         document.getElementById('overlay').style.display = 'none';
+        const remoteLaunch = document.getElementById('remote-launch');
+        if (remoteLaunch && !document.getElementById('remote-panel')?.classList.contains('open')) {
+            remoteLaunch.style.display = 'flex';
+        }
         aiStatus = "DESKTOP";
         lastHudState = "";
 
@@ -1209,6 +1414,8 @@ button:hover,
         desktopKeys.clear();
         desktopLookActive = false;
         document.getElementById('overlay').style.display = 'flex';
+        const remoteLaunch = document.getElementById('remote-launch');
+        if (remoteLaunch) remoteLaunch.style.display = 'none';
         aiStatus = "STANDBY";
         lastHudState = "";
     }
@@ -2372,6 +2579,264 @@ button:hover,
         menuGroup.userData.locked = true;
     }
 
+
+    function setRemoteStatus(message) {
+        const el = document.getElementById('remote-status');
+        if (el) el.textContent = message;
+    }
+
+    function setRemoteCode(code) {
+        const el = document.getElementById('remote-code');
+        if (el) el.textContent = code || "------";
+    }
+
+    window.toggleRemotePanel = function(force) {
+        const panel = document.getElementById('remote-panel');
+        const launch = document.getElementById('remote-launch');
+        if (!panel) return;
+
+        const shouldOpen = typeof force === "boolean"
+            ? force
+            : !panel.classList.contains('open');
+
+        panel.classList.toggle('open', shouldOpen);
+        if (launch) launch.style.display = shouldOpen ? 'none' : 'flex';
+    };
+
+    function initRemoteClientRenderer() {
+        if (clientRenderer || !scene) return;
+
+        clientCamera = new THREE.PerspectiveCamera(70, 16 / 9, 0.01, 250);
+        clientCamera.position.set(0, 1.6, 5);
+        scene.add(clientCamera);
+
+        clientRenderer = new THREE.WebGLRenderer({
+            antialias:true,
+            alpha:false,
+            powerPreference:"high-performance"
+        });
+
+        clientRenderer.setPixelRatio(1);
+        clientRenderer.setSize(1280, 720, false);
+
+        if ('outputColorSpace' in clientRenderer && THREE.SRGBColorSpace) {
+            clientRenderer.outputColorSpace = THREE.SRGBColorSpace;
+        }
+
+        const preview = document.getElementById('remote-preview');
+        if (preview) preview.appendChild(clientRenderer.domElement);
+    }
+
+    function updateClientCameraPose() {
+        if (!clientCamera || !camera) return;
+
+        const viewCamera = getViewCamera();
+        viewCamera.getWorldPosition(remoteTempPosition);
+        viewCamera.getWorldQuaternion(remoteTempQuaternion);
+
+        // Position follows the presenter. Orientation can be held manually,
+        // and it also auto-holds while the gaze menu is open.
+        clientCamera.position.copy(remoteTempPosition);
+
+        const shouldHold = remoteViewHold || isMenuOpen;
+
+        if (!shouldHold || !remotePoseReady) {
+            clientCamera.quaternion.copy(remoteTempQuaternion);
+            remoteHeldQuaternion.copy(remoteTempQuaternion);
+            remotePoseReady = true;
+        } else {
+            clientCamera.quaternion.copy(remoteHeldQuaternion);
+        }
+
+        clientCamera.updateMatrixWorld(true);
+    }
+
+    function renderRemoteClientCamera() {
+        if (!clientRenderer || !clientCamera || !scene) return;
+
+        updateClientCameraPose();
+
+        const cameraVisible = camera ? camera.visible : true;
+        const cockpitVisible = cockpitGroup ? cockpitGroup.visible : false;
+        const menuVisible = menuGroup ? menuGroup.visible : false;
+        const selectionVisible = selectionHelper ? selectionHelper.visible : false;
+        const gridVisible = workspaceGrid ? workspaceGrid.visible : false;
+
+        // Hide all Studio-only visual elements from the clean client render.
+        if (camera) camera.visible = false;
+        if (cockpitGroup) cockpitGroup.visible = false;
+        if (menuGroup) menuGroup.visible = false;
+        if (selectionHelper) selectionHelper.visible = false;
+        if (workspaceGrid) workspaceGrid.visible = false;
+
+        clientRenderer.render(scene, clientCamera);
+
+        if (camera) camera.visible = cameraVisible;
+        if (cockpitGroup) cockpitGroup.visible = cockpitVisible;
+        if (menuGroup) menuGroup.visible = menuVisible;
+        if (selectionHelper) selectionHelper.visible = selectionVisible;
+        if (workspaceGrid) workspaceGrid.visible = gridVisible;
+    }
+
+    function ensureClientStream() {
+        initRemoteClientRenderer();
+        if (!clientRenderer) return null;
+
+        if (
+            clientStream &&
+            clientStream.getVideoTracks().some(track => track.readyState === "live")
+        ) {
+            return clientStream;
+        }
+
+        if (!clientRenderer.domElement.captureStream) {
+            setRemoteStatus("This browser cannot stream the client canvas.");
+            return null;
+        }
+
+        clientStream = clientRenderer.domElement.captureStream(30);
+        return clientStream;
+    }
+
+    function closeRemoteLinks() {
+        try { remoteMediaCall?.close(); } catch (e) {}
+        try { remoteConnection?.close(); } catch (e) {}
+        remoteMediaCall = null;
+        remoteConnection = null;
+    }
+
+    function createRemoteCode() {
+        return String(Math.floor(100000 + Math.random() * 900000));
+    }
+
+    window.startRemoteSession = function() {
+        if (!window.Peer) {
+            setRemoteStatus("Peer connection library did not load. Check internet access.");
+            return;
+        }
+
+        initRemoteClientRenderer();
+        closeRemoteLinks();
+
+        if (remotePeer) {
+            try { remotePeer.destroy(); } catch (e) {}
+            remotePeer = null;
+        }
+
+        remoteSessionCode = createRemoteCode();
+        setRemoteCode(remoteSessionCode);
+        setRemoteStatus("Opening session…");
+
+        const studioPeerId = `buildview-${remoteSessionCode}`;
+        remotePeer = new window.Peer(studioPeerId, { debug:0 });
+
+        remotePeer.on('open', () => {
+            setRemoteStatus("Ready. Give this code to the client.");
+        });
+
+        remotePeer.on('connection', conn => {
+            if (remoteConnection && remoteConnection.open) {
+                try { conn.send({ type:"busy" }); } catch (e) {}
+                setRemoteStatus("Another client tried to connect. This session already has a viewer.");
+                setTimeout(() => conn.close(), 300);
+                return;
+            }
+
+            remoteConnection = conn;
+            setRemoteStatus("Client found. Preparing clean camera…");
+
+            conn.on('open', () => {
+                const stream = ensureClientStream();
+                if (!stream) return;
+
+                try {
+                    conn.send({ type:"studio-ready", code:remoteSessionCode });
+                } catch (e) {}
+
+                remoteMediaCall = remotePeer.call(conn.peer, stream, {
+                    metadata:{ app:"BuildView XR", type:"client-camera" }
+                });
+
+                if (remoteMediaCall) {
+                    setRemoteStatus("Client connected — clean camera is streaming.");
+
+                    remoteMediaCall.on('close', () => {
+                        setRemoteStatus("Client video disconnected. Session code is still active.");
+                    });
+
+                    remoteMediaCall.on('error', err => {
+                        setRemoteStatus(`Video connection error: ${err.type || err.message || "unknown"}`);
+                    });
+                }
+            });
+
+            conn.on('close', () => {
+                if (remoteConnection === conn) remoteConnection = null;
+                setRemoteStatus("Client disconnected. Session code is still active.");
+            });
+
+            conn.on('error', () => {
+                setRemoteStatus("Client data connection error.");
+            });
+        });
+
+        remotePeer.on('error', err => {
+            if (err?.type === "unavailable-id") {
+                setRemoteStatus("That session code was already in use. Start a new session.");
+            } else {
+                setRemoteStatus(`Session error: ${err?.type || err?.message || "unknown"}`);
+            }
+        });
+
+        remotePeer.on('disconnected', () => {
+            setRemoteStatus("Signaling disconnected. Reopen the session if the client cannot connect.");
+        });
+    };
+
+    window.stopRemoteSession = function() {
+        closeRemoteLinks();
+
+        if (remotePeer) {
+            try { remotePeer.destroy(); } catch (e) {}
+            remotePeer = null;
+        }
+
+        remoteSessionCode = "";
+        setRemoteCode("");
+        setRemoteStatus("No session running.");
+    };
+
+    window.copyRemoteCode = async function() {
+        if (!remoteSessionCode) {
+            setRemoteStatus("Start a session first.");
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(remoteSessionCode);
+            setRemoteStatus("Session code copied.");
+        } catch (e) {
+            window.prompt("Copy this client code:", remoteSessionCode);
+        }
+    };
+
+    window.toggleRemoteHold = function() {
+        remoteViewHold = !remoteViewHold;
+
+        if (!remoteViewHold) {
+            remotePoseReady = false;
+        }
+
+        const btn = document.getElementById('remote-hold-btn');
+        if (btn) btn.textContent = remoteViewHold ? "Resume Client View" : "Hold Client View";
+
+        setRemoteStatus(
+            remoteViewHold
+                ? "Client viewing direction is held. Position still follows you."
+                : (remoteSessionCode ? "Client view is following your camera again." : "No session running.")
+        );
+    };
+
     function init3D() {
         scene = new THREE.Scene();
 
@@ -2413,7 +2878,7 @@ button:hover,
             depthWrite:false
         });
 
-        const camPlane = new THREE.Mesh(
+        camPlane = new THREE.Mesh(
             new THREE.PlaneGeometry(50, 30),
             camMaterial
         );
@@ -2429,7 +2894,7 @@ button:hover,
         hudTexture = new THREE.CanvasTexture(hudCanvas);
         hudTexture.minFilter = THREE.LinearFilter;
 
-        const hudMesh = new THREE.Mesh(
+        hudMesh = new THREE.Mesh(
             new THREE.PlaneGeometry(1.5, 1.5),
             new THREE.MeshBasicMaterial({
                 map:hudTexture,
@@ -2471,6 +2936,8 @@ button:hover,
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
+
+        initRemoteClientRenderer();
 
         initMouseControl();
         createCockpit();
@@ -3900,7 +4367,7 @@ button:hover,
 
                 grabbedObject.position.addScaledVector(
                     _camRight,
-                    leftStickX * SPEED
+                    -leftStickX * SPEED
                 );
 
                 grabbedObject.position.addScaledVector(
@@ -3978,7 +4445,7 @@ button:hover,
 
                 dolly.position.addScaledVector(
                     _strafeDir,
-                    leftStickX * SPEED
+                    -leftStickX * SPEED
                 );
             }
 
@@ -4271,9 +4738,14 @@ button:hover,
             });
 
             updateSelectionVisual();
+            renderRemoteClientCamera();
             renderer.render(scene, camera);
         });
     }
+
+    // Keep the remote panel available from the landing page button.
+    setRemoteCode("");
+    setRemoteStatus("No session running.");
 
     // Boot the 3D workspace immediately. Camera access is optional and must
     // never block desktop editing on a computer without VR/camera permission.
