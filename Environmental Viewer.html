@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BuildView XR V5.0 — Remote Studio</title>
+    <title>BuildView XR V5.1 — Free Object Release</title>
     
 
 
@@ -1010,7 +1010,7 @@ button:hover,
     let workspaceGrid = null;
     let selectionHelper = null;
     let transformMode = "MOVE";
-    let snapEnabled = true;
+    let snapEnabled = false; // Free placement by default; Snap remains optional.
     const SNAP_POSITION = 0.25;
     const SNAP_ROTATION = THREE.MathUtils.degToRad(15);
     const SNAP_SCALE = 0.10;
@@ -1185,7 +1185,7 @@ button:hover,
 
     function toggleSnap() {
         snapEnabled = !snapEnabled;
-        setBuilderMessage(`SNAP: ${snapEnabled ? "ON" : "OFF"}`);
+        setBuilderMessage(`Precision Snap: ${snapEnabled ? "On" : "Off"}`);
         lastHudState = "";
     }
 
@@ -1358,7 +1358,7 @@ button:hover,
             { label:"Save Project Setup", action:"SAVE", type:"sys" },
             { label:"Load Project Setup", action:"LOAD", type:"sys" },
             { label:"Reset Transform", action:"RESET", type:"sys" },
-            { label:`Snap: ${snapEnabled ? "On" : "Off"}`, action:"SNAP", type:"sys" },
+            { label:`Precision Snap: ${snapEnabled ? "On" : "Off"}`, action:"SNAP", type:"sys" },
             { label:"Duplicate Selected", action:"DUPLICATE", type:"sys" },
             { label:"Delete Selected", action:"DELETE", type:"danger" },
             { label:"Clear Workspace", action:"CLEAR", type:"danger" },
@@ -1447,7 +1447,7 @@ button:hover,
         }
 
         if (grabbedObject) {
-            applySnapToObject(grabbedObject);
+            // Leave the object exactly where the user placed/scaled/rotated it.
             grabbedObject = null;
             setBuilderMessage("Object released");
             return;
@@ -4310,8 +4310,7 @@ button:hover,
                 !lastBtn.x
             ) {
                 if (grabbedObject) {
-                    // Snap once when released, not continuously while scaling.
-                    applySnapToObject(grabbedObject);
+                    // Free release: preserve the exact position, rotation, and scale.
                     grabbedObject = null;
                     setBuilderMessage("Object released");
                 }
