@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>BuildView XR — Guided VR Client</title>
+<title>BuildView XR — Client View · Smart Session</title>
 <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <style>
 :root{
@@ -242,42 +242,955 @@ video{
   -webkit-backdrop-filter:blur(10px);
 }
 
+
+/* BUILDVIEW XR CLIENT V3 — PRESENTATION POLISH */
+:root{
+  --good:#4b8b68;
+  --warn:#c39646;
+  --bad:#b55363;
+}
+
+body{
+  background:
+    radial-gradient(circle at 50% -15%,rgba(255,255,255,.98),rgba(255,255,255,0) 42%),
+    linear-gradient(180deg,#f8f9fa,#eef1f3);
+}
+
+.shell{
+  padding:28px;
+}
+
+.card{
+  width:min(610px,100%);
+  padding:32px;
+  border-radius:26px;
+  box-shadow:0 20px 60px rgba(20,25,32,.09);
+}
+
+.brand-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:28px;
+}
+
+.brand{
+  margin:0;
+}
+
+.client-badge{
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:0 10px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:#fafbfb;
+  color:#767e87;
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.eyebrow{
+  margin-bottom:9px;
+  color:#7d858e;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+}
+
+h1{
+  font-size:38px;
+}
+
+.sub{
+  max-width:520px;
+  margin-bottom:26px;
+}
+
+.flow{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin:0 0 24px;
+}
+
+.flow-step{
+  min-width:0;
+  padding:11px 10px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:#fafbfb;
+  color:#646c75;
+  font-size:11px;
+  font-weight:750;
+  text-align:center;
+}
+
+.flow-step strong{
+  display:block;
+  margin-bottom:3px;
+  color:#343a40;
+  font-size:12px;
+}
+
+.code-panel{
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:17px;
+  background:#fff;
+}
+
+input{
+  background:#f7f8f9;
+  transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
+}
+
+input:focus{
+  border-color:#8f99a4;
+  box-shadow:0 0 0 4px rgba(50,58,66,.07);
+}
+
+button{
+  transition:transform .12s ease,opacity .12s ease,background .12s ease;
+}
+
+button:active{
+  transform:scale(.985);
+}
+
+button:disabled{
+  cursor:default;
+  opacity:.55;
+}
+
+.status{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin-top:12px;
+  background:#f8f9fa;
+}
+
+.status-dot{
+  width:9px;
+  height:9px;
+  flex:0 0 auto;
+  margin-top:5px;
+  border-radius:50%;
+  background:#aeb5bc;
+}
+
+.status.connecting .status-dot{background:var(--warn)}
+.status.connected .status-dot{background:var(--good)}
+.status.error .status-dot{background:var(--bad)}
+
+.status-copy{
+  min-width:0;
+}
+
+.status-copy strong{
+  display:block;
+  margin-bottom:1px;
+  color:#464d55;
+  font-size:12px;
+}
+
+.status-copy span{
+  color:#727a83;
+}
+
+.readiness{
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid var(--line);
+}
+
+.readiness-title{
+  margin-bottom:10px;
+  color:#8a9199;
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+}
+
+.readiness-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+}
+
+.readiness-item{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 10px;
+  border:1px solid #e9ecef;
+  border-radius:11px;
+  background:#fafbfb;
+}
+
+.readiness-light{
+  width:7px;
+  height:7px;
+  flex:0 0 auto;
+  border-radius:50%;
+  background:#aeb5bc;
+}
+
+.readiness-item.ready .readiness-light{background:var(--good)}
+.readiness-item.warn .readiness-light{background:var(--warn)}
+
+.readiness-copy{
+  min-width:0;
+}
+
+.readiness-copy strong{
+  display:block;
+  color:#4a5159;
+  font-size:10.5px;
+}
+
+.readiness-copy span{
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#8b9299;
+  font-size:9.5px;
+}
+
+.privacy-note{
+  margin-top:14px;
+  padding:11px 12px;
+  border-radius:12px;
+  background:#f6f8f7;
+  color:#737b83;
+  font-size:11.5px;
+  line-height:1.55;
+}
+
+.privacy-note strong{
+  color:#4d555d;
+}
+
+.viewer-bar{
+  transition:opacity .25s ease,transform .25s ease;
+}
+
+.viewer.ui-hidden .viewer-bar{
+  opacity:0;
+  transform:translateY(-8px);
+  pointer-events:none;
+}
+
+.viewer-status-wrap{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+
+.live-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#74c69d;
+  box-shadow:0 0 0 3px rgba(116,198,157,.13);
+}
+
+.viewer-actions{
+  display:flex;
+  gap:8px;
+  pointer-events:auto;
+}
+
+.viewer-help{
+  position:absolute;
+  left:50%;
+  bottom:max(16px,env(safe-area-inset-bottom));
+  transform:translateX(-50%);
+  padding:8px 11px;
+  border-radius:999px;
+  background:rgba(20,24,30,.58);
+  border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.82);
+  font-size:10.5px;
+  font-weight:650;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  transition:opacity .25s ease;
+  pointer-events:none;
+  white-space:nowrap;
+}
+
+.viewer.ui-hidden .viewer-help{
+  opacity:0;
+}
+
+.vr-toolbar{
+  position:absolute;
+  top:max(12px,env(safe-area-inset-top));
+  left:50%;
+  z-index:30;
+  display:flex;
+  gap:7px;
+  transform:translateX(-50%);
+}
+
+.vr-tool{
+  min-height:38px!important;
+  padding:0 13px!important;
+  border-radius:999px!important;
+  background:rgba(20,24,30,.70)!important;
+  border:1px solid rgba(255,255,255,.15)!important;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  font-size:11px!important;
+}
+
+.vr-guide{
+  position:absolute;
+  left:50%;
+  bottom:max(48px,calc(env(safe-area-inset-bottom) + 36px));
+  transform:translateX(-50%);
+  z-index:30;
+  color:rgba(255,255,255,.58);
+  font-size:9.5px;
+  font-weight:650;
+  letter-spacing:.04em;
+  white-space:nowrap;
+  pointer-events:none;
+}
+
+@media(max-width:560px){
+  .shell{padding:14px}
+  .card{padding:20px;border-radius:20px}
+  .brand-row{margin-bottom:22px}
+  .mark{width:36px;height:36px;border-radius:10px}
+  h1{font-size:31px}
+  .sub{font-size:14px;margin-bottom:20px}
+  .flow{gap:6px}
+  .flow-step{padding:9px 6px;font-size:10px}
+  .flow-step strong{font-size:11px}
+  .code-panel{padding:13px}
+  .readiness-grid{grid-template-columns:1fr}
+  .viewer-bar{left:10px;right:10px}
+  .viewer-pill{padding:8px 10px;font-size:11px}
+}
+
+@media(max-width:390px){
+  .viewer-actions{
+    gap:5px;
+  }
+  .viewer-pill{
+    padding:7px 9px;
+  }
+  .viewer-help{
+    display:none;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  button,.viewer-bar,.viewer-help{transition:none}
+}
+
+
+/* CLIENT V3.1 — SMOOTH PRESENTATION TRANSITIONS */
+.shell{
+  transition:
+    opacity .55s cubic-bezier(.2,.72,.2,1),
+    transform .55s cubic-bezier(.2,.72,.2,1),
+    filter .55s ease;
+}
+
+body.connecting-view .shell{
+  opacity:.22;
+  transform:scale(.985);
+  filter:blur(4px);
+  pointer-events:none;
+}
+
+.connection-transition{
+  position:fixed;
+  inset:0;
+  z-index:9;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  pointer-events:none;
+  opacity:0;
+  visibility:hidden;
+  background:
+    radial-gradient(circle at 50% 42%,rgba(255,255,255,.98) 0,rgba(248,250,251,.96) 36%,rgba(236,240,242,.95) 100%);
+  transition:
+    opacity .42s ease,
+    visibility 0s linear .42s;
+}
+
+.connection-transition.active{
+  opacity:1;
+  visibility:visible;
+  transition:
+    opacity .42s ease,
+    visibility 0s;
+}
+
+.connection-stage{
+  width:min(430px,100%);
+  text-align:center;
+  transform:translateY(10px) scale(.985);
+  opacity:0;
+  transition:
+    transform .55s cubic-bezier(.2,.78,.2,1),
+    opacity .55s ease;
+}
+
+.connection-transition.active .connection-stage{
+  transform:translateY(0) scale(1);
+  opacity:1;
+}
+
+.transition-mark-wrap{
+  position:relative;
+  width:92px;
+  height:92px;
+  margin:0 auto 24px;
+  display:grid;
+  place-items:center;
+}
+
+.transition-mark{
+  position:relative;
+  z-index:2;
+  width:58px;
+  height:58px;
+  border-radius:18px;
+  display:grid;
+  place-items:center;
+  background:#1d2126;
+  color:#fff;
+  font-size:16px;
+  font-weight:850;
+  letter-spacing:-.03em;
+  box-shadow:0 10px 28px rgba(24,29,35,.16);
+}
+
+.transition-ring,
+.transition-ring::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  border:1px solid rgba(50,58,66,.15);
+}
+
+.transition-ring{
+  animation:client-ring 2.1s ease-in-out infinite;
+}
+
+.transition-ring::before{
+  inset:9px;
+  animation:client-ring-inner 2.1s ease-in-out .2s infinite;
+}
+
+.transition-scan{
+  position:absolute;
+  inset:18px;
+  border-radius:50%;
+  overflow:hidden;
+  opacity:.7;
+}
+
+.transition-scan::after{
+  content:"";
+  position:absolute;
+  left:-30%;
+  right:-30%;
+  height:2px;
+  top:50%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);
+  box-shadow:0 0 14px rgba(255,255,255,.55);
+  animation:client-scan 1.75s ease-in-out infinite;
+}
+
+.transition-kicker{
+  margin-bottom:8px;
+  color:#89919a;
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+}
+
+.transition-title{
+  margin:0;
+  color:#252a30;
+  font-size:28px;
+  line-height:1.08;
+  letter-spacing:-.035em;
+}
+
+.transition-detail{
+  max-width:340px;
+  margin:10px auto 0;
+  color:#727a83;
+  font-size:13px;
+  line-height:1.6;
+}
+
+.transition-progress{
+  width:min(280px,82%);
+  height:3px;
+  margin:24px auto 0;
+  overflow:hidden;
+  border-radius:999px;
+  background:#dde2e5;
+}
+
+.transition-progress-fill{
+  width:38%;
+  height:100%;
+  border-radius:inherit;
+  background:#30363d;
+  animation:client-progress 1.8s cubic-bezier(.55,.08,.38,.98) infinite;
+}
+
+.transition-steps{
+  margin-top:15px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:7px;
+  color:#9aa1a8;
+  font-size:10px;
+  font-weight:700;
+}
+
+.transition-step{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  transition:color .25s ease;
+}
+
+.transition-step-dot{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#c7cdd2;
+  transition:background .25s ease,transform .25s ease;
+}
+
+.transition-step.active{
+  color:#555d65;
+}
+
+.transition-step.active .transition-step-dot{
+  background:#4b8b68;
+  transform:scale(1.2);
+}
+
+.transition-step.done .transition-step-dot{
+  background:#4b8b68;
+}
+
+.transition-separator{
+  width:14px;
+  height:1px;
+  background:#d7dce0;
+}
+
+.viewer{
+  display:block;
+  opacity:0;
+  visibility:hidden;
+  transform:scale(1.012);
+  filter:blur(9px);
+  transition:
+    opacity .72s cubic-bezier(.2,.72,.2,1),
+    transform 1s cubic-bezier(.18,.8,.2,1),
+    filter .9s ease,
+    visibility 0s linear .9s;
+}
+
+.viewer.active{
+  display:block;
+  opacity:1;
+  visibility:visible;
+  transform:scale(1);
+  filter:blur(0);
+  transition:
+    opacity .72s cubic-bezier(.2,.72,.2,1),
+    transform 1s cubic-bezier(.18,.8,.2,1),
+    filter .9s ease,
+    visibility 0s;
+}
+
+.viewer.video-pending video{
+  opacity:.18;
+  transform:scale(1.025);
+  filter:blur(13px) saturate(.75);
+}
+
+.viewer video{
+  opacity:1;
+  transform:scale(1);
+  filter:blur(0) saturate(1);
+  transition:
+    opacity .8s ease,
+    transform 1.1s cubic-bezier(.2,.72,.2,1),
+    filter 1s ease;
+}
+
+.viewer.reveal-complete::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:rgba(255,255,255,.92);
+  opacity:0;
+  animation:client-soft-flash .7s ease-out;
+}
+
+@keyframes client-ring{
+  0%,100%{transform:scale(.84);opacity:.25}
+  50%{transform:scale(1.06);opacity:.8}
+}
+
+@keyframes client-ring-inner{
+  0%,100%{transform:scale(.9);opacity:.15}
+  50%{transform:scale(1.02);opacity:.55}
+}
+
+@keyframes client-scan{
+  0%{transform:translateY(-18px);opacity:0}
+  22%{opacity:1}
+  78%{opacity:1}
+  100%{transform:translateY(18px);opacity:0}
+}
+
+@keyframes client-progress{
+  0%{transform:translateX(-130%)}
+  55%{transform:translateX(100%)}
+  100%{transform:translateX(285%)}
+}
+
+@keyframes client-soft-flash{
+  0%{opacity:.35}
+  100%{opacity:0}
+}
+
+@media(max-width:560px){
+  .transition-mark-wrap{
+    width:78px;
+    height:78px;
+    margin-bottom:20px;
+  }
+
+  .transition-mark{
+    width:52px;
+    height:52px;
+    border-radius:16px;
+    font-size:14px;
+  }
+
+  .transition-title{
+    font-size:24px;
+  }
+
+  .transition-detail{
+    max-width:310px;
+    font-size:12.5px;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .shell,
+  .connection-transition,
+  .connection-stage,
+  .viewer,
+  .viewer video{
+    transition:none!important;
+  }
+
+  .transition-ring,
+  .transition-ring::before,
+  .transition-scan::after,
+  .transition-progress-fill,
+  .viewer.reveal-complete::after{
+    animation:none!important;
+  }
+}
+
+
+/* CLIENT V3.2 — SMART SESSION DETAILS */
+.project-session-name{
+  max-width:240px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-weight:750;
+}
+
+.session-mini{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+}
+
+.wake-light{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#aeb5bc;
+}
+
+.wake-light.on{background:#74c69d}
+
+.reconnect-note{
+  margin-top:12px;
+  color:#7a828b;
+  font-size:11px;
+  text-align:center;
+  min-height:16px;
+}
+
+.session-end{
+  position:fixed;
+  inset:0;
+  z-index:80;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  opacity:0;
+  visibility:hidden;
+  background:
+    radial-gradient(circle at 50% 35%,rgba(255,255,255,1),rgba(246,248,249,.98) 48%,rgba(232,237,239,.98) 100%);
+  transition:opacity .55s ease,visibility 0s linear .55s;
+}
+
+.session-end.active{
+  opacity:1;
+  visibility:visible;
+  transition:opacity .55s ease,visibility 0s;
+}
+
+.session-end-card{
+  width:min(460px,100%);
+  text-align:center;
+  transform:translateY(10px);
+  opacity:0;
+  transition:transform .55s cubic-bezier(.2,.78,.2,1),opacity .55s ease;
+}
+
+.session-end.active .session-end-card{
+  transform:translateY(0);
+  opacity:1;
+}
+
+.session-end-mark{
+  width:62px;
+  height:62px;
+  margin:0 auto 22px;
+  border-radius:19px;
+  display:grid;
+  place-items:center;
+  background:#1d2126;
+  color:#fff;
+  font-size:16px;
+  font-weight:850;
+  box-shadow:0 12px 28px rgba(20,25,32,.14);
+}
+
+.session-end-kicker{
+  color:#89919a;
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+
+.session-end h2{
+  margin:8px 0 0;
+  color:#252a30;
+  font-size:31px;
+  letter-spacing:-.035em;
+}
+
+.session-end-project{
+  margin-top:10px;
+  color:#5c646c;
+  font-size:14px;
+  font-weight:700;
+}
+
+.session-end-copy{
+  max-width:360px;
+  margin:12px auto 0;
+  color:#7a828b;
+  font-size:13px;
+  line-height:1.65;
+}
+
+.session-end button{
+  width:auto;
+  min-width:180px;
+  margin-top:24px;
+  padding:13px 20px;
+}
+
+@media(max-width:560px){
+  .session-end h2{font-size:27px}
+  .project-session-name{max-width:150px}
+}
+
 </style>
 </head>
 <body>
 <div class="shell">
   <section class="card">
-    <div class="brand">
-      <div class="mark">BV</div>
-      <span>BuildView XR</span>
+    <div class="brand-row">
+      <div class="brand">
+        <div class="mark">BV</div>
+        <span>BuildView XR</span>
+      </div>
+      <span class="client-badge">Client View</span>
     </div>
 
-    <h1>Client View</h1>
+    <div class="eyebrow">Guided project presentation</div>
+    <h1>Join the walkthrough.</h1>
     <p class="sub">
-      Enter the session code provided by the project presenter.
-      You will receive a clean live view of the 3D environment. In VR, turn your head to look around independently while the presenter guides your movement.
+      Enter the six-digit code from your presenter. They guide where you move through
+      the project while you remain free to look around independently in VR.
     </p>
 
-    <label for="session-code">Session code</label>
-    <div class="code-row">
-      <input id="session-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000">
-      <button id="connect-btn">Connect</button>
+    <div class="flow" aria-label="Connection steps">
+      <div class="flow-step"><strong>1 · Code</strong>Enter session</div>
+      <div class="flow-step"><strong>2 · Connect</strong>Join presenter</div>
+      <div class="flow-step"><strong>3 · View</strong>Screen or VR</div>
     </div>
 
-    <div id="status" class="status">Waiting for a session code.</div>
+    <div class="code-panel">
+      <label for="session-code">Session code</label>
+      <div class="code-row">
+        <input id="session-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" aria-describedby="status-text">
+        <button id="connect-btn">Connect</button>
+      </div>
+
+      <div id="status" class="status">
+        <span class="status-dot"></span>
+        <div class="status-copy">
+          <strong id="status-title">Ready to connect</strong>
+          <span id="status-text">Enter the six-digit code provided by the presenter.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="readiness">
+      <div class="readiness-title">This device</div>
+      <div class="readiness-grid">
+        <div id="ready-video" class="readiness-item ready">
+          <span class="readiness-light"></span>
+          <div class="readiness-copy">
+            <strong>Live view</strong>
+            <span>Browser ready</span>
+          </div>
+        </div>
+
+        <div id="ready-motion" class="readiness-item warn">
+          <span class="readiness-light"></span>
+          <div class="readiness-copy">
+            <strong>Head tracking</strong>
+            <span id="ready-motion-text">Checking…</span>
+          </div>
+        </div>
+
+        <div id="ready-fullscreen" class="readiness-item warn">
+          <span class="readiness-light"></span>
+          <div class="readiness-copy">
+            <strong>Fullscreen</strong>
+            <span id="ready-fullscreen-text">Checking…</span>
+          </div>
+        </div>
+
+        <div id="ready-wake" class="readiness-item warn">
+          <span class="readiness-light"></span>
+          <div class="readiness-copy">
+            <strong>Screen awake</strong>
+            <span id="ready-wake-text">Checking…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="privacy-note">
+      <strong>Clean presentation view.</strong> The client receives the rendered project view,
+      not the Studio editing interface or its menus.
+    </div>
 
     <div class="note">
-      Keep this page open while viewing. The presenter guides where you move through the project,
-      while your headset controls where you look. A stable connection is recommended.
+      For the best guided VR experience, use a stable connection and allow motion access
+      when prompted after tapping <strong>Enter VR</strong>.
     </div>
   </section>
 </div>
 
+
+<div id="connection-transition" class="connection-transition" aria-live="polite" aria-hidden="true">
+  <div class="connection-stage">
+    <div class="transition-mark-wrap" aria-hidden="true">
+      <div class="transition-ring"></div>
+      <div class="transition-scan"></div>
+      <div class="transition-mark">BV</div>
+    </div>
+
+    <div class="transition-kicker">BuildView XR · Client View</div>
+    <h2 id="transition-title" class="transition-title">Joining presentation</h2>
+    <p id="transition-detail" class="transition-detail">
+      Locating the presenter and preparing your live project view.
+    </p>
+
+    <div class="transition-progress" aria-hidden="true">
+      <div class="transition-progress-fill"></div>
+    </div>
+
+    <div class="transition-steps" aria-hidden="true">
+      <div id="transition-step-connect" class="transition-step active">
+        <span class="transition-step-dot"></span>
+        <span>Connect</span>
+      </div>
+      <span class="transition-separator"></span>
+      <div id="transition-step-prepare" class="transition-step">
+        <span class="transition-step-dot"></span>
+        <span>Prepare</span>
+      </div>
+      <span class="transition-separator"></span>
+      <div id="transition-step-view" class="transition-step">
+        <span class="transition-step-dot"></span>
+        <span>View</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="viewer" class="viewer">
   <video id="client-video" autoplay playsinline muted></video>
-  <div class="viewer-bar">
-    <div class="viewer-pill" id="viewer-status">Connected</div>
-    <div style="display:flex;gap:8px;">
+
+  <div class="viewer-bar" id="viewer-bar">
+    <div class="viewer-pill viewer-status-wrap">
+      <span class="live-dot"></span>
+      <span id="viewer-status">BuildView XR · Live</span>
+      <span aria-hidden="true">·</span>
+      <span id="viewer-project-name" class="project-session-name">Project walkthrough</span>
+    </div>
+
+    <div class="viewer-actions">
       <div class="viewer-pill">
         <button id="vr-btn">Enter VR</button>
       </div>
@@ -285,6 +1198,23 @@ video{
         <button id="fullscreen-btn">Full Screen</button>
       </div>
     </div>
+  </div>
+
+  <div class="viewer-help">Tap the screen to show presentation controls</div>
+</div>
+
+
+<div id="session-end" class="session-end" aria-hidden="true">
+  <div class="session-end-card">
+    <div class="session-end-mark">BV</div>
+    <div class="session-end-kicker">BuildView XR · Client View</div>
+    <h2>Presentation complete.</h2>
+    <div id="session-end-project" class="session-end-project">Project walkthrough</div>
+    <p class="session-end-copy">
+      The presenter has ended this guided session. You can return to the join screen
+      if another walkthrough is starting.
+    </p>
+    <button id="session-end-return" type="button">Return to join screen</button>
   </div>
 </div>
 
@@ -299,7 +1229,13 @@ video{
   <div class="vr-divider"></div>
   <div class="vr-center-dot left"></div>
   <div class="vr-center-dot right"></div>
+
+  <div class="vr-toolbar">
+    <button id="vr-recenter-btn" class="vr-tool" type="button">Recenter</button>
+  </div>
+
   <button id="vr-exit-btn" class="vr-exit">Exit VR</button>
+  <div class="vr-guide">Presenter guides movement · your head controls the view</div>
   <div id="tracking-pill" class="tracking-pill">Head tracking starting…</div>
 </div>
 
@@ -308,7 +1244,16 @@ video{
   const codeInput = document.getElementById('session-code');
   const connectBtn = document.getElementById('connect-btn');
   const statusEl = document.getElementById('status');
+  const statusTitle = document.getElementById('status-title');
+  const statusText = document.getElementById('status-text');
   const viewer = document.getElementById('viewer');
+
+  const connectionTransition = document.getElementById('connection-transition');
+  const transitionTitle = document.getElementById('transition-title');
+  const transitionDetail = document.getElementById('transition-detail');
+  const transitionStepConnect = document.getElementById('transition-step-connect');
+  const transitionStepPrepare = document.getElementById('transition-step-prepare');
+  const transitionStepView = document.getElementById('transition-step-view');
   const video = document.getElementById('client-video');
   const viewerStatus = document.getElementById('viewer-status');
   const fullscreenBtn = document.getElementById('fullscreen-btn');
@@ -317,7 +1262,20 @@ video{
   const vrLeftVideo = document.getElementById('vr-left-video');
   const vrRightVideo = document.getElementById('vr-right-video');
   const vrExitBtn = document.getElementById('vr-exit-btn');
+  const vrRecenterBtn = document.getElementById('vr-recenter-btn');
   const trackingPill = document.getElementById('tracking-pill');
+
+  const readyMotion = document.getElementById('ready-motion');
+  const readyMotionText = document.getElementById('ready-motion-text');
+  const readyFullscreen = document.getElementById('ready-fullscreen');
+  const readyFullscreenText = document.getElementById('ready-fullscreen-text');
+  const readyWake = document.getElementById('ready-wake');
+  const readyWakeText = document.getElementById('ready-wake-text');
+
+  const viewerProjectName = document.getElementById('viewer-project-name');
+  const sessionEnd = document.getElementById('session-end');
+  const sessionEndProject = document.getElementById('session-end-project');
+  const sessionEndReturn = document.getElementById('session-end-return');
 
   let peer = null;
   let connection = null;
@@ -330,8 +1288,311 @@ video{
   let orientationSendTimer = 0;
   let lastOrientationSentAt = 0;
 
-  function setStatus(msg){
-    statusEl.textContent = msg;
+  let viewerUiTimer = 0;
+  let transitionHideTimer = 0;
+  let transitionStartedAt = 0;
+
+  let currentSessionCode = "";
+  let currentProjectName = "Project walkthrough";
+  let sessionEndedByPresenter = false;
+  let reconnectTimer = 0;
+  let reconnectAttempts = 0;
+  const MAX_RECONNECT_ATTEMPTS = 5;
+
+  let wakeLock = null;
+
+  function cleanProjectName(value){
+    const raw = String(value || '').trim();
+    if(!raw) return 'Project walkthrough';
+
+    return raw
+      .replace(/\.[a-z0-9]+$/i,'')
+      .replace(/[_-]+/g,' ')
+      .replace(/\s+/g,' ')
+      .trim() || 'Project walkthrough';
+  }
+
+  function setProjectIdentity(name){
+    currentProjectName = cleanProjectName(name);
+
+    if(viewerProjectName){
+      viewerProjectName.textContent = currentProjectName;
+      viewerProjectName.title = currentProjectName;
+    }
+
+    if(sessionEndProject){
+      sessionEndProject.textContent = currentProjectName;
+    }
+  }
+
+  async function requestScreenWakeLock(){
+    if(!('wakeLock' in navigator)){
+      if(readyWake){
+        readyWake.classList.remove('ready');
+        readyWake.classList.add('warn');
+      }
+      if(readyWakeText) readyWakeText.textContent = 'Not supported';
+      return false;
+    }
+
+    try{
+      wakeLock = await navigator.wakeLock.request('screen');
+
+      if(readyWake){
+        readyWake.classList.remove('warn');
+        readyWake.classList.add('ready');
+      }
+      if(readyWakeText) readyWakeText.textContent = 'Active during session';
+
+      wakeLock.addEventListener('release', () => {
+        wakeLock = null;
+
+        if(readyWake){
+          readyWake.classList.remove('ready');
+          readyWake.classList.add('warn');
+        }
+
+        if(readyWakeText){
+          readyWakeText.textContent =
+            latestStream && !sessionEndedByPresenter ? 'Paused by browser' : 'Available';
+        }
+      });
+
+      return true;
+    }catch(e){
+      wakeLock = null;
+      if(readyWakeText) readyWakeText.textContent = 'Available when active';
+      return false;
+    }
+  }
+
+  async function releaseScreenWakeLock(){
+    if(!wakeLock) return;
+
+    try{
+      await wakeLock.release();
+    }catch(e){}
+
+    wakeLock = null;
+  }
+
+  function showSessionEnd(){
+    sessionEndedByPresenter = true;
+    clearTimeout(reconnectTimer);
+    reconnectAttempts = 0;
+
+    stopHeadTracking();
+    releaseScreenWakeLock();
+
+    viewer.classList.remove('active','video-pending','reveal-complete');
+    cancelConnectionTransition();
+
+    if(sessionEnd){
+      sessionEnd.classList.add('active');
+      sessionEnd.setAttribute('aria-hidden','false');
+    }
+  }
+
+  function hideSessionEnd(){
+    sessionEndedByPresenter = false;
+
+    if(sessionEnd){
+      sessionEnd.classList.remove('active');
+      sessionEnd.setAttribute('aria-hidden','true');
+    }
+  }
+
+  function scheduleReconnect(){
+    if(
+      sessionEndedByPresenter ||
+      !currentSessionCode ||
+      reconnectAttempts >= MAX_RECONNECT_ATTEMPTS
+    ){
+      if(!sessionEndedByPresenter && currentSessionCode){
+        setStatus(
+          'Connection lost',
+          'Automatic reconnect could not restore the presentation. Tap Connect to try again.',
+          'error'
+        );
+      }
+      return;
+    }
+
+    reconnectAttempts += 1;
+
+    const delay = Math.min(1500 + ((reconnectAttempts - 1) * 1500), 6500);
+
+    showConnectionTransition(
+      'Reconnecting…',
+      `Restoring ${currentProjectName}. Attempt ${reconnectAttempts} of ${MAX_RECONNECT_ATTEMPTS}.`,
+      'connect'
+    );
+
+    setStatus(
+      'Reconnecting…',
+      `Trying to restore the presentation automatically (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}).`,
+      'connecting'
+    );
+
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => {
+      connect(true);
+    }, delay);
+  }
+
+  function setTransitionStep(step){
+    const all = [
+      ['connect', transitionStepConnect],
+      ['prepare', transitionStepPrepare],
+      ['view', transitionStepView]
+    ];
+
+    const order = {connect:0, prepare:1, view:2};
+    const current = order[step] ?? 0;
+
+    all.forEach(([name, el], index) => {
+      if(!el) return;
+      el.classList.toggle('active', index === current);
+      el.classList.toggle('done', index < current);
+    });
+  }
+
+  function showConnectionTransition(
+    title = 'Joining presentation',
+    detail = 'Locating the presenter and preparing your live project view.',
+    step = 'connect'
+  ){
+    clearTimeout(transitionHideTimer);
+    transitionStartedAt = performance.now();
+
+    if(transitionTitle) transitionTitle.textContent = title;
+    if(transitionDetail) transitionDetail.textContent = detail;
+    setTransitionStep(step);
+
+    document.body.classList.add('connecting-view');
+
+    if(connectionTransition){
+      connectionTransition.classList.add('active');
+      connectionTransition.setAttribute('aria-hidden','false');
+    }
+  }
+
+  function updateConnectionTransition(title, detail, step){
+    if(transitionTitle && title) transitionTitle.textContent = title;
+    if(transitionDetail && detail) transitionDetail.textContent = detail;
+    if(step) setTransitionStep(step);
+  }
+
+  function hideConnectionTransition(delay = 0){
+    clearTimeout(transitionHideTimer);
+
+    transitionHideTimer = setTimeout(() => {
+      document.body.classList.remove('connecting-view');
+
+      if(connectionTransition){
+        connectionTransition.classList.remove('active');
+        connectionTransition.setAttribute('aria-hidden','true');
+      }
+    }, delay);
+  }
+
+  function revealLiveViewer(){
+    viewer.classList.add('video-pending');
+    viewer.classList.add('active');
+    viewer.classList.remove('ui-hidden');
+
+    // Keep the transition visible for a minimum moment so fast local
+    // connections still feel intentional instead of flashing between screens.
+    const elapsed = performance.now() - transitionStartedAt;
+    const minimumSequence = 900;
+    const wait = Math.max(120, minimumSequence - elapsed);
+
+    updateConnectionTransition(
+      currentProjectName,
+      'The live environment is ready. Bringing you into the presentation.',
+      'view'
+    );
+
+    setTimeout(() => {
+      viewer.classList.remove('video-pending');
+      viewer.classList.add('reveal-complete');
+
+      hideConnectionTransition(180);
+
+      setTimeout(() => {
+        viewer.classList.remove('reveal-complete');
+        showViewerUi(true);
+      }, 850);
+    }, wait);
+  }
+
+  function cancelConnectionTransition(){
+    hideConnectionTransition(0);
+    viewer.classList.remove('video-pending','reveal-complete');
+  }
+
+  function setStatus(title, detail = "", state = ""){
+    if(statusTitle) statusTitle.textContent = title;
+    if(statusText) statusText.textContent = detail || title;
+
+    statusEl.classList.remove('connecting','connected','error');
+    if(state) statusEl.classList.add(state);
+  }
+
+  function checkDeviceReadiness(){
+    const motionSupported = typeof DeviceOrientationEvent !== 'undefined';
+
+    if(readyMotion){
+      readyMotion.classList.remove('ready','warn');
+      readyMotion.classList.add(motionSupported ? 'ready' : 'warn');
+    }
+
+    if(readyMotionText){
+      if(!motionSupported){
+        readyMotionText.textContent = 'Not detected';
+      }else if(typeof DeviceOrientationEvent.requestPermission === 'function'){
+        readyMotionText.textContent = 'Permission on VR entry';
+      }else{
+        readyMotionText.textContent = 'Available';
+      }
+    }
+
+    const fullscreenSupported =
+      !!document.documentElement.requestFullscreen ||
+      !!document.fullscreenEnabled;
+
+    if(readyFullscreen){
+      readyFullscreen.classList.remove('ready','warn');
+      readyFullscreen.classList.add(fullscreenSupported ? 'ready' : 'warn');
+    }
+
+    if(readyFullscreenText){
+      readyFullscreenText.textContent =
+        fullscreenSupported ? 'Available' : 'Browser limited';
+    }
+
+    const wakeSupported = 'wakeLock' in navigator;
+
+    if(readyWake){
+      readyWake.classList.remove('ready','warn');
+      readyWake.classList.add(wakeSupported ? 'ready' : 'warn');
+    }
+
+    if(readyWakeText){
+      readyWakeText.textContent =
+        wakeSupported ? 'Available' : 'Not supported';
+    }
+  }
+
+  function showViewerUi(autoHide = true){
+    viewer.classList.remove('ui-hidden');
+    clearTimeout(viewerUiTimer);
+
+    if(autoHide && viewer.classList.contains('active') && !vrActive){
+      viewerUiTimer = setTimeout(() => {
+        viewer.classList.add('ui-hidden');
+      }, 4200);
+    }
   }
 
   function sendToStudio(message){
@@ -392,7 +1653,7 @@ video{
     if(orientationListening) return true;
 
     if(typeof DeviceOrientationEvent === 'undefined'){
-      trackingPill.textContent = 'Head tracking unavailable on this device';
+      trackingPill.textContent = 'Head tracking unavailable';
       return false;
     }
 
@@ -401,7 +1662,7 @@ video{
         const result = await DeviceOrientationEvent.requestPermission();
 
         if(result !== 'granted'){
-          trackingPill.textContent = 'Motion permission was not granted';
+          trackingPill.textContent = 'Motion permission not granted';
           return false;
         }
       }
@@ -445,25 +1706,49 @@ video{
     connection = null;
     peer = null;
     latestStream = null;
+    clearTimeout(transitionHideTimer);
   }
 
-  async function connect(){
-    const code = codeInput.value.replace(/\D/g,'').slice(0,6);
+  async function connect(isReconnect = false){
+    const code = (
+      isReconnect ? currentSessionCode : codeInput.value
+    ).replace(/\D/g,'').slice(0,6);
+
     codeInput.value = code;
 
+    if(!isReconnect){
+      currentSessionCode = code;
+      reconnectAttempts = 0;
+      hideSessionEnd();
+    }
+
     if(code.length !== 6){
-      setStatus('Enter the 6-digit code from the presenter.');
+      if(!isReconnect) currentSessionCode = "";
+      setStatus('Check the session code', 'Enter all six digits provided by the presenter.', 'error');
       return;
     }
 
     if(!window.Peer){
-      setStatus('Connection library did not load. Check your internet connection.');
+      setStatus('Connection unavailable', 'The browser connection service did not load. Check your internet connection.', 'error');
       return;
     }
 
     cleanup();
-    setStatus('Connecting to presenter…');
+    showConnectionTransition(
+      isReconnect ? 'Reconnecting…' : 'Joining presentation',
+      isReconnect
+        ? `Restoring ${currentProjectName}.`
+        : `Locating BuildView session ${code}.`,
+      'connect'
+    );
+
+    setStatus(
+      isReconnect ? 'Reconnecting…' : 'Connecting…',
+      isReconnect ? 'Restoring the guided presentation.' : `Looking for session ${code}.`,
+      'connecting'
+    );
     connectBtn.disabled = true;
+    connectBtn.textContent = 'Connecting…';
 
     peer = new window.Peer(undefined, {debug:0});
 
@@ -473,20 +1758,45 @@ video{
 
       call.on('stream', stream => {
         latestStream = stream;
+        reconnectAttempts = 0;
         video.srcObject = stream;
-        viewer.classList.add('active');
         viewerStatus.textContent = 'BuildView XR · Live';
-        setStatus('Connected.');
+        requestScreenWakeLock();
+        setStatus('Connected', 'The guided presentation is live.', 'connected');
+        connectBtn.disabled = false;
+        connectBtn.textContent = 'Connect';
 
-        video.play().catch(() => {});
+        let revealed = false;
+        const reveal = () => {
+          if(revealed) return;
+          revealed = true;
+          revealLiveViewer();
+        };
+
+        video.play()
+          .then(() => {
+            if(video.readyState >= 2){
+              reveal();
+            }else{
+              video.addEventListener('loadeddata', reveal, {once:true});
+            }
+          })
+          .catch(() => {
+            // Even if autoplay policy delays playback, transition into the
+            // viewer so a user tap can resume the stream if needed.
+            reveal();
+          });
       });
 
       call.on('close', () => {
-        viewerStatus.textContent = 'Video disconnected';
+        viewerStatus.textContent = 'Stream paused';
+        viewer.classList.remove('video-pending');
+        showViewerUi(false);
       });
 
       call.on('error', () => {
-        viewerStatus.textContent = 'Video connection error';
+        viewerStatus.textContent = 'Stream error';
+        showViewerUi(false);
       });
     });
 
@@ -497,35 +1807,99 @@ video{
       });
 
       connection.on('open', () => {
-        setStatus('Presenter found. Waiting for the clean camera…');
+        updateConnectionTransition(
+          'Presenter found',
+          'Preparing the clean project camera for your device.',
+          'prepare'
+        );
+        setStatus('Presenter found', 'Waiting for the clean project camera…', 'connecting');
       });
 
       connection.on('data', data => {
-        if(data && data.type === 'busy'){
-          setStatus('This presenter already has a client connected.');
+        if(!data || typeof data !== 'object') return;
+
+        if(data.type === 'busy'){
+          cancelConnectionTransition();
+          setStatus(
+            'Session already occupied',
+            'This presenter currently has another client connected.',
+            'error'
+          );
+          return;
+        }
+
+        if(data.type === 'studio-ready' || data.type === 'session-info'){
+          if(data.projectName){
+            setProjectIdentity(data.projectName);
+
+            updateConnectionTransition(
+              currentProjectName,
+              'Preparing the guided project view for your device.',
+              'prepare'
+            );
+          }
+          return;
+        }
+
+        if(data.type === 'session-ended'){
+          if(data.projectName) setProjectIdentity(data.projectName);
+          showSessionEnd();
+          return;
         }
       });
 
+      const thisConnection = connection;
+
       connection.on('close', () => {
-        setStatus('The presenter disconnected.');
-        viewerStatus.textContent = 'Presenter disconnected';
+        if(connection !== thisConnection) return;
+
+        viewerStatus.textContent = 'Reconnecting…';
+        showViewerUi(false);
         connectBtn.disabled = false;
+        connectBtn.textContent = 'Connect';
+
+        if(!sessionEndedByPresenter){
+          scheduleReconnect();
+        }
       });
 
       connection.on('error', () => {
-        setStatus('Could not open the client connection.');
-        connectBtn.disabled = false;
+        if(sessionEndedByPresenter) return;
+
+        setStatus(
+          'Connection interrupted',
+          'BuildView will try to restore the presentation automatically.',
+          'connecting'
+        );
       });
     });
 
     peer.on('error', err => {
       const type = err?.type || '';
-      if(type === 'peer-unavailable'){
-        setStatus('Session not found. Check the code and make sure the presenter started the session.');
-      } else {
-        setStatus(`Connection error: ${type || err?.message || 'unknown'}`);
-      }
+
       connectBtn.disabled = false;
+      connectBtn.textContent = 'Connect';
+
+      if(isReconnect && !sessionEndedByPresenter){
+        scheduleReconnect();
+        return;
+      }
+
+      if(type === 'peer-unavailable'){
+        cancelConnectionTransition();
+        setStatus(
+          'Session not found',
+          'Check the six-digit code and make sure the presenter has started Client View.',
+          'error'
+        );
+      }else{
+        cancelConnectionTransition();
+        setStatus(
+          'Connection error',
+          type || err?.message || 'Unknown connection problem.',
+          'error'
+        );
+      }
     });
   }
 
@@ -541,7 +1915,7 @@ video{
 
   async function enterVR(){
     if(!latestStream){
-      setStatus('Connect to the presenter first.');
+      setStatus('Connect first', 'Join the presenter before entering VR.', 'error');
       return;
     }
 
@@ -570,6 +1944,21 @@ video{
     }catch(e){}
   }
 
+  function recenterHeadTracking(){
+    if(!vrActive) return;
+
+    // The Studio treats a fresh active head-tracking message as a request
+    // to establish a new orientation baseline.
+    sendToStudio({type:'head-tracking', active:true});
+    trackingPill.textContent = 'View recentered';
+
+    setTimeout(() => {
+      if(vrActive && orientationListening){
+        trackingPill.textContent = 'Head tracking active';
+      }
+    }, 1200);
+  }
+
   async function exitVR(){
     vrActive = false;
     stopHeadTracking();
@@ -590,6 +1979,7 @@ video{
 
   vrBtn.addEventListener('click', enterVR);
   vrExitBtn.addEventListener('click', exitVR);
+  vrRecenterBtn.addEventListener('click', recenterHeadTracking);
 
   document.addEventListener('fullscreenchange', () => {
     if(!document.fullscreenElement && vrActive){
@@ -598,6 +1988,21 @@ video{
       vrStage.classList.remove('active');
     }
   });
+
+  viewer.addEventListener('pointerdown', e => {
+    if(e.target.closest && e.target.closest('button')) return;
+
+    if(viewer.classList.contains('ui-hidden')){
+      showViewerUi(true);
+    }else{
+      viewer.classList.add('ui-hidden');
+      clearTimeout(viewerUiTimer);
+    }
+  });
+
+  viewer.addEventListener('pointermove', () => {
+    if(!vrActive) showViewerUi(true);
+  }, {passive:true});
 
   fullscreenBtn.addEventListener('click', async () => {
     try{
@@ -609,7 +2014,40 @@ video{
     }catch(e){}
   });
 
-  window.addEventListener('beforeunload', cleanup);
+  checkDeviceReadiness();
+  setProjectIdentity('Project walkthrough');
+  setStatus('Ready to connect', 'Enter the six-digit code provided by the presenter.');
+
+  if(sessionEndReturn){
+    sessionEndReturn.addEventListener('click', () => {
+      hideSessionEnd();
+      currentSessionCode = "";
+      reconnectAttempts = 0;
+      codeInput.value = "";
+      setProjectIdentity('Project walkthrough');
+      setStatus(
+        'Ready to connect',
+        'Enter the six-digit code provided by the presenter.'
+      );
+    });
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if(
+      document.visibilityState === 'visible' &&
+      latestStream &&
+      !sessionEndedByPresenter &&
+      !wakeLock
+    ){
+      requestScreenWakeLock();
+    }
+  });
+
+  window.addEventListener('beforeunload', () => {
+    clearTimeout(reconnectTimer);
+    releaseScreenWakeLock();
+    cleanup();
+  });
 })();
 </script>
 </body>
