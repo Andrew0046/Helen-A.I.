@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BuildView XR V5.3 — Phone Controls</title>
+    <title>BuildView XR V5.5 — Presentation Polish</title>
     
 
 
@@ -762,28 +762,6 @@ button:hover,
   text-shadow:0 1px 5px rgba(0,0,0,.4);
 }
 
-.mobile-menu-btn{
-  position:absolute;
-  left:50%;
-  bottom:max(38px,calc(env(safe-area-inset-bottom) + 14px));
-  transform:translateX(-50%);
-  width:auto!important;
-  min-width:92px!important;
-  min-height:46px!important;
-  padding:0 18px!important;
-  border-radius:999px!important;
-  pointer-events:auto!important;
-  touch-action:manipulation;
-  color:#fff!important;
-  background:rgba(20,24,30,.54)!important;
-  border:1px solid rgba(255,255,255,.24)!important;
-  box-shadow:0 9px 24px rgba(0,0,0,.17)!important;
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
-  font-size:13px!important;
-  font-weight:700!important;
-  justify-content:center!important;
-}
 
 .mobile-control-status{
   position:absolute;
@@ -814,6 +792,438 @@ button:hover,
     width:46px;
     height:46px;
   }
+}
+
+
+.mobile-controls.collapsed .mobile-stick-wrap,
+.mobile-controls.collapsed .mobile-action-dock,
+.mobile-controls.collapsed .mobile-control-status{
+  display:none;
+}
+
+.mobile-collapse-btn{
+  position:absolute;
+  top:max(16px,env(safe-area-inset-top));
+  right:max(18px,env(safe-area-inset-right));
+  width:auto!important;
+  min-width:64px!important;
+  min-height:38px!important;
+  padding:0 13px!important;
+  border-radius:999px!important;
+  pointer-events:auto!important;
+  color:#fff!important;
+  background:rgba(20,24,30,.48)!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  box-shadow:0 7px 20px rgba(0,0,0,.15)!important;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  font-size:11px!important;
+  font-weight:700!important;
+  justify-content:center!important;
+}
+
+.mobile-action-dock{
+  position:absolute;
+  left:50%;
+  bottom:max(28px,calc(env(safe-area-inset-bottom) + 8px));
+  transform:translateX(-50%);
+  z-index:2;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  flex-wrap:wrap;
+  width:min(390px,calc(100vw - 250px));
+  pointer-events:none;
+}
+
+.mobile-action-btn{
+  width:auto!important;
+  min-width:58px!important;
+  min-height:43px!important;
+  padding:0 13px!important;
+  border-radius:999px!important;
+  pointer-events:auto!important;
+  touch-action:manipulation;
+  color:#fff!important;
+  background:rgba(20,24,30,.52)!important;
+  border:1px solid rgba(255,255,255,.22)!important;
+  box-shadow:0 8px 22px rgba(0,0,0,.15)!important;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  font-size:12px!important;
+  font-weight:700!important;
+  justify-content:center!important;
+}
+
+.mobile-action-btn.primary{
+  background:rgba(255,255,255,.88)!important;
+  color:#1c2127!important;
+  border-color:rgba(255,255,255,.94)!important;
+}
+
+.mobile-action-btn.danger{
+  background:rgba(120,28,45,.64)!important;
+  border-color:rgba(255,190,205,.32)!important;
+}
+
+.mobile-action-btn.edit-only{display:none!important}
+.mobile-controls.edit-mode .mobile-action-btn.walk-only{display:none!important}
+.mobile-controls.edit-mode .mobile-action-btn.edit-only{display:flex!important}
+
+.mobile-stick-label .mode-detail{
+  opacity:.72;
+  font-weight:600;
+  letter-spacing:.05em;
+}
+
+@media(max-width:760px){
+  .mobile-action-dock{
+    width:min(330px,calc(100vw - 220px));
+    gap:5px;
+  }
+  .mobile-action-btn{
+    min-width:52px!important;
+    min-height:40px!important;
+    padding:0 10px!important;
+    font-size:11px!important;
+  }
+}
+
+@media(max-width:540px){
+  .mobile-action-dock{
+    width:46vw;
+    bottom:max(20px,env(safe-area-inset-bottom));
+  }
+  .mobile-action-btn{
+    min-width:48px!important;
+    min-height:38px!important;
+    padding:0 9px!important;
+    font-size:10.5px!important;
+  }
+}
+
+
+/* BUILDVIEW XR V5.5 — LANDING PAGE PRESENTATION POLISH */
+.version-badge{
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:0 10px;
+  margin-left:2px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:#fff;
+  color:#7a828b;
+  font-size:11px;
+  font-weight:750;
+  letter-spacing:.04em;
+}
+
+.workflow-strip{
+  margin-top:28px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.workflow-step{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:8px 11px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:rgba(255,255,255,.72);
+  color:#59616a;
+  font-size:12px;
+  font-weight:700;
+}
+
+.workflow-number{
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:#1d2126;
+  color:#fff;
+  font-size:10px;
+  font-weight:800;
+}
+
+.workflow-arrow{
+  color:#adb3ba;
+  font-size:13px;
+}
+
+.import-progress{
+  display:none;
+  align-items:flex-start;
+  gap:11px;
+  padding:12px 13px;
+  margin-bottom:12px;
+  border:1px solid #dce2e6;
+  border-radius:13px;
+  background:#f7f9fa;
+}
+
+.import-progress.show{display:flex}
+
+.import-spinner{
+  width:18px;
+  height:18px;
+  flex:0 0 auto;
+  border-radius:50%;
+  border:2px solid #d4d9de;
+  border-top-color:#30363d;
+  animation:buildview-spin .8s linear infinite;
+}
+
+.import-progress.success .import-spinner{
+  animation:none;
+  border:0;
+  background:#2f855a;
+  position:relative;
+}
+
+.import-progress.success .import-spinner::after{
+  content:"";
+  position:absolute;
+  left:5px;
+  top:3px;
+  width:5px;
+  height:8px;
+  border-right:2px solid #fff;
+  border-bottom:2px solid #fff;
+  transform:rotate(45deg);
+}
+
+.import-progress.error{
+  border-color:#ecd6dc;
+  background:#fff8fa;
+}
+
+.import-progress.error .import-spinner{
+  animation:none;
+  border-color:#b4475b;
+  border-top-color:#b4475b;
+}
+
+.import-copy{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.import-copy strong{
+  color:#30363d;
+  font-size:13px;
+}
+
+.import-copy span{
+  color:#7a828b;
+  font-size:12px;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+
+@keyframes buildview-spin{to{transform:rotate(360deg)}}
+
+.project-name{
+  max-width:220px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-weight:700;
+  color:#3d444c;
+}
+
+.device-panel{
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid var(--line);
+}
+
+.device-title{
+  margin-bottom:11px;
+  color:#868e97;
+  font-size:12px;
+  font-weight:750;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.device-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+
+.device-item{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:10px 11px;
+  border:1px solid #e8eaed;
+  border-radius:12px;
+  background:#fafbfb;
+}
+
+.device-light{
+  width:8px;
+  height:8px;
+  flex:0 0 auto;
+  border-radius:50%;
+  background:#b7bec5;
+}
+
+.device-item.ready .device-light{background:#4b8b68}
+.device-item.warn .device-light{background:#c39646}
+.device-item.off .device-light{background:#aeb5bc}
+
+.device-copy{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+}
+
+.device-copy strong{
+  color:#424951;
+  font-size:11.5px;
+  font-weight:750;
+}
+
+.device-copy span{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#8a9199;
+  font-size:10.5px;
+}
+
+.supported-note{
+  margin-top:13px;
+  padding:11px 12px;
+  border-radius:12px;
+  background:#f7f8f9;
+  color:#7d858e;
+  font-size:11.5px;
+  line-height:1.55;
+}
+
+.footer-version{
+  font-weight:700;
+  color:#767e87;
+}
+
+@media(max-width:620px){
+  .site-nav{
+    padding-bottom:16px;
+  }
+
+  .brand{
+    gap:9px;
+    font-size:18px;
+  }
+
+  .brand-mark{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+  }
+
+  .version-badge{
+    min-height:25px;
+    padding:0 8px;
+    font-size:10px;
+  }
+
+  .hero{
+    min-height:0;
+    padding-top:18px;
+    padding-bottom:28px;
+  }
+
+  .hero-sub{
+    font-size:16px;
+    line-height:1.62;
+  }
+
+  .hero-note{
+    gap:12px;
+    font-size:12.5px;
+  }
+
+  .workflow-strip{
+    margin-top:20px;
+    gap:6px;
+  }
+
+  .workflow-step{
+    padding:7px 9px;
+    font-size:11px;
+  }
+
+  .workflow-arrow{
+    display:none;
+  }
+
+  .hero-visual{
+    min-height:240px;
+    padding:18px;
+  }
+
+  .action-card,
+  .status-card{
+    padding:16px;
+    border-radius:18px;
+  }
+
+  button,
+  #vr-btn-container button,
+  #vr-btn-container a{
+    min-height:58px;
+    padding:13px 13px;
+    border-radius:14px;
+  }
+
+  .btn-icon{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+  }
+
+  .btn-sub{
+    font-size:11.5px;
+  }
+
+  .status-row{
+    align-items:flex-start;
+  }
+
+  .status-value,
+  .project-name{
+    max-width:58%;
+  }
+
+  .device-grid{
+    grid-template-columns:1fr;
+  }
+
+  .file-count{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:3px;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .import-spinner{animation:none}
 }
 
 </style>
@@ -856,11 +1266,12 @@ button:hover,
       <div class="brand">
         <div class="brand-mark">BV</div>
         <span>BuildView XR</span>
+        <span class="version-badge">V5.5</span>
       </div>
 
       <div class="nav-links">
         <span>Workspace</span>
-        <span>VR Preview</span>
+        <span>Client View</span>
         <span class="nav-pill">HELEN Engine</span>
       </div>
     </nav>
@@ -871,15 +1282,25 @@ button:hover,
         <h1>See the project<br>before it is built.</h1>
 
         <p class="hero-sub">
-          Import a room, renovation, interior, or construction model.
-          Set up the scene on desktop, then step inside it in VR to review scale,
-          layout, and the finished look.
+          Import an architectural, renovation, or interior model. Prepare the scene,
+          walk through it on desktop, phone, or VR, and present a clean guided view
+          to your client.
         </p>
 
         <div class="hero-note">
           <span><span class="dot"></span>Desktop setup</span>
           <span><span class="dot"></span>Controller support</span>
           <span><span class="dot"></span>VR walkthrough</span>
+        </div>
+
+        <div class="workflow-strip" aria-label="BuildView workflow">
+          <span class="workflow-step"><span class="workflow-number">1</span>Import</span>
+          <span class="workflow-arrow">→</span>
+          <span class="workflow-step"><span class="workflow-number">2</span>Prepare</span>
+          <span class="workflow-arrow">→</span>
+          <span class="workflow-step"><span class="workflow-number">3</span>Preview</span>
+          <span class="workflow-arrow">→</span>
+          <span class="workflow-step"><span class="workflow-number">4</span>Present</span>
         </div>
       </div>
 
@@ -902,7 +1323,7 @@ button:hover,
 
         <div class="panel-caption">
           <strong>Project workspace</strong>
-          <span>Prepare your 3D environment, scale it, and preview it from a human point of view.</span>
+          <span>Prepare the environment, inspect it at human scale, and present the same project across desktop, phone, VR, and Client View.</span>
         </div>
       </div>
     </section>
@@ -919,12 +1340,20 @@ button:hover,
         <div class="card action-card">
           <div id="restore-msg">Saved setup found — you can resume where you left off.</div>
 
+          <div id="import-progress" class="import-progress" role="status" aria-live="polite">
+            <div class="import-spinner"></div>
+            <div class="import-copy">
+              <strong id="import-progress-title">Preparing project…</strong>
+              <span id="import-progress-detail">Reading selected files.</span>
+            </div>
+          </div>
+
           <div class="action-list" id="main-controls">
             <button class="primary-action" onclick="document.getElementById('intel-input').click()">
               <span class="btn-icon">📁</span>
               <span class="btn-copy">
                 <span class="btn-title">Import Project Files</span>
-                <span class="btn-sub">Load your 3D model, images, media, and project references.</span>
+                <span class="btn-sub">Load GLB, GLTF, FBX, VRM, images, media, PDFs, and project references.</span>
               </span>
               <span class="btn-arrow">›</span>
             </button>
@@ -933,7 +1362,7 @@ button:hover,
               <span class="btn-icon">🖥️</span>
               <span class="btn-copy">
                 <span class="btn-title">Open Desktop Workspace</span>
-                <span class="btn-sub">Set up, position, rotate, scale, and inspect the scene in your browser.</span>
+                <span class="btn-sub">Prepare the scene, adjust objects, and inspect the project directly in your browser.</span>
               </span>
               <span class="btn-arrow">›</span>
             </button>
@@ -944,7 +1373,7 @@ button:hover,
               <span class="btn-icon">◉</span>
               <span class="btn-copy">
                 <span class="btn-title" id="phone-controls-title">Enable Phone Controls</span>
-                <span class="btn-sub" id="phone-controls-sub">Add two touch joysticks for walking and looking around without a physical controller.</span>
+                <span class="btn-sub" id="phone-controls-sub">Add smart touch controls for walking, looking, selecting, and quick object edits without a physical controller.</span>
               </span>
               <span class="btn-arrow">›</span>
             </button>
@@ -953,7 +1382,7 @@ button:hover,
               <span class="btn-icon">↗</span>
               <span class="btn-copy">
                 <span class="btn-title">Remote Client View</span>
-                <span class="btn-sub">Create a session code and stream a clean camera to a client page.</span>
+                <span class="btn-sub">Start a guided client session with a clean project view and independent client head movement.</span>
               </span>
               <span class="btn-arrow">›</span>
             </button>
@@ -990,8 +1419,13 @@ button:hover,
 
           <div class="status-list">
             <div class="status-row">
-              <div class="status-label">Workspace</div>
-              <div class="status-value" id="landing-workspace-state">Ready for project setup</div>
+              <div class="status-label">Project</div>
+              <div class="status-value project-name" id="landing-project-name">No project loaded</div>
+            </div>
+
+            <div class="status-row">
+              <div class="status-label">State</div>
+              <div class="status-value" id="landing-workspace-state">Ready to import</div>
             </div>
 
             <div class="status-row">
@@ -1000,13 +1434,50 @@ button:hover,
             </div>
 
             <div class="status-row">
-              <div class="status-label">Use</div>
-              <div class="status-value">Construction & design preview</div>
+              <div class="status-label">Workspace</div>
+              <div class="status-value">Desktop · Phone · VR · Client View</div>
+            </div>
+          </div>
+
+          <div class="device-panel">
+            <div class="device-title">Device readiness</div>
+
+            <div class="device-grid">
+              <div id="device-controller" class="device-item off">
+                <span class="device-light"></span>
+                <div class="device-copy">
+                  <strong>Controller</strong>
+                  <span id="device-controller-text">Not connected</span>
+                </div>
+              </div>
+
+              <div id="device-phone" class="device-item off">
+                <span class="device-light"></span>
+                <div class="device-copy">
+                  <strong>Phone controls</strong>
+                  <span id="device-phone-text">Off</span>
+                </div>
+              </div>
+
+              <div id="device-vr" class="device-item warn">
+                <span class="device-light"></span>
+                <div class="device-copy">
+                  <strong>VR</strong>
+                  <span id="device-vr-text">Checking…</span>
+                </div>
+              </div>
+
+              <div id="device-client" class="device-item ready">
+                <span class="device-light"></span>
+                <div class="device-copy">
+                  <strong>Client View</strong>
+                  <span id="device-client-text">Ready</span>
+                </div>
+              </div>
             </div>
 
-            <div class="status-row">
-              <div class="status-label">Modes</div>
-              <div class="status-value">Desktop + VR</div>
+            <div class="supported-note">
+              <strong>Project formats:</strong> GLB, GLTF, FBX, VRM, images, video, audio, PDF, and CSV references.
             </div>
           </div>
 
@@ -1015,30 +1486,30 @@ button:hover,
 
             <div class="control-row">
               <div class="control-tag">Desktop</div>
-              <div class="control-text">W/A/S/D move · drag mouse to look · M menu · Space select</div>
+              <div class="control-text">W/A/S/D move · drag to look · M menu · Space select</div>
             </div>
 
             <div class="control-row">
               <div class="control-tag">Controller</div>
-              <div class="control-text">Left stick move · right stick look · A/X grab · B/Circle delete · Square menu</div>
+              <div class="control-text">Left stick move · right stick look · A/X grab · Square menu</div>
             </div>
 
             <div class="control-row">
-              <div class="control-tag">VR</div>
-              <div class="control-text">Use gaze to select menu items while the controller handles movement and objects.</div>
+              <div class="control-tag">Phone</div>
+              <div class="control-text">Smart touch controls switch automatically between Walk and Edit modes.</div>
             </div>
           </div>
 
           <div style="display:none" id="system-status">
-            Import a 3D environment, scale it, position it, and preview it in desktop or VR.
+            BuildView XR workspace ready.
           </div>
         </aside>
       </div>
     </section>
 
     <footer class="footer">
-      <span>BuildView XR · Powered by HELEN Engine</span>
-      <span>Construction, renovation, interior design, and immersive project review.</span>
+      <span><span class="footer-version">BuildView XR V5.5</span> · Powered by HELEN Engine</span>
+      <span>Construction visualization · Renovation · Interior design · Guided project review</span>
     </footer>
   </main>
 </div>
@@ -1046,22 +1517,34 @@ button:hover,
 
 
 <div id="mobile-controls" class="mobile-controls" aria-hidden="true">
-  <div class="mobile-control-status">Phone controls</div>
+  <div id="mobile-control-status" class="mobile-control-status">Walk mode</div>
+
+  <button id="mobile-collapse-btn" class="mobile-collapse-btn" type="button">Hide</button>
 
   <div class="mobile-stick-wrap left">
     <div id="mobile-move-stick" class="mobile-stick" aria-label="Movement joystick">
       <div id="mobile-move-knob" class="mobile-knob"></div>
     </div>
-    <div class="mobile-stick-label">Move</div>
+    <div id="mobile-left-label" class="mobile-stick-label">Move</div>
   </div>
 
-  <button id="mobile-menu-btn" class="mobile-menu-btn" type="button">Menu</button>
+  <div id="mobile-action-dock" class="mobile-action-dock">
+    <button id="mobile-select-btn" class="mobile-action-btn primary" type="button">Select</button>
+    <button id="mobile-menu-btn" class="mobile-action-btn" type="button">Menu</button>
+
+    <button id="mobile-speed-btn" class="mobile-action-btn walk-only" type="button">Speed 1×</button>
+    <button id="mobile-level-btn" class="mobile-action-btn walk-only" type="button">Level</button>
+
+    <button id="mobile-near-btn" class="mobile-action-btn edit-only" type="button">Near</button>
+    <button id="mobile-far-btn" class="mobile-action-btn edit-only" type="button">Far</button>
+    <button id="mobile-delete-btn" class="mobile-action-btn danger edit-only" type="button">Hold Delete</button>
+  </div>
 
   <div class="mobile-stick-wrap right">
-    <div id="mobile-look-stick" class="mobile-stick" aria-label="Look joystick">
+    <div id="mobile-look-stick" class="mobile-stick" aria-label="Look or edit joystick">
       <div id="mobile-look-knob" class="mobile-knob"></div>
     </div>
-    <div class="mobile-stick-label">Look</div>
+    <div id="mobile-right-label" class="mobile-stick-label">Look</div>
   </div>
 </div>
 
@@ -1226,8 +1709,29 @@ button:hover,
     let mobileMoveY = 0;
     let mobileLookX = 0;
     let mobileLookY = 0;
+    let mobileDepthInput = 0;
+    let mobileControlsCollapsed = false;
+    let mobileUiMode = "";
+    let mobileDeleteTimer = null;
+
     const MOBILE_MOVE_SPEED = 0.072;
     const MOBILE_LOOK_SPEED = 0.030;
+    const MOBILE_OBJECT_MOVE_SPEED = 0.045;
+    const MOBILE_OBJECT_DEPTH_SPEED = 0.045;
+    const MOBILE_OBJECT_ROTATE_SPEED = 0.028;
+    const MOBILE_OBJECT_SCALE_SPEED = 0.018;
+
+    const MOBILE_SPEEDS = [
+        { label:"Slow", factor:0.45 },
+        { label:"1×", factor:1.0 },
+        { label:"Fast", factor:1.70 }
+    ];
+    let mobileSpeedIndex = 1;
+
+    // --- LANDING PAGE PRESENTATION STATE ---
+    let landingPrimaryProjectName = "";
+    let landingImportState = "idle";
+    let landingVrState = "checking";
 
     let isTiltActive = false;
     let tiltCalibration = { beta:0, gamma:0 };
@@ -1595,6 +2099,7 @@ button:hover,
             !renderer.xr.isPresenting;
 
         controls.classList.toggle('active', show);
+        controls.classList.toggle('collapsed', mobileControlsCollapsed);
         controls.setAttribute('aria-hidden', show ? 'false' : 'true');
 
         if (!show) {
@@ -1602,7 +2107,11 @@ button:hover,
             mobileMoveY = 0;
             mobileLookX = 0;
             mobileLookY = 0;
+            mobileDepthInput = 0;
+            cancelMobileDeleteHold();
         }
+
+        refreshMobileControlMode(true);
     }
 
     function refreshPhoneControlsButton() {
@@ -1618,14 +2127,94 @@ button:hover,
 
         if (sub) {
             sub.textContent = mobileControlsEnabled
-                ? "Touch joysticks will appear when you open the workspace."
-                : "Add two touch joysticks for walking and looking around without a physical controller.";
+                ? "Smart touch controls will appear when you open the workspace."
+                : "Add smart touch controls for walking, looking, selecting, and quick object edits without a physical controller.";
         }
 
         if (button) {
             button.style.background = mobileControlsEnabled ? "#f0f4f2" : "";
             button.style.borderColor = mobileControlsEnabled ? "#cadbd2" : "";
         }
+    }
+
+
+    function refreshMobileControlMode(force = false) {
+        const controls = document.getElementById('mobile-controls');
+        if (!controls) return;
+
+        const mode = grabbedObject ? "EDIT" : "WALK";
+        if (!force && mode === mobileUiMode) return;
+        mobileUiMode = mode;
+
+        controls.classList.toggle('edit-mode', mode === "EDIT");
+
+        const status = document.getElementById('mobile-control-status');
+        const selectBtn = document.getElementById('mobile-select-btn');
+        const leftLabel = document.getElementById('mobile-left-label');
+        const rightLabel = document.getElementById('mobile-right-label');
+        const speedBtn = document.getElementById('mobile-speed-btn');
+        const collapseBtn = document.getElementById('mobile-collapse-btn');
+
+        if (status) {
+            status.textContent = mode === "EDIT"
+                ? "Edit mode · object selected"
+                : "Walk mode";
+        }
+
+        if (selectBtn) {
+            selectBtn.textContent = mode === "EDIT" ? "Release" : "Select";
+        }
+
+        if (leftLabel) {
+            leftLabel.textContent = mode === "EDIT" ? "Move object" : "Move";
+        }
+
+        if (rightLabel) {
+            rightLabel.textContent = mode === "EDIT" ? "Rotate / Scale" : "Look";
+        }
+
+        if (speedBtn) {
+            speedBtn.textContent = `Speed ${MOBILE_SPEEDS[mobileSpeedIndex].label}`;
+        }
+
+        if (collapseBtn) {
+            collapseBtn.textContent = mobileControlsCollapsed ? "Show" : "Hide";
+        }
+    }
+
+    function cycleMobileSpeed() {
+        mobileSpeedIndex = (mobileSpeedIndex + 1) % MOBILE_SPEEDS.length;
+        refreshMobileControlMode(true);
+        setBuilderMessage(`Phone speed: ${MOBILE_SPEEDS[mobileSpeedIndex].label}`, 1200);
+    }
+
+    function levelMobileView() {
+        desktopPitch = 0;
+        if (camera) camera.rotation.x = 0;
+        setBuilderMessage("View leveled", 1100);
+    }
+
+    function beginMobileDeleteHold() {
+        if (!grabbedObject) return;
+
+        const btn = document.getElementById('mobile-delete-btn');
+        if (btn) btn.textContent = "Keep holding…";
+
+        clearTimeout(mobileDeleteTimer);
+        mobileDeleteTimer = setTimeout(() => {
+            mobileDeleteTimer = null;
+            deleteSelected();
+            refreshMobileControlMode(true);
+            if (btn) btn.textContent = "Hold Delete";
+        }, 650);
+    }
+
+    function cancelMobileDeleteHold() {
+        clearTimeout(mobileDeleteTimer);
+        mobileDeleteTimer = null;
+
+        const btn = document.getElementById('mobile-delete-btn');
+        if (btn) btn.textContent = "Hold Delete";
     }
 
     window.togglePhoneControls = function() {
@@ -1718,7 +2307,15 @@ button:hover,
         const moveKnob = document.getElementById('mobile-move-knob');
         const lookStick = document.getElementById('mobile-look-stick');
         const lookKnob = document.getElementById('mobile-look-knob');
+
         const menuButton = document.getElementById('mobile-menu-btn');
+        const selectButton = document.getElementById('mobile-select-btn');
+        const speedButton = document.getElementById('mobile-speed-btn');
+        const levelButton = document.getElementById('mobile-level-btn');
+        const nearButton = document.getElementById('mobile-near-btn');
+        const farButton = document.getElementById('mobile-far-btn');
+        const deleteButton = document.getElementById('mobile-delete-btn');
+        const collapseButton = document.getElementById('mobile-collapse-btn');
 
         createMobileJoystick(moveStick, moveKnob, (x, y) => {
             mobileMoveX = x;
@@ -1730,21 +2327,100 @@ button:hover,
             mobileLookY = y;
         });
 
+        const stopEvent = e => {
+            e.preventDefault();
+            e.stopPropagation();
+        };
+
         if (menuButton) {
-            menuButton.addEventListener('pointerdown', e => {
-                e.preventDefault();
-                e.stopPropagation();
+            menuButton.addEventListener('pointerdown', stopEvent);
+            menuButton.addEventListener('click', e => {
+                stopEvent(e);
+                toggleWorkspaceMenu();
+            });
+        }
+
+        if (selectButton) {
+            selectButton.addEventListener('pointerdown', stopEvent);
+            selectButton.addEventListener('click', e => {
+                stopEvent(e);
+                desktopSelectOrRelease();
+                refreshMobileControlMode(true);
+            });
+        }
+
+        if (speedButton) {
+            speedButton.addEventListener('pointerdown', stopEvent);
+            speedButton.addEventListener('click', e => {
+                stopEvent(e);
+                cycleMobileSpeed();
+            });
+        }
+
+        if (levelButton) {
+            levelButton.addEventListener('pointerdown', stopEvent);
+            levelButton.addEventListener('click', e => {
+                stopEvent(e);
+                levelMobileView();
+            });
+        }
+
+        const bindDepthButton = (button, direction) => {
+            if (!button) return;
+
+            button.addEventListener('pointerdown', e => {
+                stopEvent(e);
+                mobileDepthInput = direction;
+                try { button.setPointerCapture(e.pointerId); } catch (err) {}
             });
 
-            menuButton.addEventListener('click', e => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleWorkspaceMenu();
+            const release = e => {
+                stopEvent(e);
+                mobileDepthInput = 0;
+            };
+
+            button.addEventListener('pointerup', release);
+            button.addEventListener('pointercancel', release);
+            button.addEventListener('lostpointercapture', () => {
+                mobileDepthInput = 0;
+            });
+        };
+
+        bindDepthButton(nearButton, -1);
+        bindDepthButton(farButton, 1);
+
+        if (deleteButton) {
+            deleteButton.addEventListener('pointerdown', e => {
+                stopEvent(e);
+                beginMobileDeleteHold();
+            });
+
+            ['pointerup','pointercancel','pointerleave'].forEach(type => {
+                deleteButton.addEventListener(type, e => {
+                    stopEvent(e);
+                    cancelMobileDeleteHold();
+                });
+            });
+        }
+
+        if (collapseButton) {
+            collapseButton.addEventListener('pointerdown', stopEvent);
+            collapseButton.addEventListener('click', e => {
+                stopEvent(e);
+                mobileControlsCollapsed = !mobileControlsCollapsed;
+
+                const controls = document.getElementById('mobile-controls');
+                if (controls) {
+                    controls.classList.toggle('collapsed', mobileControlsCollapsed);
+                }
+
+                refreshMobileControlMode(true);
             });
         }
 
         mobileControlsReady = true;
         refreshPhoneControlsButton();
+        refreshMobileControlMode(true);
     }
 
     function handleMobileControls() {
@@ -1759,9 +2435,84 @@ button:hover,
             return;
         }
 
-        // Keep movement off while the floating menu is open so the user
-        // can aim at menu items without drifting through the environment.
-        if (!isMenuOpen && (Math.abs(mobileMoveX) > 0.02 || Math.abs(mobileMoveY) > 0.02)) {
+        refreshMobileControlMode();
+
+        // Menu open: freeze movement/editing, but keep the right stick as gaze/look
+        // so the user can aim at floating menu items.
+        if (isMenuOpen) {
+            if (Math.abs(mobileLookX) > 0.02 || Math.abs(mobileLookY) > 0.02) {
+                desktopYaw -= mobileLookX * MOBILE_LOOK_SPEED;
+                desktopPitch -= mobileLookY * MOBILE_LOOK_SPEED;
+
+                desktopPitch = THREE.MathUtils.clamp(
+                    desktopPitch,
+                    -Math.PI / 2 + 0.05,
+                    Math.PI / 2 - 0.05
+                );
+
+                dolly.rotation.y = desktopYaw;
+                camera.rotation.x = desktopPitch;
+            }
+            return;
+        }
+
+        if (grabbedObject) {
+            // EDIT MODE
+            // Left stick = move object horizontally / vertically relative to the camera.
+            if (Math.abs(mobileMoveX) > 0.02 || Math.abs(mobileMoveY) > 0.02) {
+                const forward = new THREE.Vector3();
+                getViewDirection(forward);
+                forward.y = 0;
+
+                if (forward.lengthSq() < 0.0001) forward.set(0, 0, -1);
+                forward.normalize();
+
+                const right = new THREE.Vector3()
+                    .crossVectors(camera.up, forward)
+                    .normalize();
+
+                grabbedObject.position.addScaledVector(
+                    right,
+                    mobileMoveX * MOBILE_OBJECT_MOVE_SPEED
+                );
+
+                grabbedObject.position.y +=
+                    -mobileMoveY * MOBILE_OBJECT_MOVE_SPEED;
+            }
+
+            // Right stick X = rotate, Y = scale.
+            if (Math.abs(mobileLookX) > 0.02) {
+                grabbedObject.rotation.y +=
+                    mobileLookX * MOBILE_OBJECT_ROTATE_SPEED;
+            }
+
+            if (Math.abs(mobileLookY) > 0.02 && grabbedObject.userData.isModel) {
+                const factor = 1 + (-mobileLookY * MOBILE_OBJECT_SCALE_SPEED);
+                if (factor > 0.01) grabbedObject.scale.multiplyScalar(factor);
+            }
+
+            // Near/Far buttons = depth movement relative to viewer.
+            if (Math.abs(mobileDepthInput) > 0.01) {
+                const viewPos = getViewPosition(new THREE.Vector3());
+                const dir = new THREE.Vector3()
+                    .subVectors(grabbedObject.position, viewPos);
+
+                if (dir.lengthSq() > 0.0001) {
+                    dir.normalize();
+                    grabbedObject.position.addScaledVector(
+                        dir,
+                        mobileDepthInput * MOBILE_OBJECT_DEPTH_SPEED
+                    );
+                }
+            }
+
+            return;
+        }
+
+        // WALK MODE
+        const speedFactor = MOBILE_SPEEDS[mobileSpeedIndex].factor;
+
+        if (Math.abs(mobileMoveX) > 0.02 || Math.abs(mobileMoveY) > 0.02) {
             const forward = new THREE.Vector3();
             getViewDirection(forward);
             forward.y = 0;
@@ -1775,17 +2526,15 @@ button:hover,
 
             dolly.position.addScaledVector(
                 forward,
-                -mobileMoveY * MOBILE_MOVE_SPEED
+                -mobileMoveY * MOBILE_MOVE_SPEED * speedFactor
             );
 
             dolly.position.addScaledVector(
                 right,
-                mobileMoveX * MOBILE_MOVE_SPEED
+                mobileMoveX * MOBILE_MOVE_SPEED * speedFactor
             );
         }
 
-        // The look stick remains active with the menu open. That lets the
-        // center gaze reticle move across the menu just like a headset gaze.
         if (Math.abs(mobileLookX) > 0.02 || Math.abs(mobileLookY) > 0.02) {
             desktopYaw -= mobileLookX * MOBILE_LOOK_SPEED;
             desktopPitch -= mobileLookY * MOBILE_LOOK_SPEED;
@@ -1863,12 +2612,14 @@ button:hover,
             // Leave the object exactly where the user placed/scaled/rotated it.
             grabbedObject = null;
             setBuilderMessage("Object released");
+            refreshMobileControlMode(true);
             return;
         }
 
         if (activeObject.obj) {
             grabbedObject = activeObject.obj;
             setBuilderMessage(`SELECTED: ${grabbedObject.userData.label || "OBJECT"}`);
+            refreshMobileControlMode(true);
         } else {
             setBuilderMessage("LOOK AT AN OBJECT FIRST");
         }
@@ -2192,6 +2943,66 @@ button:hover,
 
 
     
+
+    function setImportProgress(title, detail = "", state = "loading") {
+        const panel = document.getElementById('import-progress');
+        const titleEl = document.getElementById('import-progress-title');
+        const detailEl = document.getElementById('import-progress-detail');
+
+        if (!panel) return;
+
+        panel.classList.add('show');
+        panel.classList.toggle('success', state === 'success');
+        panel.classList.toggle('error', state === 'error');
+
+        if (titleEl) titleEl.textContent = title;
+        if (detailEl) detailEl.textContent = detail;
+    }
+
+    function setDeviceState(id, state, textValue) {
+        const item = document.getElementById(id);
+        const value = document.getElementById(`${id}-text`);
+
+        if (item) {
+            item.classList.remove('ready','warn','off');
+            item.classList.add(state);
+        }
+
+        if (value) value.textContent = textValue;
+    }
+
+    function updateLandingDeviceReadiness() {
+        const pad = getActivePad();
+
+        setDeviceState(
+            'device-controller',
+            pad ? 'ready' : 'off',
+            pad ? (pad.id || 'Connected') : 'Not connected'
+        );
+
+        setDeviceState(
+            'device-phone',
+            mobileControlsEnabled ? 'ready' : 'off',
+            mobileControlsEnabled ? 'Enabled' : 'Off'
+        );
+
+        if (landingVrState === 'available') {
+            setDeviceState('device-vr', 'ready', 'Available');
+        } else if (landingVrState === 'unavailable') {
+            setDeviceState('device-vr', 'off', 'Not available here');
+        } else if (landingVrState === 'error') {
+            setDeviceState('device-vr', 'warn', 'Check failed');
+        } else {
+            setDeviceState('device-vr', 'warn', 'Checking…');
+        }
+
+        setDeviceState(
+            'device-client',
+            remoteSessionCode ? 'ready' : 'ready',
+            remoteSessionCode ? `Session ${remoteSessionCode}` : 'Ready'
+        );
+    }
+
     function refreshOverlayStatus() {
         const count = CUSTOM_DATABASE.length;
         const countText = count === 0
@@ -2201,19 +3012,33 @@ button:hover,
         const landingCount = document.getElementById('landing-asset-count');
         if (landingCount) landingCount.textContent = countText;
 
+        const projectName = document.getElementById('landing-project-name');
+        if (projectName) {
+            projectName.textContent = landingPrimaryProjectName || "No project loaded";
+            projectName.title = landingPrimaryProjectName || "";
+        }
+
         const fileStatus = document.getElementById('file-status');
         if (fileStatus) {
             fileStatus.innerHTML = count === 0
                 ? `<span>No project files loaded</span><small>Import a project to begin</small>`
-                : `<span>${count} project file${count === 1 ? "" : "s"} loaded</span><small>Ready for workspace setup</small>`;
+                : `<span>${count} project file${count === 1 ? "" : "s"} loaded</span><small>${landingPrimaryProjectName || "Ready for workspace setup"}</small>`;
         }
 
         const workspaceState = document.getElementById('landing-workspace-state');
         if (workspaceState) {
-            workspaceState.textContent = count === 0
-                ? "Ready for project setup"
-                : "Project files imported";
+            if (landingImportState === "loading") {
+                workspaceState.textContent = "Preparing project…";
+            } else if (landingImportState === "error") {
+                workspaceState.textContent = "Import needs attention";
+            } else {
+                workspaceState.textContent = count === 0
+                    ? "Ready to import"
+                    : "Project ready";
+            }
         }
+
+        updateLandingDeviceReadiness();
     }
 
 
@@ -2222,11 +3047,32 @@ button:hover,
 
 
     input.addEventListener('change', async e => {
-        if (e.target.files.length > 0) {
-            CUSTOM_DATABASE = [];
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
 
-            for (let i = 0; i < e.target.files.length; i++) {
-                const file = e.target.files[i];
+        CUSTOM_DATABASE = [];
+        landingImportState = "loading";
+
+        const preferredProject =
+            files.find(file => /\.(glb|gltf|fbx|vrm)$/i.test(file.name)) ||
+            files[0];
+
+        landingPrimaryProjectName = preferredProject ? preferredProject.name : "";
+        refreshOverlayStatus();
+
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+
+                setImportProgress(
+                    `Preparing ${i + 1} of ${files.length}`,
+                    file.name,
+                    "loading"
+                );
+
+                // Yield one frame so the progress state is visible on slower phones.
+                await new Promise(resolve => requestAnimationFrame(resolve));
+
                 const name = file.name.toUpperCase();
                 let type = 'image';
 
@@ -2248,30 +3094,66 @@ button:hover,
 
                 if (type === 'pdf') {
                     const buffer = await file.arrayBuffer();
-                    CUSTOM_DATABASE.push({ type:'pdf', buffer, label:name });
+                    CUSTOM_DATABASE.push({
+                        type:'pdf',
+                        buffer,
+                        label:name,
+                        displayName:file.name
+                    });
                 } else if (type === 'chart') {
-                    const text = await file.text();
-                    CUSTOM_DATABASE.push({ type:'chart', data:text, label:name });
+                    const fileText = await file.text();
+                    CUSTOM_DATABASE.push({
+                        type:'chart',
+                        data:fileText,
+                        label:name,
+                        displayName:file.name
+                    });
                 } else if (type === 'audio') {
                     CUSTOM_DATABASE.push({
                         type:'audio',
                         src:URL.createObjectURL(file),
-                        label:name
+                        label:name,
+                        displayName:file.name
                     });
                 } else {
                     CUSTOM_DATABASE.push({
                         type,
                         src:URL.createObjectURL(file),
-                        label:name
+                        label:name,
+                        displayName:file.name
                     });
                 }
             }
 
+            landingImportState = "ready";
             refreshOverlayStatus();
+
+            setImportProgress(
+                "Project ready",
+                `${CUSTOM_DATABASE.length} file${CUSTOM_DATABASE.length === 1 ? "" : "s"} prepared · ${landingPrimaryProjectName}`,
+                "success"
+            );
 
             sysMessage = `${CUSTOM_DATABASE.length} PROJECT FILE${CUSTOM_DATABASE.length === 1 ? '' : 'S'} READY`;
             updateMenuDisplay();
 
+            setTimeout(() => {
+                const panel = document.getElementById('import-progress');
+                if (panel && landingImportState === "ready") {
+                    panel.classList.remove('show');
+                }
+            }, 4200);
+        } catch (err) {
+            console.error("[BuildView] Project import failed:", err);
+            landingImportState = "error";
+            refreshOverlayStatus();
+
+            setImportProgress(
+                "Could not prepare the project",
+                err && err.message ? err.message : "One of the selected files could not be read.",
+                "error"
+            );
+        } finally {
             input.value = '';
         }
     });
@@ -3455,6 +4337,9 @@ button:hover,
             navigator.xr.isSessionSupported('immersive-vr')
                 .then(supported => {
                     if (supported) {
+                        landingVrState = "available";
+                        updateLandingDeviceReadiness();
+
                         const btn = VRButton.createButton(renderer);
                         btn.className = "";
                         btn.innerHTML = `
@@ -3472,22 +4357,31 @@ button:hover,
                             landingVr.textContent = "Ready for project setup";
                         }
                     } else {
+                        landingVrState = "unavailable";
+                        updateLandingDeviceReadiness();
+
                         const msg = document.createElement('div');
                         msg.className = "file-count";
-                        msg.innerHTML = `<span>VR headset not detected</span><small>Use the desktop workspace on this device</small>`;
+                        msg.innerHTML = `<span>VR preview unavailable</span><small>Desktop and phone workspace remain available</small>`;
                         vrContainer.appendChild(msg);
                     }
                 })
                 .catch(() => {
+                    landingVrState = "error";
+                    updateLandingDeviceReadiness();
+
                     const msg = document.createElement('div');
                     msg.className = "status";
                     msg.textContent = "VR CHECK FAILED — DESKTOP MODE AVAILABLE";
                     vrContainer.appendChild(msg);
                 });
         } else {
+            landingVrState = "unavailable";
+            updateLandingDeviceReadiness();
+
             const msg = document.createElement('div');
             msg.className = "file-count";
-            msg.innerHTML = `<span>VR not available in this browser</span><small>Desktop workspace is ready</small>`;
+            msg.innerHTML = `<span>VR preview unavailable in this browser</span><small>Desktop workspace is ready</small>`;
             vrContainer.appendChild(msg);
         }
 
@@ -5253,6 +6147,8 @@ button:hover,
 
     initMobileControls();
     refreshPhoneControlsButton();
+    updateLandingDeviceReadiness();
+    setInterval(updateLandingDeviceReadiness, 1200);
 
     // Keep the remote panel available from the landing page button.
     setRemoteCode("");
