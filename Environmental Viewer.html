@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BuildView XR V5.5 — Presentation Polish</title>
+    <title>BuildView XR V5.6 — Client Session Companion</title>
     
 
 
@@ -1266,7 +1266,7 @@ button:hover,
       <div class="brand">
         <div class="brand-mark">BV</div>
         <span>BuildView XR</span>
-        <span class="version-badge">V5.5</span>
+        <span class="version-badge">V5.6</span>
       </div>
 
       <div class="nav-links">
@@ -1508,7 +1508,7 @@ button:hover,
     </section>
 
     <footer class="footer">
-      <span><span class="footer-version">BuildView XR V5.5</span> · Powered by HELEN Engine</span>
+      <span><span class="footer-version">BuildView XR V5.6</span> · Powered by HELEN Engine</span>
       <span>Construction visualization · Renovation · Interior design · Guided project review</span>
     </footer>
   </main>
@@ -1576,8 +1576,8 @@ button:hover,
 
   <div class="remote-help">
     The client receives only the clean project camera. Studio HUD, selection outlines,
-    the gaze menu, and your editing interface stay hidden. In VR, your movement guides
-    the client's position while their own headset controls the Client Camera direction.
+    the gaze menu, and your editing interface stay hidden. The session now also shares
+    the project name and sends a polished completion signal when you end the presentation.
   </div>
 </div>
 
@@ -3905,6 +3905,18 @@ button:hover,
         remoteHeadBaselineReady = false;
     }
 
+    function getRemoteProjectName() {
+        const raw = String(landingPrimaryProjectName || "").trim();
+
+        if (!raw) return "Project walkthrough";
+
+        return raw
+            .replace(/\.[a-z0-9]+$/i, "")
+            .replace(/[_-]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim() || "Project walkthrough";
+    }
+
     function setRemoteStatus(message) {
         const el = document.getElementById('remote-status');
         if (el) el.textContent = message;
@@ -4094,7 +4106,18 @@ button:hover,
                 if (!stream) return;
 
                 try {
-                    conn.send({ type:"studio-ready", code:remoteSessionCode });
+                    const projectName = getRemoteProjectName();
+
+                    conn.send({
+                        type:"studio-ready",
+                        code:remoteSessionCode,
+                        projectName
+                    });
+
+                    conn.send({
+                        type:"session-info",
+                        projectName
+                    });
                 } catch (e) {}
 
                 remoteMediaCall = remotePeer.call(conn.peer, stream, {
@@ -4180,19 +4203,36 @@ button:hover,
     };
 
     window.stopRemoteSession = function() {
-        closeRemoteLinks();
+        const projectName = getRemoteProjectName();
 
-        if (remotePeer) {
-            try { remotePeer.destroy(); } catch (e) {}
-            remotePeer = null;
+        if (remoteConnection && remoteConnection.open) {
+            try {
+                remoteConnection.send({
+                    type:"session-ended",
+                    projectName
+                });
+            } catch (e) {}
         }
 
-        remoteSessionCode = "";
-        remoteClientHeadTracking = false;
-        resetRemoteHeadBaseline();
-        remotePoseReady = false;
-        setRemoteCode("");
-        setRemoteStatus("No session running.");
+        setRemoteStatus("Ending client presentation…");
+
+        // Give the completion message a brief moment to reach the client
+        // before closing the PeerJS links.
+        setTimeout(() => {
+            closeRemoteLinks();
+
+            if (remotePeer) {
+                try { remotePeer.destroy(); } catch (e) {}
+                remotePeer = null;
+            }
+
+            remoteSessionCode = "";
+            remoteClientHeadTracking = false;
+            resetRemoteHeadBaseline();
+            remotePoseReady = false;
+            setRemoteCode("");
+            setRemoteStatus("Presentation ended.");
+        }, 220);
     };
 
     window.copyRemoteCode = async function() {
