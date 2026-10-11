@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BuildView XR V5.6 — Client Session Companion</title>
+    <title>BuildView XR V5.7 — SketchUp Aware Import</title>
     
 
 
@@ -1226,6 +1226,77 @@ button:hover,
   .import-spinner{animation:none}
 }
 
+
+.skp-import-help{
+  display:none;
+  margin:0 0 13px;
+  padding:15px;
+  border:1px solid #e6d8bc;
+  border-radius:14px;
+  background:#fffaf1;
+}
+
+.skp-import-help.show{display:block}
+
+.skp-import-head{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+}
+
+.skp-import-icon{
+  width:34px;
+  height:34px;
+  flex:0 0 auto;
+  border-radius:10px;
+  display:grid;
+  place-items:center;
+  background:#f0e5ce;
+  color:#685a3f;
+  font-size:12px;
+  font-weight:850;
+}
+
+.skp-import-copy{
+  min-width:0;
+}
+
+.skp-import-copy strong{
+  display:block;
+  color:#4d4538;
+  font-size:13px;
+}
+
+.skp-import-copy p{
+  margin:4px 0 0;
+  color:#776b58;
+  font-size:11.5px;
+  line-height:1.55;
+}
+
+.skp-path{
+  margin-top:11px;
+  padding:10px 11px;
+  border-radius:10px;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(116,97,64,.12);
+  color:#625743;
+  font-size:11px;
+  font-weight:700;
+  line-height:1.5;
+}
+
+.import-progress.skp{
+  border-color:#e6d8bc;
+  background:#fffaf1;
+}
+
+.import-progress.skp .import-spinner{
+  animation:none;
+  border-color:#b69a65;
+  border-top-color:#b69a65;
+}
+
 </style>
 
 
@@ -1255,7 +1326,7 @@ button:hover,
 <canvas id="vision-canvas" style="display:none;"></canvas>
 <div id="flash"></div>
 
-<input type="file" id="intel-input" multiple accept="*/*" style="display:none">
+<input type="file" id="intel-input" multiple accept=".glb,.gltf,.fbx,.vrm,.skp,.pdf,.csv,.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov,.mp3,.wav,.ogg,image/*,video/*,audio/*" style="display:none">
 
 
 
@@ -1266,7 +1337,7 @@ button:hover,
       <div class="brand">
         <div class="brand-mark">BV</div>
         <span>BuildView XR</span>
-        <span class="version-badge">V5.6</span>
+        <span class="version-badge">V5.7</span>
       </div>
 
       <div class="nav-links">
@@ -1348,12 +1419,29 @@ button:hover,
             </div>
           </div>
 
+          <div id="skp-import-help" class="skp-import-help">
+            <div class="skp-import-head">
+              <div class="skp-import-icon">SKP</div>
+              <div class="skp-import-copy">
+                <strong id="skp-import-name">SketchUp project detected</strong>
+                <p>
+                  BuildView recognizes the SketchUp file, but the browser renderer cannot
+                  safely decode native SKP geometry by itself. Convert the model to GLB,
+                  then import that GLB into the same project.
+                </p>
+              </div>
+            </div>
+            <div class="skp-path">
+              SketchUp → File → Export → 3D Model → GLTF Binary (.glb)
+            </div>
+          </div>
+
           <div class="action-list" id="main-controls">
             <button class="primary-action" onclick="document.getElementById('intel-input').click()">
               <span class="btn-icon">📁</span>
               <span class="btn-copy">
                 <span class="btn-title">Import Project Files</span>
-                <span class="btn-sub">Load GLB, GLTF, FBX, VRM, images, media, PDFs, and project references.</span>
+                <span class="btn-sub">Load GLB, GLTF, FBX, VRM, SketchUp SKP, images, media, PDFs, and project references.</span>
               </span>
               <span class="btn-arrow">›</span>
             </button>
@@ -1477,7 +1565,7 @@ button:hover,
             </div>
 
             <div class="supported-note">
-              <strong>Project formats:</strong> GLB, GLTF, FBX, VRM, images, video, audio, PDF, and CSV references.
+              <strong>Project formats:</strong> GLB, GLTF, FBX, VRM, SKP*, images, video, audio, PDF, and CSV. <span style="opacity:.82">*SKP is recognized and guided through a GLB conversion step for browser rendering.</span>
             </div>
           </div>
 
@@ -1508,7 +1596,7 @@ button:hover,
     </section>
 
     <footer class="footer">
-      <span><span class="footer-version">BuildView XR V5.6</span> · Powered by HELEN Engine</span>
+      <span><span class="footer-version">BuildView XR V5.7</span> · Powered by HELEN Engine</span>
       <span>Construction visualization · Renovation · Interior design · Guided project review</span>
     </footer>
   </main>
@@ -2954,6 +3042,7 @@ button:hover,
         panel.classList.add('show');
         panel.classList.toggle('success', state === 'success');
         panel.classList.toggle('error', state === 'error');
+        panel.classList.toggle('skp', state === 'skp');
 
         if (titleEl) titleEl.textContent = title;
         if (detailEl) detailEl.textContent = detail;
@@ -3031,6 +3120,8 @@ button:hover,
                 workspaceState.textContent = "Preparing project…";
             } else if (landingImportState === "error") {
                 workspaceState.textContent = "Import needs attention";
+            } else if (landingImportState === "skp") {
+                workspaceState.textContent = "SketchUp conversion needed";
             } else {
                 workspaceState.textContent = count === 0
                     ? "Ready to import"
@@ -3051,10 +3142,14 @@ button:hover,
         if (!files.length) return;
 
         CUSTOM_DATABASE = [];
+        const skpFiles = [];
         landingImportState = "loading";
 
+        const skpHelp = document.getElementById('skp-import-help');
+        if (skpHelp) skpHelp.classList.remove('show');
+
         const preferredProject =
-            files.find(file => /\.(glb|gltf|fbx|vrm)$/i.test(file.name)) ||
+            files.find(file => /\.(glb|gltf|fbx|vrm|skp)$/i.test(file.name)) ||
             files[0];
 
         landingPrimaryProjectName = preferredProject ? preferredProject.name : "";
@@ -3077,6 +3172,7 @@ button:hover,
                 let type = 'image';
 
                 if (name.endsWith('.PDF')) type = 'pdf';
+                else if (name.endsWith('.SKP')) type = 'skp';
                 else if (name.endsWith('.FBX')) type = 'fbx';
                 else if (
                     name.endsWith('.GLB') ||
@@ -3091,6 +3187,11 @@ button:hover,
                 else if (name.endsWith('.CSV')) type = 'chart';
                 else if (file.type.startsWith('video')) type = 'video';
                 else if (file.type.startsWith('image')) type = 'image';
+
+                if (type === 'skp') {
+                    skpFiles.push(file);
+                    continue;
+                }
 
                 if (type === 'pdf') {
                     const buffer = await file.arrayBuffer();
@@ -3125,24 +3226,63 @@ button:hover,
                 }
             }
 
-            landingImportState = "ready";
-            refreshOverlayStatus();
+            const skpHelpPanel = document.getElementById('skp-import-help');
+            const skpName = document.getElementById('skp-import-name');
 
-            setImportProgress(
-                "Project ready",
-                `${CUSTOM_DATABASE.length} file${CUSTOM_DATABASE.length === 1 ? "" : "s"} prepared · ${landingPrimaryProjectName}`,
-                "success"
-            );
+            if (skpFiles.length > 0) {
+                if (skpHelpPanel) skpHelpPanel.classList.add('show');
 
-            sysMessage = `${CUSTOM_DATABASE.length} PROJECT FILE${CUSTOM_DATABASE.length === 1 ? '' : 'S'} READY`;
-            updateMenuDisplay();
-
-            setTimeout(() => {
-                const panel = document.getElementById('import-progress');
-                if (panel && landingImportState === "ready") {
-                    panel.classList.remove('show');
+                if (skpName) {
+                    skpName.textContent =
+                        skpFiles.length === 1
+                            ? `SketchUp project detected · ${skpFiles[0].name}`
+                            : `${skpFiles.length} SketchUp projects detected`;
                 }
-            }, 4200);
+
+                if (CUSTOM_DATABASE.length === 0) {
+                    landingImportState = "skp";
+                    refreshOverlayStatus();
+
+                    setImportProgress(
+                        "SketchUp project recognized",
+                        "Convert the SKP to GLB in SketchUp, then import the GLB into BuildView.",
+                        "skp"
+                    );
+
+                    sysMessage = "SKP DETECTED • GLB CONVERSION NEEDED";
+                } else {
+                    landingImportState = "ready";
+                    refreshOverlayStatus();
+
+                    setImportProgress(
+                        "Project partially ready",
+                        `${CUSTOM_DATABASE.length} renderable file${CUSTOM_DATABASE.length === 1 ? "" : "s"} prepared · ${skpFiles.length} SKP file${skpFiles.length === 1 ? "" : "s"} waiting for GLB conversion`,
+                        "skp"
+                    );
+
+                    sysMessage = `${CUSTOM_DATABASE.length} FILE${CUSTOM_DATABASE.length === 1 ? '' : 'S'} READY • SKP CONVERSION PENDING`;
+                }
+            } else {
+                landingImportState = "ready";
+                refreshOverlayStatus();
+
+                setImportProgress(
+                    "Project ready",
+                    `${CUSTOM_DATABASE.length} file${CUSTOM_DATABASE.length === 1 ? "" : "s"} prepared · ${landingPrimaryProjectName}`,
+                    "success"
+                );
+
+                sysMessage = `${CUSTOM_DATABASE.length} PROJECT FILE${CUSTOM_DATABASE.length === 1 ? '' : 'S'} READY`;
+
+                setTimeout(() => {
+                    const panel = document.getElementById('import-progress');
+                    if (panel && landingImportState === "ready") {
+                        panel.classList.remove('show');
+                    }
+                }, 4200);
+            }
+
+            updateMenuDisplay();
         } catch (err) {
             console.error("[BuildView] Project import failed:", err);
             landingImportState = "error";
