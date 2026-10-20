@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BuildView XR V5.8 — Controller Setup</title>
+    <title>BuildView XR V5.9.1 — Menu Look Fix</title>
     
 
 
@@ -1495,6 +1495,24 @@ button:hover,
   }
 }
 
+
+/* V5.9 — full-window desktop workspace */
+body.desktop-workspace-active{
+  overflow:hidden!important;
+  overscroll-behavior:none;
+}
+
+.buildview-main-canvas{
+  position:fixed!important;
+  display:block!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  z-index:1!important;
+  touch-action:none!important;
+  background:#000;
+}
+
 </style>
 
 
@@ -1535,7 +1553,7 @@ button:hover,
       <div class="brand">
         <div class="brand-mark">BV</div>
         <span>BuildView XR</span>
-        <span class="version-badge">V5.8</span>
+        <span class="version-badge">V5.9.1</span>
       </div>
 
       <div class="nav-links">
@@ -1803,7 +1821,7 @@ button:hover,
     </section>
 
     <footer class="footer">
-      <span><span class="footer-version">BuildView XR V5.8</span> · Powered by HELEN Engine</span>
+      <span><span class="footer-version">BuildView XR V5.9.1</span> · Powered by HELEN Engine</span>
       <span>Construction visualization · Renovation · Interior design · Guided project review</span>
     </footer>
   </main>
@@ -2055,6 +2073,7 @@ button:hover,
 
     // --- DESKTOP WORKSPACE ---
     let desktopMode = false;
+    let desktopRequestedFullscreen = false;
     let desktopLookActive = false;
     let desktopYaw = 0;
     let desktopPitch = 0;
@@ -2137,8 +2156,10 @@ button:hover,
         view: 3
     };
 
-    let controllerBindings = loadControllerBindings();
+    // This flag must exist BEFORE loadControllerBindings() runs.
+    // The loader may set it when saved mappings are found.
     let controllerBindingsCustomized = false;
+    let controllerBindings = loadControllerBindings();
     let controllerSetupOpen = false;
     let controllerBindTarget = null;
     let controllerSetupRAF = 0;
@@ -3167,13 +3188,105 @@ button:hover,
         }
     }
 
-    window.enterDesktopMode = function() {
+
+    function getWorkspaceViewport() {
+        const vv = window.visualViewport;
+
+        return {
+            width: Math.max(1, Math.round(vv ? vv.width : window.innerWidth)),
+            height: Math.max(1, Math.round(vv ? vv.height : window.innerHeight)),
+            left: Math.round(vv ? vv.offsetLeft : 0),
+            top: Math.round(vv ? vv.offsetTop : 0)
+        };
+    }
+
+    function syncWorkspaceViewport() {
+        if (!renderer || !camera) return;
+
+        const vp = getWorkspaceViewport();
+
+        camera.aspect = vp.width / vp.height;
+        camera.updateProjectionMatrix();
+
+        // Resize the drawing buffer to the actually visible browser area.
+        renderer.setSize(vp.width, vp.height, false);
+
+        if (renderer.domElement) {
+            renderer.domElement.style.width = vp.width + "px";
+            renderer.domElement.style.height = vp.height + "px";
+            renderer.domElement.style.left = vp.left + "px";
+            renderer.domElement.style.top = vp.top + "px";
+        }
+    }
+
+    async function requestDesktopFullscreen() {
+        const root = document.documentElement;
+
+        if (
+            document.fullscreenElement ||
+            document.webkitFullscreenElement
+        ) {
+            desktopRequestedFullscreen = true;
+            return true;
+        }
+
+        try {
+            if (root.requestFullscreen) {
+                await root.requestFullscreen({ navigationUI: "hide" });
+                desktopRequestedFullscreen = true;
+                return true;
+            }
+
+            if (root.webkitRequestFullscreen) {
+                root.webkitRequestFullscreen();
+                desktopRequestedFullscreen = true;
+                return true;
+            }
+        } catch (err) {
+            console.info("[BuildView] Browser fullscreen was not granted:", err);
+        }
+
+        desktopRequestedFullscreen = false;
+        return false;
+    }
+
+    async function exitDesktopFullscreen() {
+        if (!desktopRequestedFullscreen) return;
+
+        try {
+            if (document.fullscreenElement && document.exitFullscreen) {
+                await document.exitFullscreen();
+            } else if (
+                document.webkitFullscreenElement &&
+                document.webkitExitFullscreen
+            ) {
+                document.webkitExitFullscreen();
+            }
+        } catch (err) {
+            console.info("[BuildView] Could not exit fullscreen:", err);
+        }
+
+        desktopRequestedFullscreen = false;
+    }
+
+    window.enterDesktopMode = async function() {
+        // Request true browser fullscreen immediately from the user's button press.
+        // If the browser denies it, the canvas still fills the entire usable window.
+        const fullscreenPromise = requestDesktopFullscreen();
+
         desktopMode = true;
+        document.body.classList.add('desktop-workspace-active');
+
         document.getElementById('overlay').style.display = 'none';
+
         const remoteLaunch = document.getElementById('remote-launch');
-        if (remoteLaunch && !document.getElementById('remote-panel')?.classList.contains('open')) {
+        if (
+            remoteLaunch &&
+            !document.getElementById('remote-panel')?.classList.contains('open')
+        ) {
             remoteLaunch.style.display = 'flex';
         }
+
         aiStatus = "DESKTOP";
         lastHudState = "";
 
@@ -3184,7 +3297,24 @@ button:hover,
         if (!mobileControlsReady) initMobileControls();
         setMobileControlsVisible(mobileControlsEnabled);
 
-        setBuilderMessage("DESKTOP WORKSPACE ACTIVE", 2200); refreshOverlayStatus();
+        syncWorkspaceViewport();
+
+        const wentFullscreen = await fullscreenPromise;
+
+        // Android Chrome often changes the visual viewport after fullscreen begins.
+        // Re-measure a few times so the renderer catches the final usable size.
+        syncWorkspaceViewport();
+        setTimeout(syncWorkspaceViewport, 80);
+        setTimeout(syncWorkspaceViewport, 260);
+
+        setBuilderMessage(
+            wentFullscreen
+                ? "DESKTOP WORKSPACE — FULL WINDOW"
+                : "DESKTOP WORKSPACE ACTIVE",
+            2200
+        );
+
+        refreshOverlayStatus();
     };
 
     function leaveDesktopMode() {
@@ -3192,11 +3322,17 @@ button:hover,
         desktopKeys.clear();
         desktopLookActive = false;
         setMobileControlsVisible(false);
+        document.body.classList.remove('desktop-workspace-active');
         document.getElementById('overlay').style.display = 'flex';
+
         const remoteLaunch = document.getElementById('remote-launch');
         if (remoteLaunch) remoteLaunch.style.display = 'none';
+
         aiStatus = "STANDBY";
         lastHudState = "";
+
+        exitDesktopFullscreen();
+        setTimeout(syncWorkspaceViewport, 80);
     }
 
     function toggleWorkspaceMenu() {
@@ -5031,9 +5167,19 @@ button:hover,
         });
 
         renderer.setPixelRatio(1);
-        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const initialWorkspaceViewport = getWorkspaceViewport();
+        renderer.setSize(
+            initialWorkspaceViewport.width,
+            initialWorkspaceViewport.height,
+            false
+        );
+
         renderer.xr.enabled = true;
+        renderer.domElement.classList.add('buildview-main-canvas');
         document.body.appendChild(renderer.domElement);
+
+        syncWorkspaceViewport();
 
         initRemoteClientRenderer();
 
@@ -5110,11 +5256,29 @@ button:hover,
 
         createMenuSystem();
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        window.addEventListener('resize', syncWorkspaceViewport);
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener(
+                'resize',
+                syncWorkspaceViewport
+            );
+
+            window.visualViewport.addEventListener(
+                'scroll',
+                syncWorkspaceViewport
+            );
+        }
+
+        document.addEventListener(
+            'fullscreenchange',
+            syncWorkspaceViewport
+        );
+
+        document.addEventListener(
+            'webkitfullscreenchange',
+            syncWorkspaceViewport
+        );
 
         window.addEventListener('keydown', e => {
             if (desktopMode && !renderer.xr.isPresenting) {
@@ -6385,7 +6549,32 @@ button:hover,
             : (pad.buttons[7] ? pad.buttons[7].value : 0);
 
         if (isMenuOpen) {
-            // Menu selection remains gaze-based. Stick only scrolls.
+            // MENU INPUT PRIORITY:
+            // - Freeze object editing while the menu is open.
+            // - Left stick Y scrolls the menu list.
+            // - Right stick becomes gaze/look control so the user can aim
+            //   at menu items in both horizontal AND vertical directions.
+            if (
+                !renderer.xr.isPresenting &&
+                (
+                    Math.abs(rightStickX) > 0 ||
+                    Math.abs(rightStickY) > 0
+                )
+            ) {
+                desktopYaw -= rightStickX * DESKTOP_PAD_LOOK_SPEED;
+                desktopPitch -= rightStickY * DESKTOP_PAD_LOOK_SPEED;
+
+                desktopPitch = THREE.MathUtils.clamp(
+                    desktopPitch,
+                    -Math.PI / 2 + 0.05,
+                    Math.PI / 2 - 0.05
+                );
+
+                dolly.rotation.y = desktopYaw;
+                camera.rotation.x = desktopPitch;
+            }
+
+            // Left stick Y keeps the existing menu scrolling behavior.
             if (Math.abs(leftStickY) > 0.5) {
                 const now = Date.now();
 
@@ -6842,7 +7031,6 @@ button:hover,
     initMobileControls();
     refreshPhoneControlsButton();
     updateControllerBindingLabels();
-    refreshPhoneControlsButton();
     updateLandingDeviceReadiness();
     setInterval(updateLandingDeviceReadiness, 1200);
 
@@ -6861,8 +7049,6 @@ button:hover,
     if (mobileLike && navigator.mediaDevices?.getUserMedia) {
         scanCameras().catch(() => {});
     }
-
 </script>
 </body>
 </html>
-
