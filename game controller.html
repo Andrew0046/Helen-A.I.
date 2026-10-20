@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BuildView XR — Controller Input Lab</title>
+<style>
+:root{
+  --bg:#f3f5f6;
+  --card:#ffffff;
+  --text:#252b31;
+  --muted:#747d86;
+  --line:#e2e6e9;
+  --soft:#f7f8f9;
+  --good:#478365;
+  --warn:#aa7d35;
+  --bad:#a44f5d;
+  --dark:#20262c;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{
+  margin:0;
+  min-height:100%;
+  background:
+    radial-gradient(circle at 50% -10%,#fff 0,rgba(255,255,255,0) 38%),
+    var(--bg);
+  color:var(--text);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+}
+button,input{font:inherit}
+button{
+  min-height:44px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  color:var(--text);
+  font-weight:750;
+  padding:0 14px;
+  cursor:pointer;
+}
+button.primary{
+  background:var(--dark);
+  border-color:var(--dark);
+  color:#fff;
+}
+button:active{transform:scale(.985)}
+.wrap{
+  width:min(980px,100%);
+  margin:0 auto;
+  padding:20px;
+}
+.top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:18px;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:11px;
+}
+.mark{
+  width:42px;height:42px;
+  display:grid;place-items:center;
+  border-radius:13px;
+  background:var(--dark);
+  color:#fff;
+  font-weight:850;
+  letter-spacing:-.04em;
+}
+h1{
+  margin:0;
+  font-size:26px;
+  letter-spacing:-.035em;
+}
+.sub{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.55;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  min-height:30px;
+  padding:0 10px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+}
+.hero{
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:var(--card);
+  box-shadow:0 12px 34px rgba(20,25,30,.05);
+}
+.mode-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.mode-main{
+  min-width:0;
+}
+.eyebrow{
+  color:#858e96;
+  font-size:10.5px;
+  font-weight:850;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+}
+.mode{
+  margin-top:5px;
+  font-size:24px;
+  font-weight:850;
+  letter-spacing:-.03em;
+}
+.mode-detail{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+.mode-lights{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.channel{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 9px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:var(--soft);
+  color:#7b838b;
+  font-size:10.5px;
+  font-weight:800;
+}
+.dot{
+  width:7px;height:7px;border-radius:50%;
+  background:#b7bec4;
+}
+.channel.active{color:#3f5e4c;border-color:#d3e2d9;background:#f5faf7}
+.channel.active .dot{background:var(--good)}
+.controls{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:14px;
+}
+.switch{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:44px;
+  padding:0 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  color:#5e6770;
+  font-size:11.5px;
+  font-weight:700;
+}
+.switch input{width:18px;height:18px}
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  margin-top:14px;
+}
+.card{
+  min-width:0;
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:var(--card);
+}
+.card.wide{grid-column:1/-1}
+.card-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:12px;
+}
+.card-title{
+  font-size:14px;
+  font-weight:850;
+}
+.small{
+  color:var(--muted);
+  font-size:10.5px;
+}
+.device{
+  padding:12px;
+  border-radius:13px;
+  background:var(--soft);
+  border:1px solid #eceff1;
+}
+.device-name{
+  font-size:12px;
+  font-weight:800;
+  overflow-wrap:anywhere;
+}
+.device-meta{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:10.5px;
+  line-height:1.45;
+}
+.axis-list,.button-list{
+  display:grid;
+  gap:7px;
+  margin-top:10px;
+}
+.axis-row{
+  display:grid;
+  grid-template-columns:52px 1fr 62px;
+  align-items:center;
+  gap:8px;
+}
+.axis-label,.axis-value{
+  font:750 10.5px ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:#5d6670;
+}
+.axis-value{text-align:right}
+.bar{
+  height:9px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#e8ecef;
+  position:relative;
+}
+.bar-center{
+  position:absolute;
+  left:50%;
+  top:0;bottom:0;
+  width:1px;
+  background:#bfc6cc;
+}
+.bar-fill{
+  position:absolute;
+  top:0;bottom:0;
+  left:50%;
+  width:0;
+  background:#56616b;
+  transform-origin:left center;
+}
+.button-list{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.btn-cell{
+  min-width:0;
+  padding:8px;
+  border-radius:10px;
+  border:1px solid #e8ebed;
+  background:#fafbfb;
+  text-align:center;
+}
+.btn-cell.pressed{
+  border-color:#c7d9cf;
+  background:#f1f8f4;
+}
+.btn-id{
+  color:#65707a;
+  font:800 10px ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.btn-value{
+  margin-top:3px;
+  color:#899199;
+  font:700 9.5px ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.raw{
+  min-height:96px;
+  padding:11px;
+  border-radius:12px;
+  background:#1e242a;
+  color:#d9e0e5;
+  font:700 10.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+.log{
+  max-height:250px;
+  overflow:auto;
+  border:1px solid #e7eaec;
+  border-radius:12px;
+  background:#fafbfb;
+}
+.log-row{
+  display:grid;
+  grid-template-columns:74px 82px 1fr;
+  gap:8px;
+  padding:8px 10px;
+  border-bottom:1px solid #eceff1;
+  color:#5d6670;
+  font:700 10px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.log-row:last-child{border-bottom:0}
+.log-type{font-weight:850}
+.log-type.gamepad{color:#39704f}
+.log-type.keyboard{color:#7b6230}
+.log-type.pointer{color:#526c86}
+.log-type.wheel{color:#785685}
+.explain{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+}
+.explain-box{
+  padding:11px;
+  border-radius:12px;
+  background:var(--soft);
+  border:1px solid #eaedef;
+}
+.explain-box strong{
+  display:block;
+  margin-bottom:4px;
+  font-size:11px;
+}
+.explain-box span{
+  color:var(--muted);
+  font-size:10.5px;
+  line-height:1.5;
+}
+.calc{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.calc-box{
+  padding:12px;
+  border:1px solid #e7eaec;
+  border-radius:13px;
+  background:#fafbfb;
+}
+.calc-title{
+  font-size:11px;
+  font-weight:850;
+  margin-bottom:7px;
+}
+.calc-line{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:4px 0;
+  color:#69727a;
+  font:700 10.5px ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.range-row{
+  display:grid;
+  grid-template-columns:100px 1fr 44px;
+  gap:8px;
+  align-items:center;
+  margin-top:10px;
+  color:#68717a;
+  font-size:10.5px;
+  font-weight:750;
+}
+.range-row input{width:100%}
+.notice{
+  margin-top:12px;
+  padding:11px 12px;
+  border-radius:12px;
+  background:#fff8ec;
+  border:1px solid #eadfc8;
+  color:#776748;
+  font-size:11px;
+  line-height:1.55;
+}
+@media(max-width:720px){
+  .wrap{padding:12px}
+  .top{flex-direction:column}
+  .grid{grid-template-columns:1fr}
+  .card.wide{grid-column:auto}
+  .button-list{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .explain{grid-template-columns:1fr}
+  .calc{grid-template-columns:1fr}
+  .log-row{grid-template-columns:62px 70px 1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <div class="mark">BV</div>
+      <div>
+        <h1>Controller Input Lab</h1>
+        <p class="sub">A separate diagnostic page for learning exactly how your Bluetooth controller reaches the browser.</p>
+      </div>
+    </div>
+    <span class="badge">BuildView XR · Test Tool</span>
+  </div>
+
+  <section class="hero">
+    <div class="mode-row">
+      <div class="mode-main">
+        <div class="eyebrow">Likely input path</div>
+        <div id="mode" class="mode">Waiting for input…</div>
+        <div id="mode-detail" class="mode-detail">Connect the controller, keep this page open, then move one control at a time.</div>
+      </div>
+      <div class="mode-lights">
+        <span id="ch-gamepad" class="channel"><span class="dot"></span>Gamepad</span>
+        <span id="ch-keyboard" class="channel"><span class="dot"></span>Keyboard</span>
+        <span id="ch-pointer" class="channel"><span class="dot"></span>Mouse / Pointer</span>
+        <span id="ch-wheel" class="channel"><span class="dot"></span>Wheel / Scroll</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="wake-btn" class="primary" type="button">Start / Wake Controller</button>
+      <button id="clear-btn" type="button">Clear Event Log</button>
+      <label class="switch"><input id="capture-scroll" type="checkbox" checked> Prevent page scrolling while testing</label>
+      <label class="switch"><input id="hide-touch" type="checkbox" checked> Ignore finger touch in diagnosis</label>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">Gamepad API</div>
+        <div id="gamepad-count" class="small">0 detected</div>
+      </div>
+      <div id="gamepad-device" class="device">
+        <div class="device-name">No gamepad detected yet.</div>
+        <div class="device-meta">Some Android browsers expose a gamepad only after you press a physical button while the page is active.</div>
+      </div>
+      <div id="axes" class="axis-list"></div>
+      <div id="buttons" class="button-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">Raw browser events</div>
+        <div class="small">Last event</div>
+      </div>
+      <div id="raw" class="raw">No controller event received yet.</div>
+
+      <div class="range-row">
+        <span>Deadzone</span>
+        <input id="deadzone" type="range" min="0" max="0.50" step="0.01" value="0.14">
+        <span id="deadzone-value">0.14</span>
+      </div>
+
+      <div class="notice">
+        If the controller moves the browser but <strong>Gamepad API stays empty</strong>, watch this panel.
+        Arrow keys mean keyboard mode; pointer coordinates mean mouse mode; wheel values mean scroll-wheel mode.
+      </div>
+    </section>
+
+    <section class="card wide">
+      <div class="card-head">
+        <div class="card-title">How BuildView would calculate movement</div>
+        <div class="small">Conventional axes 0–3</div>
+      </div>
+      <div class="calc">
+        <div class="calc-box">
+          <div class="calc-title">Left stick / movement</div>
+          <div class="calc-line"><span>Raw X (A0)</span><span id="calc-lx-raw">0.000</span></div>
+          <div class="calc-line"><span>Raw Y (A1)</span><span id="calc-ly-raw">0.000</span></div>
+          <div class="calc-line"><span>After deadzone X</span><span id="calc-lx">0.000</span></div>
+          <div class="calc-line"><span>After deadzone Y</span><span id="calc-ly">0.000</span></div>
+        </div>
+        <div class="calc-box">
+          <div class="calc-title">Right stick / look</div>
+          <div class="calc-line"><span>Raw X (A2)</span><span id="calc-rx-raw">0.000</span></div>
+          <div class="calc-line"><span>Raw Y (A3)</span><span id="calc-ry-raw">0.000</span></div>
+          <div class="calc-line"><span>After deadzone X</span><span id="calc-rx">0.000</span></div>
+          <div class="calc-line"><span>After deadzone Y</span><span id="calc-ry">0.000</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <div class="card-head">
+        <div class="card-title">Event log</div>
+        <div class="small">Newest first · last 80 events</div>
+      </div>
+      <div id="log" class="log">
+        <div class="log-row"><span>—</span><span class="log-type">INFO</span><span>Waiting for controller input.</span></div>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <div class="card-head">
+        <div class="card-title">What the values mean</div>
+      </div>
+      <div class="explain">
+        <div class="explain-box">
+          <strong>Gamepad axes</strong>
+          <span>Sticks normally report from -1.00 to +1.00. Near 0 means centered. BuildView multiplies these values by movement or look speed.</span>
+        </div>
+        <div class="explain-box">
+          <strong>Gamepad buttons</strong>
+          <span>Each button has an index such as B0 or B9 and usually a value from 0 to 1. Triggers may report gradual values.</span>
+        </div>
+        <div class="explain-box">
+          <strong>Mouse / keyboard mode</strong>
+          <span>If Android converts the controller into pointer, arrow-key, or wheel events, BuildView must listen to that input path instead of only navigator.getGamepads().</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+
+  const state = {
+    gamepadSeen: false,
+    keyboardSeen: false,
+    pointerSeen: false,
+    wheelSeen: false,
+    gamepadActivityAt: 0,
+    keyboardActivityAt: 0,
+    pointerActivityAt: 0,
+    wheelActivityAt: 0,
+    lastGamepadSnapshot: '',
+    events: [],
+    started: false
+  };
+
+  const modeEl = $('mode');
+  const modeDetailEl = $('mode-detail');
+  const rawEl = $('raw');
+  const logEl = $('log');
+  const axesEl = $('axes');
+  const buttonsEl = $('buttons');
+  const gamepadDeviceEl = $('gamepad-device');
+  const gamepadCountEl = $('gamepad-count');
+  const captureScrollEl = $('capture-scroll');
+  const hideTouchEl = $('hide-touch');
+  const deadzoneEl = $('deadzone');
+  const deadzoneValueEl = $('deadzone-value');
+
+  function nowLabel() {
+    const d = new Date();
+    return d.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  }
+
+  function addLog(type, detail) {
+    state.events.unshift({
+      time: nowLabel(),
+      type,
+      detail
+    });
+
+    if (state.events.length > 80) state.events.length = 80;
+
+    logEl.innerHTML = '';
+
+    for (const item of state.events) {
+      const row = document.createElement('div');
+      row.className = 'log-row';
+
+      const time = document.createElement('span');
+      time.textContent = item.time;
+
+      const type = document.createElement('span');
+      type.className = 'log-type ' + item.type.toLowerCase();
+      type.textContent = item.type;
+
+      const detail = document.createElement('span');
+      detail.textContent = item.detail;
+
+      row.append(time, type, detail);
+      logEl.appendChild(row);
+    }
+  }
+
+  function showRaw(type, detail) {
+    rawEl.textContent = type + '\n' + detail;
+  }
+
+  function markChannel(channel, active) {
+    const el = $('ch-' + channel);
+    if (el) el.classList.toggle('active', !!active);
+  }
+
+  function updateLikelyMode() {
+    const now = performance.now();
+    const active = [];
+
+    if (state.gamepadSeen && now - state.gamepadActivityAt < 5000) active.push('Gamepad');
+    if (state.keyboardSeen && now - state.keyboardActivityAt < 5000) active.push('Keyboard');
+    if (state.pointerSeen && now - state.pointerActivityAt < 5000) active.push('Mouse / Pointer');
+    if (state.wheelSeen && now - state.wheelActivityAt < 5000) active.push('Wheel / Scroll');
+
+    markChannel('gamepad', state.gamepadSeen);
+    markChannel('keyboard', state.keyboardSeen);
+    markChannel('pointer', state.pointerSeen);
+    markChannel('wheel', state.wheelSeen);
+
+    if (!state.gamepadSeen && !state.keyboardSeen && !state.pointerSeen && !state.wheelSeen) {
+      modeEl.textContent = 'Waiting for input…';
+      modeDetailEl.textContent = 'Press a button or move one stick on the controller.';
+      return;
+    }
+
+    if (state.gamepadSeen && (state.keyboardSeen || state.pointerSeen || state.wheelSeen)) {
+      modeEl.textContent = 'Mixed input';
+      modeDetailEl.textContent = 'The controller is reaching Chrome through Gamepad API plus another browser input path.';
+      return;
+    }
+
+    if (state.gamepadSeen) {
+      modeEl.textContent = 'Gamepad API';
+      modeDetailEl.textContent = 'This is the ideal path for BuildView controller movement.';
+      return;
+    }
+
+    if (state.pointerSeen || state.wheelSeen) {
+      modeEl.textContent = state.keyboardSeen ? 'Mouse + keyboard style input' : 'Mouse / pointer style input';
+      modeDetailEl.textContent = 'Android is translating at least part of the controller into normal browser navigation.';
+      return;
+    }
+
+    if (state.keyboardSeen) {
+      modeEl.textContent = 'Keyboard style input';
+      modeDetailEl.textContent = 'The controller is producing key events instead of standard gamepad axes/buttons.';
+    }
+  }
+
+  function applyDeadzone(value, deadzone) {
+    const v = Number(value) || 0;
+    const a = Math.abs(v);
+
+    if (a <= deadzone) return 0;
+
+    const scaled = (a - deadzone) / (1 - deadzone);
+    return Math.sign(v) * Math.min(1, scaled);
+  }
+
+  function axisDisplay(value) {
+    const v = Number(value) || 0;
+    return v.toFixed(3);
+  }
+
+  function renderGamepad(pad) {
+    if (!pad) {
+      gamepadDeviceEl.innerHTML = `
+        <div class="device-name">No gamepad detected yet.</div>
+        <div class="device-meta">Press a physical controller button while this page is active.</div>
+      `;
+      axesEl.innerHTML = '';
+      buttonsEl.innerHTML = '';
+      updateCalc([]);
+      return;
+    }
+
+    gamepadDeviceEl.innerHTML = '';
+
+    const name = document.createElement('div');
+    name.className = 'device-name';
+    name.textContent = pad.id || 'Unnamed gamepad';
+
+    const meta = document.createElement('div');
+    meta.className = 'device-meta';
+    meta.textContent =
+      `${pad.buttons.length} buttons · ${pad.axes.length} axes · mapping: ${pad.mapping || 'none'} · index: ${pad.index}`;
+
+    gamepadDeviceEl.append(name, meta);
+
+    axesEl.innerHTML = '';
+
+    pad.axes.forEach((value, index) => {
+      const row = document.createElement('div');
+      row.className = 'axis-row';
+
+      const label = document.createElement('span');
+      label.className = 'axis-label';
+      label.textContent = 'A' + index;
+
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+
+      const center = document.createElement('div');
+      center.className = 'bar-center';
+
+      const fill = document.createElement('div');
+      fill.className = 'bar-fill';
+
+      const v = Number(value) || 0;
+      const pct = Math.min(50, Math.abs(v) * 50);
+
+      if (v >= 0) {
+        fill.style.width = pct + '%';
+        fill.style.transform = 'scaleX(1)';
+      } else {
+        fill.style.width = pct + '%';
+        fill.style.transform = 'scaleX(-1)';
+      }
+
+      bar.append(center, fill);
+
+      const val = document.createElement('span');
+      val.className = 'axis-value';
+      val.textContent = axisDisplay(v);
+
+      row.append(label, bar, val);
+      axesEl.appendChild(row);
+    });
+
+    buttonsEl.innerHTML = '';
+
+    pad.buttons.forEach((button, index) => {
+      const cell = document.createElement('div');
+      cell.className = 'btn-cell' + (button.pressed || button.value > 0.1 ? ' pressed' : '');
+
+      const id = document.createElement('div');
+      id.className = 'btn-id';
+      id.textContent = 'B' + index;
+
+      const value = document.createElement('div');
+      value.className = 'btn-value';
+      value.textContent = Number(button.value || 0).toFixed(2);
+
+      cell.append(id, value);
+      buttonsEl.appendChild(cell);
+    });
+
+    updateCalc(pad.axes);
+  }
+
+  function updateCalc(axes) {
+    const dz = Number(deadzoneEl.value) || 0;
+
+    const vals = [0,1,2,3].map(i => Number(axes[i]) || 0);
+    const processed = vals.map(v => applyDeadzone(v, dz));
+
+    $('calc-lx-raw').textContent = vals[0].toFixed(3);
+    $('calc-ly-raw').textContent = vals[1].toFixed(3);
+    $('calc-rx-raw').textContent = vals[2].toFixed(3);
+    $('calc-ry-raw').textContent = vals[3].toFixed(3);
+
+    $('calc-lx').textContent = processed[0].toFixed(3);
+    $('calc-ly').textContent = processed[1].toFixed(3);
+    $('calc-rx').textContent = processed[2].toFixed(3);
+    $('calc-ry').textContent = processed[3].toFixed(3);
+  }
+
+  function snapshotPad(pad) {
+    if (!pad) return '';
+
+    const axes = Array.from(pad.axes || []).map(v => (Number(v) || 0).toFixed(3));
+    const buttons = Array.from(pad.buttons || []).map(b => (Number(b.value) || 0).toFixed(2));
+
+    return JSON.stringify({axes, buttons});
+  }
+
+  function pollGamepads() {
+    const pads = navigator.getGamepads
+      ? Array.from(navigator.getGamepads()).filter(Boolean)
+      : [];
+
+    gamepadCountEl.textContent = `${pads.length} detected`;
+
+    const pad = pads[0] || null;
+    renderGamepad(pad);
+
+    if (pad) {
+      state.gamepadSeen = true;
+
+      const snapshot = snapshotPad(pad);
+
+      if (snapshot !== state.lastGamepadSnapshot) {
+        const changed =
+          pad.axes.some(v => Math.abs(Number(v) || 0) > 0.08) ||
+          pad.buttons.some(b => b.pressed || b.value > 0.08);
+
+        if (changed) {
+          state.gamepadActivityAt = performance.now();
+
+          const activeButtons = [];
+          pad.buttons.forEach((b, i) => {
+            if (b.pressed || b.value > 0.08) {
+              activeButtons.push(`B${i}=${Number(b.value || 0).toFixed(2)}`);
+            }
+          });
+
+          const activeAxes = [];
+          pad.axes.forEach((v, i) => {
+            if (Math.abs(Number(v) || 0) > 0.08) {
+              activeAxes.push(`A${i}=${Number(v || 0).toFixed(3)}`);
+            }
+          });
+
+          const detail = [
+            activeButtons.join(' '),
+            activeAxes.join(' ')
+          ].filter(Boolean).join(' | ');
+
+          if (detail) {
+            showRaw('GAMEPAD', detail);
+          }
+        }
+
+        state.lastGamepadSnapshot = snapshot;
+      }
+    }
+
+    updateLikelyMode();
+    requestAnimationFrame(pollGamepads);
+  }
+
+  window.addEventListener('gamepadconnected', e => {
+    state.gamepadSeen = true;
+    state.gamepadActivityAt = performance.now();
+    addLog('GAMEPAD', `connected index=${e.gamepad.index} id="${e.gamepad.id}" mapping="${e.gamepad.mapping || 'none'}"`);
+    showRaw('GAMEPAD CONNECTED',
+      `id: ${e.gamepad.id}\nindex: ${e.gamepad.index}\nbuttons: ${e.gamepad.buttons.length}\naxes: ${e.gamepad.axes.length}\nmapping: ${e.gamepad.mapping || 'none'}`
+    );
+    updateLikelyMode();
+  });
+
+  window.addEventListener('gamepaddisconnected', e => {
+    addLog('GAMEPAD', `disconnected index=${e.gamepad.index} id="${e.gamepad.id}"`);
+  });
+
+  window.addEventListener('keydown', e => {
+    state.keyboardSeen = true;
+    state.keyboardActivityAt = performance.now();
+
+    if (
+      captureScrollEl.checked &&
+      ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End','Space'].includes(e.code)
+    ) {
+      e.preventDefault();
+    }
+
+    const detail =
+      `keydown code=${e.code} key=${JSON.stringify(e.key)} repeat=${e.repeat} ctrl=${e.ctrlKey} alt=${e.altKey} shift=${e.shiftKey}`;
+
+    addLog('KEYBOARD', detail);
+    showRaw('KEYBOARD', detail);
+    updateLikelyMode();
+  }, {capture:true});
+
+  window.addEventListener('keyup', e => {
+    state.keyboardSeen = true;
+    state.keyboardActivityAt = performance.now();
+
+    if (
+      captureScrollEl.checked &&
+      ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End','Space'].includes(e.code)
+    ) {
+      e.preventDefault();
+    }
+
+    const detail = `keyup code=${e.code} key=${JSON.stringify(e.key)}`;
+    addLog('KEYBOARD', detail);
+    showRaw('KEYBOARD', detail);
+    updateLikelyMode();
+  }, {capture:true});
+
+  function pointerIsIgnored(e) {
+    return hideTouchEl.checked && e.pointerType === 'touch';
+  }
+
+  window.addEventListener('pointerdown', e => {
+    if (pointerIsIgnored(e)) return;
+
+    state.pointerSeen = true;
+    state.pointerActivityAt = performance.now();
+
+    const detail =
+      `pointerdown type=${e.pointerType} button=${e.button} buttons=${e.buttons} x=${Math.round(e.clientX)} y=${Math.round(e.clientY)}`;
+
+    addLog('POINTER', detail);
+    showRaw('POINTER', detail);
+    updateLikelyMode();
+  }, {capture:true});
+
+  window.addEventListener('pointerup', e => {
+    if (pointerIsIgnored(e)) return;
+
+    state.pointerSeen = true;
+    state.pointerActivityAt = performance.now();
+
+    const detail =
+      `pointerup type=${e.pointerType} button=${e.button} buttons=${e.buttons} x=${Math.round(e.clientX)} y=${Math.round(e.clientY)}`;
+
+    addLog('POINTER', detail);
+    showRaw('POINTER', detail);
+    updateLikelyMode();
+  }, {capture:true});
+
+  let lastPointerLogAt = 0;
+
+  window.addEventListener('pointermove', e => {
+    if (pointerIsIgnored(e)) return;
+
+    state.pointerSeen = true;
+    state.pointerActivityAt = performance.now();
+
+    const now = performance.now();
+
+    if (now - lastPointerLogAt > 160) {
+      lastPointerLogAt = now;
+
+      const detail =
+        `pointermove type=${e.pointerType} x=${Math.round(e.clientX)} y=${Math.round(e.clientY)} movementX=${e.movementX || 0} movementY=${e.movementY || 0}`;
+
+      addLog('POINTER', detail);
+      showRaw('POINTER', detail);
+      updateLikelyMode();
+    }
+  }, {capture:true, passive:true});
+
+  window.addEventListener('wheel', e => {
+    state.wheelSeen = true;
+    state.wheelActivityAt = performance.now();
+
+    if (captureScrollEl.checked) {
+      e.preventDefault();
+    }
+
+    const detail =
+      `wheel deltaX=${Number(e.deltaX || 0).toFixed(1)} deltaY=${Number(e.deltaY || 0).toFixed(1)} mode=${e.deltaMode}`;
+
+    addLog('WHEEL', detail);
+    showRaw('WHEEL / SCROLL', detail);
+    updateLikelyMode();
+  }, {capture:true, passive:false});
+
+  $('wake-btn').addEventListener('click', () => {
+    state.started = true;
+
+    addLog(
+      'INFO',
+      'Input lab activated. Now press controller buttons and move one stick at a time.'
+    );
+
+    $('wake-btn').textContent = 'Listening…';
+    $('wake-btn').disabled = true;
+
+    setTimeout(() => {
+      $('wake-btn').disabled = false;
+      $('wake-btn').textContent = 'Wake / Scan Again';
+    }, 900);
+  });
+
+  $('clear-btn').addEventListener('click', () => {
+    state.events = [];
+    logEl.innerHTML =
+      '<div class="log-row"><span>—</span><span class="log-type">INFO</span><span>Event log cleared.</span></div>';
+  });
+
+  deadzoneEl.addEventListener('input', () => {
+    deadzoneValueEl.textContent = Number(deadzoneEl.value).toFixed(2);
+  });
+
+  requestAnimationFrame(pollGamepads);
+})();
+</script>
+</body>
+</html>
