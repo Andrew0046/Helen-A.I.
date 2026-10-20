@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BuildView XR V5.7 — SketchUp Aware Import</title>
+    <title>BuildView XR V5.8 — Controller Setup</title>
     
 
 
@@ -1297,6 +1297,204 @@ button:hover,
   border-top-color:#b69a65;
 }
 
+
+/* BUILDVIEW XR V5.8 — CONTROLLER SETUP */
+.controller-setup-overlay{
+  position:fixed;
+  inset:0;
+  z-index:240;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(20,24,29,.28);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+
+.controller-setup-overlay.show{display:flex}
+
+.controller-setup-card{
+  width:min(620px,100%);
+  max-height:min(760px,calc(100vh - 40px));
+  overflow:auto;
+  padding:22px;
+  border-radius:24px;
+  background:#fff;
+  border:1px solid rgba(35,42,48,.10);
+  box-shadow:0 24px 70px rgba(20,24,29,.20);
+}
+
+.controller-setup-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:18px;
+}
+
+.controller-setup-head h2{
+  margin:0;
+  color:#272d33;
+  font-size:24px;
+  letter-spacing:-.03em;
+}
+
+.controller-setup-head p{
+  margin:6px 0 0;
+  color:#737c84;
+  font-size:12.5px;
+  line-height:1.55;
+}
+
+.controller-close{
+  width:40px!important;
+  min-width:40px!important;
+  min-height:40px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  justify-content:center!important;
+  font-size:18px!important;
+}
+
+.controller-device-card{
+  padding:13px 14px;
+  border:1px solid #e5e8eb;
+  border-radius:14px;
+  background:#f8f9fa;
+}
+
+.controller-device-name{
+  color:#3d454d;
+  font-size:13px;
+  font-weight:800;
+  overflow-wrap:anywhere;
+}
+
+.controller-device-meta{
+  margin-top:4px;
+  color:#818991;
+  font-size:11px;
+}
+
+.controller-live{
+  margin-top:10px;
+  min-height:34px;
+  padding:9px 11px;
+  border-radius:10px;
+  background:#fff;
+  border:1px solid #eceeef;
+  color:#65707a;
+  font:700 11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;
+  overflow-wrap:anywhere;
+}
+
+.controller-bindings{
+  display:grid;
+  gap:9px;
+  margin-top:16px;
+}
+
+.controller-bind-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:10px;
+  padding:11px 12px;
+  border:1px solid #e8ebed;
+  border-radius:13px;
+}
+
+.controller-bind-copy{
+  min-width:0;
+}
+
+.controller-bind-copy strong{
+  display:block;
+  color:#3e464e;
+  font-size:12.5px;
+}
+
+.controller-bind-copy span{
+  display:block;
+  margin-top:2px;
+  color:#89919a;
+  font-size:10.5px;
+}
+
+.controller-bind-value{
+  min-width:76px;
+  padding:7px 9px;
+  border-radius:9px;
+  background:#f5f7f8;
+  color:#59626b;
+  font-size:11px;
+  font-weight:800;
+  text-align:center;
+}
+
+.controller-bind-btn{
+  width:auto!important;
+  min-width:70px!important;
+  min-height:38px!important;
+  padding:0 12px!important;
+  border-radius:10px!important;
+  justify-content:center!important;
+  font-size:11px!important;
+}
+
+.controller-bind-row.listening{
+  border-color:#c7d7ce;
+  background:#f6faf8;
+}
+
+.controller-bind-row.listening .controller-bind-value{
+  background:#eaf3ee;
+  color:#3e6c55;
+}
+
+.controller-setup-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:16px;
+}
+
+.controller-setup-actions button{
+  width:auto!important;
+  min-height:42px!important;
+  padding:0 14px!important;
+  justify-content:center!important;
+}
+
+.controller-help{
+  margin-top:14px;
+  padding:11px 12px;
+  border-radius:12px;
+  background:#f7f8f9;
+  color:#777f87;
+  font-size:11.5px;
+  line-height:1.55;
+}
+
+@media(max-width:560px){
+  .controller-setup-overlay{padding:10px}
+  .controller-setup-card{
+    padding:16px;
+    border-radius:20px;
+    max-height:calc(100vh - 20px);
+  }
+
+  .controller-bind-row{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+
+  .controller-bind-btn{
+    grid-column:1/-1;
+    width:100%!important;
+  }
+}
+
 </style>
 
 
@@ -1337,7 +1535,7 @@ button:hover,
       <div class="brand">
         <div class="brand-mark">BV</div>
         <span>BuildView XR</span>
-        <span class="version-badge">V5.7</span>
+        <span class="version-badge">V5.8</span>
       </div>
 
       <div class="nav-links">
@@ -1466,6 +1664,15 @@ button:hover,
               <span class="btn-arrow">›</span>
             </button>
 
+            <button id="controller-setup-btn" onclick="openControllerSetup()">
+              <span class="btn-icon">⌁</span>
+              <span class="btn-copy">
+                <span class="btn-title">Controller Setup</span>
+                <span class="btn-sub">Detect the connected gamepad and assign its real buttons to BuildView actions.</span>
+              </span>
+              <span class="btn-arrow">›</span>
+            </button>
+
             <button onclick="toggleRemotePanel()">
               <span class="btn-icon">↗</span>
               <span class="btn-copy">
@@ -1579,7 +1786,7 @@ button:hover,
 
             <div class="control-row">
               <div class="control-tag">Controller</div>
-              <div class="control-text">Left stick move · right stick look · A/X grab · Square menu</div>
+              <div class="control-text">Left stick move · right stick look · custom Select · custom Menu</div>
             </div>
 
             <div class="control-row">
@@ -1596,13 +1803,81 @@ button:hover,
     </section>
 
     <footer class="footer">
-      <span><span class="footer-version">BuildView XR V5.7</span> · Powered by HELEN Engine</span>
+      <span><span class="footer-version">BuildView XR V5.8</span> · Powered by HELEN Engine</span>
       <span>Construction visualization · Renovation · Interior design · Guided project review</span>
     </footer>
   </main>
 </div>
 
 
+
+
+<div id="controller-setup-overlay" class="controller-setup-overlay" aria-hidden="true">
+  <div class="controller-setup-card">
+    <div class="controller-setup-head">
+      <div>
+        <h2>Controller Setup</h2>
+        <p>Connect the Play force controller, then bind the buttons BuildView should use.</p>
+      </div>
+      <button class="controller-close" type="button" onclick="closeControllerSetup()">×</button>
+    </div>
+
+    <div class="controller-device-card">
+      <div id="controller-device-name" class="controller-device-name">Waiting for controller…</div>
+      <div id="controller-device-meta" class="controller-device-meta">Press any controller button to wake the browser connection.</div>
+      <div id="controller-live" class="controller-live">No button activity yet.</div>
+    </div>
+
+    <div class="controller-bindings">
+      <div id="bind-row-menu" class="controller-bind-row">
+        <div class="controller-bind-copy">
+          <strong>Menu</strong>
+          <span>Open or close the BuildView workspace menu.</span>
+        </div>
+        <div id="bind-value-menu" class="controller-bind-value">Button 9</div>
+        <button class="controller-bind-btn" type="button" onclick="beginControllerBind('menu')">Bind</button>
+      </div>
+
+      <div id="bind-row-select" class="controller-bind-row">
+        <div class="controller-bind-copy">
+          <strong>Select / Release</strong>
+          <span>Grab an object, activate a menu item, or release the current object.</span>
+        </div>
+        <div id="bind-value-select" class="controller-bind-value">Button 0</div>
+        <button class="controller-bind-btn" type="button" onclick="beginControllerBind('select')">Bind</button>
+      </div>
+
+      <div id="bind-row-delete" class="controller-bind-row">
+        <div class="controller-bind-copy">
+          <strong>Delete</strong>
+          <span>Delete the selected object. Keep this away from easy accidental presses.</span>
+        </div>
+        <div id="bind-value-delete" class="controller-bind-value">Button 1</div>
+        <button class="controller-bind-btn" type="button" onclick="beginControllerBind('delete')">Bind</button>
+      </div>
+
+      <div id="bind-row-view" class="controller-bind-row">
+        <div class="controller-bind-copy">
+          <strong>View Mode</strong>
+          <span>Cycle the optional camera/vision display mode.</span>
+        </div>
+        <div id="bind-value-view" class="controller-bind-value">Button 3</div>
+        <button class="controller-bind-btn" type="button" onclick="beginControllerBind('view')">Bind</button>
+      </div>
+    </div>
+
+    <div class="controller-setup-actions">
+      <button type="button" onclick="resetControllerBindings()">Reset Defaults</button>
+      <button type="button" onclick="closeControllerSetup()">Save & Close</button>
+    </div>
+
+    <div class="controller-help">
+      When you tap <strong>Bind</strong>, press the physical button you want to use.
+      BuildView saves the mapping on this device. The old Square-style menu button remains
+      a fallback until you create your own Menu binding.
+    </div>
+  </div>
+</div>
 
 <div id="mobile-controls" class="mobile-controls" aria-hidden="true">
   <div id="mobile-control-status" class="mobile-control-status">Walk mode</div>
@@ -1854,6 +2129,93 @@ button:hover,
         dpadDown:false, dpadUp:false, dpadLeft:false, dpadRight:false
     };
 
+    const CONTROLLER_BINDINGS_KEY = "buildview_controller_bindings_v1";
+    const DEFAULT_CONTROLLER_BINDINGS = {
+        select: 0,
+        delete: 1,
+        menu: 9,
+        view: 3
+    };
+
+    let controllerBindings = loadControllerBindings();
+    let controllerBindingsCustomized = false;
+    let controllerSetupOpen = false;
+    let controllerBindTarget = null;
+    let controllerSetupRAF = 0;
+    let controllerPreviousButtons = [];
+
+    function loadControllerBindings() {
+        try {
+            const saved = JSON.parse(
+                localStorage.getItem(CONTROLLER_BINDINGS_KEY) || "null"
+            );
+
+            if (saved && typeof saved === "object") {
+                controllerBindingsCustomized = true;
+                return {
+                    ...DEFAULT_CONTROLLER_BINDINGS,
+                    ...saved
+                };
+            }
+        } catch (e) {}
+
+        return { ...DEFAULT_CONTROLLER_BINDINGS };
+    }
+
+    function saveControllerBindings() {
+        controllerBindingsCustomized = true;
+
+        try {
+            localStorage.setItem(
+                CONTROLLER_BINDINGS_KEY,
+                JSON.stringify(controllerBindings)
+            );
+        } catch (e) {}
+    }
+
+    function getControllerActionPressed(pad, action) {
+        if (!pad || !pad.buttons) return false;
+
+        const index = Number(controllerBindings[action]);
+        const primary =
+            Number.isInteger(index) &&
+            index >= 0 &&
+            pad.buttons[index]
+                ? !!pad.buttons[index].pressed
+                : false;
+
+        if (primary) return true;
+
+        // Before the user creates a custom mapping, preserve the old Square-style
+        // menu behavior as a fallback in addition to the more standard Start/Menu.
+        if (
+            action === "menu" &&
+            !controllerBindingsCustomized &&
+            pad.buttons[2]
+        ) {
+            return !!pad.buttons[2].pressed;
+        }
+
+        return false;
+    }
+
+    function getControllerActionValue(pad, action) {
+        if (!pad || !pad.buttons) return 0;
+
+        const index = Number(controllerBindings[action]);
+
+        if (
+            Number.isInteger(index) &&
+            index >= 0 &&
+            pad.buttons[index]
+        ) {
+            return Number(pad.buttons[index].value || 0);
+        }
+
+        return 0;
+    }
+
+
     const SPEED = 0.1;
     const ROTATE_SPEED = 0.05;
     const MOVE_SPEED = 0.05;
@@ -1863,6 +2225,173 @@ button:hover,
     const _strafeDir = new THREE.Vector3();
     const _camRight = new THREE.Vector3();
     const _camUp = new THREE.Vector3();
+
+
+    function updateControllerBindingLabels() {
+        ["menu","select","delete","view"].forEach(action => {
+            const el = document.getElementById(`bind-value-${action}`);
+            if (el) el.textContent = `Button ${controllerBindings[action]}`;
+        });
+    }
+
+    function setControllerBindListening(action, listening) {
+        const row = document.getElementById(`bind-row-${action}`);
+        if (row) row.classList.toggle("listening", !!listening);
+
+        const value = document.getElementById(`bind-value-${action}`);
+        if (value && listening) value.textContent = "Press a button…";
+    }
+
+    window.openControllerSetup = function() {
+        controllerSetupOpen = true;
+        controllerBindTarget = null;
+        controllerPreviousButtons = [];
+
+        updateControllerBindingLabels();
+
+        const overlay = document.getElementById("controller-setup-overlay");
+        if (overlay) {
+            overlay.classList.add("show");
+            overlay.setAttribute("aria-hidden","false");
+        }
+
+        if (!controllerSetupRAF) {
+            controllerSetupRAF = requestAnimationFrame(controllerSetupLoop);
+        }
+    };
+
+    window.closeControllerSetup = function() {
+        controllerSetupOpen = false;
+        controllerBindTarget = null;
+
+        ["menu","select","delete","view"].forEach(action => {
+            setControllerBindListening(action, false);
+        });
+
+        const overlay = document.getElementById("controller-setup-overlay");
+        if (overlay) {
+            overlay.classList.remove("show");
+            overlay.setAttribute("aria-hidden","true");
+        }
+
+        if (controllerSetupRAF) {
+            cancelAnimationFrame(controllerSetupRAF);
+            controllerSetupRAF = 0;
+        }
+
+        updateLandingDeviceReadiness();
+    };
+
+    window.beginControllerBind = function(action) {
+        if (!["menu","select","delete","view"].includes(action)) return;
+
+        controllerBindTarget = action;
+
+        ["menu","select","delete","view"].forEach(name => {
+            setControllerBindListening(name, name === action);
+        });
+
+        const pad = getActivePad();
+        controllerPreviousButtons = pad && pad.buttons
+            ? Array.from(pad.buttons, b => !!b.pressed)
+            : [];
+    };
+
+    window.resetControllerBindings = function() {
+        controllerBindings = { ...DEFAULT_CONTROLLER_BINDINGS };
+        controllerBindingsCustomized = false;
+
+        try {
+            localStorage.removeItem(CONTROLLER_BINDINGS_KEY);
+        } catch (e) {}
+
+        controllerBindTarget = null;
+        ["menu","select","delete","view"].forEach(action => {
+            setControllerBindListening(action, false);
+        });
+
+        updateControllerBindingLabels();
+    };
+
+    function controllerSetupLoop() {
+        if (!controllerSetupOpen) {
+            controllerSetupRAF = 0;
+            return;
+        }
+
+        const pad = getActivePad();
+        const nameEl = document.getElementById("controller-device-name");
+        const metaEl = document.getElementById("controller-device-meta");
+        const liveEl = document.getElementById("controller-live");
+
+        if (!pad) {
+            if (nameEl) nameEl.textContent = "Waiting for controller…";
+            if (metaEl) {
+                metaEl.textContent =
+                    "Connect the controller and press one of its buttons.";
+            }
+            if (liveEl) liveEl.textContent = "No controller detected.";
+            controllerPreviousButtons = [];
+        } else {
+            if (nameEl) {
+                nameEl.textContent = pad.id || "Connected controller";
+            }
+
+            if (metaEl) {
+                metaEl.textContent =
+                    `${pad.buttons.length} buttons · ${pad.axes.length} axes · ${pad.mapping || "non-standard mapping"}`;
+            }
+
+            const pressed = [];
+            pad.buttons.forEach((button, index) => {
+                if (button && (button.pressed || button.value > 0.15)) {
+                    pressed.push(
+                        `B${index}:${Number(button.value || 0).toFixed(2)}`
+                    );
+                }
+            });
+
+            const axes = Array.from(pad.axes || []).map((v, i) =>
+                `A${i}:${Number(v || 0).toFixed(2)}`
+            );
+
+            if (liveEl) {
+                liveEl.textContent =
+                    `${pressed.length ? pressed.join("  ") : "No buttons pressed"}${axes.length ? "   |   " + axes.join("  ") : ""}`;
+            }
+
+            if (controllerBindTarget) {
+                for (let i = 0; i < pad.buttons.length; i++) {
+                    const nowPressed = !!pad.buttons[i]?.pressed;
+                    const wasPressed = !!controllerPreviousButtons[i];
+
+                    if (nowPressed && !wasPressed) {
+                        controllerBindings[controllerBindTarget] = i;
+                        saveControllerBindings();
+
+                        setControllerBindListening(
+                            controllerBindTarget,
+                            false
+                        );
+
+                        controllerBindTarget = null;
+                        updateControllerBindingLabels();
+
+                        if (navigator.vibrate) {
+                            try { navigator.vibrate(35); } catch (e) {}
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            controllerPreviousButtons =
+                Array.from(pad.buttons, b => !!b.pressed);
+        }
+
+        controllerSetupRAF = requestAnimationFrame(controllerSetupLoop);
+    }
 
     // --- VR INPUT / VIEW HELPERS ---
     // Standard Bluetooth gamepads are exposed through navigator.getGamepads().
@@ -5830,6 +6359,11 @@ button:hover,
         const rightStickX = applyGamepadDeadzone(axes.rightX);
         const rightStickY = applyGamepadDeadzone(axes.rightY);
 
+        const selectPressed = getControllerActionPressed(pad, "select");
+        const deletePressed = getControllerActionPressed(pad, "delete");
+        const menuPressed = getControllerActionPressed(pad, "menu");
+        const viewPressed = getControllerActionPressed(pad, "view");
+
         // Original controller layout:
         // A / X       = grab / release
         // B / Circle  = delete selected / grabbed object
@@ -5876,8 +6410,7 @@ button:hover,
 
             // A / X can activate the item currently highlighted by gaze.
             if (
-                pad.buttons[0] &&
-                pad.buttons[0].pressed &&
+                selectPressed &&
                 !lastBtn.x &&
                 hoveredFileIndex !== -1
             ) {
@@ -5887,8 +6420,7 @@ button:hover,
         else {
             // A / X: grab or release the object in the center reticle.
             if (
-                pad.buttons[0] &&
-                pad.buttons[0].pressed &&
+                selectPressed &&
                 !lastBtn.x
             ) {
                 if (grabbedObject) {
@@ -5908,8 +6440,7 @@ button:hover,
 
             // B / Circle: ORIGINAL DELETE behavior restored.
             if (
-                pad.buttons[1] &&
-                pad.buttons[1].pressed &&
+                deletePressed &&
                 !lastBtn.circle
             ) {
                 const targetToDelete =
@@ -6142,8 +6673,7 @@ button:hover,
 
         // SQUARE: ORIGINAL menu toggle restored.
         if (
-            pad.buttons[2] &&
-            pad.buttons[2].pressed &&
+            menuPressed &&
             !lastBtn.square
         ) {
             toggleWorkspaceMenu();
@@ -6151,8 +6681,7 @@ button:hover,
 
         // TRIANGLE: ORIGINAL vision-mode cycle restored.
         if (
-            pad.buttons[3] &&
-            pad.buttons[3].pressed &&
+            viewPressed &&
             !lastBtn.triangle
         ) {
             visionMode = (visionMode + 1) % 3;
@@ -6165,25 +6694,10 @@ button:hover,
             lastHudState = "";
         }
 
-        lastBtn.square =
-            pad.buttons[2]
-                ? pad.buttons[2].pressed
-                : false;
-
-        lastBtn.x =
-            pad.buttons[0]
-                ? pad.buttons[0].pressed
-                : false;
-
-        lastBtn.triangle =
-            pad.buttons[3]
-                ? pad.buttons[3].pressed
-                : false;
-
-        lastBtn.circle =
-            pad.buttons[1]
-                ? pad.buttons[1].pressed
-                : false;
+        lastBtn.square = menuPressed;
+        lastBtn.x = selectPressed;
+        lastBtn.triangle = viewPressed;
+        lastBtn.circle = deletePressed;
     }
 
     function updateHUD() {
@@ -6326,6 +6840,8 @@ button:hover,
     }
 
     initMobileControls();
+    refreshPhoneControlsButton();
+    updateControllerBindingLabels();
     refreshPhoneControlsButton();
     updateLandingDeviceReadiness();
     setInterval(updateLandingDeviceReadiness, 1200);
