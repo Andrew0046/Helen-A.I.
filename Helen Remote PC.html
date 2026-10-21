@@ -14,6 +14,19 @@
 .pair-card{margin:8px 0 18px}.pair-code{font-size:clamp(30px,5vw,44px);font-weight:750;letter-spacing:3px;line-height:1.4;font-variant-numeric:tabular-nums;padding:13px 2px;color:#a9d7ff;user-select:all;overflow-wrap:anywhere}.pair-card .row-actions{display:flex;gap:9px}.pair-card .row-actions button{min-height:38px}
 @media(max-width:760px){.pair-code{font-size:32px;letter-spacing:1.5px}.pair-card .row-actions{flex-wrap:wrap}.pair-card .row-actions button{flex:1 1 auto}}
 
+/* v0.3: read-only real Windows folder explorer */
+.pc-toolbar{display:flex;align-items:center;gap:9px;margin:10px 0;min-width:0;flex-wrap:wrap}
+.pc-toolbar .pc-location{flex:1;min-width:120px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#bed3ef;background:#0d192c;border:1px solid #ffffff1c;border-radius:9px;padding:11px}
+.pc-toolbar input{min-width:130px;flex:1;background:#0a1728;color:#f2f7ff;border:1px solid #ffffff27;border-radius:8px;padding:10px}
+.pc-note{background:#122941;border:1px solid #547fa43c;color:#b8d1e9;font-size:12px;line-height:1.6;padding:11px 14px;border-radius:9px;margin:10px 0}
+.pc-file-list{overflow-y:auto;max-height:calc(100% - 165px)}
+.pc-file-row .name{overflow-wrap:anywhere;min-width:0}
+.pc-preview{display:grid;gap:13px;min-width:0}
+.pc-preview-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;overflow-wrap:anywhere}
+.pc-text-preview{white-space:pre-wrap;overflow:auto;overflow-wrap:anywhere;max-height:50vh;padding:15px;border-radius:9px;background:#0a1426;border:1px solid #ffffff25;color:#d9eaff;font:12px/1.6 Consolas,monospace}
+.pc-image-preview{max-width:100%;max-height:45vh;object-fit:contain;margin:auto;border-radius:8px}
+@media(max-width:760px){.pc-file-list{max-height:calc(100% - 200px)}.pc-toolbar input{flex-basis:100%}}
+
 </style>
 </head>
 <body>
@@ -26,6 +39,7 @@
   <main id="desktop" class="desktop">
     <div class="home-copy"><span class="home-eyebrow"><span class="tiny-dot"></span> YOUR WORKSPACE, ANYWHERE</span><h1>Beyond the<br /><em>ordinary desktop.</em></h1><p>A window into your computer, designed for the way you work.</p><div class="home-stats"><span><b id="hostLabel">Not connected</b><small>HOST COMPUTER</small></span><span><b id="sessionLabel">Locked</b><small>SESSION</small></span></div></div>
     <div class="desktop-icons" id="desktopIcons">
+      <button data-app="pcfiles" class="desktop-icon"><span class="app-glyph teal">▣</span><span>This PC</span></button>
       <button data-app="files" class="desktop-icon"><span class="app-glyph blue">▤</span><span>Files</span></button>
       <button data-app="notes" class="desktop-icon"><span class="app-glyph violet">✎</span><span>Notes</span></button>
       <button data-app="system" class="desktop-icon"><span class="app-glyph teal">▥</span><span>Computer</span></button>
@@ -34,9 +48,10 @@
     </div>
     <div id="windowLayer" class="window-layer"></div>
     <div id="startMenu" class="start-menu hidden">
-      <div class="start-head"><span class="brand-logo">H</span><div><b>HELEN Remote OS</b><small>Version 0.2 • Browser pairing</small></div></div>
+      <div class="start-head"><span class="brand-logo">H</span><div><b>HELEN Remote OS</b><small>Version 0.3 • PC file browsing</small></div></div>
       <div class="start-search">APPLICATIONS</div>
       <div class="start-grid">
+        <button data-app="pcfiles"><span class="app-glyph teal">▣</span>This PC</button>
         <button data-app="files"><span class="app-glyph blue">▤</span>Files</button>
         <button data-app="notes"><span class="app-glyph violet">✎</span>Notes</button>
         <button data-app="system"><span class="app-glyph teal">▥</span>Computer</button>
@@ -46,18 +61,18 @@
       <div class="start-foot"><span id="startState">Locked</span><button id="menuDisconnect">Disconnect ↗</button></div>
     </div>
   </main>
-  <nav class="taskbar" aria-label="Desktop taskbar"><button class="start-button" id="startButton" aria-label="Start menu"><span class="brand-logo">H</span></button><span class="task-separator"></span><div class="task-pins"><button data-app="files" title="Files"><span class="app-glyph blue">▤</span></button><button data-app="notes" title="Notes"><span class="app-glyph violet">✎</span></button><button data-app="system" title="Computer"><span class="app-glyph teal">▥</span></button><button data-app="python" title="Python"><span class="app-glyph amber">⌘</span></button></div><div id="taskOpen" class="task-open"></div><div class="task-status"><span class="status-dot" id="taskDot"></span><span id="taskMode">OFFLINE</span></div></nav>
+  <nav class="taskbar" aria-label="Desktop taskbar"><button class="start-button" id="startButton" aria-label="Start menu"><span class="brand-logo">H</span></button><span class="task-separator"></span><div class="task-pins"><button data-app="pcfiles" title="This PC"><span class="app-glyph teal">▣</span></button><button data-app="files" title="Files"><span class="app-glyph blue">▤</span></button><button data-app="notes" title="Notes"><span class="app-glyph violet">✎</span></button><button data-app="system" title="Computer"><span class="app-glyph teal">▥</span></button><button data-app="python" title="Python"><span class="app-glyph amber">⌘</span></button></div><div id="taskOpen" class="task-open"></div><div class="task-status"><span class="status-dot" id="taskDot"></span><span id="taskMode">OFFLINE</span></div></nav>
   <div id="toast" role="status" class="toast hidden"></div>
 </div>
 <div id="authOverlay" class="auth-overlay">
   <div class="auth-backdrop-grid"></div>
   <div class="auth-card">
     <div class="auth-logo">H</div><div class="auth-overline">INTRODUCING</div><h2>HELEN <span>Remote OS</span></h2><p class="auth-sub">Your own desktop interface. Real Python services. One secure connection.</p>
-    <div class="auth-panel"><label for="tokenInput">10-DIGIT COMPUTER PAIRING CODE</label><div class="auth-input-row"><input id="tokenInput" type="text" inputmode="numeric" pattern="[0-9 ]*" maxlength="12" placeholder="Enter the code shown on your PC" autocomplete="off" spellcheck="false"/><button id="showToken" type="button" title="Show code" aria-label="Show code" style="display:none">◉</button></div><button id="connectButton" class="primary-btn">Connect to my PC <span>→</span></button><p id="authError" class="auth-error" aria-live="polite"></p></div>
+    <div class="auth-panel"><label for="tokenInput">10-DIGIT COMPUTER PAIRING CODE</label><div class="auth-input-row"><input id="tokenInput" type="text" inputmode="numeric" pattern="[0-9 ]*" maxlength="12" placeholder="Enter the code shown on your PC" autocomplete="off" spellcheck="false"/><button id="showToken" type="button" title="Show token" aria-label="Show token" style="display:none">◉</button></div><button id="connectButton" class="primary-btn">Connect to my PC <span>→</span></button><p id="authError" class="auth-error" aria-live="polite"></p></div>
     <div class="auth-divider"><span>OR EXPLORE WITHOUT A COMPUTER</span></div><button id="demoButton" class="secondary-btn">Launch visual demo <span>↗</span></button>
-    <p class="auth-note">Keep HELEN running on your computer, generate a pairing code in Connection Center, and approve the connection on the PC.</p>
+    <p class="auth-note">Keep HELEN running on your computer, generate a code in Connection Center, and approve the connection on the PC.</p>
   </div>
-  <div class="auth-bottom">HELEN SYSTEMS <span>•</span> PROTOTYPE BUILD 0.2</div>
+  <div class="auth-bottom">HELEN SYSTEMS <span>•</span> PROTOTYPE BUILD 0.3</div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <script>window.HELEN_PHONE_CLIENT=true;</script>
@@ -131,13 +146,14 @@ window.HELEN_PHONE={connect,request,close};
 
 </script>
 <script>
-/* HELEN Remote OS 0.2 - local host, browser-to-browser phone bridge, or demo. */
+/* HELEN Remote OS 0.3 - local host, browser-to-browser phone bridge, or demo. */
 (() => {
   'use strict';
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const apps = {
-    files: {title:'File Explorer', glyph:'▤', color:'blue'},
+    files: {title:'HELEN Workspace', glyph:'▤', color:'blue'},
+    pcfiles: {title:'This PC — Read Only', glyph:'▣', color:'teal'},
     notes: {title:'Notes', glyph:'✎', color:'violet'},
     system: {title:'Computer Monitor', glyph:'▥', color:'teal'},
     python: {title:'Python Console', glyph:'⌘', color:'amber'},
@@ -227,7 +243,7 @@ window.HELEN_PHONE={connect,request,close};
       $('#tokenInput').value='';
       $('#authError').textContent='';
       toast(`Secure session with ${status.host} established`);
-      openApp('system');
+      openApp(phoneClient ? 'pcfiles' : 'system');
     } catch(err) {
       mode='offline';token='';if(phoneClient)window.HELEN_PHONE.close(); $('#authError').textContent=err.message;
     } finally {$('#connectButton').disabled=false;}
@@ -312,7 +328,7 @@ window.HELEN_PHONE={connect,request,close};
     title.addEventListener('pointercancel',()=>{drag=null;});
     $('#windowLayer').append(el);
     windows.set(key,{el,body,minimized:false});focusWindow(key);
-    const render={files:renderFiles,notes:renderNotes,system:renderSystem,python:renderPython,connection:renderConnection}[key];
+    const render={files:renderFiles,pcfiles:renderPCFiles,notes:renderNotes,system:renderSystem,python:renderPython,connection:renderConnection}[key];
     render(body).catch(err => displayError(body,err));
   }
   function displayError(root,err){
@@ -325,7 +341,7 @@ window.HELEN_PHONE={connect,request,close};
     return {path,entries:[...result.values()].sort((a,b)=>(a.type===b.type?a.name.localeCompare(b.name):a.type==='folder'?-1:1))};
   }
   async function renderFiles(body,path=''){
-    body.innerHTML=`<div class="pane-header"><div><h2>My files</h2><div class="muted">${mode==='live'?'Real files in the restricted PC workspace':'Sample files · visual demo only'}</div></div><div class="row-actions"><button class="action-button" id="newFolder">+ Folder</button><button class="action-button primary" id="newFile">+ File</button></div></div><div class="file-path"><span id="crumb">⌂ / Workspace</span><button id="folderUp">↑ Up</button></div><div id="folderItems" class="file-list"></div>`;
+    body.innerHTML=`<div class="pane-header"><div><h2>HELEN workspace</h2><div class="muted">${mode==='live'?'Real files in the restricted PC workspace':'Sample files · visual demo only'}</div></div><div class="row-actions"><button class="action-button" id="newFolder">+ Folder</button><button class="action-button primary" id="newFile">+ File</button></div></div><div class="file-path"><span id="crumb">⌂ / Workspace</span><button id="folderUp">↑ Up</button></div><div id="folderItems" class="file-list"></div>`;
     const state={path};
     async function refresh(){
       const data=mode==='live'?await api('/api/files?path='+encodeURIComponent(state.path)):demoListing(state.path);
@@ -375,6 +391,91 @@ window.HELEN_PHONE={connect,request,close};
     $('#backToFiles',body).onclick=onBack;
     $('#saveFile',body).onclick=async()=>{try{if(mode==='live')await post('/api/file/save',{path,content:area.value});else demoFiles[path]=area.value;toast('File saved'+(mode==='demo'?' in demo memory':''));}catch(err){toast(err.message);}};
   }
+
+  // This PC is a separate, read-only explorer. Existing HELEN workspace edits remain unchanged.
+  async function renderPCFiles(body) {
+    let root = '', path = '', rootName = '', filter = '';
+    body.innerHTML = `<div class="pane-header"><div><h2>This PC</h2><div class="muted">Browse your real computer's files • read only</div></div><div class="row-actions"><button id="pcHome" class="action-button">⌂ Folders</button><button id="pcRefresh" class="action-button">↻ Refresh</button></div></div>
+      <div class="pc-toolbar"><button id="pcUp" class="action-button" title="Parent folder">↑</button><div id="pcCrumb" class="pc-location">This PC</div><input id="pcFilter" placeholder="Find in this folder…" aria-label="Filter current folder"></div>
+      <div class="pc-note">PC files are view-only. Changes and new folders still belong in the HELEN Files app.</div>
+      <div id="pcMain" class="file-list pc-file-list"></div>`;
+    const area = $('#pcMain', body), crumb = $('#pcCrumb', body), up = $('#pcUp', body);
+    let renderedItems = [];
+    let requestId = 0;
+    const draw = () => {
+      area.replaceChildren();
+      const matching = renderedItems.filter(i=>i.name.toLowerCase().includes(filter));
+      if(!matching.length){area.innerHTML='<div class="empty-state">Nothing in this folder matches your search.</div>';return;}
+      matching.forEach(item=>{
+        const btn=document.createElement('button'); btn.className='file-row pc-file-row';
+        const ico=document.createElement('span');ico.className='file-row-icon';ico.textContent=item.type==='folder'?'▣':item.preview==='image'?'▧':'▤';
+        const name=document.createElement('span');name.className='name';name.textContent=item.name;
+        const detail=document.createElement('small');detail.textContent=item.type==='folder'?'FOLDER':formatBytes(item.size||0);
+        btn.append(ico,name,detail);area.append(btn);
+        btn.onclick = () => {
+          if(item.type==='root'){root=item.id;rootName=item.name;path='';refresh();}
+          else if(item.type==='folder'){path=item.path;refresh();}
+          else openPCPreview(item.path);
+        };
+      });
+    };
+    const refresh = async () => {
+      const current = ++requestId;
+      area.innerHTML='<div class="empty-state">Loading computer files…</div>';
+      try {
+        let data;
+        if(mode==='demo') {
+          data = root ? {entries: [{name:'Sample.txt',type:'file',path:'Sample.txt',size:48,preview:'text'}],limited:false} :
+            {roots:[{id:'desktop',name:'Desktop'},{id:'documents',name:'Documents'},{id:'downloads',name:'Downloads'},{id:'pictures',name:'Pictures'}]};
+        } else {
+          data = await api(root ? '/api/pc/files?root='+encodeURIComponent(root)+'&path='+encodeURIComponent(path) : '/api/pc/roots');
+        }
+        if(current!==requestId || !body.isConnected)return;
+        crumb.textContent = root ? 'This PC / '+rootName+(path?' / '+path:'') : 'This PC / Choose a folder';
+        up.disabled = !root; filter='';$('#pcFilter',body).value='';
+        renderedItems = root ? data.entries : data.roots.map(r=>({name:r.name,id:r.id,type:'root'}));
+        if(!renderedItems.length){area.innerHTML='<div class="empty-state">No accessible folders or visible files were found. Check your PC user folders.</div>';return;}
+        draw();
+        if(data.limited)toast('Showing the first 250 items in this folder');
+      }catch(e){displayError(area,e);}
+    };
+    const openPCPreview = async (filePath) => {
+      const current = ++requestId;
+      area.innerHTML='<div class="empty-state">Opening preview…</div>';
+      try {
+        const data=mode==='demo'?{type:'text',name:'Sample.txt',content:'This is only a demo. Connect to your Windows PC to browse actual files.'}:
+          await api('/api/pc/preview?root='+encodeURIComponent(root)+'&path='+encodeURIComponent(filePath));
+        if(current!==requestId || !body.isConnected)return;
+        area.replaceChildren();
+        const shell=document.createElement('div');shell.className='pc-preview';
+        const header=document.createElement('div');header.className='pc-preview-head';
+        const title=document.createElement('strong');title.textContent=data.name;
+        const back=document.createElement('button');back.className='action-button';back.textContent='← Back to folder';back.onclick=()=>refresh();
+        header.append(title,back);shell.append(header);
+        if(data.type==='text') {
+          const pre=document.createElement('pre');pre.className='pc-text-preview';pre.textContent=data.content;shell.append(pre);
+        } else if(data.type==='image') {
+          const image=document.createElement('img');image.alt=data.name;image.className='pc-image-preview';
+          if(!/^image\/(png|jpeg|gif|webp)$/.test(data.mime))throw new Error('Unsupported image type');
+          image.src='data:'+data.mime+';base64,'+data.content;shell.append(image);
+        }
+        const foot=document.createElement('div');foot.className='pc-note';foot.textContent='Preview only — no changes can be saved to this PC file.';shell.append(foot);
+        area.append(shell);
+      } catch(e) {
+        if(current!==requestId)return;
+        area.replaceChildren();
+        const msg=document.createElement('div');msg.className='empty-state';msg.textContent=e.message;
+        const back=document.createElement('button');back.className='action-button';back.textContent='← Back';back.onclick=()=>refresh();
+        area.append(msg,back);
+      }
+    };
+    $('#pcHome',body).onclick=()=>{root='';path='';refresh();};
+    $('#pcRefresh',body).onclick=()=>refresh();
+    up.onclick=()=>{if(!root)return;if(!path){root='';rootName='';}else{path=path.split('/').slice(0,-1).join('/');}refresh();};
+    $('#pcFilter',body).oninput=e=>{filter=e.target.value.toLowerCase();draw();};
+    await refresh();
+  }
+
   async function renderNotes(body){
     const notePath='Notes.md';
     let content='';
@@ -391,7 +492,7 @@ window.HELEN_PHONE={connect,request,close};
     body.innerHTML='<div class="pane-header"><div><h2>Host computer</h2><div class="muted">System properties from the Python backend</div></div><button class="action-button" id="refreshSystem">↻ Refresh</button></div><div id="statsRegion"></div>';
     const display=async()=>{
       const data=mode==='live'?await api('/api/system'):{host:'SIMULATED-PC',os:'Demo OS (not a real computer)',architecture:'Sample',python:'Not connected',cpu_cores:'—',disk_total:null,disk_free:null,service_uptime_seconds:0,server_time:new Date().toLocaleString()};
-      $('#statsRegion',body).innerHTML=`<div class="stat-grid"><div class="stat-cell"><label>HOSTNAME</label><strong id="sysHost"></strong><small>Computer identity</small></div><div class="stat-cell"><label>OPERATING SYSTEM</label><strong id="sysOS"></strong><small id="sysArchitecture"></small></div><div class="stat-cell"><label>PROCESSOR CORES</label><strong id="sysCPU"></strong><small>Reported by operating system</small></div><div class="stat-cell"><label>PYTHON ENGINE</label><strong id="sysPython"></strong><small>Host Python runtime</small></div><div class="stat-cell"><label>AVAILABLE STORAGE</label><strong id="sysDisk"></strong><small id="sysTotal"></small></div><div class="stat-cell"><label>SERVICE UPTIME</label><strong id="sysUptime"></strong><small>Since backend started</small></div></div><div class="panel-card" style="margin-top:14px"><h3>Access boundary</h3><div class="muted">${mode==='live'?'This session is authenticated. File access is confined to the HELEN workspace. Python runs only predefined tasks.':'All displayed system values are demo placeholders. No host computer is connected.'}</div></div>`;
+      $('#statsRegion',body).innerHTML=`<div class="stat-grid"><div class="stat-cell"><label>HOSTNAME</label><strong id="sysHost"></strong><small>Computer identity</small></div><div class="stat-cell"><label>OPERATING SYSTEM</label><strong id="sysOS"></strong><small id="sysArchitecture"></small></div><div class="stat-cell"><label>PROCESSOR CORES</label><strong id="sysCPU"></strong><small>Reported by operating system</small></div><div class="stat-cell"><label>PYTHON ENGINE</label><strong id="sysPython"></strong><small>Host Python runtime</small></div><div class="stat-cell"><label>AVAILABLE STORAGE</label><strong id="sysDisk"></strong><small id="sysTotal"></small></div><div class="stat-cell"><label>SERVICE UPTIME</label><strong id="sysUptime"></strong><small>Since backend started</small></div></div><div class="panel-card" style="margin-top:14px"><h3>Access boundary</h3><div class="muted">${mode==='live'?'This session can edit HELEN workspace files and view standard PC user folders read-only. Python runs only predefined tasks.':'All displayed system values are demo placeholders. No host computer is connected.'}</div></div>`;
       $('#sysHost',body).textContent=data.host;
       $('#sysOS',body).textContent=data.os;
       $('#sysArchitecture',body).textContent=data.architecture;
