@@ -1,558 +1,106 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b1223" />
-  <title>HELEN // Remote OS</title>
-  <style>
-:root{font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:#eff4ff;background:#0b1021;font-size:14px}*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #64b7ff;outline-offset:3px}button{border:0}button:disabled{opacity:.48;cursor:default}.hidden{display:none!important}.os{height:100dvh;position:relative;overflow:hidden;min-height:400px;background:#0a1225}.wallpaper{position:absolute;inset:0;background:radial-gradient(ellipse at 78% 17%,#143356 0%,transparent 44%),radial-gradient(ellipse at 26% 68%,#1c214b 0%,transparent 55%),linear-gradient(160deg,#0b1326,#080d18 70%);overflow:hidden;pointer-events:none}.mesh{position:absolute;inset:0;background-image:linear-gradient(#a7d6ff08 1px,transparent 1px),linear-gradient(90deg,#a7d6ff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to bottom,transparent 3%,#000 65%);transform:perspective(700px) rotateX(22deg) scale(1.35);transform-origin:bottom}.orb{position:absolute;border-radius:50%;filter:blur(10px)}.orb-one{width:450px;height:450px;right:1%;top:3%;border:1px solid #88baff25;box-shadow:0 0 90px 18px #569aff0d,inset 0 0 65px #427bd318}.orb-two{width:250px;height:250px;left:34%;bottom:-150px;background:#4940b21a}.topbar{height:64px;position:absolute;top:0;left:0;right:0;z-index:120;background:#090e1ac7;border-bottom:1px solid #ffffff13;display:flex;align-items:center;justify-content:space-between;padding:0 29px;backdrop-filter:blur(16px)}.brand{display:flex;gap:12px;align-items:center;letter-spacing:1.6px;font-size:12px}.brand-logo{display:flex;align-items:center;justify-content:center;width:31px;height:31px;border-radius:9px;color:#d3eaff;font-size:18px;font-weight:800;background:linear-gradient(145deg,#1b4c86,#182644);border:1px solid #5e98ce75;box-shadow:0 0 20px #349aff18}.brand small{display:block;font-size:8px;color:#7187a7;letter-spacing:1.8px;margin-top:4px}.slim{font-weight:450;color:#a9c1e7}.topbar-right{display:flex;align-items:center;gap:20px}.mode-tag{padding:6px 10px;border:1px solid #f4bb4d43;border-radius:20px;font-size:9px;font-weight:750;letter-spacing:1.2px;color:#e5b65e;background:#5d471c1d}.mode-tag.live{color:#67e6c1;border-color:#38d9a653;background:#1e645b2c}.mode-tag.demo{color:#d0baff;border-color:#af87ff55;background:#563f832a}.header-clock{font-size:12px;font-variant-numeric:tabular-nums;color:#acbdd5;white-space:nowrap}.small-icon{background:transparent;color:#a9c2dc;padding:6px}.small-icon svg{display:block;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.5}.desktop{position:absolute;inset:64px 0 62px;overflow:hidden}.home-copy{position:absolute;top:13%;left:8%;pointer-events:none}.home-eyebrow{font-size:10px;color:#91b7e5;letter-spacing:2.2px;font-weight:700}.tiny-dot{display:inline-block;background:#59e3b1;width:6px;height:6px;border-radius:50%;margin-right:8px;box-shadow:0 0 12px #59e3b1}.home-copy h1{font-size:clamp(36px,5vw,74px);font-weight:550;line-height:1.08;letter-spacing:-2.5px;margin:24px 0 18px}.home-copy h1 em{font-style:normal;color:#8eb5f9}.home-copy p{font-size:13px;color:#90a7c6;max-width:380px;line-height:1.8}.home-stats{display:flex;gap:40px;margin-top:44px}.home-stats span{display:grid;gap:8px}.home-stats b{font-size:13px;font-weight:570;color:#d4e6ff}.home-stats small{font-size:9px;letter-spacing:1.4px;color:#6a80a0}.desktop-icons{position:absolute;z-index:2;top:6%;right:5%;display:grid;grid-template-columns:repeat(2,90px);gap:21px 26px}.desktop-icon{border:1px solid transparent;background:transparent;color:#dce9ff;display:flex;align-items:center;gap:7px;flex-direction:column;padding:9px 3px;border-radius:11px;font-size:11px;text-shadow:0 1px 5px #000}.desktop-icon:hover,.desktop-icon:focus-visible{background:#badbff13;border-color:#bedcff2b}.app-glyph{font-family:Consolas,"Segoe UI Symbol",sans-serif;font-size:21px;font-weight:600;border-radius:13px;width:47px;height:47px;display:inline-flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 #ffffff33;flex-shrink:0}.blue{background:linear-gradient(140deg,#326ab5,#234371);color:#b7dafa}.violet{background:linear-gradient(140deg,#7054b5,#422e74);color:#e4d2ff}.teal{background:linear-gradient(140deg,#228d97,#185665);color:#bbf4f5}.amber{background:linear-gradient(140deg,#9a722c,#60461f);color:#ffe0a4}.pink{background:linear-gradient(140deg,#a04e87,#562f57);color:#ffd1ed}.taskbar{height:62px;position:absolute;bottom:0;left:0;right:0;z-index:130;display:flex;align-items:center;padding:0 24px;gap:17px;background:#09111ce8;border-top:1px solid #ffffff16;backdrop-filter:blur(20px)}.start-button{padding:0;background:none}.start-button .brand-logo{width:38px;height:38px}.task-separator{height:25px;width:1px;background:#4e60774e}.task-pins{display:flex;gap:9px}.task-pins button{padding:5px;background:transparent;border:1px solid transparent;border-radius:10px}.task-pins button:hover,.task-pins button.active{background:#91bffc12;border-color:#91bffc24}.task-pins .app-glyph{width:29px;height:29px;border-radius:8px;font-size:15px}.task-open{display:flex;gap:4px;min-width:0;flex:1;overflow:hidden}.task-open button{background:#adbcda13;border:1px solid #ffffff11;border-radius:7px;color:#cddaf1;font-size:10px;padding:9px 11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}.task-open button.active{background:#375b8c55;border-color:#83a6db44}.task-status{display:flex;align-items:center;gap:7px;color:#8ba2bb;font-size:10px;letter-spacing:1.2px;margin-left:auto;white-space:nowrap}.status-dot{width:6px;height:6px;border-radius:50%;background:#c39e62}.status-dot.live{background:#63e4bc;box-shadow:0 0 10px #63e4bc}.status-dot.demo{background:#bd94fa}.start-menu{position:absolute;bottom:13px;left:24px;width:350px;z-index:110;background:#111e32ee;border:1px solid #7d9ab64c;border-radius:18px;padding:20px;box-shadow:0 18px 80px #0008;backdrop-filter:blur(23px)}.start-head{display:flex;gap:11px;align-items:center;padding:4px 3px 17px}.start-head b{font-size:13px}.start-head small{display:block;color:#8196b0;font-size:10px;margin-top:5px}.start-search{border-top:1px solid #ffffff18;padding:17px 3px 12px;color:#829bb8;font-size:9px;font-weight:750;letter-spacing:1.5px}.start-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.start-grid button{background:#ffffff05;border-radius:9px;padding:12px 3px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;color:#d5e3f5;font-size:11px}.start-grid button:hover{background:#ffffff15}.start-grid .app-glyph{width:38px;height:38px;font-size:18px}.start-foot{display:flex;justify-content:space-between;align-items:center;margin-top:19px;padding:16px 3px 0;border-top:1px solid #ffffff13;color:#83aac9;font-size:10px}.start-foot button{background:transparent;color:#bfd1ed;font-size:10px}.window-layer{position:absolute;inset:0;z-index:4;pointer-events:none}.os-window{position:absolute;pointer-events:auto;display:flex;flex-direction:column;min-width:330px;min-height:240px;width:min(700px,calc(100vw - 30px));height:min(515px,calc(100% - 26px));border:1px solid #95abd648;border-radius:15px;background:#0c1628f7;box-shadow:0 26px 90px #010409bb,inset 0 1px #ffffff09;overflow:hidden;backdrop-filter:blur(28px)}.os-window.focused{border-color:#95c5fd70;box-shadow:0 30px 95px #000c,0 0 0 1px #8aacf011}.window-titlebar{height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;background:#18253bd1;border-bottom:1px solid #ffffff14;padding:0 16px;cursor:grab;user-select:none;touch-action:none}.window-titlebar:active{cursor:grabbing}.window-heading{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:660}.window-heading .app-glyph{width:28px;height:28px;border-radius:8px;font-size:14px}.window-controls{display:flex;gap:7px}.window-controls button{width:25px;height:25px;border-radius:6px;background:#e6eff70a;color:#a9b8cd;font-size:16px;line-height:1}.window-controls button:hover{background:#ffffff23;color:#fff}.window-controls .close:hover{background:#c74b5a;color:white}.window-body{flex:1;overflow:auto;min-height:0;padding:22px}.pane-header{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:20px}.pane-header h2{font-size:17px;margin:0 0 5px;font-weight:650}.muted{font-size:11px;color:#93a6c1;line-height:1.6}.eyebrow{font-size:9px;color:#70b9ed;font-weight:730;letter-spacing:1.5px}.action-button{border:1px solid #6f90b155;background:#1a304e;color:#d9ecff;border-radius:9px;padding:9px 13px;font-size:11px;white-space:nowrap}.action-button:hover{background:#244166}.action-button.primary{background:#2469ae;border-color:#4897db;color:#fff}.panel-card{background:#15243a9c;border:1px solid #a7c7e21b;border-radius:12px;padding:17px;margin-bottom:13px}.panel-card h3{font-size:12px;margin:0 0 12px;color:#d8e7fa}.stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.stat-cell{background:#16274188;border:1px solid #ffffff0e;border-radius:12px;padding:17px;min-width:0}.stat-cell label{display:block;font-size:10px;letter-spacing:1.05px;color:#91a5c0;margin-bottom:11px}.stat-cell strong{display:block;font-size:16px;font-weight:560;overflow-wrap:anywhere}.stat-cell small{display:block;color:#8fa4bf;margin-top:7px;font-size:10px}.file-path{background:#111e31;border:1px solid #ffffff13;padding:11px;border-radius:9px;display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:15px;font-size:11px;color:#acc9ec}.file-path button{background:transparent;color:#97b5d8}.file-list{display:flex;flex-direction:column;gap:6px}.file-row{display:flex;align-items:center;gap:11px;width:100%;padding:11px 12px;border-radius:9px;background:#18284177;text-align:left;color:#dceaff;border:1px solid #ffffff0e}.file-row:hover{background:#28456a87}.file-row span.name{font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-row small{color:#7997b5;font-size:10px}.file-row-icon{font-size:20px;color:#83b4e9}.file-editor{display:flex;flex-direction:column;gap:12px;height:100%}.file-editor textarea,.notes-textarea{width:100%;background:#0b1626;border:1px solid #4763817a;border-radius:9px;padding:15px;color:#e0eafa;resize:vertical;line-height:1.6;font-family:Consolas,monospace;font-size:12px;min-height:220px}.file-editor textarea{flex:1;resize:none}.file-editor-footer{display:flex;align-items:center;justify-content:space-between;gap:10px}.notes-textarea{min-height:260px}.note-tip{color:#8da4c2;font-size:11px;margin-top:12px}.task-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.task-choice{padding:14px;text-align:left;border:1px solid #7f9cbd2d;border-radius:11px;background:#172940a3;color:#e4efff}.task-choice:hover{border-color:#8bb8ed81;background:#203c5e}.task-choice b{display:block;font-size:12px;margin-bottom:7px}.task-choice small{display:block;color:#90a4c0;font-size:10px;line-height:1.55}.terminal{background:#060d17;border:1px solid #334862;border-radius:12px;color:#a9f5cb;font:12px/1.7 Consolas,"Courier New",monospace;padding:17px;min-height:145px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto}.terminal .dim{color:#608873}.connection-step{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid #ffffff0c}.connection-step b{font-size:12px}.connection-step p{font-size:11px;color:#99b0c8;line-height:1.6;margin:6px 0 0}.step-number{width:25px;height:25px;border:1px solid #6585aa70;border-radius:8px;display:grid;place-items:center;color:#9cc9ff;flex:none}.code-line{background:#071322;color:#a8deff;padding:13px 15px;border-radius:8px;word-break:break-word;font:12px/1.6 Consolas,monospace;border:1px solid #5279a544}.empty-state{color:#8ea4c2;font-size:12px;text-align:center;padding:45px 10px}.text-input{color:#e4eeff;padding:11px 12px;border:1px solid #59749777;background:#0b1625;border-radius:9px;max-width:100%;width:100%;margin-bottom:10px}.row-actions{display:flex;gap:8px;flex-wrap:wrap}.toast{position:absolute;bottom:81px;right:20px;z-index:180;max-width:min(340px,calc(100% - 30px));background:#1a334e;color:#e4f0ff;border:1px solid #8db8dc66;border-radius:10px;padding:13px 18px;box-shadow:0 10px 50px #0009;font-size:12px}.auth-overlay{position:absolute;z-index:200;inset:0;background:radial-gradient(ellipse at 50% 15%,#15345a,#08101e 60%);display:grid;place-items:center;padding:20px;overflow:auto}.auth-backdrop-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(#ffffff06 1px,transparent 1px),linear-gradient(90deg,#ffffff06 1px,transparent 1px);background-size:45px 45px;mask-image:radial-gradient(ellipse at 50%,#000,transparent 80%)}.auth-card{z-index:1;text-align:center;width:min(440px,100%);padding:35px;border:1px solid #83b5ed2f;background:linear-gradient(145deg,#16263ab3,#10192bea);box-shadow:0 25px 110px #000b;border-radius:24px;backdrop-filter:blur(25px)}.auth-logo{display:grid;place-items:center;width:59px;height:59px;margin:0 auto 25px;background:linear-gradient(135deg,#35689d,#1a335c);border:1px solid #7cbbfc80;box-shadow:0 0 37px #6097ee24;border-radius:17px;font-weight:850;font-size:30px}.auth-overline{color:#83acdb;letter-spacing:3px;font-size:10px;font-weight:700}.auth-card h2{margin:10px 0 12px;font-size:32px;letter-spacing:-1px}.auth-card h2 span{font-weight:350;color:#94b9f5}.auth-sub{color:#9caec7;font-size:12px;line-height:1.7;margin:0 auto 26px;max-width:270px}.auth-panel{text-align:left}.auth-panel label{font-size:9px;color:#9bb9d8;letter-spacing:1.5px;font-weight:700}.auth-input-row{display:flex;border:1px solid #7797b14b;background:#0a1423;border-radius:11px;margin:9px 0 13px}.auth-input-row input{background:transparent;color:#e7f0ff;border:0;outline:none;min-width:0;width:100%;padding:14px;font-size:12px}.auth-input-row button{border:0;background:transparent;color:#839cb9;padding:0 14px}.primary-btn,.secondary-btn{width:100%;display:flex;align-items:center;justify-content:space-between;border-radius:10px;padding:14px 16px;font-size:12px;font-weight:700}.primary-btn{background:linear-gradient(110deg,#357cca,#235caa);color:#fff}.primary-btn:hover{filter:brightness(1.15)}.secondary-btn{color:#cde4ff;border:1px solid #7da9dc48;background:#142840}.secondary-btn:hover{background:#254263}.auth-error{color:#ffadba;font-size:11px;min-height:15px;line-height:1.5}.auth-divider{display:flex;align-items:center;gap:13px;color:#7186a3;font-size:9px;letter-spacing:1px;margin:3px 0 16px;white-space:nowrap}.auth-divider:before,.auth-divider:after{content:'';background:#ffffff20;height:1px;flex:1}.auth-note{color:#6d829e;font-size:10px;line-height:1.6;margin:23px 0 0}.auth-note code{color:#bbd8ff}.auth-bottom{position:absolute;bottom:18px;z-index:1;color:#637c9f;font-size:9px;letter-spacing:2px}.auth-bottom span{margin:0 12px}
-@media(max-width:760px){.topbar{padding:0 15px;height:57px}.brand{gap:8px;font-size:10px}.brand small{font-size:7px;letter-spacing:1.05px}.topbar-right{gap:10px}.header-clock{font-size:10px}.desktop{top:57px;bottom:64px}.home-copy{top:9%;left:6%;right:6%}.home-copy h1{font-size:clamp(31px,9vw,44px);letter-spacing:-1.2px;margin:18px 0 10px}.home-copy p{font-size:11px;max-width:290px}.home-stats{margin-top:25px;gap:26px}.home-stats b{font-size:11px}.desktop-icons{top:auto;left:6%;right:6%;bottom:22px;grid-template-columns:repeat(5,1fr);gap:4px}.desktop-icon{font-size:9px;padding:6px 0}.desktop-icon .app-glyph{width:44px;height:44px;font-size:21px}.taskbar{padding:0 12px;gap:9px;height:64px}.task-pins{gap:2px}.task-open{display:none}.task-status{font-size:8px}.window-layer{inset:0}.os-window,.os-window.maximized{position:absolute!important;inset:6px 5px 6px!important;width:calc(100% - 10px)!important;height:calc(100% - 12px)!important;min-width:0;min-height:0;border-radius:13px}.window-titlebar{height:51px;cursor:default;touch-action:auto}.window-body{padding:15px}.start-menu{left:7px;right:7px;bottom:8px;width:auto}.stat-grid{gap:8px}.stat-cell{padding:12px}.stat-cell strong{font-size:13px}.task-list{grid-template-columns:1fr}.auth-card{padding:28px 22px}.auth-card h2{font-size:28px}}
-@media(max-width:420px){.brand .slim{display:none}.desktop-icons{grid-template-columns:repeat(4,1fr)}.desktop-icon:last-child{display:none}.mode-tag{font-size:8px}.home-copy h1{font-size:34px}}
-
-/* v0.2 - computer pairing code */
-.pair-card{margin:8px 0 18px}.pair-code{font-size:clamp(30px,5vw,44px);font-weight:750;letter-spacing:3px;line-height:1.4;font-variant-numeric:tabular-nums;padding:13px 2px;color:#a9d7ff;user-select:all;overflow-wrap:anywhere}.pair-card .row-actions{display:flex;gap:9px}.pair-card .row-actions button{min-height:38px}
-@media(max-width:760px){.pair-code{font-size:32px;letter-spacing:1.5px}.pair-card .row-actions{flex-wrap:wrap}.pair-card .row-actions button{flex:1 1 auto}}
-
-/* v0.3: read-only real Windows folder explorer */
-.pc-toolbar{display:flex;align-items:center;gap:9px;margin:10px 0;min-width:0;flex-wrap:wrap}
-.pc-toolbar .pc-location{flex:1;min-width:120px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#bed3ef;background:#0d192c;border:1px solid #ffffff1c;border-radius:9px;padding:11px}
-.pc-toolbar input{min-width:130px;flex:1;background:#0a1728;color:#f2f7ff;border:1px solid #ffffff27;border-radius:8px;padding:10px}
-.pc-note{background:#122941;border:1px solid #547fa43c;color:#b8d1e9;font-size:12px;line-height:1.6;padding:11px 14px;border-radius:9px;margin:10px 0}
-.pc-file-list{overflow-y:auto;max-height:calc(100% - 165px)}
-.pc-file-row .name{overflow-wrap:anywhere;min-width:0}
-.pc-preview{display:grid;gap:13px;min-width:0}
-.pc-preview-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;overflow-wrap:anywhere}
-.pc-text-preview{white-space:pre-wrap;overflow:auto;overflow-wrap:anywhere;max-height:50vh;padding:15px;border-radius:9px;background:#0a1426;border:1px solid #ffffff25;color:#d9eaff;font:12px/1.6 Consolas,monospace}
-.pc-image-preview{max-width:100%;max-height:45vh;object-fit:contain;margin:auto;border-radius:8px}
-@media(max-width:760px){.pc-file-list{max-height:calc(100% - 200px)}.pc-toolbar input{flex-basis:100%}}
-
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1226"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="description" content="HELEN OS Handheld Edition — a controller-ready pocket desktop prototype">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon-192.png">
+<title>HELEN OS — Handheld Edition</title>
+<style>
+:root{font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color-scheme:dark;--ink:#eaf3ff;--muted:#9eaecd;--dim:#758bb1;--line:rgba(194,220,255,.16);--glass:rgba(16,30,57,.81);--glass2:rgba(20,34,61,.96);--desktop:#091122;--bright:#8cbdff;--cyan:#57d3ec;--blue:#7389fa;--pink:#ce97ef;--shadow:0 24px 80px #0008}
+:root[data-theme="silver"]{color-scheme:light;--ink:#172849;--muted:#5c6f90;--dim:#7e8fad;--line:rgba(46,83,150,.2);--glass:rgba(244,248,255,.87);--glass2:rgba(247,250,255,.98);--desktop:#dfe8f6;--bright:#5076db;--cyan:#1d9eae;--blue:#5273d9;--pink:#9c64cb;--shadow:0 22px 65px #536b9733}
+:root[data-theme="obsidian"]{--ink:#f4effb;--muted:#aba1b8;--dim:#777087;--line:rgba(245,221,255,.13);--glass:rgba(24,18,36,.88);--glass2:rgba(25,18,37,.97);--desktop:#07070e;--bright:#d5adff;--cyan:#cb8dff;--blue:#a46ded;--pink:#f0a4d6}
+*{box-sizing:border-box}html,body{height:100%;width:100%;margin:0;overflow:hidden}body{background:#080f1d;color:var(--ink);touch-action:pan-x pan-y}button,input,select,textarea{font:inherit}button{color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}svg{pointer-events:none}.i{width:20px;height:20px;display:inline-flex;vertical-align:middle;flex-shrink:0}.i svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+#shell{position:relative;height:100dvh;width:100%;min-height:240px;isolation:isolate;background:var(--desktop);overflow:hidden;user-select:none;-webkit-user-select:none}
+.wallpaper{position:absolute;inset:0;z-index:-2;background:radial-gradient(ellipse 58% 85% at 74% 47%,rgba(66,101,200,.24),transparent 65%),radial-gradient(ellipse 54% 70% at 18% 88%,rgba(49,208,221,.09),transparent 75%),linear-gradient(125deg,rgba(2,9,26,.2),transparent),var(--desktop)}
+.wallpaper:before{content:"";position:absolute;left:31%;top:-88%;width:83%;aspect-ratio:1;border-radius:50%;border:1px solid rgba(139,198,255,.16);box-shadow:0 0 0 55px rgba(129,160,255,.017),0 0 0 140px rgba(129,160,255,.02),0 0 0 250px rgba(129,160,255,.01);transform:rotate(-24deg)}
+.wallpaper:after{content:"";position:absolute;right:15%;top:24%;width:38vw;height:38vw;max-width:560px;max-height:560px;border-radius:50%;background:radial-gradient(circle at 40% 40%,rgba(122,181,255,.14),transparent 65%);filter:blur(20px);animation:halo 9s ease-in-out infinite alternate;pointer-events:none}
+@keyframes halo{from{transform:translate(-16px,10px) scale(.94);opacity:.7}to{transform:translate(14px,-10px) scale(1.1);opacity:1}}
+.topbar{position:absolute;top:0;left:0;right:0;height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 calc(14px + env(safe-area-inset-right)) 0 calc(14px + env(safe-area-inset-left));background:rgba(10,20,39,.38);border-bottom:1px solid var(--line);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);z-index:50;gap:8px}
+.brand{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:2.1px;font-weight:830;white-space:nowrap}.brand-emblem{width:23px;height:23px;border-radius:8px;border:1px solid rgba(180,210,255,.5);background:linear-gradient(145deg,#8ab9f8,#5a5aca);display:grid;place-items:center;color:white;font:italic 17px Georgia,serif;box-shadow:0 0 21px #7c8dff46}
+.topcenter{display:flex;gap:12px;align-items:center;color:var(--muted);font-size:10px;font-weight:600;white-space:nowrap}.topcenter .dot{width:6px;height:6px;border-radius:50%;background:#bd9b58;display:inline-block;box-shadow:0 0 8px #bd9b5860;margin-right:4px}.topcenter .dot.demo{background:#ad9eff}.topcenter .dot.live{background:#60e1bf;box-shadow:0 0 8px #60e1bf}.top-right{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);white-space:nowrap}.status-btn{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:10px;background:rgba(110,146,210,.1);padding:5px 9px;font-size:10px;font-weight:700}
+.icons{position:absolute;top:53px;left:calc(6px + env(safe-area-inset-left));bottom:62px;display:grid;grid-template-columns:repeat(2,74px);grid-auto-rows:76px;gap:7px 3px;align-content:start;overflow:auto;max-height:calc(100% - 115px);scrollbar-width:none;z-index:3}.desktop-icon{width:72px;min-height:72px;background:transparent;border:1px solid transparent;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;transition:background .18s,transform .18s}.desktop-icon:hover,.desktop-icon:focus-visible{background:rgba(150,180,235,.13);border-color:var(--line);transform:translateY(-2px)}.desktop-icon span:last-child{font-size:10px;text-shadow:0 1px 4px #0006;white-space:nowrap;font-weight:650}.app-icon{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(145deg,#487ed8,#2a468c);border:1px solid rgba(226,240,255,.16);box-shadow:0 7px 20px #0004,inset 0 1px 0 #ffffff50;color:#eaf4ff}.app-icon .i{width:22px;height:22px}.app-icon.teal{background:linear-gradient(145deg,#4fc9c8,#1b728d)}.app-icon.purple{background:linear-gradient(145deg,#ae8ff2,#6354b8)}.app-icon.amber{background:linear-gradient(145deg,#e3bf77,#a47a34)}.app-icon.slate{background:linear-gradient(145deg,#6789b0,#334d70)}.app-icon.rose{background:linear-gradient(145deg,#db99b6,#985778)}
+#win-layer{position:absolute;inset:38px 0 54px;z-index:10;pointer-events:none}.win{position:absolute;display:flex;flex-direction:column;background:var(--glass);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.09);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);pointer-events:auto;min-width:240px;min-height:160px;animation:windowIn .22s cubic-bezier(.2,.9,.2,1)}@keyframes windowIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}.win.focused{border-color:rgba(135,191,255,.37);box-shadow:0 23px 70px #0009,0 0 0 1px rgba(134,197,255,.09)}.win.maximized{left:8px!important;top:6px!important;width:calc(100% - 16px)!important;height:calc(100% - 12px)!important}.winbar{display:flex;align-items:center;justify-content:space-between;height:37px;padding:0 6px 0 13px;flex-shrink:0;background:rgba(160,193,255,.05);border-bottom:1px solid var(--line);touch-action:none;cursor:move;gap:6px}.winbar-title{display:flex;align-items:center;gap:8px;min-width:0;font-size:11px;letter-spacing:.2px;font-weight:750}.winbar-title .i{height:14px;width:14px;color:var(--bright)}.wincontrols{display:flex;gap:3px}.wincontrol{width:30px;height:26px;border-radius:7px;display:grid;place-items:center;background:rgba(150,169,220,.08);font-size:13px}.wincontrol:hover{background:rgba(150,169,220,.2)}.wincontrol[data-op="close"]:hover{background:#cb5569;color:white}.winbody{overflow:auto;flex:1;padding:16px;overscroll-behavior:contain;user-select:text;-webkit-user-select:text}.winbody h1{margin:2px 0 4px;font-size:21px;letter-spacing:-.6px}.winbody h2{font-size:12px;margin:16px 0 8px;letter-spacing:.2px}.muted{color:var(--muted)}.small{font-size:11px;line-height:1.55}.tiny{font-size:9px;color:var(--dim);letter-spacing:1.4px;text-transform:uppercase;font-weight:850}.winbody p{margin:6px 0 14px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.btn{display:inline-flex;gap:6px;align-items:center;justify-content:center;padding:10px 13px;border-radius:11px;background:rgba(135,170,245,.12);border:1px solid var(--line);font-size:11px;font-weight:760;color:var(--ink)}.btn:hover{background:rgba(135,170,245,.21)}.btn.primary{background:linear-gradient(120deg,#536ae2,#568add);border:1px solid #91aaff6b;color:white}.btn .i{width:15px;height:15px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.tile{min-height:86px;background:rgba(111,146,202,.095);border:1px solid var(--line);border-radius:12px;padding:11px 9px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;font-size:11px;font-weight:710}.tile:hover{background:rgba(111,146,202,.18)}.tile .i{color:var(--bright);width:19px;height:19px}.panel{border:1px solid var(--line);border-radius:13px;background:rgba(125,161,230,.07);padding:12px}.panel + .panel{margin-top:8px}.row{display:flex;gap:10px;align-items:center}.between{justify-content:space-between}.list{display:flex;flex-direction:column;gap:7px}.listitem{border:1px solid var(--line);border-radius:11px;background:rgba(130,158,217,.06);padding:11px 12px;display:flex;align-items:center;gap:9px;width:100%;text-align:left;font-size:11px}.listitem .i{color:var(--bright)}.listitem:hover{background:rgba(134,165,230,.16)}.listitem small{color:var(--muted)}.listitem .grow{flex:1}.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:99px;background:rgba(110,155,225,.12);color:var(--bright);font-size:9px;padding:6px 9px;font-weight:800;letter-spacing:.3px}.chip.success{color:#65ddbb}.textinput,textarea,select{background:rgba(100,133,194,.12);border:1px solid var(--line);color:var(--ink);padding:10px;border-radius:10px;font-size:12px;width:100%;outline:none}select option{color:#152039}textarea{resize:vertical;min-height:100px;line-height:1.5}.label{font-size:10px;font-weight:700;color:var(--muted);display:block;margin:9px 0 5px}.hgroup{display:flex;flex-wrap:wrap;gap:8px}.badge{font-size:9px;border:1px solid var(--line);background:rgba(155,174,220,.09);border-radius:6px;padding:4px 7px;color:var(--muted)}
+.taskbar{position:absolute;bottom:0;left:0;right:0;height:54px;padding:6px max(9px,env(safe-area-inset-right)) 6px max(9px,env(safe-area-inset-left));display:flex;align-items:center;gap:6px;background:var(--glass2);border-top:1px solid var(--line);box-shadow:0 -10px 40px #0309164d;backdrop-filter:blur(24px);z-index:40}.start{display:flex;align-items:center;justify-content:center;width:40px;height:39px;flex-shrink:0;border-radius:12px;font:bold italic 21px Georgia,serif;background:linear-gradient(145deg,#649cff,#5960dc);color:white;box-shadow:0 6px 15px #5d73e355}.taskpins{display:flex;gap:4px;min-width:0;flex:1;align-items:center;overflow-x:auto;scrollbar-width:none}.taskpin{height:39px;width:40px;border-radius:11px;display:grid;place-items:center;flex-shrink:0;position:relative;color:var(--muted);background:transparent}.taskpin.active{color:var(--ink);background:rgba(130,164,245,.15)}.taskpin.active:after{content:"";position:absolute;bottom:2px;left:13px;width:15px;height:3px;background:var(--cyan);border-radius:2px}.tasktray{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-shrink:0}.tasktray .i{width:16px;height:16px}.timebox{text-align:right;min-width:55px;line-height:1.25}.timebox strong{display:block;font-size:11px;color:var(--ink)}
+#startpanel{position:absolute;bottom:61px;left:12px;z-index:60;width:min(340px,calc(100% - 24px));max-height:calc(100% - 105px);overflow:auto;padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--glass2);box-shadow:var(--shadow);backdrop-filter:blur(24px)}#startpanel[hidden]{display:none}#startpanel .head{font-size:15px;font-weight:850;letter-spacing:.6px;margin-bottom:10px}
+.orbwrap{position:absolute;right:19px;bottom:70px;z-index:6;display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:auto}.orb{position:relative;display:grid;place-items:center;width:73px;height:73px;background:transparent;filter:drop-shadow(0 0 22px rgba(90,157,255,.45));transition:transform .2s}.orb:hover{transform:scale(1.08)}.orb:before{content:"";position:absolute;inset:5px;border-radius:50%;border:1px solid rgba(141,201,255,.54);border-left-color:transparent;border-right-color:transparent;animation:spin 13s linear infinite}.orb:after{content:"";position:absolute;inset:13px;border-radius:50%;background:radial-gradient(circle at 33% 26%,#fbffff 0%,#9ee6ff 19%,#647be7 55%,#273060 85%);box-shadow:0 0 26px #75afff90,inset -5px -9px 15px #111b4a;border:1px solid #b0d8ff90;animation:breathe 3.4s ease-in-out infinite}.orb-ring{position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(100,195,255,.45);animation:spin 21s linear infinite reverse}.orb-label{font-size:9px;letter-spacing:1.3px;color:var(--muted);font-weight:800;text-shadow:0 2px 6px #0009}@keyframes spin{to{transform:rotate(360deg)}}@keyframes breathe{50%{transform:scale(1.06);box-shadow:0 0 37px #7cafffd6,inset -5px -9px 15px #111b4a}}.orbwrap.pulse .orb:after{animation:breathe .8s ease-in-out infinite}.orbwrap.pulse{filter:hue-rotate(30deg)}
+#pointer{position:absolute;left:0;top:0;z-index:90;width:20px;height:24px;pointer-events:none;display:none;filter:drop-shadow(1px 2px 2px #000b);transform:translate3d(0,0,0)}#pointer svg{display:block;width:100%;height:100%;fill:#f0f7ff;stroke:#24365c;stroke-width:1.8}#pointer.visible{display:block}#pointer.pressed{transform:scale(.82)}
+#toast{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);z-index:85;background:var(--glass2);border:1px solid var(--line);border-radius:9px;padding:10px 15px;font-size:11px;box-shadow:var(--shadow);max-width:85%;text-align:center}#toast[hidden]{display:none}
+#dialog{position:absolute;inset:0;z-index:75;display:grid;place-items:center;background:rgba(2,5,13,.6);backdrop-filter:blur(5px);padding:20px}#dialog[hidden]{display:none}#dialogbox{width:min(430px,100%);max-height:85%;overflow:auto;border:1px solid var(--line);border-radius:17px;background:var(--glass2);padding:19px;box-shadow:var(--shadow)}#dialogbox h2{margin:0 0 9px;font-size:18px}
+@media(max-width:700px){.topbar{height:35px}.topcenter{gap:5px}.topcenter .host-label{display:none}.brand{font-size:10px}.top-right{font-size:10px}.icons{top:45px;grid-template-columns:repeat(2,65px);grid-auto-rows:69px;max-height:calc(100% - 109px)}.desktop-icon{width:63px;min-height:65px}.app-icon{width:35px;height:35px;border-radius:11px}.app-icon .i{width:19px;height:19px}.winbody{padding:12px}.winbar{height:34px}.win{border-radius:13px}#win-layer{top:35px}.taskbar{height:51px}.taskpin{width:36px}.taskbar .start{height:36px;width:36px}.timebox{min-width:45px}.orbwrap{right:11px;bottom:60px}.orb{width:57px;height:57px}.orb:after{inset:11px}.orb-label{font-size:8px}}
+@media(max-width:630px) and (orientation:portrait){.icons{grid-template-columns:repeat(3,71px);left:8px;right:8px;bottom:57px;max-height:34%;grid-auto-rows:75px}.desktop-icon{width:70px}.win:not(.maximized){left:4%!important;top:29%!important;width:92%!important;height:62%!important}.win.maximized{left:4px!important;top:4px!important;width:calc(100% - 8px)!important;height:calc(100% - 8px)!important}.orbwrap{right:18px;bottom:68px}.topcenter{font-size:9px}.tasktray .i{display:none}}
+@media(max-height:420px){.icons{grid-auto-rows:64px;grid-template-columns:repeat(2,65px)}.desktop-icon{height:61px;width:64px;min-height:61px}.app-icon{width:33px;height:33px}.orbwrap{bottom:58px;right:9px}.orb{width:49px;height:49px}.orb-label{display:none}.winbody{padding:11px}.winbody h1{font-size:18px}.grid{gap:6px}.tile{min-height:70px;padding:8px}.topbar{height:31px}#win-layer{top:31px}}
+:root[data-motion="calm"] .orb:before,:root[data-motion="calm"] .orb-ring,:root[data-motion="calm"] .orb:after,:root[data-motion="calm"] .wallpaper:after{animation-duration:30s}:root[data-motion="off"] *, :root[data-motion="off"] *:before,:root[data-motion="off"] *:after{animation:none!important;transition:none!important}@media(prefers-reduced-motion:reduce){*,:before,:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
-<div id="os" class="os">
-  <div class="wallpaper"><div class="orb orb-one"></div><div class="orb orb-two"></div><div class="mesh"></div></div>
-  <header class="topbar">
-    <div class="brand"><span class="brand-logo">H</span><div><strong>HELEN<span class="slim"> // REMOTE OS</span></strong><small>PERSONAL CONTROL ENVIRONMENT</small></div></div>
-    <div class="topbar-right"><span id="modeTag" class="mode-tag">OFFLINE</span><span id="headerClock" class="header-clock">--:--</span><button id="lockButton" class="small-icon" title="Disconnect" aria-label="Disconnect"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></button></div>
-  </header>
-  <main id="desktop" class="desktop">
-    <div class="home-copy"><span class="home-eyebrow"><span class="tiny-dot"></span> YOUR WORKSPACE, ANYWHERE</span><h1>Beyond the<br /><em>ordinary desktop.</em></h1><p>A window into your computer, designed for the way you work.</p><div class="home-stats"><span><b id="hostLabel">Not connected</b><small>HOST COMPUTER</small></span><span><b id="sessionLabel">Locked</b><small>SESSION</small></span></div></div>
-    <div class="desktop-icons" id="desktopIcons">
-      <button data-app="pcfiles" class="desktop-icon"><span class="app-glyph teal">▣</span><span>This PC</span></button>
-      <button data-app="files" class="desktop-icon"><span class="app-glyph blue">▤</span><span>Files</span></button>
-      <button data-app="notes" class="desktop-icon"><span class="app-glyph violet">✎</span><span>Notes</span></button>
-      <button data-app="system" class="desktop-icon"><span class="app-glyph teal">▥</span><span>Computer</span></button>
-      <button data-app="python" class="desktop-icon"><span class="app-glyph amber">⌘</span><span>Python</span></button>
-      <button data-app="connection" class="desktop-icon"><span class="app-glyph pink">◎</span><span>Connection</span></button>
-    </div>
-    <div id="windowLayer" class="window-layer"></div>
-    <div id="startMenu" class="start-menu hidden">
-      <div class="start-head"><span class="brand-logo">H</span><div><b>HELEN Remote OS</b><small>Version 0.3 • PC file browsing</small></div></div>
-      <div class="start-search">APPLICATIONS</div>
-      <div class="start-grid">
-        <button data-app="pcfiles"><span class="app-glyph teal">▣</span>This PC</button>
-        <button data-app="files"><span class="app-glyph blue">▤</span>Files</button>
-        <button data-app="notes"><span class="app-glyph violet">✎</span>Notes</button>
-        <button data-app="system"><span class="app-glyph teal">▥</span>Computer</button>
-        <button data-app="python"><span class="app-glyph amber">⌘</span>Python</button>
-        <button data-app="connection"><span class="app-glyph pink">◎</span>Connection</button>
-      </div>
-      <div class="start-foot"><span id="startState">Locked</span><button id="menuDisconnect">Disconnect ↗</button></div>
-    </div>
-  </main>
-  <nav class="taskbar" aria-label="Desktop taskbar"><button class="start-button" id="startButton" aria-label="Start menu"><span class="brand-logo">H</span></button><span class="task-separator"></span><div class="task-pins"><button data-app="pcfiles" title="This PC"><span class="app-glyph teal">▣</span></button><button data-app="files" title="Files"><span class="app-glyph blue">▤</span></button><button data-app="notes" title="Notes"><span class="app-glyph violet">✎</span></button><button data-app="system" title="Computer"><span class="app-glyph teal">▥</span></button><button data-app="python" title="Python"><span class="app-glyph amber">⌘</span></button></div><div id="taskOpen" class="task-open"></div><div class="task-status"><span class="status-dot" id="taskDot"></span><span id="taskMode">OFFLINE</span></div></nav>
-  <div id="toast" role="status" class="toast hidden"></div>
+<div id="shell">
+<div class="wallpaper"></div>
+<header class="topbar"><div class="brand"><span class="brand-emblem">H</span><span>HELEN <span style="color:var(--bright)">/OS</span></span></div><div class="topcenter"><span><span class="dot demo" id="statusdot"></span><span id="connection-state">VISUAL DEMO</span></span><span class="host-label">· HANDHELD EDITION</span></div><div class="top-right"><button class="status-btn" id="controller-status" data-open="controller" title="Controller Lab"><span id="gamepad-status-icon">◌</span> <span id="gamepad-status-text">Controller off</span></button><span id="topclock">12:00</span></div></header>
+<div class="icons" id="desktop-icons"></div>
+<div id="win-layer"></div>
+<div class="orbwrap" id="orbwrap"><button class="orb" id="orb" title="Open Helen"><span class="orb-ring"></span></button><div class="orb-label">HELEN</div></div>
+<nav class="taskbar"><button class="start" id="start-button" title="Start Menu">H</button><div class="taskpins" id="taskpins"></div><div class="tasktray"><span id="live-name">DEMO</span><span class="i" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12l5 5L21 4"/></svg></span><div class="timebox"><strong id="taskclock">12:00</strong><span id="taskdate">Oct 21</span></div></div></nav>
+<div id="startpanel" hidden></div><div id="dialog" hidden><div id="dialogbox"></div></div><div id="toast" role="status" hidden></div><div id="pointer" aria-hidden="true"><svg viewBox="0 0 24 28"><path d="M2 2v22l6-6 4 9 5-2-4-9 9-1z"/></svg></div>
 </div>
-<div id="authOverlay" class="auth-overlay">
-  <div class="auth-backdrop-grid"></div>
-  <div class="auth-card">
-    <div class="auth-logo">H</div><div class="auth-overline">INTRODUCING</div><h2>HELEN <span>Remote OS</span></h2><p class="auth-sub">Your own desktop interface. Real Python services. One secure connection.</p>
-    <div class="auth-panel"><label for="tokenInput">10-DIGIT COMPUTER PAIRING CODE</label><div class="auth-input-row"><input id="tokenInput" type="text" inputmode="numeric" pattern="[0-9 ]*" maxlength="12" placeholder="Enter the code shown on your PC" autocomplete="off" spellcheck="false"/><button id="showToken" type="button" title="Show token" aria-label="Show token" style="display:none">◉</button></div><button id="connectButton" class="primary-btn">Connect to my PC <span>→</span></button><p id="authError" class="auth-error" aria-live="polite"></p></div>
-    <div class="auth-divider"><span>OR EXPLORE WITHOUT A COMPUTER</span></div><button id="demoButton" class="secondary-btn">Launch visual demo <span>↗</span></button>
-    <p class="auth-note">Keep HELEN running on your computer, generate a code in Connection Center, and approve the connection on the PC.</p>
-  </div>
-  <div class="auth-bottom">HELEN SYSTEMS <span>•</span> PROTOTYPE BUILD 0.3</div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
-<script>window.HELEN_PHONE_CLIENT=true;</script>
 <script>
-/* HELEN Remote OS v0.2 — WebRTC phone client. Never receives the PC's Python bearer token. */
-(() => {
-'use strict';
-let peer=null, conn=null, waiting=new Map(), seq=0;
-const opts={host:'0.peerjs.com',port:443,secure:true,debug:0,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'}]}};
-let onLost=()=>{};
-function clear(reason){
-  for(const [id,item] of waiting){clearTimeout(item.timer);item.reject(new Error(reason));}
-  waiting.clear();
-  try{conn?.close();}catch{}conn=null;
-  try{peer?.destroy();}catch{}peer=null;
-}
-function close(){clear('Connection closed');}
-function connect(raw,{status=()=>{},lost=()=>{}}={}){
-  close();onLost=lost;
-  const code=String(raw).replace(/\D/g,'');
-  if(!/^\d{10}$/.test(code))return Promise.reject(new Error('Enter the 10-digit pairing code from your PC.'));
-  if(typeof window.Peer!=='function')return Promise.reject(new Error('PeerJS did not load. Check your phone internet connection.'));
-  return new Promise((resolve,reject)=>{
-    let ready=false,ended=false;
-    const timeout=setTimeout(()=>fail('Connection timed out. Confirm the PC is online and the code is correct.'),70000);
-    function fail(reason){
-      if(ended)return;ended=true;clearTimeout(timeout);clear(reason);reject(new Error(reason));
-    }
-    const client=peer=new Peer(opts);
-    client.on('open',()=>{
-      if(ended)return;
-      status('Looking for your computer…');
-      const c=conn=client.connect('helen-02-'+code,{reliable:true,serialization:'json',metadata:{type:'HELEN Phone v0.2'}});
-      c.on('open',()=>{if(!ended)status('Waiting for approval on the PC…');});
-      c.on('data',message=>{
-        if(!message||typeof message!=='object')return;
-        if(message.type==='rejected')return fail(message.reason||'Pairing rejected');
-        if(message.type==='ready'){
-          if(ended)return;
-          ready=true;ended=true;clearTimeout(timeout);resolve();return;
-        }
-        if(message.type==='response'){
-          const item=waiting.get(message.id);if(!item)return;
-          clearTimeout(item.timer);waiting.delete(message.id);
-          if(message.ok)item.resolve(message.data);
-          else item.reject(new Error(message.error||'Request failed'));
-        }
-      });
-      c.on('close',()=>{
-        if(!ready)fail('Connection closed before approval. Try again.');
-        else{clear('Computer disconnected');onLost('Computer disconnected. Please reconnect.');}
-      });
-      c.on('error',e=>{if(!ready)fail(e.message||'Connection failed');else onLost('Connection error. Please reconnect.');});
-    });
-    client.on('error',e=>{if(!ready)fail('Pairing service: '+(e.type||e.message||'unavailable'));});
-    client.on('disconnected',()=>{if(!ready)status('Signaling interrupted — checking…');});
-  });
-}
-function request(path,{method='GET',body}={}){
-  if(!conn||!conn.open)return Promise.reject(new Error('Phone is not connected to the computer'));
-  const id=(++seq).toString(36)+'-'+Math.random().toString(36).slice(2,8);
-  return new Promise((resolve,reject)=>{
-    const timer=setTimeout(()=>{waiting.delete(id);reject(new Error('Computer did not answer the request'));},18000);
-    waiting.set(id,{resolve,reject,timer});
-    try{conn.send({type:'request',id,method,path,body});}
-    catch(e){clearTimeout(timer);waiting.delete(id);reject(e);}
-  });
-}
-window.HELEN_PHONE={connect,request,close};
+(()=>{'use strict';
+const paths={home:'<path d="m3 10 9-7 9 7v10H3z"/><path d="M9 21v-8h6v8"/>',folder:'<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',monitor:'<rect x="2" y="3" width="20" height="15" rx="2"/><path d="M8 22h8m-4-4v4"/>',brain:'<path d="M12 6a4 4 0 0 0-7-1 4 4 0 0 0-2 7 4 4 0 0 0 4 7c1 3 5 2 5-1V6zM12 6a4 4 0 0 1 7-1 4 4 0 0 1 2 7 4 4 0 0 1-4 7c-1 3-5 2-5-1"/><path d="M8 9v5m8-5v5"/>',settings:'<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor"/><circle cx="15" cy="17" r="3" fill="currentColor"/>',apps:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',pad:'<path d="M6 8h12c4 0 6 9 3 11-1 1-3 0-6-3H9c-3 3-5 4-6 3-3-2-1-11 3-11z"/><path d="M6 12h5m-2.5-2.5v5M16 11h.01M19 14h.01"/>',terminal:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m5 0h5"/>',file:'<path d="M6 2h9l4 4v16H6zM15 2v5h4M9 12h6M9 16h7"/>',music:'<path d="M9 18V5l12-2v13M9 9l12-2"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',book:'<path d="M3 5a4 4 0 0 1 4-1l5 2 5-2a4 4 0 0 1 4 1v15a4 4 0 0 0-4-1l-5 2-5-2a4 4 0 0 0-4 1zM12 6v15"/>',layers:'<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 18l9 5 9-5"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m16 16 5 5"/>',wifi:'<path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="20" r="1"/>',shield:'<path d="m12 2 9 4v6c0 5-4 8-9 10-5-2-9-5-9-10V6z"/>',spark:'<path d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/>',chevron:'<path d="m9 18 6-6-6-6"/>',plus:'<path d="M12 5v14M5 12h14"/>',activity:'<path d="M2 12h5l3-7 4 14 3-7h5"/>',x:'<path d="M5 5l14 14M19 5L5 19"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/>'};
+const I=n=>`<span class="i"><svg viewBox="0 0 24 24" aria-hidden="true">${paths[n]||paths.apps}</svg></span>`;
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const appDefs=[{id:'welcome',name:'Overview',ico:'home',shade:'purple'},{id:'files',name:'Files',ico:'folder',shade:'amber'},{id:'engine',name:'Engine Hub',ico:'apps',shade:'purple'},{id:'helen',name:'Helen',ico:'brain',shade:'rose'},{id:'system',name:'System',ico:'monitor',shade:'teal'},{id:'controller',name:'Controller Lab',ico:'pad',shade:'slate'},{id:'settings',name:'Appearance',ico:'settings',shade:'slate'}];
+const store=k=>{try{return localStorage.getItem(k)}catch{return null}};
+const save=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};
+let theme=store('helen-handheld-theme')||'aurora',motion=store('helen-handheld-motion')||'flow';function applyTheme(){document.documentElement.dataset.theme=theme;document.documentElement.dataset.motion=motion}applyTheme();
+let mode='demo',host='',windows=new Map(),z=10,focused='';const filesDemo={'Welcome.txt':'HELEN Handheld Edition\n\nThis is a visual demo. No PC access is required.','Projects/Ideas.txt':'- Helen Engine integration\n- Shared Python memory\n- BuildView XR\n- Bible Workbench','Notes.md':'# My notes\n\nAn AI-centered handheld computer.'};
+const panelPos=(id)=>{let n=windows.size;const vw=innerWidth,vh=innerHeight;const landscape=vw>vh;return{left:landscape?Math.min(vw*.275,260)+n*14:vw*.06,top:landscape?11+n*10:vh*.30,width:landscape?Math.min(640,Math.max(340,vw*.62)):vw*.88,height:landscape?Math.min(365,Math.max(190,vh-116)):Math.min(500,vh*.55)}};
+function buildIcons(){$('#desktop-icons').innerHTML=appDefs.slice(1).map(a=>`<button class="desktop-icon" data-open="${a.id}" title="${a.name}"><span class="app-icon ${a.shade}">${I(a.ico)}</span><span>${a.name}</span></button>`).join('')}
+function taskbar(){let ids=['welcome','files','engine','helen','system','controller'];$('#taskpins').innerHTML=ids.map(id=>{const a=appDefs.find(x=>x.id===id);return `<button class="taskpin ${windows.has(id)?'active':''}" title="${a.name}" data-taskwin="${id}">${I(a.ico)}</button>`}).join('')}
+function toast(t){let el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(el.timer);el.timer=setTimeout(()=>el.hidden=true,2600)}
+function contents(id){if(id==='welcome')return `<div class="tiny">HELEN / HANDHELD EDITION · V0.6</div><h1>Your PC. In your hands.</h1><p class="muted small">A real desktop-style experience on your phone, designed for touch and controller navigation.</p><div class="panel" style="margin-bottom:9px;display:flex;align-items:center;justify-content:space-between;gap:8px"><div><div class="tiny">CONNECTION STATUS</div><div style="font-size:13px;font-weight:750;margin-top:5px">${mode==='live'?'Connected to '+esc(host||'PC'):'Demo workspace'}</div><div class="muted small">${mode==='live'?'Phone-to-PC bridge is active':'Explore without your computer'}</div></div><span class="chip ${mode==='live'?'success':''}">${mode==='live'?'LIVE':'DEMO'}</span></div><div class="grid"><button class="tile" data-open="controller">${I('pad')} Controller Lab</button><button class="tile" data-open="files">${I('folder')} File Explorer</button><button class="tile" data-open="engine">${I('apps')} Engine Hub</button></div><div class="actions"><button class="btn primary" data-connect="1">${I('wifi')} Connect PC</button><button class="btn" data-fullscreen="1">${I('monitor')} Full screen</button></div><div class="small muted">Tip: turn your phone sideways for the full handheld layout. Your Windows host is not modified by this preview.</div>`;
+if(id==='files')return `<div class="row between"><div><div class="tiny">STORAGE</div><h1>File Explorer</h1></div><span class="chip">${mode==='live'?'LIVE WORKSPACE':'DEMO FILES'}</span></div><div class="actions"><button class="btn" data-newfolder="1">${I('plus')} New folder</button><button class="btn" data-newnote="1">${I('file')} New note</button><button class="btn" data-refresh-files="1">Refresh</button></div><div id="filecrumb" class="muted small">HELEN Workspace</div><div id="filelist" class="list"><div class="small muted">Loading files…</div></div>`;
+if(id==='engine')return `<div class="tiny">APPLICATIONS / SERVICES</div><h1>Engine Hub</h1><p class="small muted">The future home of your original applications. These are placeholders until their adapters are built.</p><div class="list">${[['Helen AI','brain','Integration planned'],['BuildView XR','layers','Integration planned'],['Bible Workbench','book','Integration planned'],['Music Studio','music','Integration planned']].map(x=>`<button class="listitem" data-toast="${x[0]} will be connected later"><span class="app-icon ${x[1]==='brain'?'rose':'purple'}" style="width:33px;height:33px">${I(x[1])}</span><span class="grow"><strong>${x[0]}</strong><br><small>${x[2]}</small></span>${I('chevron')}</button>`).join('')}</div>`;
+if(id==='helen')return `<div class="row between"><div><div class="tiny">ASSISTANT PRESENCE</div><h1>Helen</h1></div><span class="chip">PREVIEW</span></div><div class="panel" style="text-align:center;padding:18px 12px"><div style="font-size:25px;color:var(--bright)">${I('spark')}</div><strong>Preserved brain. New interface.</strong><p class="small muted">The orb is an animated placeholder. Your original Helen AI and its memory are not yet integrated here.</p></div><div class="actions"><button class="btn" data-orb-pulse="1">Preview speaking animation</button><button class="btn" data-open="engine">View connected modules</button></div>`;
+if(id==='system')return `<div class="tiny">MONITOR / HOST</div><h1>System</h1><p class="small muted">Live computer details are available when paired with the existing host.</p><div class="grid" id="sysgrid"><div class="panel">${I('monitor')}<div class="tiny">HOST</div><strong>${mode==='live'?esc(host):'Demo mode'}</strong></div><div class="panel">${I('shield')}<div class="tiny">MEMORY</div><strong>Planned</strong></div><div class="panel">${I('wifi')}<div class="tiny">CONNECTION</div><strong>${mode==='live'?'Live':'Not paired'}</strong></div></div><div class="actions"><button class="btn" data-connect="1">Pair with PC</button><button class="btn" data-open="settings">Appearance</button></div>`;
+if(id==='controller')return `<div class="row between"><div><div class="tiny">INPUT DEVICES / BETA</div><h1>Controller Lab</h1></div><span class="chip" id="pad-chip">SCANNING</span></div><p class="small muted">Connect your Play force controller to Android using its supported Bluetooth mode, then press a button. This screen identifies the browser's actual axis/button numbers.</p><div class="panel" style="display:flex;align-items:center;gap:14px"><div style="font-size:28px;color:var(--bright)">${I('pad')}</div><div><strong id="pad-name">Searching for gamepad…</strong><div class="small muted" id="pad-extra">Controller input not detected yet</div></div></div><h2>Live inputs</h2><div id="pad-inputs" class="panel small muted">Connect a controller and press a button.</div><h2>Suggested desktop controls</h2><div class="hgroup">${['Left stick: cursor','A / Button 0: click','B / Button 1: back','LB / RB: switch','Start: menu'].map(x=>`<span class="badge">${x}</span>`).join('')}</div><div class="small muted" style="margin-top:10px">Mapping is provisional. Controller button indices can vary, so verify them here before relying on shortcuts.</div><div class="actions"><button class="btn" data-togglecursor="1">Toggle test cursor</button><button class="btn" data-fullscreen="1">Full screen</button></div>`;
+if(id==='settings')return `<div class="tiny">PERSONALIZATION</div><h1>Appearance</h1><p class="small muted">Make this handheld desktop feel like yours.</p><label class="label" for="theme-select">Glass finish</label><select id="theme-select"><option value="aurora" ${theme==='aurora'?'selected':''}>Aurora · deep blue</option><option value="silver" ${theme==='silver'?'selected':''}>Silver · bright glass</option><option value="obsidian" ${theme==='obsidian'?'selected':''}>Obsidian · dark violet</option></select><label class="label" for="motion-select">Animation level</label><select id="motion-select"><option value="flow" ${motion==='flow'?'selected':''}>Flow · normal</option><option value="calm" ${motion==='calm'?'selected':''}>Calm · subtle</option><option value="off" ${motion==='off'?'selected':''}>Off · reduce motion</option></select><div class="actions"><button class="btn" data-fullscreen="1">${I('monitor')} Full screen</button></div><p class="small muted">For app-like full-screen on Android, host over HTTPS and add to your home screen. Chrome's browser controls cannot always be hidden from a normal tab.</p>`;
+return '<p>Unknown application.</p>'}
+function showWindow(id){if(!appDefs.some(a=>a.id===id))return;if(windows.has(id)){const w=windows.get(id);w.min=false;focus(id);syncWindow(id);return}const pos=panelPos(id);windows.set(id,{...pos,z:++z,min:false,max:false});focus(id);syncWindow(id);taskbar();if(id==='files')refreshFiles();if(id==='system')refreshSystem();if(id==='controller')refreshPadUI()}
+function syncWindow(id){let data=windows.get(id),area=$('#win-layer');if(!data)return;let win=document.getElementById('win-'+id);let def=appDefs.find(a=>a.id===id);if(!win){win=document.createElement('section');win.className='win';win.id='win-'+id;win.dataset.win=id;win.innerHTML=`<div class="winbar" data-drag="${id}"><div class="winbar-title">${I(def.ico)} ${esc(def.name)}</div><div class="wincontrols"><button class="wincontrol" data-op="min" data-target="${id}" title="Minimize">—</button><button class="wincontrol" data-op="max" data-target="${id}" title="Maximize">□</button><button class="wincontrol" data-op="close" data-target="${id}" title="Close">×</button></div></div><div class="winbody">${contents(id)}</div>`;area.append(win)}win.style.left=data.left+'px';win.style.top=data.top+'px';win.style.width=data.width+'px';win.style.height=data.height+'px';win.style.zIndex=data.z;win.classList.toggle('focused',id===focused);win.classList.toggle('maximized',!!data.max);win.style.display=data.min?'none':'flex'}
+function focus(id){focused=id;let win=windows.get(id);if(win)win.z=++z;for(let k of windows.keys()){let el=document.getElementById('win-'+k);if(el){el.classList.toggle('focused',k===id);el.style.zIndex=windows.get(k).z}}taskbar()}
+function operate(id,op){let w=windows.get(id);if(!w)return;if(op==='close'){windows.delete(id);document.getElementById('win-'+id)?.remove();focused='';const others=[...windows.keys()];if(others.length)focus(others.at(-1))}else if(op==='min'){w.min=true;w.max=false;syncWindow(id)}else if(op==='max'){w.max=!w.max;w.min=false;syncWindow(id)}taskbar()}
+function toggleTask(id){if(!windows.has(id))return showWindow(id);const w=windows.get(id);if(id===focused&&!w.min){operate(id,'min');return}w.min=false;focus(id);syncWindow(id)}
+let currentFolder='';function getDemoFiles(path){const prefix=path?path+'/':'';let out=new Map;for(let filename of Object.keys(filesDemo)){if(!filename.startsWith(prefix))continue;let rest=filename.slice(prefix.length);if(!rest)continue;let part=rest.split('/')[0],folder=rest.includes('/');if(!out.has(part))out.set(part,{name:part,path:prefix+part,type:folder?'folder':'file'})}return [...out.values()]}
+let loadNum=0;async function refreshFiles(){const root=$('#filelist');if(!root)return;const current=++loadNum;$('#filecrumb').textContent='HELEN Workspace'+(currentFolder?' / '+currentFolder:'');root.innerHTML='<div class="small muted">Loading…</div>';try{let entries;if(mode==='live'){const r=await request('/api/files?path='+encodeURIComponent(currentFolder));entries=r.entries||[]}else entries=getDemoFiles(currentFolder);if(current!==loadNum||!$('#filelist'))return;root.innerHTML=entries.length?entries.map(e=>`<button class="listitem" data-file-path="${esc(e.path)}" data-file-type="${esc(e.type)}">${I(e.type==='folder'?'folder':'file')}<div class="grow"><strong>${esc(e.name)}</strong><br><small>${e.type==='folder'?'Folder':'Document'}</small></div>${I('chevron')}</button>`).join(''):'<div class="panel muted small">No items in this folder.</div>';if(currentFolder)root.insertAdjacentHTML('afterbegin',`<button class="listitem" data-file-back="1">${I('chevron')} .. Back</button>`)}catch(e){if(current===loadNum&&$('#filelist'))$('#filelist').textContent='Unable to load: '+e.message}}
+async function openFile(path,type){if(type==='folder'){currentFolder=path;refreshFiles();return}try{let content=mode==='live'?(await request('/api/file?path='+encodeURIComponent(path))).content:filesDemo[path];openDialog(`<h2>${esc(path.split('/').at(-1))}</h2><textarea id="file-editor"></textarea><div class="actions"><button class="btn primary" data-savefile="${esc(path)}">Save</button><button class="btn" data-dismiss="1">Cancel</button></div>`);$('#file-editor').value=content||''}catch(e){toast(e.message)}}
+function openDialog(html){$('#dialogbox').innerHTML=html;$('#dialog').hidden=false}function closeDialog(){$('#dialog').hidden=true;$('#dialogbox').innerHTML=''}
+async function createItem(kind){const name=prompt(kind==='folder'?'Name your new folder':'Name your new note (e.g. Ideas.txt)');if(!name)return;if(!/^[^/\\]{1,80}$/.test(name)){toast('Invalid name');return}const path=(currentFolder?currentFolder+'/':'')+name;try{if(mode==='live'){if(kind==='folder')await request('/api/folder/create',{method:'POST',body:{path}});else await request('/api/file/save',{method:'POST',body:{path,content:''}})}else filesDemo[kind==='folder'?path+'/.keep.txt':path]='';refreshFiles();toast('Created '+name)}catch(e){toast(e.message)}}
+async function refreshSystem(){if(mode!=='live')return;try{let d=await request('/api/system');const box=$('#sysgrid');if(box)box.innerHTML=[['HOST',d.host],['OS',d.os],['PYTHON',d.python],['CPU CORES',d.cpu_cores]].map(([a,b])=>`<div class="panel"><div class="tiny">${a}</div><strong>${esc(b||'—')}</strong></div>`).join('')}catch(e){toast(e.message)}}
+function startMenu(){const el=$('#startpanel');if(!el.hidden){el.hidden=true;return}el.innerHTML=`<div class="head">HELEN OS <span class="tiny" style="float:right">HANDHELD</span></div><input class="textinput" id="start-search" placeholder="Search applications…" autocomplete="off"><h2 style="font-size:11px">Applications</h2><div id="start-items" class="grid">${appDefs.map(a=>`<button class="tile" data-open="${a.id}">${I(a.ico)} ${a.name}</button>`).join('')}</div><div class="actions"><button class="btn" data-connect="1">${I('wifi')} Connect PC</button><button class="btn" data-open="settings">Customize</button></div>`;el.hidden=false;$('#start-search').focus()}
+function connectDialog(){if(mode==='live'){openDialog(`<h2>Connected PC</h2><p class="small">Connected to ${esc(host||'Windows PC')}</p><button class="btn" data-disconnect="1">Disconnect</button>`);return}openDialog(`<h2>Connect to your computer</h2><p class="small muted">Enter the 10-digit code generated by your existing Windows HELEN host, then approve the connection on the PC. Demo works without pairing.</p><label class="label">Pairing code</label><input class="textinput" id="pair-code" inputmode="numeric" maxlength="11" placeholder="00000 00000"><p class="small muted" id="pair-status">No code saved on this phone.</p><div class="actions"><button class="btn primary" data-pair="1">Connect</button><button class="btn" data-dismiss="1">Cancel</button></div>`) }
+// Original v0.3 pairing transport compatibility: 10-digit PC code; approval; request/response messages.
+let peer=null,conn=null,seq=0;const waiting=new Map();function disconnect(){for(const [id,r] of waiting){clearTimeout(r.timer);r.reject(Error('Disconnected'))}waiting.clear();try{conn?.close()}catch{}try{peer?.destroy()}catch{}conn=null;peer=null;mode='demo';host='';updateStatus()}
+function loadPeer(){if(window.Peer)return Promise.resolve();return new Promise((res,rej)=>{let s=document.createElement('script'),timer=setTimeout(()=>rej(Error('PeerJS unavailable')),15000);s.src='https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js';s.onload=()=>{clearTimeout(timer);window.Peer?res():rej(Error('Pairing library unavailable'))};s.onerror=()=>{clearTimeout(timer);rej(Error('Could not load pairing library'))};document.head.append(s)})}
+async function pair(code){if(!/^\d{10}$/.test(code))throw Error('Please enter a 10-digit code');disconnect();await loadPeer();return new Promise((resolve,reject)=>{let done=false,ready=false;const timer=setTimeout(()=>fail('Pairing timed out'),70000);function fail(s){if(done)return;done=true;clearTimeout(timer);disconnect();reject(Error(s))}const p=peer=new Peer({host:'0.peerjs.com',port:443,secure:true,debug:0,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'}]}});p.on('open',()=>{if(done)return;setPairText('Waiting for PC approval…');const c=conn=p.connect('helen-02-'+code,{reliable:true,serialization:'json',metadata:{type:'HELEN Desktop'}});c.on('data',m=>{if(!m||typeof m!=='object')return;if(m.type==='rejected')return fail(m.reason||'Rejected');if(m.type==='ready'){if(done)return;ready=true;done=true;clearTimeout(timer);resolve();return}if(m.type==='response'){let item=waiting.get(m.id);if(!item)return;waiting.delete(m.id);clearTimeout(item.timer);m.ok?item.resolve(m.data):item.reject(Error(m.error||'Request failed'))}});c.on('close',()=>{if(!ready)fail('Closed before approval');else{disconnect();toast('PC disconnected')}});c.on('error',e=>{if(!ready)fail(e.message||'Pairing failed');else{disconnect();toast('PC connection lost')}})});p.on('error',e=>{if(!ready)fail('Pairing service: '+(e.type||e.message))})})}
+function request(path,{method='GET',body}={}){if(!conn?.open)return Promise.reject(Error('PC not connected'));const id='h'+(++seq)+'-'+Math.random().toString(36).slice(2,6);return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{waiting.delete(id);reject(Error('PC request timed out'))},18000);waiting.set(id,{resolve,reject,timer});try{conn.send({type:'request',id,path,method,body})}catch(e){clearTimeout(timer);waiting.delete(id);reject(e)}})}
+function setPairText(t){let s=$('#pair-status');if(s)s.textContent=t}
+function updateStatus(){$('#connection-state').textContent=mode==='live'?'PC CONNECTED':'VISUAL DEMO';$('#statusdot').className='dot '+mode;$('#live-name').textContent=mode==='live'?'PC ONLINE':'DEMO';if(windows.has('welcome'))repaint('welcome');if(windows.has('system'))repaint('system')}
+function repaint(id){let el=document.querySelector('#win-'+id+' .winbody');if(el)el.innerHTML=contents(id)}
+function doFullscreen(){let shell=$('#shell');if(!document.fullscreenElement){(shell.requestFullscreen?.()||Promise.reject()).catch(()=>toast('Use Add to Home Screen for immersive mode'))}else document.exitFullscreen?.()}
+function orbPulse(){let el=$('#orbwrap');el.classList.add('pulse');setTimeout(()=>el.classList.remove('pulse'),2400);toast('Helen orb animation preview — no microphone or AI connected')}
+// Pointer-based dragging of desktop windows.
+let drag=null;document.addEventListener('pointerdown',e=>{let bar=e.target.closest('[data-drag]');if(!bar||e.target.closest('button'))return;let id=bar.dataset.drag,win=windows.get(id);if(!win||win.max)return;focus(id);drag={id,x:e.clientX,y:e.clientY,l:win.left,t:win.top,pointer:e.pointerId,element:bar};try{bar.setPointerCapture(e.pointerId)}catch{}});
+document.addEventListener('pointermove',e=>{if(!drag||drag.pointer!==e.pointerId)return;let data=windows.get(drag.id);if(!data)return;data.left=Math.max(0,Math.min(innerWidth-90,drag.l+e.clientX-drag.x));data.top=Math.max(0,Math.min(innerHeight-135,drag.t+e.clientY-drag.y));syncWindow(drag.id)});document.addEventListener('pointerup',e=>{if(drag&&e.pointerId===drag.pointer)drag=null});document.addEventListener('pointercancel',()=>drag=null);
+document.addEventListener('click',async e=>{const el=e.target.closest('button');if(!el)return;let a=el.dataset;if(a.open){$('#startpanel').hidden=true;showWindow(a.open);return}if(a.taskwin){toggleTask(a.taskwin);return}if(a.op){operate(a.target,a.op);return}if(a.toast){toast(a.toast);return}if(a.connect){$('#startpanel').hidden=true;connectDialog();return}if(a.dismiss){closeDialog();return}if(a.fullscreen){doFullscreen();return}if(a.orbPulse){orbPulse();return}if(a.newfolder){createItem('folder');return}if(a.newnote){createItem('file');return}if(a.refreshFiles){refreshFiles();return}if(a.fileBack){currentFolder=currentFolder.split('/').slice(0,-1).join('/');refreshFiles();return}if(a.filePath){openFile(a.filePath,a.fileType);return}if(a.savefile){try{let content=$('#file-editor').value;if(mode==='live')await request('/api/file/save',{method:'POST',body:{path:a.savefile,content}});else filesDemo[a.savefile]=content;closeDialog();toast('Saved')}catch(err){toast(err.message)}return}if(a.pair){const code=$('#pair-code').value.replace(/\D/g,'');try{setPairText('Connecting…');await pair(code);let d=await request('/api/status');mode='live';host=d.host||'PC';updateStatus();closeDialog();toast('Windows PC connected')}catch(err){setPairText(err.message)}return}if(a.disconnect){disconnect();closeDialog();toast('Disconnected');return}if(a.togglecursor){gamepadCursor=!gamepadCursor;$('#pointer').classList.toggle('visible',gamepadCursor);toast(gamepadCursor?'Test cursor enabled':'Test cursor hidden');return}});
+$('#orb').onclick=()=>{showWindow('helen');orbPulse()};$('#start-button').onclick=startMenu;$('#dialog').onclick=e=>{if(e.target.id==='dialog')closeDialog()};document.addEventListener('input',e=>{if(e.target.id==='start-search'){$$('#start-items button').forEach(b=>b.hidden=!b.textContent.toLowerCase().includes(e.target.value.toLowerCase()))}});const $$=s=>[...document.querySelectorAll(s)];document.addEventListener('change',e=>{if(e.target.id==='theme-select'){theme=e.target.value;save('helen-handheld-theme',theme);applyTheme()}if(e.target.id==='motion-select'){motion=e.target.value;save('helen-handheld-motion',motion);applyTheme()}});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#dialog').hidden)closeDialog();else if(!$('#startpanel').hidden)$('#startpanel').hidden=true;else if(focused)operate(focused,'min')}if(e.key==='F11')doFullscreen()});
+// Generic Gamepad API: detect controller, show actual mappings and use provisional browser button indices.
+let lastPad=null,gamepadCursor=false,px=innerWidth*.55,py=innerHeight*.55,lastFrame=performance.now(),lastPadButtons=[],lastTrigger=0,padDirection=0,padSwitch=0;
+function padOf(){try{return [...(navigator.getGamepads?.()||[])].find(g=>g&&g.connected)||null}catch{return null}}
+function gameLoop(t){let dt=Math.min(50,t-lastFrame);lastFrame=t;const pad=padOf();if(pad){if(!lastPad||lastPad.id!==pad.id){lastPad=pad;toast('Controller detected');gamepadCursor=true;$('#pointer').classList.add('visible')};const ax=pad.axes||[],b=pad.buttons||[];const dx=Math.abs(ax[0]||0)>.16?ax[0]:0,dy=Math.abs(ax[1]||0)>.16?ax[1]:0;if(dx||dy){px=Math.max(2,Math.min(innerWidth-24,px+dx*dt*.65));py=Math.max(1,Math.min(innerHeight-27,py+dy*dt*.65));gamepadCursor=true};if(gamepadCursor){const cursor=$('#pointer');cursor.classList.add('visible');cursor.style.left=px+'px';cursor.style.top=py+'px'};const press=n=>(b[n]?.pressed||false),edge=n=>press(n)&&!lastPadButtons[n];if(edge(0)){let hit=document.elementFromPoint(px+4,py+4);if(hit){let btn=hit.closest('button');if(btn)btn.click();else if(hit.closest('.win'))focus(hit.closest('.win').dataset.win)}}if(edge(1)){if(!$('#dialog').hidden)closeDialog();else if(!$('#startpanel').hidden)$('#startpanel').hidden=true;else if(focused)operate(focused,'min')}if(edge(9))startMenu();if(edge(4)||edge(5)){const arr=[...windows.keys()];if(arr.length){let idx=arr.indexOf(focused)+(edge(5)?1:-1);let target=arr[(idx+arr.length)%arr.length];toggleTask(target)}}let sx=ax[2]||0,sy=ax[3]||0;if(Math.abs(sy)>.25){let visible=windows.get(focused);let node=visible&&document.querySelector('#win-'+focused+' .winbody');if(node)node.scrollTop+=sy*dt*.32}lastPadButtons=b.map(x=>!!x.pressed);$('#controller-status').classList.add('detected');$('#gamepad-status-icon').textContent='●';$('#gamepad-status-text').textContent='Pad ready';if(windows.has('controller')&&t-lastTrigger>150){lastTrigger=t;refreshPadUI(pad)}}else{if(lastPad){lastPad=null;lastPadButtons=[];toast('Controller disconnected')}$('#gamepad-status-icon').textContent='◌';$('#gamepad-status-text').textContent='Controller off';if(!gamepadCursor)$('#pointer').classList.remove('visible');if(windows.has('controller')&&t-lastTrigger>600){lastTrigger=t;refreshPadUI(null)}}requestAnimationFrame(gameLoop)}
+function refreshPadUI(p=padOf()){const chip=$('#pad-chip'),name=$('#pad-name'),extra=$('#pad-extra'),inputs=$('#pad-inputs');if(!chip)return;chip.textContent=p?'DETECTED':'WAITING';name.textContent=p?(p.id||'Bluetooth gamepad'):'No controller detected';extra.textContent=p?`${p.buttons.length} buttons · ${p.axes.length} axes · mapping: ${p.mapping||'unknown'}`:'Pair with Android Bluetooth, then press a button';inputs.textContent=p?`Axes: ${p.axes.map((v,i)=>`${i}: ${v.toFixed(2)}`).join('  |  ')}\nButtons pressed: ${p.buttons.map((v,i)=>v.pressed?i:null).filter(v=>v!==null).join(', ')||'none'}`:'No gamepad data yet.';inputs.style.whiteSpace='pre-wrap'}
+function clock(){let d=new Date();$('#topclock').textContent=$('#taskclock').textContent=d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});$('#taskdate').textContent=d.toLocaleDateString([],{month:'short',day:'numeric'})}clock();setInterval(clock,14000);
+window.addEventListener('resize',()=>{px=Math.min(px,innerWidth-25);py=Math.min(py,innerHeight-25);for(let [id,w] of windows)if(!w.max){w.left=Math.min(w.left,Math.max(0,innerWidth-250));w.top=Math.min(w.top,Math.max(0,innerHeight-160));syncWindow(id)}});
+buildIcons();taskbar();showWindow('welcome');requestAnimationFrame(gameLoop);
 })();
-
 </script>
-<script>
-/* HELEN Remote OS 0.3 - local host, browser-to-browser phone bridge, or demo. */
-(() => {
-  'use strict';
-  const $ = (s, root = document) => root.querySelector(s);
-  const $$ = (s, root = document) => [...root.querySelectorAll(s)];
-  const apps = {
-    files: {title:'HELEN Workspace', glyph:'▤', color:'blue'},
-    pcfiles: {title:'This PC — Read Only', glyph:'▣', color:'teal'},
-    notes: {title:'Notes', glyph:'✎', color:'violet'},
-    system: {title:'Computer Monitor', glyph:'▥', color:'teal'},
-    python: {title:'Python Console', glyph:'⌘', color:'amber'},
-    connection: {title:'Connection Center', glyph:'◎', color:'pink'},
-  };
-  const demoFiles = {
-    'Welcome.txt': 'Welcome to the visual demo of HELEN Remote OS.\n\nThis browser is NOT connected to a real Windows computer.\nLaunch server.py and connect with your private token for real files and system details.',
-    'Notes.md': '# My notes\n\nAn example note in demo mode. Edits last only until you reload the page.',
-    'Projects/Ideas.txt': 'Helen integration\nRemote file manager\nPhone-first desktop interface\n',
-  };
-  const demoTasks = [
-    {id:'python-version',name:'Python environment',description:'Inspect the Python runtime'},
-    {id:'system-summary',name:'Computer report',description:'Read actual host system details'},
-    {id:'workspace-audit',name:'Workspace audit',description:'Inspect the restricted data folder'},
-    {id:'time-check',name:'Clock check',description:'Run Python to get system date and time'},
-  ];
-  const phoneClient = !!window.HELEN_PHONE_CLIENT;
-  let mode = 'offline';
-  let token = '';
-  let activeApp = '';
-  let zTop = 10;
-  let toastTimer = null;
-  const windows = new Map();
-
-  function escapeHTML(v) {
-    return String(v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  }
-  function timeTick(){
-    $('#headerClock').textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  }
-  timeTick(); setInterval(timeTick, 20000);
-  function toast(msg){
-    $('#toast').textContent = msg;
-    $('#toast').classList.remove('hidden');
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.add('hidden'), 3500);
-  }
-  function setMode(next, host='') {
-    mode = next;
-    const live = next==='live', demo = next==='demo';
-    const label = live ? 'CONNECTED' : demo ? 'DEMO MODE' : 'OFFLINE';
-    $('#modeTag').textContent = label;
-    $('#modeTag').className = 'mode-tag' + (live ? ' live' : demo ? ' demo' : '');
-    $('#taskMode').textContent = live ? 'ONLINE' : demo ? 'DEMO' : 'OFFLINE';
-    $('#taskDot').className = 'status-dot' + (live ? ' live' : demo ? ' demo' : '');
-    $('#hostLabel').textContent = live ? host || 'Connected' : demo ? 'Sample computer' : 'Not connected';
-    $('#sessionLabel').textContent = live ? 'Protected' : demo ? 'Simulation' : 'Locked';
-    $('#startState').textContent = label;
-  }
-  function hideLogin(){ $('#authOverlay').classList.add('hidden'); }
-  function showLogin(){ $('#authOverlay').classList.remove('hidden'); }
-  async function api(path, options={}) {
-    if(mode !== 'live') throw new Error('Real backend not connected');
-    if(phoneClient) {
-      return window.HELEN_PHONE.request(path, {method:options.method||'GET', body:options.body ? JSON.parse(options.body) : undefined});
-    }
-    let response;
-    try {
-      response = await fetch(path, { ...options, headers: {
-        Authorization: `Bearer ${token}`,
-        ...(options.body ? {'Content-Type':'application/json'} : {}),
-      }, cache:'no-store' });
-    } catch {
-      throw new Error('Cannot reach the Python service. Is server.py still running?');
-    }
-    let result;
-    try {result = await response.json();} catch {throw new Error('Invalid reply from Python service');}
-    if (!response.ok) {
-      if(response.status === 401) {toast('Your session expired. Reconnect with your token.'); disconnect();}
-      throw new Error(result.error || `HTTP ${response.status}`);
-    }
-    return result;
-  }
-  function post(path, obj){ return api(path,{method:'POST',body:JSON.stringify(obj)}); }
-  async function connect(){
-    const supplied = $('#tokenInput').value.trim();
-    if (!supplied) { $('#authError').textContent='Enter the connection token displayed by server.py.'; return; }
-    $('#authError').textContent = 'Checking connection…';
-    $('#connectButton').disabled=true;
-    try {
-      if(phoneClient){
-        await window.HELEN_PHONE.connect(supplied,{status:message=>{$('#authError').textContent=message;},lost:reason=>{if(mode==='live'){disconnect();$('#authError').textContent=reason;}}});
-        mode='live';
-      }else{mode='live';token=supplied;}
-      const status=await api('/api/status');
-      setMode('live',status.host);
-      hideLogin();
-      $('#tokenInput').value='';
-      $('#authError').textContent='';
-      toast(`Secure session with ${status.host} established`);
-      openApp(phoneClient ? 'pcfiles' : 'system');
-    } catch(err) {
-      mode='offline';token='';if(phoneClient)window.HELEN_PHONE.close(); $('#authError').textContent=err.message;
-    } finally {$('#connectButton').disabled=false;}
-  }
-  function disconnect(){
-    if(phoneClient)window.HELEN_PHONE.close();else window.HELEN_PAIRING?.stop();
-    token='';
-    windows.forEach(w => w.el.remove());windows.clear(); activeApp='';
-    setMode('offline');updateTaskButtons();closeStart();showLogin();
-    $('#tokenInput').value='';
-  }
-  function launchDemo(){setMode('demo');hideLogin();toast('Visual demo — no computer is connected');openApp('files');}
-  $('#connectButton').addEventListener('click',connect);
-  $('#tokenInput').addEventListener('keydown', e=>{if(e.key==='Enter') connect();});
-  $('#showToken').addEventListener('click',()=>{
-    $('#tokenInput').type = $('#tokenInput').type === 'password' ? 'text' : 'password';
-  });
-  $('#demoButton').addEventListener('click',launchDemo);
-  $('#lockButton').addEventListener('click',disconnect);
-  $('#menuDisconnect').addEventListener('click',disconnect);
-  $('#startButton').addEventListener('click',e=>{e.stopPropagation();$('#startMenu').classList.toggle('hidden');});
-  $('#desktop').addEventListener('pointerdown',e=>{if(!e.target.closest('#startMenu'))closeStart();});
-  function closeStart(){ $('#startMenu').classList.add('hidden'); }
-  $$('[data-app]').forEach(el=>el.addEventListener('click',()=>{if(mode==='offline'){showLogin();return;}openApp(el.dataset.app);closeStart();}));
-
-  function updateTaskButtons(){
-    $('#taskOpen').replaceChildren();
-    windows.forEach((entry,key)=>{
-      const btn=document.createElement('button');btn.textContent=apps[key].title;
-      btn.className = (key===activeApp && !entry.minimized) ? 'active' : '';
-      btn.onclick=()=>{if(entry.minimized||key!==activeApp) {entry.el.classList.remove('hidden');entry.minimized=false;focusWindow(key);}else{entry.el.classList.add('hidden');entry.minimized=true;activeApp='';updateTaskButtons();}};
-      $('#taskOpen').append(btn);
-    });
-    $$('.task-pins [data-app]').forEach(el=>el.classList.toggle('active',el.dataset.app===activeApp));
-  }
-  function focusWindow(key){
-    const w=windows.get(key);if(!w)return;
-    w.el.classList.remove('hidden');w.minimized=false;
-    windows.forEach(entry=>entry.el.classList.remove('focused'));
-    w.el.classList.add('focused');w.el.style.zIndex=++zTop;activeApp=key;
-    updateTaskButtons();
-  }
-  function openApp(key){
-    if(!apps[key])return;
-    if(windows.has(key)){focusWindow(key);return;}
-    const cfg=apps[key];
-    const el=document.createElement('section');el.className='os-window focused';el.setAttribute('role','dialog');el.setAttribute('aria-label',cfg.title);
-    const offset=windows.size*26;
-    el.style.left=`${Math.min(70+offset,Math.max(8,window.innerWidth-470))}px`;
-    el.style.top=`${Math.min(38+offset,Math.max(8,$('#desktop').clientHeight-260))}px`;
-    el.innerHTML=`<div class="window-titlebar"><div class="window-heading"><span class="app-glyph ${cfg.color}">${cfg.glyph}</span><span>${cfg.title}</span></div><div class="window-controls"><button data-command="min" title="Minimize" aria-label="Minimize">−</button><button data-command="max" title="Maximize" aria-label="Maximize">□</button><button data-command="close" class="close" title="Close" aria-label="Close">×</button></div></div><div class="window-body"></div>`;
-    const body=$('.window-body',el);
-    const title=$('.window-titlebar',el);
-    el.addEventListener('pointerdown',()=>focusWindow(key));
-    $$('[data-command]',el).forEach(b=>b.addEventListener('click',e=>{
-      e.stopPropagation();const c=b.dataset.command;
-      if(c==='close'){el.remove();windows.delete(key);activeApp='';if(windows.size)focusWindow([...windows.keys()].at(-1));else updateTaskButtons();}
-      if(c==='min'){el.classList.add('hidden');windows.get(key).minimized=true;activeApp='';updateTaskButtons();}
-      if(c==='max'){
-        if(!el.classList.contains('maximized')){
-          el.dataset.previous=`${el.style.left}|${el.style.top}|${el.style.width}|${el.style.height}`;
-          el.style.left='8px';el.style.top='8px';el.style.width='calc(100% - 16px)';el.style.height='calc(100% - 16px)';el.classList.add('maximized');
-        }else{
-          const [left,top,width,height]=el.dataset.previous.split('|');
-          el.style.left=left;el.style.top=top;el.style.width=width;el.style.height=height;el.classList.remove('maximized');
-        }
-      }
-    }));
-    let drag=null;
-    title.addEventListener('pointerdown',e=>{
-      if(e.target.closest('button')||window.matchMedia('(max-width: 760px)').matches||el.classList.contains('maximized'))return;
-      drag={x:e.clientX,y:e.clientY,left:el.offsetLeft,top:el.offsetTop};
-      title.setPointerCapture(e.pointerId);
-    });
-    title.addEventListener('pointermove',e=>{
-      if(!drag)return;
-      const parent=$('#desktop');
-      el.style.left=`${Math.max(0,Math.min(parent.clientWidth-100,drag.left+(e.clientX-drag.x)))}px`;
-      el.style.top=`${Math.max(0,Math.min(parent.clientHeight-55,drag.top+(e.clientY-drag.y)))}px`;
-    });
-    title.addEventListener('pointerup',()=>{drag=null;});
-    title.addEventListener('pointercancel',()=>{drag=null;});
-    $('#windowLayer').append(el);
-    windows.set(key,{el,body,minimized:false});focusWindow(key);
-    const render={files:renderFiles,pcfiles:renderPCFiles,notes:renderNotes,system:renderSystem,python:renderPython,connection:renderConnection}[key];
-    render(body).catch(err => displayError(body,err));
-  }
-  function displayError(root,err){
-    root.replaceChildren();const p=document.createElement('div');p.className='empty-state';p.textContent=err.message||String(err);root.append(p);
-  }
-  function formatBytes(n){return n>=1e9?(n/1e9).toFixed(1)+' GB':n>=1e6?(n/1e6).toFixed(1)+' MB':n>=1e3?(n/1e3).toFixed(1)+' KB':n+' B';}
-  function demoListing(path){
-    let prefix=path?path+'/':'';const result=new Map();
-    Object.keys(demoFiles).forEach(p=>{if(!p.startsWith(prefix))return;const rest=p.slice(prefix.length);const name=rest.split('/')[0];if(!name)return;result.set(name,{name,type:rest.includes('/')?'folder':'file',path:prefix+name,size:demoFiles[p]?.length||0});});
-    return {path,entries:[...result.values()].sort((a,b)=>(a.type===b.type?a.name.localeCompare(b.name):a.type==='folder'?-1:1))};
-  }
-  async function renderFiles(body,path=''){
-    body.innerHTML=`<div class="pane-header"><div><h2>HELEN workspace</h2><div class="muted">${mode==='live'?'Real files in the restricted PC workspace':'Sample files · visual demo only'}</div></div><div class="row-actions"><button class="action-button" id="newFolder">+ Folder</button><button class="action-button primary" id="newFile">+ File</button></div></div><div class="file-path"><span id="crumb">⌂ / Workspace</span><button id="folderUp">↑ Up</button></div><div id="folderItems" class="file-list"></div>`;
-    const state={path};
-    async function refresh(){
-      const data=mode==='live'?await api('/api/files?path='+encodeURIComponent(state.path)):demoListing(state.path);
-      $('#crumb',body).textContent='⌂ / Workspace'+(state.path?'/'+state.path:'');
-      $('#folderUp',body).disabled=!state.path;
-      const items=$('#folderItems',body);items.replaceChildren();
-      if(!data.entries.length){items.innerHTML='<div class="empty-state">No files in this folder.<br>Create a new note to get started.</div>';return;}
-      data.entries.forEach(item=>{
-        const btn=document.createElement('button');btn.className='file-row';
-        const ico=document.createElement('span');ico.className='file-row-icon';ico.textContent=item.type==='folder'?'▣':'▤';
-        const name=document.createElement('span');name.className='name';name.textContent=item.name;
-        const ext=document.createElement('small');ext.textContent=item.type==='folder'?'FOLDER':formatBytes(item.size||0);
-        btn.append(ico,name,ext);items.append(btn);
-        btn.onclick=()=>{if(item.type==='folder'){state.path=item.path;refresh().catch(err=>displayError(body,err));}else openEditor(body,item.path,()=>renderFiles(body,state.path));};
-      });
-    }
-    $('#folderUp',body).onclick=()=>{state.path=state.path.split('/').slice(0,-1).join('/');refresh().catch(err=>displayError(body,err));};
-    $('#newFolder',body).onclick=async()=>{
-      const name=prompt('New folder name (letters, spaces, and numbers):');if(name===null)return;
-      if(!/^[a-zA-Z0-9 _-]{1,60}$/.test(name)){toast('Use 1–60 letters, digits, spaces, _ or -');return;}
-      const full=[state.path,name].filter(Boolean).join('/');
-      try{if(mode==='live')await post('/api/folder/create',{path:full});else {demoFiles[full+'/.keep.txt']='Demo folder';}
-        await refresh();toast('Folder created');
-      }catch(err){toast(err.message);}
-    };
-    $('#newFile',body).onclick=async()=>{
-      const name=prompt('New text file name (for example: Ideas.md):');if(name===null)return;
-      if(!/^[\w ()-]{1,60}\.(txt|md|json|csv|log)$/i.test(name)){toast('Use a valid .txt, .md, .json, .csv or .log filename');return;}
-      const path=[state.path,name].filter(Boolean).join('/');
-      try{if(mode==='live')await post('/api/file/save',{path,content:''});else demoFiles[path]='';
-        openEditor(body,path,()=>renderFiles(body,state.path));toast('File created');
-      }catch(err){toast(err.message);}
-    };
-    await refresh();
-  }
-  async function openEditor(body,path,onBack){
-    let content;
-    try{content=mode==='live'?(await api('/api/file?path='+encodeURIComponent(path))).content:demoFiles[path];}
-    catch(err){displayError(body,err);return;}
-    body.replaceChildren();const div=document.createElement('div');div.className='file-editor';
-    div.innerHTML=`<div class="pane-header"><div><h2 id="editingName"></h2><div class="muted">${mode==='live'?'Editing a real workspace file':'Editing a temporary demo file'}</div></div><button class="action-button" id="backToFiles">← Back</button></div><textarea spellcheck="false" id="fileContent" aria-label="File contents"></textarea><div class="file-editor-footer"><span class="muted" id="editorCount"></span><button class="action-button primary" id="saveFile">Save changes</button></div>`;
-    body.append(div);
-    $('#editingName',body).textContent=path;
-    const area=$('#fileContent',body);area.value=content;
-    const counter=()=>$('#editorCount',body).textContent=`${area.value.length.toLocaleString()} characters`;
-    area.addEventListener('input',counter);counter();
-    $('#backToFiles',body).onclick=onBack;
-    $('#saveFile',body).onclick=async()=>{try{if(mode==='live')await post('/api/file/save',{path,content:area.value});else demoFiles[path]=area.value;toast('File saved'+(mode==='demo'?' in demo memory':''));}catch(err){toast(err.message);}};
-  }
-
-  // This PC is a separate, read-only explorer. Existing HELEN workspace edits remain unchanged.
-  async function renderPCFiles(body) {
-    let root = '', path = '', rootName = '', filter = '';
-    body.innerHTML = `<div class="pane-header"><div><h2>This PC</h2><div class="muted">Browse your real computer's files • read only</div></div><div class="row-actions"><button id="pcHome" class="action-button">⌂ Folders</button><button id="pcRefresh" class="action-button">↻ Refresh</button></div></div>
-      <div class="pc-toolbar"><button id="pcUp" class="action-button" title="Parent folder">↑</button><div id="pcCrumb" class="pc-location">This PC</div><input id="pcFilter" placeholder="Find in this folder…" aria-label="Filter current folder"></div>
-      <div class="pc-note">PC files are view-only. Changes and new folders still belong in the HELEN Files app.</div>
-      <div id="pcMain" class="file-list pc-file-list"></div>`;
-    const area = $('#pcMain', body), crumb = $('#pcCrumb', body), up = $('#pcUp', body);
-    let renderedItems = [];
-    let requestId = 0;
-    const draw = () => {
-      area.replaceChildren();
-      const matching = renderedItems.filter(i=>i.name.toLowerCase().includes(filter));
-      if(!matching.length){area.innerHTML='<div class="empty-state">Nothing in this folder matches your search.</div>';return;}
-      matching.forEach(item=>{
-        const btn=document.createElement('button'); btn.className='file-row pc-file-row';
-        const ico=document.createElement('span');ico.className='file-row-icon';ico.textContent=item.type==='folder'?'▣':item.preview==='image'?'▧':'▤';
-        const name=document.createElement('span');name.className='name';name.textContent=item.name;
-        const detail=document.createElement('small');detail.textContent=item.type==='folder'?'FOLDER':formatBytes(item.size||0);
-        btn.append(ico,name,detail);area.append(btn);
-        btn.onclick = () => {
-          if(item.type==='root'){root=item.id;rootName=item.name;path='';refresh();}
-          else if(item.type==='folder'){path=item.path;refresh();}
-          else openPCPreview(item.path);
-        };
-      });
-    };
-    const refresh = async () => {
-      const current = ++requestId;
-      area.innerHTML='<div class="empty-state">Loading computer files…</div>';
-      try {
-        let data;
-        if(mode==='demo') {
-          data = root ? {entries: [{name:'Sample.txt',type:'file',path:'Sample.txt',size:48,preview:'text'}],limited:false} :
-            {roots:[{id:'desktop',name:'Desktop'},{id:'documents',name:'Documents'},{id:'downloads',name:'Downloads'},{id:'pictures',name:'Pictures'}]};
-        } else {
-          data = await api(root ? '/api/pc/files?root='+encodeURIComponent(root)+'&path='+encodeURIComponent(path) : '/api/pc/roots');
-        }
-        if(current!==requestId || !body.isConnected)return;
-        crumb.textContent = root ? 'This PC / '+rootName+(path?' / '+path:'') : 'This PC / Choose a folder';
-        up.disabled = !root; filter='';$('#pcFilter',body).value='';
-        renderedItems = root ? data.entries : data.roots.map(r=>({name:r.name,id:r.id,type:'root'}));
-        if(!renderedItems.length){area.innerHTML='<div class="empty-state">No accessible folders or visible files were found. Check your PC user folders.</div>';return;}
-        draw();
-        if(data.limited)toast('Showing the first 250 items in this folder');
-      }catch(e){displayError(area,e);}
-    };
-    const openPCPreview = async (filePath) => {
-      const current = ++requestId;
-      area.innerHTML='<div class="empty-state">Opening preview…</div>';
-      try {
-        const data=mode==='demo'?{type:'text',name:'Sample.txt',content:'This is only a demo. Connect to your Windows PC to browse actual files.'}:
-          await api('/api/pc/preview?root='+encodeURIComponent(root)+'&path='+encodeURIComponent(filePath));
-        if(current!==requestId || !body.isConnected)return;
-        area.replaceChildren();
-        const shell=document.createElement('div');shell.className='pc-preview';
-        const header=document.createElement('div');header.className='pc-preview-head';
-        const title=document.createElement('strong');title.textContent=data.name;
-        const back=document.createElement('button');back.className='action-button';back.textContent='← Back to folder';back.onclick=()=>refresh();
-        header.append(title,back);shell.append(header);
-        if(data.type==='text') {
-          const pre=document.createElement('pre');pre.className='pc-text-preview';pre.textContent=data.content;shell.append(pre);
-        } else if(data.type==='image') {
-          const image=document.createElement('img');image.alt=data.name;image.className='pc-image-preview';
-          if(!/^image\/(png|jpeg|gif|webp)$/.test(data.mime))throw new Error('Unsupported image type');
-          image.src='data:'+data.mime+';base64,'+data.content;shell.append(image);
-        }
-        const foot=document.createElement('div');foot.className='pc-note';foot.textContent='Preview only — no changes can be saved to this PC file.';shell.append(foot);
-        area.append(shell);
-      } catch(e) {
-        if(current!==requestId)return;
-        area.replaceChildren();
-        const msg=document.createElement('div');msg.className='empty-state';msg.textContent=e.message;
-        const back=document.createElement('button');back.className='action-button';back.textContent='← Back';back.onclick=()=>refresh();
-        area.append(msg,back);
-      }
-    };
-    $('#pcHome',body).onclick=()=>{root='';path='';refresh();};
-    $('#pcRefresh',body).onclick=()=>refresh();
-    up.onclick=()=>{if(!root)return;if(!path){root='';rootName='';}else{path=path.split('/').slice(0,-1).join('/');}refresh();};
-    $('#pcFilter',body).oninput=e=>{filter=e.target.value.toLowerCase();draw();};
-    await refresh();
-  }
-
-  async function renderNotes(body){
-    const notePath='Notes.md';
-    let content='';
-    if(mode==='demo')content=demoFiles[notePath]||'';
-    else{
-      try{content=(await api('/api/file?path='+encodeURIComponent(notePath))).content;}
-      catch {content='# HELEN Notes\n\n';}
-    }
-    body.innerHTML=`<div class="pane-header"><div><h2>Quick notes</h2><div class="muted">${mode==='live'?'Synced directly to workspace/Notes.md':'Local demo note — not saved to your PC'}</div></div><button class="action-button primary" id="saveNotes">Save note</button></div><textarea class="notes-textarea" id="notesBody" spellcheck="false" placeholder="Write a thought, an idea, or a task..."></textarea><div class="note-tip">Your notes are plain Markdown text. No cloud account is required.</div>`;
-    $('#notesBody',body).value=content;
-    $('#saveNotes',body).onclick=async()=>{try{const t=$('#notesBody',body).value;if(mode==='live')await post('/api/file/save',{path:notePath,content:t});else demoFiles[notePath]=t;toast('Notes saved'+(mode==='demo'?' in demo memory':''));}catch(err){toast(err.message);}};
-  }
-  async function renderSystem(body){
-    body.innerHTML='<div class="pane-header"><div><h2>Host computer</h2><div class="muted">System properties from the Python backend</div></div><button class="action-button" id="refreshSystem">↻ Refresh</button></div><div id="statsRegion"></div>';
-    const display=async()=>{
-      const data=mode==='live'?await api('/api/system'):{host:'SIMULATED-PC',os:'Demo OS (not a real computer)',architecture:'Sample',python:'Not connected',cpu_cores:'—',disk_total:null,disk_free:null,service_uptime_seconds:0,server_time:new Date().toLocaleString()};
-      $('#statsRegion',body).innerHTML=`<div class="stat-grid"><div class="stat-cell"><label>HOSTNAME</label><strong id="sysHost"></strong><small>Computer identity</small></div><div class="stat-cell"><label>OPERATING SYSTEM</label><strong id="sysOS"></strong><small id="sysArchitecture"></small></div><div class="stat-cell"><label>PROCESSOR CORES</label><strong id="sysCPU"></strong><small>Reported by operating system</small></div><div class="stat-cell"><label>PYTHON ENGINE</label><strong id="sysPython"></strong><small>Host Python runtime</small></div><div class="stat-cell"><label>AVAILABLE STORAGE</label><strong id="sysDisk"></strong><small id="sysTotal"></small></div><div class="stat-cell"><label>SERVICE UPTIME</label><strong id="sysUptime"></strong><small>Since backend started</small></div></div><div class="panel-card" style="margin-top:14px"><h3>Access boundary</h3><div class="muted">${mode==='live'?'This session can edit HELEN workspace files and view standard PC user folders read-only. Python runs only predefined tasks.':'All displayed system values are demo placeholders. No host computer is connected.'}</div></div>`;
-      $('#sysHost',body).textContent=data.host;
-      $('#sysOS',body).textContent=data.os;
-      $('#sysArchitecture',body).textContent=data.architecture;
-      $('#sysCPU',body).textContent=data.cpu_cores;
-      $('#sysPython',body).textContent=data.python;
-      $('#sysDisk',body).textContent=data.disk_free==null?'Sample only':formatBytes(data.disk_free);
-      $('#sysTotal',body).textContent=data.disk_total==null?'No hardware data':'of '+formatBytes(data.disk_total)+' total';
-      $('#sysUptime',body).textContent=Math.floor(data.service_uptime_seconds/60)+'m '+data.service_uptime_seconds%60+'s';
-    };
-    $('#refreshSystem',body).onclick=()=>display().catch(e=>toast(e.message));
-    await display();
-  }
-  async function renderPython(body){
-    body.innerHTML='<div class="pane-header"><div><h2>Python task center</h2><div class="muted">Preapproved Python operations — no arbitrary commands</div></div><span class="eyebrow">PYTHON SERVICE</span></div><div id="pythonTasks" class="task-list"></div><div class="panel-card" style="margin-top:15px"><h3>Output <span class="eyebrow">// RESPONSE</span></h3><div id="consoleText" class="terminal">&gt; Select a Python task above to execute it on the connected computer.</div></div>';
-    const tasks=mode==='live'?(await api('/api/tasks')).tasks:demoTasks;
-    const list=$('#pythonTasks',body);
-    tasks.forEach(task=>{
-      const b=document.createElement('button');b.className='task-choice';
-      const title=document.createElement('b');title.textContent=task.name;
-      const desc=document.createElement('small');desc.textContent=task.description;
-      b.append(title,desc);list.append(b);
-      b.onclick=async()=>{
-        const term=$('#consoleText',body);term.textContent='> Running '+task.name+'…';
-        try{
-          if(mode==='live'){const r=await post('/api/tasks/run',{task:task.id});term.textContent='> '+task.name+'\n\n'+r.output+'\n\n[Finished successfully]';}
-          else{term.textContent='> DEMO MODE / NO PYTHON RUN\n\nThis task would execute on your real PC only after authentication.\n\nTask: '+task.name;}
-        }catch(err){term.textContent='Error: '+err.message;}
-      };
-    });
-  }
-  async function renderConnection(body){
-    if(phoneClient){
-      body.innerHTML='<div class="pane-header"><div><h2>Phone connection</h2><div class="muted">Connected through browser-to-browser pairing</div></div><span class="eyebrow">REMOTE</span></div><div class="panel-card"><h3>Connected PC</h3><p>You are using an approved session with the Windows host. The computer runs the Python tasks and maintains the files. The private Python access token stays on your PC.</p><p class="muted">This session stops if the PC browser closes or its pairing session ends.</p></div>';
-      return;
-    }
-    body.innerHTML=`<div class="pane-header"><div><h2>Pair your phone</h2><div class="muted">Use a code, just like our Browser Link Chat</div></div><span class="eyebrow">WEBRTC • EXPERIMENTAL</span></div>
-      <div class="panel-card pair-card"><h3>Step 1 — Start pairing on this PC</h3><p>Keep this HELEN browser (or Windows Forms host) open and signed in.</p><div class="pair-code" id="pairCode">— — —</div><div class="muted" id="pairState">Not paired</div><div class="row-actions" style="margin-top:14px;flex-wrap:wrap"><button class="action-button primary" id="startPair">Generate pairing code</button><button class="action-button" id="stopPair">Stop pairing</button><button class="action-button" id="copyPair">Copy code</button></div></div>
-      <div class="connection-step"><span class="step-number">2</span><div><b>Open HELEN Phone</b><p>For a first test, open <code>http://127.0.0.1:8765/phone.html</code> in another tab on this PC. For a phone on another network, host only the standalone <code>phone.html</code> file on a trusted HTTPS static website (see README). Never publish server.py or your token.</p></div></div>
-      <div class="connection-step"><span class="step-number">3</span><div><b>Type the code on your phone</b><p>Then come back here and click <b>Approve phone</b> when prompted. The PC bearer token is never sent to the phone.</p></div></div>
-      <div class="panel-card"><h3>Connection limits</h3><p class="muted">Requires Internet and the PeerJS signaling service. Strict networks may need a TURN relay. This early build doesn't reconnect interrupted calls automatically or work if the PC browser is closed.</p></div>`;
-    const pairing=window.HELEN_PAIRING;
-    if(!pairing){$('#pairState',body).textContent='Pairing module unavailable';return;}
-    pairing.subscribe(st=>{
-      if(!body.isConnected)return;
-      $('#pairCode',body).textContent=st.code?st.code.slice(0,5)+' '+st.code.slice(5):'— — —';
-      $('#pairState',body).textContent=st.status;
-      $('#stopPair',body).disabled=!st.code;
-      $('#copyPair',body).disabled=!st.code;
-    });
-    $('#startPair',body).onclick=async()=>{
-      const btn=$('#startPair',body);btn.disabled=true;
-      try{await pairing.start({request:(path,{method,body:obj})=>api(path,{method,body:method==='POST'?JSON.stringify(obj):undefined}),authorized:()=>mode==='live'});
-      }catch(e){toast(e.message);}finally{btn.disabled=false;}
-    };
-    $('#stopPair',body).onclick=()=>pairing.stop();
-    $('#copyPair',body).onclick=async()=>{const c=pairing.getState().code;if(c){try{await navigator.clipboard.writeText(c);toast('Pairing code copied');}catch{toast('Select and copy the displayed code');}}};
-  }
-
-})();
-
-</script>
-</body>
-</html>
+</body></html>
