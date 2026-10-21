@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1223" />
+  <title>HELEN // Remote OS</title>
+  <style>
+:root{font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:#eff4ff;background:#0b1021;font-size:14px}*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #64b7ff;outline-offset:3px}button{border:0}button:disabled{opacity:.48;cursor:default}.hidden{display:none!important}.os{height:100dvh;position:relative;overflow:hidden;min-height:400px;background:#0a1225}.wallpaper{position:absolute;inset:0;background:radial-gradient(ellipse at 78% 17%,#143356 0%,transparent 44%),radial-gradient(ellipse at 26% 68%,#1c214b 0%,transparent 55%),linear-gradient(160deg,#0b1326,#080d18 70%);overflow:hidden;pointer-events:none}.mesh{position:absolute;inset:0;background-image:linear-gradient(#a7d6ff08 1px,transparent 1px),linear-gradient(90deg,#a7d6ff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to bottom,transparent 3%,#000 65%);transform:perspective(700px) rotateX(22deg) scale(1.35);transform-origin:bottom}.orb{position:absolute;border-radius:50%;filter:blur(10px)}.orb-one{width:450px;height:450px;right:1%;top:3%;border:1px solid #88baff25;box-shadow:0 0 90px 18px #569aff0d,inset 0 0 65px #427bd318}.orb-two{width:250px;height:250px;left:34%;bottom:-150px;background:#4940b21a}.topbar{height:64px;position:absolute;top:0;left:0;right:0;z-index:120;background:#090e1ac7;border-bottom:1px solid #ffffff13;display:flex;align-items:center;justify-content:space-between;padding:0 29px;backdrop-filter:blur(16px)}.brand{display:flex;gap:12px;align-items:center;letter-spacing:1.6px;font-size:12px}.brand-logo{display:flex;align-items:center;justify-content:center;width:31px;height:31px;border-radius:9px;color:#d3eaff;font-size:18px;font-weight:800;background:linear-gradient(145deg,#1b4c86,#182644);border:1px solid #5e98ce75;box-shadow:0 0 20px #349aff18}.brand small{display:block;font-size:8px;color:#7187a7;letter-spacing:1.8px;margin-top:4px}.slim{font-weight:450;color:#a9c1e7}.topbar-right{display:flex;align-items:center;gap:20px}.mode-tag{padding:6px 10px;border:1px solid #f4bb4d43;border-radius:20px;font-size:9px;font-weight:750;letter-spacing:1.2px;color:#e5b65e;background:#5d471c1d}.mode-tag.live{color:#67e6c1;border-color:#38d9a653;background:#1e645b2c}.mode-tag.demo{color:#d0baff;border-color:#af87ff55;background:#563f832a}.header-clock{font-size:12px;font-variant-numeric:tabular-nums;color:#acbdd5;white-space:nowrap}.small-icon{background:transparent;color:#a9c2dc;padding:6px}.small-icon svg{display:block;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.5}.desktop{position:absolute;inset:64px 0 62px;overflow:hidden}.home-copy{position:absolute;top:13%;left:8%;pointer-events:none}.home-eyebrow{font-size:10px;color:#91b7e5;letter-spacing:2.2px;font-weight:700}.tiny-dot{display:inline-block;background:#59e3b1;width:6px;height:6px;border-radius:50%;margin-right:8px;box-shadow:0 0 12px #59e3b1}.home-copy h1{font-size:clamp(36px,5vw,74px);font-weight:550;line-height:1.08;letter-spacing:-2.5px;margin:24px 0 18px}.home-copy h1 em{font-style:normal;color:#8eb5f9}.home-copy p{font-size:13px;color:#90a7c6;max-width:380px;line-height:1.8}.home-stats{display:flex;gap:40px;margin-top:44px}.home-stats span{display:grid;gap:8px}.home-stats b{font-size:13px;font-weight:570;color:#d4e6ff}.home-stats small{font-size:9px;letter-spacing:1.4px;color:#6a80a0}.desktop-icons{position:absolute;z-index:2;top:6%;right:5%;display:grid;grid-template-columns:repeat(2,90px);gap:21px 26px}.desktop-icon{border:1px solid transparent;background:transparent;color:#dce9ff;display:flex;align-items:center;gap:7px;flex-direction:column;padding:9px 3px;border-radius:11px;font-size:11px;text-shadow:0 1px 5px #000}.desktop-icon:hover,.desktop-icon:focus-visible{background:#badbff13;border-color:#bedcff2b}.app-glyph{font-family:Consolas,"Segoe UI Symbol",sans-serif;font-size:21px;font-weight:600;border-radius:13px;width:47px;height:47px;display:inline-flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 #ffffff33;flex-shrink:0}.blue{background:linear-gradient(140deg,#326ab5,#234371);color:#b7dafa}.violet{background:linear-gradient(140deg,#7054b5,#422e74);color:#e4d2ff}.teal{background:linear-gradient(140deg,#228d97,#185665);color:#bbf4f5}.amber{background:linear-gradient(140deg,#9a722c,#60461f);color:#ffe0a4}.pink{background:linear-gradient(140deg,#a04e87,#562f57);color:#ffd1ed}.taskbar{height:62px;position:absolute;bottom:0;left:0;right:0;z-index:130;display:flex;align-items:center;padding:0 24px;gap:17px;background:#09111ce8;border-top:1px solid #ffffff16;backdrop-filter:blur(20px)}.start-button{padding:0;background:none}.start-button .brand-logo{width:38px;height:38px}.task-separator{height:25px;width:1px;background:#4e60774e}.task-pins{display:flex;gap:9px}.task-pins button{padding:5px;background:transparent;border:1px solid transparent;border-radius:10px}.task-pins button:hover,.task-pins button.active{background:#91bffc12;border-color:#91bffc24}.task-pins .app-glyph{width:29px;height:29px;border-radius:8px;font-size:15px}.task-open{display:flex;gap:4px;min-width:0;flex:1;overflow:hidden}.task-open button{background:#adbcda13;border:1px solid #ffffff11;border-radius:7px;color:#cddaf1;font-size:10px;padding:9px 11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}.task-open button.active{background:#375b8c55;border-color:#83a6db44}.task-status{display:flex;align-items:center;gap:7px;color:#8ba2bb;font-size:10px;letter-spacing:1.2px;margin-left:auto;white-space:nowrap}.status-dot{width:6px;height:6px;border-radius:50%;background:#c39e62}.status-dot.live{background:#63e4bc;box-shadow:0 0 10px #63e4bc}.status-dot.demo{background:#bd94fa}.start-menu{position:absolute;bottom:13px;left:24px;width:350px;z-index:110;background:#111e32ee;border:1px solid #7d9ab64c;border-radius:18px;padding:20px;box-shadow:0 18px 80px #0008;backdrop-filter:blur(23px)}.start-head{display:flex;gap:11px;align-items:center;padding:4px 3px 17px}.start-head b{font-size:13px}.start-head small{display:block;color:#8196b0;font-size:10px;margin-top:5px}.start-search{border-top:1px solid #ffffff18;padding:17px 3px 12px;color:#829bb8;font-size:9px;font-weight:750;letter-spacing:1.5px}.start-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.start-grid button{background:#ffffff05;border-radius:9px;padding:12px 3px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;color:#d5e3f5;font-size:11px}.start-grid button:hover{background:#ffffff15}.start-grid .app-glyph{width:38px;height:38px;font-size:18px}.start-foot{display:flex;justify-content:space-between;align-items:center;margin-top:19px;padding:16px 3px 0;border-top:1px solid #ffffff13;color:#83aac9;font-size:10px}.start-foot button{background:transparent;color:#bfd1ed;font-size:10px}.window-layer{position:absolute;inset:0;z-index:4;pointer-events:none}.os-window{position:absolute;pointer-events:auto;display:flex;flex-direction:column;min-width:330px;min-height:240px;width:min(700px,calc(100vw - 30px));height:min(515px,calc(100% - 26px));border:1px solid #95abd648;border-radius:15px;background:#0c1628f7;box-shadow:0 26px 90px #010409bb,inset 0 1px #ffffff09;overflow:hidden;backdrop-filter:blur(28px)}.os-window.focused{border-color:#95c5fd70;box-shadow:0 30px 95px #000c,0 0 0 1px #8aacf011}.window-titlebar{height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;background:#18253bd1;border-bottom:1px solid #ffffff14;padding:0 16px;cursor:grab;user-select:none;touch-action:none}.window-titlebar:active{cursor:grabbing}.window-heading{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:660}.window-heading .app-glyph{width:28px;height:28px;border-radius:8px;font-size:14px}.window-controls{display:flex;gap:7px}.window-controls button{width:25px;height:25px;border-radius:6px;background:#e6eff70a;color:#a9b8cd;font-size:16px;line-height:1}.window-controls button:hover{background:#ffffff23;color:#fff}.window-controls .close:hover{background:#c74b5a;color:white}.window-body{flex:1;overflow:auto;min-height:0;padding:22px}.pane-header{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:20px}.pane-header h2{font-size:17px;margin:0 0 5px;font-weight:650}.muted{font-size:11px;color:#93a6c1;line-height:1.6}.eyebrow{font-size:9px;color:#70b9ed;font-weight:730;letter-spacing:1.5px}.action-button{border:1px solid #6f90b155;background:#1a304e;color:#d9ecff;border-radius:9px;padding:9px 13px;font-size:11px;white-space:nowrap}.action-button:hover{background:#244166}.action-button.primary{background:#2469ae;border-color:#4897db;color:#fff}.panel-card{background:#15243a9c;border:1px solid #a7c7e21b;border-radius:12px;padding:17px;margin-bottom:13px}.panel-card h3{font-size:12px;margin:0 0 12px;color:#d8e7fa}.stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.stat-cell{background:#16274188;border:1px solid #ffffff0e;border-radius:12px;padding:17px;min-width:0}.stat-cell label{display:block;font-size:10px;letter-spacing:1.05px;color:#91a5c0;margin-bottom:11px}.stat-cell strong{display:block;font-size:16px;font-weight:560;overflow-wrap:anywhere}.stat-cell small{display:block;color:#8fa4bf;margin-top:7px;font-size:10px}.file-path{background:#111e31;border:1px solid #ffffff13;padding:11px;border-radius:9px;display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:15px;font-size:11px;color:#acc9ec}.file-path button{background:transparent;color:#97b5d8}.file-list{display:flex;flex-direction:column;gap:6px}.file-row{display:flex;align-items:center;gap:11px;width:100%;padding:11px 12px;border-radius:9px;background:#18284177;text-align:left;color:#dceaff;border:1px solid #ffffff0e}.file-row:hover{background:#28456a87}.file-row span.name{font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-row small{color:#7997b5;font-size:10px}.file-row-icon{font-size:20px;color:#83b4e9}.file-editor{display:flex;flex-direction:column;gap:12px;height:100%}.file-editor textarea,.notes-textarea{width:100%;background:#0b1626;border:1px solid #4763817a;border-radius:9px;padding:15px;color:#e0eafa;resize:vertical;line-height:1.6;font-family:Consolas,monospace;font-size:12px;min-height:220px}.file-editor textarea{flex:1;resize:none}.file-editor-footer{display:flex;align-items:center;justify-content:space-between;gap:10px}.notes-textarea{min-height:260px}.note-tip{color:#8da4c2;font-size:11px;margin-top:12px}.task-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.task-choice{padding:14px;text-align:left;border:1px solid #7f9cbd2d;border-radius:11px;background:#172940a3;color:#e4efff}.task-choice:hover{border-color:#8bb8ed81;background:#203c5e}.task-choice b{display:block;font-size:12px;margin-bottom:7px}.task-choice small{display:block;color:#90a4c0;font-size:10px;line-height:1.55}.terminal{background:#060d17;border:1px solid #334862;border-radius:12px;color:#a9f5cb;font:12px/1.7 Consolas,"Courier New",monospace;padding:17px;min-height:145px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto}.terminal .dim{color:#608873}.connection-step{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid #ffffff0c}.connection-step b{font-size:12px}.connection-step p{font-size:11px;color:#99b0c8;line-height:1.6;margin:6px 0 0}.step-number{width:25px;height:25px;border:1px solid #6585aa70;border-radius:8px;display:grid;place-items:center;color:#9cc9ff;flex:none}.code-line{background:#071322;color:#a8deff;padding:13px 15px;border-radius:8px;word-break:break-word;font:12px/1.6 Consolas,monospace;border:1px solid #5279a544}.empty-state{color:#8ea4c2;font-size:12px;text-align:center;padding:45px 10px}.text-input{color:#e4eeff;padding:11px 12px;border:1px solid #59749777;background:#0b1625;border-radius:9px;max-width:100%;width:100%;margin-bottom:10px}.row-actions{display:flex;gap:8px;flex-wrap:wrap}.toast{position:absolute;bottom:81px;right:20px;z-index:180;max-width:min(340px,calc(100% - 30px));background:#1a334e;color:#e4f0ff;border:1px solid #8db8dc66;border-radius:10px;padding:13px 18px;box-shadow:0 10px 50px #0009;font-size:12px}.auth-overlay{position:absolute;z-index:200;inset:0;background:radial-gradient(ellipse at 50% 15%,#15345a,#08101e 60%);display:grid;place-items:center;padding:20px;overflow:auto}.auth-backdrop-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(#ffffff06 1px,transparent 1px),linear-gradient(90deg,#ffffff06 1px,transparent 1px);background-size:45px 45px;mask-image:radial-gradient(ellipse at 50%,#000,transparent 80%)}.auth-card{z-index:1;text-align:center;width:min(440px,100%);padding:35px;border:1px solid #83b5ed2f;background:linear-gradient(145deg,#16263ab3,#10192bea);box-shadow:0 25px 110px #000b;border-radius:24px;backdrop-filter:blur(25px)}.auth-logo{display:grid;place-items:center;width:59px;height:59px;margin:0 auto 25px;background:linear-gradient(135deg,#35689d,#1a335c);border:1px solid #7cbbfc80;box-shadow:0 0 37px #6097ee24;border-radius:17px;font-weight:850;font-size:30px}.auth-overline{color:#83acdb;letter-spacing:3px;font-size:10px;font-weight:700}.auth-card h2{margin:10px 0 12px;font-size:32px;letter-spacing:-1px}.auth-card h2 span{font-weight:350;color:#94b9f5}.auth-sub{color:#9caec7;font-size:12px;line-height:1.7;margin:0 auto 26px;max-width:270px}.auth-panel{text-align:left}.auth-panel label{font-size:9px;color:#9bb9d8;letter-spacing:1.5px;font-weight:700}.auth-input-row{display:flex;border:1px solid #7797b14b;background:#0a1423;border-radius:11px;margin:9px 0 13px}.auth-input-row input{background:transparent;color:#e7f0ff;border:0;outline:none;min-width:0;width:100%;padding:14px;font-size:12px}.auth-input-row button{border:0;background:transparent;color:#839cb9;padding:0 14px}.primary-btn,.secondary-btn{width:100%;display:flex;align-items:center;justify-content:space-between;border-radius:10px;padding:14px 16px;font-size:12px;font-weight:700}.primary-btn{background:linear-gradient(110deg,#357cca,#235caa);color:#fff}.primary-btn:hover{filter:brightness(1.15)}.secondary-btn{color:#cde4ff;border:1px solid #7da9dc48;background:#142840}.secondary-btn:hover{background:#254263}.auth-error{color:#ffadba;font-size:11px;min-height:15px;line-height:1.5}.auth-divider{display:flex;align-items:center;gap:13px;color:#7186a3;font-size:9px;letter-spacing:1px;margin:3px 0 16px;white-space:nowrap}.auth-divider:before,.auth-divider:after{content:'';background:#ffffff20;height:1px;flex:1}.auth-note{color:#6d829e;font-size:10px;line-height:1.6;margin:23px 0 0}.auth-note code{color:#bbd8ff}.auth-bottom{position:absolute;bottom:18px;z-index:1;color:#637c9f;font-size:9px;letter-spacing:2px}.auth-bottom span{margin:0 12px}
+@media(max-width:760px){.topbar{padding:0 15px;height:57px}.brand{gap:8px;font-size:10px}.brand small{font-size:7px;letter-spacing:1.05px}.topbar-right{gap:10px}.header-clock{font-size:10px}.desktop{top:57px;bottom:64px}.home-copy{top:9%;left:6%;right:6%}.home-copy h1{font-size:clamp(31px,9vw,44px);letter-spacing:-1.2px;margin:18px 0 10px}.home-copy p{font-size:11px;max-width:290px}.home-stats{margin-top:25px;gap:26px}.home-stats b{font-size:11px}.desktop-icons{top:auto;left:6%;right:6%;bottom:22px;grid-template-columns:repeat(5,1fr);gap:4px}.desktop-icon{font-size:9px;padding:6px 0}.desktop-icon .app-glyph{width:44px;height:44px;font-size:21px}.taskbar{padding:0 12px;gap:9px;height:64px}.task-pins{gap:2px}.task-open{display:none}.task-status{font-size:8px}.window-layer{inset:0}.os-window,.os-window.maximized{position:absolute!important;inset:6px 5px 6px!important;width:calc(100% - 10px)!important;height:calc(100% - 12px)!important;min-width:0;min-height:0;border-radius:13px}.window-titlebar{height:51px;cursor:default;touch-action:auto}.window-body{padding:15px}.start-menu{left:7px;right:7px;bottom:8px;width:auto}.stat-grid{gap:8px}.stat-cell{padding:12px}.stat-cell strong{font-size:13px}.task-list{grid-template-columns:1fr}.auth-card{padding:28px 22px}.auth-card h2{font-size:28px}}
+@media(max-width:420px){.brand .slim{display:none}.desktop-icons{grid-template-columns:repeat(4,1fr)}.desktop-icon:last-child{display:none}.mode-tag{font-size:8px}.home-copy h1{font-size:34px}}
+
+/* v0.2 - computer pairing code */
+.pair-card{margin:8px 0 18px}.pair-code{font-size:clamp(30px,5vw,44px);font-weight:750;letter-spacing:3px;line-height:1.4;font-variant-numeric:tabular-nums;padding:13px 2px;color:#a9d7ff;user-select:all;overflow-wrap:anywhere}.pair-card .row-actions{display:flex;gap:9px}.pair-card .row-actions button{min-height:38px}
+@media(max-width:760px){.pair-code{font-size:32px;letter-spacing:1.5px}.pair-card .row-actions{flex-wrap:wrap}.pair-card .row-actions button{flex:1 1 auto}}
+
+</style>
+</head>
+<body>
+<div id="os" class="os">
+  <div class="wallpaper"><div class="orb orb-one"></div><div class="orb orb-two"></div><div class="mesh"></div></div>
+  <header class="topbar">
+    <div class="brand"><span class="brand-logo">H</span><div><strong>HELEN<span class="slim"> // REMOTE OS</span></strong><small>PERSONAL CONTROL ENVIRONMENT</small></div></div>
+    <div class="topbar-right"><span id="modeTag" class="mode-tag">OFFLINE</span><span id="headerClock" class="header-clock">--:--</span><button id="lockButton" class="small-icon" title="Disconnect" aria-label="Disconnect"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></button></div>
+  </header>
+  <main id="desktop" class="desktop">
+    <div class="home-copy"><span class="home-eyebrow"><span class="tiny-dot"></span> YOUR WORKSPACE, ANYWHERE</span><h1>Beyond the<br /><em>ordinary desktop.</em></h1><p>A window into your computer, designed for the way you work.</p><div class="home-stats"><span><b id="hostLabel">Not connected</b><small>HOST COMPUTER</small></span><span><b id="sessionLabel">Locked</b><small>SESSION</small></span></div></div>
+    <div class="desktop-icons" id="desktopIcons">
+      <button data-app="files" class="desktop-icon"><span class="app-glyph blue">▤</span><span>Files</span></button>
+      <button data-app="notes" class="desktop-icon"><span class="app-glyph violet">✎</span><span>Notes</span></button>
+      <button data-app="system" class="desktop-icon"><span class="app-glyph teal">▥</span><span>Computer</span></button>
+      <button data-app="python" class="desktop-icon"><span class="app-glyph amber">⌘</span><span>Python</span></button>
+      <button data-app="connection" class="desktop-icon"><span class="app-glyph pink">◎</span><span>Connection</span></button>
+    </div>
+    <div id="windowLayer" class="window-layer"></div>
+    <div id="startMenu" class="start-menu hidden">
+      <div class="start-head"><span class="brand-logo">H</span><div><b>HELEN Remote OS</b><small>Version 0.2 • Browser pairing</small></div></div>
+      <div class="start-search">APPLICATIONS</div>
+      <div class="start-grid">
+        <button data-app="files"><span class="app-glyph blue">▤</span>Files</button>
+        <button data-app="notes"><span class="app-glyph violet">✎</span>Notes</button>
+        <button data-app="system"><span class="app-glyph teal">▥</span>Computer</button>
+        <button data-app="python"><span class="app-glyph amber">⌘</span>Python</button>
+        <button data-app="connection"><span class="app-glyph pink">◎</span>Connection</button>
+      </div>
+      <div class="start-foot"><span id="startState">Locked</span><button id="menuDisconnect">Disconnect ↗</button></div>
+    </div>
+  </main>
+  <nav class="taskbar" aria-label="Desktop taskbar"><button class="start-button" id="startButton" aria-label="Start menu"><span class="brand-logo">H</span></button><span class="task-separator"></span><div class="task-pins"><button data-app="files" title="Files"><span class="app-glyph blue">▤</span></button><button data-app="notes" title="Notes"><span class="app-glyph violet">✎</span></button><button data-app="system" title="Computer"><span class="app-glyph teal">▥</span></button><button data-app="python" title="Python"><span class="app-glyph amber">⌘</span></button></div><div id="taskOpen" class="task-open"></div><div class="task-status"><span class="status-dot" id="taskDot"></span><span id="taskMode">OFFLINE</span></div></nav>
+  <div id="toast" role="status" class="toast hidden"></div>
+</div>
+<div id="authOverlay" class="auth-overlay">
+  <div class="auth-backdrop-grid"></div>
+  <div class="auth-card">
+    <div class="auth-logo">H</div><div class="auth-overline">INTRODUCING</div><h2>HELEN <span>Remote OS</span></h2><p class="auth-sub">Your own desktop interface. Real Python services. One secure connection.</p>
+    <div class="auth-panel"><label for="tokenInput">10-DIGIT COMPUTER PAIRING CODE</label><div class="auth-input-row"><input id="tokenInput" type="text" inputmode="numeric" pattern="[0-9 ]*" maxlength="12" placeholder="Enter the code shown on your PC" autocomplete="off" spellcheck="false"/><button id="showToken" type="button" title="Show code" aria-label="Show code" style="display:none">◉</button></div><button id="connectButton" class="primary-btn">Connect to my PC <span>→</span></button><p id="authError" class="auth-error" aria-live="polite"></p></div>
+    <div class="auth-divider"><span>OR EXPLORE WITHOUT A COMPUTER</span></div><button id="demoButton" class="secondary-btn">Launch visual demo <span>↗</span></button>
+    <p class="auth-note">Keep HELEN running on your computer, generate a pairing code in Connection Center, and approve the connection on the PC.</p>
+  </div>
+  <div class="auth-bottom">HELEN SYSTEMS <span>•</span> PROTOTYPE BUILD 0.2</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script>window.HELEN_PHONE_CLIENT=true;</script>
+<script>
+/* HELEN Remote OS v0.2 — WebRTC phone client. Never receives the PC's Python bearer token. */
+(() => {
+'use strict';
+let peer=null, conn=null, waiting=new Map(), seq=0;
+const opts={host:'0.peerjs.com',port:443,secure:true,debug:0,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'}]}};
+let onLost=()=>{};
+function clear(reason){
+  for(const [id,item] of waiting){clearTimeout(item.timer);item.reject(new Error(reason));}
+  waiting.clear();
+  try{conn?.close();}catch{}conn=null;
+  try{peer?.destroy();}catch{}peer=null;
+}
+function close(){clear('Connection closed');}
+function connect(raw,{status=()=>{},lost=()=>{}}={}){
+  close();onLost=lost;
+  const code=String(raw).replace(/\D/g,'');
+  if(!/^\d{10}$/.test(code))return Promise.reject(new Error('Enter the 10-digit pairing code from your PC.'));
+  if(typeof window.Peer!=='function')return Promise.reject(new Error('PeerJS did not load. Check your phone internet connection.'));
+  return new Promise((resolve,reject)=>{
+    let ready=false,ended=false;
+    const timeout=setTimeout(()=>fail('Connection timed out. Confirm the PC is online and the code is correct.'),70000);
+    function fail(reason){
+      if(ended)return;ended=true;clearTimeout(timeout);clear(reason);reject(new Error(reason));
+    }
+    const client=peer=new Peer(opts);
+    client.on('open',()=>{
+      if(ended)return;
+      status('Looking for your computer…');
+      const c=conn=client.connect('helen-02-'+code,{reliable:true,serialization:'json',metadata:{type:'HELEN Phone v0.2'}});
+      c.on('open',()=>{if(!ended)status('Waiting for approval on the PC…');});
+      c.on('data',message=>{
+        if(!message||typeof message!=='object')return;
+        if(message.type==='rejected')return fail(message.reason||'Pairing rejected');
+        if(message.type==='ready'){
+          if(ended)return;
+          ready=true;ended=true;clearTimeout(timeout);resolve();return;
+        }
+        if(message.type==='response'){
+          const item=waiting.get(message.id);if(!item)return;
+          clearTimeout(item.timer);waiting.delete(message.id);
+          if(message.ok)item.resolve(message.data);
+          else item.reject(new Error(message.error||'Request failed'));
+        }
+      });
+      c.on('close',()=>{
+        if(!ready)fail('Connection closed before approval. Try again.');
+        else{clear('Computer disconnected');onLost('Computer disconnected. Please reconnect.');}
+      });
+      c.on('error',e=>{if(!ready)fail(e.message||'Connection failed');else onLost('Connection error. Please reconnect.');});
+    });
+    client.on('error',e=>{if(!ready)fail('Pairing service: '+(e.type||e.message||'unavailable'));});
+    client.on('disconnected',()=>{if(!ready)status('Signaling interrupted — checking…');});
+  });
+}
+function request(path,{method='GET',body}={}){
+  if(!conn||!conn.open)return Promise.reject(new Error('Phone is not connected to the computer'));
+  const id=(++seq).toString(36)+'-'+Math.random().toString(36).slice(2,8);
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{waiting.delete(id);reject(new Error('Computer did not answer the request'));},18000);
+    waiting.set(id,{resolve,reject,timer});
+    try{conn.send({type:'request',id,method,path,body});}
+    catch(e){clearTimeout(timer);waiting.delete(id);reject(e);}
+  });
+}
+window.HELEN_PHONE={connect,request,close};
+})();
+
+</script>
+<script>
+/* HELEN Remote OS 0.2 - local host, browser-to-browser phone bridge, or demo. */
+(() => {
+  'use strict';
+  const $ = (s, root = document) => root.querySelector(s);
+  const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+  const apps = {
+    files: {title:'File Explorer', glyph:'▤', color:'blue'},
+    notes: {title:'Notes', glyph:'✎', color:'violet'},
+    system: {title:'Computer Monitor', glyph:'▥', color:'teal'},
+    python: {title:'Python Console', glyph:'⌘', color:'amber'},
+    connection: {title:'Connection Center', glyph:'◎', color:'pink'},
+  };
+  const demoFiles = {
+    'Welcome.txt': 'Welcome to the visual demo of HELEN Remote OS.\n\nThis browser is NOT connected to a real Windows computer.\nLaunch server.py and connect with your private token for real files and system details.',
+    'Notes.md': '# My notes\n\nAn example note in demo mode. Edits last only until you reload the page.',
+    'Projects/Ideas.txt': 'Helen integration\nRemote file manager\nPhone-first desktop interface\n',
+  };
+  const demoTasks = [
+    {id:'python-version',name:'Python environment',description:'Inspect the Python runtime'},
+    {id:'system-summary',name:'Computer report',description:'Read actual host system details'},
+    {id:'workspace-audit',name:'Workspace audit',description:'Inspect the restricted data folder'},
+    {id:'time-check',name:'Clock check',description:'Run Python to get system date and time'},
+  ];
+  const phoneClient = !!window.HELEN_PHONE_CLIENT;
+  let mode = 'offline';
+  let token = '';
+  let activeApp = '';
+  let zTop = 10;
+  let toastTimer = null;
+  const windows = new Map();
+
+  function escapeHTML(v) {
+    return String(v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+  function timeTick(){
+    $('#headerClock').textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  }
+  timeTick(); setInterval(timeTick, 20000);
+  function toast(msg){
+    $('#toast').textContent = msg;
+    $('#toast').classList.remove('hidden');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.add('hidden'), 3500);
+  }
+  function setMode(next, host='') {
+    mode = next;
+    const live = next==='live', demo = next==='demo';
+    const label = live ? 'CONNECTED' : demo ? 'DEMO MODE' : 'OFFLINE';
+    $('#modeTag').textContent = label;
+    $('#modeTag').className = 'mode-tag' + (live ? ' live' : demo ? ' demo' : '');
+    $('#taskMode').textContent = live ? 'ONLINE' : demo ? 'DEMO' : 'OFFLINE';
+    $('#taskDot').className = 'status-dot' + (live ? ' live' : demo ? ' demo' : '');
+    $('#hostLabel').textContent = live ? host || 'Connected' : demo ? 'Sample computer' : 'Not connected';
+    $('#sessionLabel').textContent = live ? 'Protected' : demo ? 'Simulation' : 'Locked';
+    $('#startState').textContent = label;
+  }
+  function hideLogin(){ $('#authOverlay').classList.add('hidden'); }
+  function showLogin(){ $('#authOverlay').classList.remove('hidden'); }
+  async function api(path, options={}) {
+    if(mode !== 'live') throw new Error('Real backend not connected');
+    if(phoneClient) {
+      return window.HELEN_PHONE.request(path, {method:options.method||'GET', body:options.body ? JSON.parse(options.body) : undefined});
+    }
+    let response;
+    try {
+      response = await fetch(path, { ...options, headers: {
+        Authorization: `Bearer ${token}`,
+        ...(options.body ? {'Content-Type':'application/json'} : {}),
+      }, cache:'no-store' });
+    } catch {
+      throw new Error('Cannot reach the Python service. Is server.py still running?');
+    }
+    let result;
+    try {result = await response.json();} catch {throw new Error('Invalid reply from Python service');}
+    if (!response.ok) {
+      if(response.status === 401) {toast('Your session expired. Reconnect with your token.'); disconnect();}
+      throw new Error(result.error || `HTTP ${response.status}`);
+    }
+    return result;
+  }
+  function post(path, obj){ return api(path,{method:'POST',body:JSON.stringify(obj)}); }
+  async function connect(){
+    const supplied = $('#tokenInput').value.trim();
+    if (!supplied) { $('#authError').textContent='Enter the connection token displayed by server.py.'; return; }
+    $('#authError').textContent = 'Checking connection…';
+    $('#connectButton').disabled=true;
+    try {
+      if(phoneClient){
+        await window.HELEN_PHONE.connect(supplied,{status:message=>{$('#authError').textContent=message;},lost:reason=>{if(mode==='live'){disconnect();$('#authError').textContent=reason;}}});
+        mode='live';
+      }else{mode='live';token=supplied;}
+      const status=await api('/api/status');
+      setMode('live',status.host);
+      hideLogin();
+      $('#tokenInput').value='';
+      $('#authError').textContent='';
+      toast(`Secure session with ${status.host} established`);
+      openApp('system');
+    } catch(err) {
+      mode='offline';token='';if(phoneClient)window.HELEN_PHONE.close(); $('#authError').textContent=err.message;
+    } finally {$('#connectButton').disabled=false;}
+  }
+  function disconnect(){
+    if(phoneClient)window.HELEN_PHONE.close();else window.HELEN_PAIRING?.stop();
+    token='';
+    windows.forEach(w => w.el.remove());windows.clear(); activeApp='';
+    setMode('offline');updateTaskButtons();closeStart();showLogin();
+    $('#tokenInput').value='';
+  }
+  function launchDemo(){setMode('demo');hideLogin();toast('Visual demo — no computer is connected');openApp('files');}
+  $('#connectButton').addEventListener('click',connect);
+  $('#tokenInput').addEventListener('keydown', e=>{if(e.key==='Enter') connect();});
+  $('#showToken').addEventListener('click',()=>{
+    $('#tokenInput').type = $('#tokenInput').type === 'password' ? 'text' : 'password';
+  });
+  $('#demoButton').addEventListener('click',launchDemo);
+  $('#lockButton').addEventListener('click',disconnect);
+  $('#menuDisconnect').addEventListener('click',disconnect);
+  $('#startButton').addEventListener('click',e=>{e.stopPropagation();$('#startMenu').classList.toggle('hidden');});
+  $('#desktop').addEventListener('pointerdown',e=>{if(!e.target.closest('#startMenu'))closeStart();});
+  function closeStart(){ $('#startMenu').classList.add('hidden'); }
+  $$('[data-app]').forEach(el=>el.addEventListener('click',()=>{if(mode==='offline'){showLogin();return;}openApp(el.dataset.app);closeStart();}));
+
+  function updateTaskButtons(){
+    $('#taskOpen').replaceChildren();
+    windows.forEach((entry,key)=>{
+      const btn=document.createElement('button');btn.textContent=apps[key].title;
+      btn.className = (key===activeApp && !entry.minimized) ? 'active' : '';
+      btn.onclick=()=>{if(entry.minimized||key!==activeApp) {entry.el.classList.remove('hidden');entry.minimized=false;focusWindow(key);}else{entry.el.classList.add('hidden');entry.minimized=true;activeApp='';updateTaskButtons();}};
+      $('#taskOpen').append(btn);
+    });
+    $$('.task-pins [data-app]').forEach(el=>el.classList.toggle('active',el.dataset.app===activeApp));
+  }
+  function focusWindow(key){
+    const w=windows.get(key);if(!w)return;
+    w.el.classList.remove('hidden');w.minimized=false;
+    windows.forEach(entry=>entry.el.classList.remove('focused'));
+    w.el.classList.add('focused');w.el.style.zIndex=++zTop;activeApp=key;
+    updateTaskButtons();
+  }
+  function openApp(key){
+    if(!apps[key])return;
+    if(windows.has(key)){focusWindow(key);return;}
+    const cfg=apps[key];
+    const el=document.createElement('section');el.className='os-window focused';el.setAttribute('role','dialog');el.setAttribute('aria-label',cfg.title);
+    const offset=windows.size*26;
+    el.style.left=`${Math.min(70+offset,Math.max(8,window.innerWidth-470))}px`;
+    el.style.top=`${Math.min(38+offset,Math.max(8,$('#desktop').clientHeight-260))}px`;
+    el.innerHTML=`<div class="window-titlebar"><div class="window-heading"><span class="app-glyph ${cfg.color}">${cfg.glyph}</span><span>${cfg.title}</span></div><div class="window-controls"><button data-command="min" title="Minimize" aria-label="Minimize">−</button><button data-command="max" title="Maximize" aria-label="Maximize">□</button><button data-command="close" class="close" title="Close" aria-label="Close">×</button></div></div><div class="window-body"></div>`;
+    const body=$('.window-body',el);
+    const title=$('.window-titlebar',el);
+    el.addEventListener('pointerdown',()=>focusWindow(key));
+    $$('[data-command]',el).forEach(b=>b.addEventListener('click',e=>{
+      e.stopPropagation();const c=b.dataset.command;
+      if(c==='close'){el.remove();windows.delete(key);activeApp='';if(windows.size)focusWindow([...windows.keys()].at(-1));else updateTaskButtons();}
+      if(c==='min'){el.classList.add('hidden');windows.get(key).minimized=true;activeApp='';updateTaskButtons();}
+      if(c==='max'){
+        if(!el.classList.contains('maximized')){
+          el.dataset.previous=`${el.style.left}|${el.style.top}|${el.style.width}|${el.style.height}`;
+          el.style.left='8px';el.style.top='8px';el.style.width='calc(100% - 16px)';el.style.height='calc(100% - 16px)';el.classList.add('maximized');
+        }else{
+          const [left,top,width,height]=el.dataset.previous.split('|');
+          el.style.left=left;el.style.top=top;el.style.width=width;el.style.height=height;el.classList.remove('maximized');
+        }
+      }
+    }));
+    let drag=null;
+    title.addEventListener('pointerdown',e=>{
+      if(e.target.closest('button')||window.matchMedia('(max-width: 760px)').matches||el.classList.contains('maximized'))return;
+      drag={x:e.clientX,y:e.clientY,left:el.offsetLeft,top:el.offsetTop};
+      title.setPointerCapture(e.pointerId);
+    });
+    title.addEventListener('pointermove',e=>{
+      if(!drag)return;
+      const parent=$('#desktop');
+      el.style.left=`${Math.max(0,Math.min(parent.clientWidth-100,drag.left+(e.clientX-drag.x)))}px`;
+      el.style.top=`${Math.max(0,Math.min(parent.clientHeight-55,drag.top+(e.clientY-drag.y)))}px`;
+    });
+    title.addEventListener('pointerup',()=>{drag=null;});
+    title.addEventListener('pointercancel',()=>{drag=null;});
+    $('#windowLayer').append(el);
+    windows.set(key,{el,body,minimized:false});focusWindow(key);
+    const render={files:renderFiles,notes:renderNotes,system:renderSystem,python:renderPython,connection:renderConnection}[key];
+    render(body).catch(err => displayError(body,err));
+  }
+  function displayError(root,err){
+    root.replaceChildren();const p=document.createElement('div');p.className='empty-state';p.textContent=err.message||String(err);root.append(p);
+  }
+  function formatBytes(n){return n>=1e9?(n/1e9).toFixed(1)+' GB':n>=1e6?(n/1e6).toFixed(1)+' MB':n>=1e3?(n/1e3).toFixed(1)+' KB':n+' B';}
+  function demoListing(path){
+    let prefix=path?path+'/':'';const result=new Map();
+    Object.keys(demoFiles).forEach(p=>{if(!p.startsWith(prefix))return;const rest=p.slice(prefix.length);const name=rest.split('/')[0];if(!name)return;result.set(name,{name,type:rest.includes('/')?'folder':'file',path:prefix+name,size:demoFiles[p]?.length||0});});
+    return {path,entries:[...result.values()].sort((a,b)=>(a.type===b.type?a.name.localeCompare(b.name):a.type==='folder'?-1:1))};
+  }
+  async function renderFiles(body,path=''){
+    body.innerHTML=`<div class="pane-header"><div><h2>My files</h2><div class="muted">${mode==='live'?'Real files in the restricted PC workspace':'Sample files · visual demo only'}</div></div><div class="row-actions"><button class="action-button" id="newFolder">+ Folder</button><button class="action-button primary" id="newFile">+ File</button></div></div><div class="file-path"><span id="crumb">⌂ / Workspace</span><button id="folderUp">↑ Up</button></div><div id="folderItems" class="file-list"></div>`;
+    const state={path};
+    async function refresh(){
+      const data=mode==='live'?await api('/api/files?path='+encodeURIComponent(state.path)):demoListing(state.path);
+      $('#crumb',body).textContent='⌂ / Workspace'+(state.path?'/'+state.path:'');
+      $('#folderUp',body).disabled=!state.path;
+      const items=$('#folderItems',body);items.replaceChildren();
+      if(!data.entries.length){items.innerHTML='<div class="empty-state">No files in this folder.<br>Create a new note to get started.</div>';return;}
+      data.entries.forEach(item=>{
+        const btn=document.createElement('button');btn.className='file-row';
+        const ico=document.createElement('span');ico.className='file-row-icon';ico.textContent=item.type==='folder'?'▣':'▤';
+        const name=document.createElement('span');name.className='name';name.textContent=item.name;
+        const ext=document.createElement('small');ext.textContent=item.type==='folder'?'FOLDER':formatBytes(item.size||0);
+        btn.append(ico,name,ext);items.append(btn);
+        btn.onclick=()=>{if(item.type==='folder'){state.path=item.path;refresh().catch(err=>displayError(body,err));}else openEditor(body,item.path,()=>renderFiles(body,state.path));};
+      });
+    }
+    $('#folderUp',body).onclick=()=>{state.path=state.path.split('/').slice(0,-1).join('/');refresh().catch(err=>displayError(body,err));};
+    $('#newFolder',body).onclick=async()=>{
+      const name=prompt('New folder name (letters, spaces, and numbers):');if(name===null)return;
+      if(!/^[a-zA-Z0-9 _-]{1,60}$/.test(name)){toast('Use 1–60 letters, digits, spaces, _ or -');return;}
+      const full=[state.path,name].filter(Boolean).join('/');
+      try{if(mode==='live')await post('/api/folder/create',{path:full});else {demoFiles[full+'/.keep.txt']='Demo folder';}
+        await refresh();toast('Folder created');
+      }catch(err){toast(err.message);}
+    };
+    $('#newFile',body).onclick=async()=>{
+      const name=prompt('New text file name (for example: Ideas.md):');if(name===null)return;
+      if(!/^[\w ()-]{1,60}\.(txt|md|json|csv|log)$/i.test(name)){toast('Use a valid .txt, .md, .json, .csv or .log filename');return;}
+      const path=[state.path,name].filter(Boolean).join('/');
+      try{if(mode==='live')await post('/api/file/save',{path,content:''});else demoFiles[path]='';
+        openEditor(body,path,()=>renderFiles(body,state.path));toast('File created');
+      }catch(err){toast(err.message);}
+    };
+    await refresh();
+  }
+  async function openEditor(body,path,onBack){
+    let content;
+    try{content=mode==='live'?(await api('/api/file?path='+encodeURIComponent(path))).content:demoFiles[path];}
+    catch(err){displayError(body,err);return;}
+    body.replaceChildren();const div=document.createElement('div');div.className='file-editor';
+    div.innerHTML=`<div class="pane-header"><div><h2 id="editingName"></h2><div class="muted">${mode==='live'?'Editing a real workspace file':'Editing a temporary demo file'}</div></div><button class="action-button" id="backToFiles">← Back</button></div><textarea spellcheck="false" id="fileContent" aria-label="File contents"></textarea><div class="file-editor-footer"><span class="muted" id="editorCount"></span><button class="action-button primary" id="saveFile">Save changes</button></div>`;
+    body.append(div);
+    $('#editingName',body).textContent=path;
+    const area=$('#fileContent',body);area.value=content;
+    const counter=()=>$('#editorCount',body).textContent=`${area.value.length.toLocaleString()} characters`;
+    area.addEventListener('input',counter);counter();
+    $('#backToFiles',body).onclick=onBack;
+    $('#saveFile',body).onclick=async()=>{try{if(mode==='live')await post('/api/file/save',{path,content:area.value});else demoFiles[path]=area.value;toast('File saved'+(mode==='demo'?' in demo memory':''));}catch(err){toast(err.message);}};
+  }
+  async function renderNotes(body){
+    const notePath='Notes.md';
+    let content='';
+    if(mode==='demo')content=demoFiles[notePath]||'';
+    else{
+      try{content=(await api('/api/file?path='+encodeURIComponent(notePath))).content;}
+      catch {content='# HELEN Notes\n\n';}
+    }
+    body.innerHTML=`<div class="pane-header"><div><h2>Quick notes</h2><div class="muted">${mode==='live'?'Synced directly to workspace/Notes.md':'Local demo note — not saved to your PC'}</div></div><button class="action-button primary" id="saveNotes">Save note</button></div><textarea class="notes-textarea" id="notesBody" spellcheck="false" placeholder="Write a thought, an idea, or a task..."></textarea><div class="note-tip">Your notes are plain Markdown text. No cloud account is required.</div>`;
+    $('#notesBody',body).value=content;
+    $('#saveNotes',body).onclick=async()=>{try{const t=$('#notesBody',body).value;if(mode==='live')await post('/api/file/save',{path:notePath,content:t});else demoFiles[notePath]=t;toast('Notes saved'+(mode==='demo'?' in demo memory':''));}catch(err){toast(err.message);}};
+  }
+  async function renderSystem(body){
+    body.innerHTML='<div class="pane-header"><div><h2>Host computer</h2><div class="muted">System properties from the Python backend</div></div><button class="action-button" id="refreshSystem">↻ Refresh</button></div><div id="statsRegion"></div>';
+    const display=async()=>{
+      const data=mode==='live'?await api('/api/system'):{host:'SIMULATED-PC',os:'Demo OS (not a real computer)',architecture:'Sample',python:'Not connected',cpu_cores:'—',disk_total:null,disk_free:null,service_uptime_seconds:0,server_time:new Date().toLocaleString()};
+      $('#statsRegion',body).innerHTML=`<div class="stat-grid"><div class="stat-cell"><label>HOSTNAME</label><strong id="sysHost"></strong><small>Computer identity</small></div><div class="stat-cell"><label>OPERATING SYSTEM</label><strong id="sysOS"></strong><small id="sysArchitecture"></small></div><div class="stat-cell"><label>PROCESSOR CORES</label><strong id="sysCPU"></strong><small>Reported by operating system</small></div><div class="stat-cell"><label>PYTHON ENGINE</label><strong id="sysPython"></strong><small>Host Python runtime</small></div><div class="stat-cell"><label>AVAILABLE STORAGE</label><strong id="sysDisk"></strong><small id="sysTotal"></small></div><div class="stat-cell"><label>SERVICE UPTIME</label><strong id="sysUptime"></strong><small>Since backend started</small></div></div><div class="panel-card" style="margin-top:14px"><h3>Access boundary</h3><div class="muted">${mode==='live'?'This session is authenticated. File access is confined to the HELEN workspace. Python runs only predefined tasks.':'All displayed system values are demo placeholders. No host computer is connected.'}</div></div>`;
+      $('#sysHost',body).textContent=data.host;
+      $('#sysOS',body).textContent=data.os;
+      $('#sysArchitecture',body).textContent=data.architecture;
+      $('#sysCPU',body).textContent=data.cpu_cores;
+      $('#sysPython',body).textContent=data.python;
+      $('#sysDisk',body).textContent=data.disk_free==null?'Sample only':formatBytes(data.disk_free);
+      $('#sysTotal',body).textContent=data.disk_total==null?'No hardware data':'of '+formatBytes(data.disk_total)+' total';
+      $('#sysUptime',body).textContent=Math.floor(data.service_uptime_seconds/60)+'m '+data.service_uptime_seconds%60+'s';
+    };
+    $('#refreshSystem',body).onclick=()=>display().catch(e=>toast(e.message));
+    await display();
+  }
+  async function renderPython(body){
+    body.innerHTML='<div class="pane-header"><div><h2>Python task center</h2><div class="muted">Preapproved Python operations — no arbitrary commands</div></div><span class="eyebrow">PYTHON SERVICE</span></div><div id="pythonTasks" class="task-list"></div><div class="panel-card" style="margin-top:15px"><h3>Output <span class="eyebrow">// RESPONSE</span></h3><div id="consoleText" class="terminal">&gt; Select a Python task above to execute it on the connected computer.</div></div>';
+    const tasks=mode==='live'?(await api('/api/tasks')).tasks:demoTasks;
+    const list=$('#pythonTasks',body);
+    tasks.forEach(task=>{
+      const b=document.createElement('button');b.className='task-choice';
+      const title=document.createElement('b');title.textContent=task.name;
+      const desc=document.createElement('small');desc.textContent=task.description;
+      b.append(title,desc);list.append(b);
+      b.onclick=async()=>{
+        const term=$('#consoleText',body);term.textContent='> Running '+task.name+'…';
+        try{
+          if(mode==='live'){const r=await post('/api/tasks/run',{task:task.id});term.textContent='> '+task.name+'\n\n'+r.output+'\n\n[Finished successfully]';}
+          else{term.textContent='> DEMO MODE / NO PYTHON RUN\n\nThis task would execute on your real PC only after authentication.\n\nTask: '+task.name;}
+        }catch(err){term.textContent='Error: '+err.message;}
+      };
+    });
+  }
+  async function renderConnection(body){
+    if(phoneClient){
+      body.innerHTML='<div class="pane-header"><div><h2>Phone connection</h2><div class="muted">Connected through browser-to-browser pairing</div></div><span class="eyebrow">REMOTE</span></div><div class="panel-card"><h3>Connected PC</h3><p>You are using an approved session with the Windows host. The computer runs the Python tasks and maintains the files. The private Python access token stays on your PC.</p><p class="muted">This session stops if the PC browser closes or its pairing session ends.</p></div>';
+      return;
+    }
+    body.innerHTML=`<div class="pane-header"><div><h2>Pair your phone</h2><div class="muted">Use a code, just like our Browser Link Chat</div></div><span class="eyebrow">WEBRTC • EXPERIMENTAL</span></div>
+      <div class="panel-card pair-card"><h3>Step 1 — Start pairing on this PC</h3><p>Keep this HELEN browser (or Windows Forms host) open and signed in.</p><div class="pair-code" id="pairCode">— — —</div><div class="muted" id="pairState">Not paired</div><div class="row-actions" style="margin-top:14px;flex-wrap:wrap"><button class="action-button primary" id="startPair">Generate pairing code</button><button class="action-button" id="stopPair">Stop pairing</button><button class="action-button" id="copyPair">Copy code</button></div></div>
+      <div class="connection-step"><span class="step-number">2</span><div><b>Open HELEN Phone</b><p>For a first test, open <code>http://127.0.0.1:8765/phone.html</code> in another tab on this PC. For a phone on another network, host only the standalone <code>phone.html</code> file on a trusted HTTPS static website (see README). Never publish server.py or your token.</p></div></div>
+      <div class="connection-step"><span class="step-number">3</span><div><b>Type the code on your phone</b><p>Then come back here and click <b>Approve phone</b> when prompted. The PC bearer token is never sent to the phone.</p></div></div>
+      <div class="panel-card"><h3>Connection limits</h3><p class="muted">Requires Internet and the PeerJS signaling service. Strict networks may need a TURN relay. This early build doesn't reconnect interrupted calls automatically or work if the PC browser is closed.</p></div>`;
+    const pairing=window.HELEN_PAIRING;
+    if(!pairing){$('#pairState',body).textContent='Pairing module unavailable';return;}
+    pairing.subscribe(st=>{
+      if(!body.isConnected)return;
+      $('#pairCode',body).textContent=st.code?st.code.slice(0,5)+' '+st.code.slice(5):'— — —';
+      $('#pairState',body).textContent=st.status;
+      $('#stopPair',body).disabled=!st.code;
+      $('#copyPair',body).disabled=!st.code;
+    });
+    $('#startPair',body).onclick=async()=>{
+      const btn=$('#startPair',body);btn.disabled=true;
+      try{await pairing.start({request:(path,{method,body:obj})=>api(path,{method,body:method==='POST'?JSON.stringify(obj):undefined}),authorized:()=>mode==='live'});
+      }catch(e){toast(e.message);}finally{btn.disabled=false;}
+    };
+    $('#stopPair',body).onclick=()=>pairing.stop();
+    $('#copyPair',body).onclick=async()=>{const c=pairing.getState().code;if(c){try{await navigator.clipboard.writeText(c);toast('Pairing code copied');}catch{toast('Select and copy the displayed code');}}};
+  }
+
+})();
+
+</script>
+</body>
+</html>
