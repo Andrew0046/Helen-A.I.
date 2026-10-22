@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1226"><meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="description" content="HELEN OS v1.0.2 — original Helen services">
-<link rel="manifest" href="./manifest.webmanifest?v=102"><link rel="icon" href="./icon-192.png?v=102">
+<meta name="description" content="HELEN OS v1.1 — push-to-talk and spoken replies">
+<link rel="manifest" href="./manifest.webmanifest?v=110"><link rel="icon" href="./icon-192.png?v=110">
 <title>HELEN OS — Handheld Workspace</title>
 <style>
 :root{font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color-scheme:dark;--ink:#eaf3ff;--muted:#9eaecd;--dim:#758bb1;--line:rgba(194,220,255,.16);--glass:rgba(16,30,57,.81);--glass2:rgba(20,34,61,.96);--desktop:#091122;--bright:#8cbdff;--cyan:#57d3ec;--blue:#7389fa;--pink:#ce97ef;--shadow:0 24px 80px #0008}
@@ -87,6 +87,29 @@
 .goal-card input[type=checkbox]{accent-color:var(--cyan);cursor:pointer}.goal-card .actions{margin-top:7px}
 [data-hs-filter]{margin-bottom:8px}.winbody .goal-card strong{line-height:1.4}
 @media(max-width:690px) and (orientation:landscape){.icons{grid-template-columns:repeat(2,72px);gap:2px}}
+
+/* HELEN v1.1 — voice is a deliberate, foreground-only control. */
+.orbwrap{z-index:35}
+.orb{touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+.orbwrap.listening .orb{filter:drop-shadow(0 0 20px rgba(61,240,204,.9));transform:scale(1.07)}
+.orbwrap.listening .orb:before{border-color:rgba(75,255,211,.85);animation-duration:2.4s}
+.orbwrap.listening .orb:after{box-shadow:0 0 36px #56ffe7c0,inset -5px -9px 15px #123960;background:radial-gradient(circle at 35% 28%,#fbffff,#a8fff2 21%,#35b5c8 61%,#24456b 93%);animation-duration:.62s}
+.orbwrap.listening .orb-label{color:#adffef;font-size:9px}
+.orbwrap.requesting .orb-label{color:#f0dca8}
+.orbwrap .orb-label{max-width:115px;text-align:center;line-height:1.3}
+.helen-mic{width:37px;height:37px;border-radius:10px;display:grid;place-items:center;background:rgba(106,166,224,.12);border:1px solid var(--line);color:var(--bright);flex:0 0 auto}
+.helen-mic .i{width:18px;height:18px}
+.helen-mic.listening{color:#9fffe9;border-color:rgba(104,255,221,.8);background:rgba(52,197,171,.2);box-shadow:0 0 15px #36c9af5e}
+.helen-mic:disabled{opacity:.42}
+.helen-voice-state{font-size:10px;line-height:1.3;min-height:14px;color:var(--muted);padding:0 3px 6px}
+.helen-voice-state.listening{color:#85ead0}
+.helen-voice-state.error{color:#f7a9b9}
+.helen-tools{justify-content:flex-start;flex-wrap:wrap}
+.helen-tools .voice-lang{font:inherit;font-size:10px;color:var(--ink);background:var(--glass2);border:1px solid var(--line);border-radius:8px;padding:4px 6px;max-width:112px}
+.helen-tools .voice-lang option{background:#182945;color:white}
+.helen-tools button.speech-enabled{color:#92ecd8;border-color:#5dbbaa80}
+@media(max-height:420px){.helen-voice-state{font-size:9px;padding-bottom:3px}.helen-mic{width:32px;height:31px}.helen-tools .voice-lang{padding:3px}}
+
 </style>
 </head>
 <body>
@@ -95,13 +118,13 @@
 <header class="topbar"><div class="brand"><span class="brand-emblem">H</span><span>HELEN <span style="color:var(--bright)">/OS</span></span></div><div class="topcenter"><span><span class="dot demo" id="statusdot"></span><span id="connection-state">VISUAL DEMO</span></span><span class="host-label">· HANDHELD EDITION</span></div><div class="top-right"><button class="status-btn" id="controller-status" data-open="controller" title="Controller Lab"><span id="gamepad-status-icon">◌</span> <span id="gamepad-status-text">Controller off</span></button><span id="topclock">12:00</span></div></header>
 <div class="icons" id="desktop-icons"></div>
 <div id="win-layer"></div>
-<div class="orbwrap" id="orbwrap"><button class="orb" id="orb" title="Open Helen"><span class="orb-ring"></span></button><div class="orb-label">HELEN</div></div>
+<div class="orbwrap" id="orbwrap"><button class="orb" id="orb" title="Open Helen"><span class="orb-ring"></span></button><div class="orb-label" id="orb-label">HELEN</div></div>
 <nav class="taskbar"><button class="start" id="start-button" title="Start Menu">H</button><div class="taskpins" id="taskpins"></div><div class="tasktray"><span id="live-name">DEMO</span><span class="i" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12l5 5L21 4"/></svg></span><div class="timebox"><strong id="taskclock">12:00</strong><span id="taskdate">Oct 21</span></div></div></nav>
 <div id="startpanel" hidden></div><div id="dialog" hidden><div id="dialogbox"></div></div><div id="delete-confirm" hidden role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title"><div id="delete-confirm-box"></div></div><div id="toast" role="status" hidden></div><div id="pointer" aria-hidden="true"><svg viewBox="0 0 24 28"><path d="M2 2v22l6-6 4 9 5-2-4-9 9-1z"/></svg></div>
 </div>
 <script>
 (()=>{'use strict';
-const paths={home:'<path d="m3 10 9-7 9 7v10H3z"/><path d="M9 21v-8h6v8"/>',folder:'<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',monitor:'<rect x="2" y="3" width="20" height="15" rx="2"/><path d="M8 22h8m-4-4v4"/>',brain:'<path d="M12 6a4 4 0 0 0-7-1 4 4 0 0 0-2 7 4 4 0 0 0 4 7c1 3 5 2 5-1V6zM12 6a4 4 0 0 1 7-1 4 4 0 0 1 2 7 4 4 0 0 1-4 7c-1 3-5 2-5-1"/><path d="M8 9v5m8-5v5"/>',settings:'<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor"/><circle cx="15" cy="17" r="3" fill="currentColor"/>',apps:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',pad:'<path d="M6 8h12c4 0 6 9 3 11-1 1-3 0-6-3H9c-3 3-5 4-6 3-3-2-1-11 3-11z"/><path d="M6 12h5m-2.5-2.5v5M16 11h.01M19 14h.01"/>',terminal:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m5 0h5"/>',file:'<path d="M6 2h9l4 4v16H6zM15 2v5h4M9 12h6M9 16h7"/>',music:'<path d="M9 18V5l12-2v13M9 9l12-2"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',book:'<path d="M3 5a4 4 0 0 1 4-1l5 2 5-2a4 4 0 0 1 4 1v15a4 4 0 0 0-4-1l-5 2-5-2a4 4 0 0 0-4 1zM12 6v15"/>',layers:'<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 18l9 5 9-5"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m16 16 5 5"/>',wifi:'<path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="20" r="1"/>',shield:'<path d="m12 2 9 4v6c0 5-4 8-9 10-5-2-9-5-9-10V6z"/>',spark:'<path d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/>',chevron:'<path d="m9 18 6-6-6-6"/>',plus:'<path d="M12 5v14M5 12h14"/>',activity:'<path d="M2 12h5l3-7 4 14 3-7h5"/>',x:'<path d="M5 5l14 14M19 5L5 19"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/>',database:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 4 18 4 18 0V5M3 12c0 4 18 4 18 0"/>'};
+const paths={home:'<path d="m3 10 9-7 9 7v10H3z"/><path d="M9 21v-8h6v8"/>',folder:'<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',monitor:'<rect x="2" y="3" width="20" height="15" rx="2"/><path d="M8 22h8m-4-4v4"/>',brain:'<path d="M12 6a4 4 0 0 0-7-1 4 4 0 0 0-2 7 4 4 0 0 0 4 7c1 3 5 2 5-1V6zM12 6a4 4 0 0 1 7-1 4 4 0 0 1 2 7 4 4 0 0 1-4 7c-1 3-5 2-5-1"/><path d="M8 9v5m8-5v5"/>',settings:'<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor"/><circle cx="15" cy="17" r="3" fill="currentColor"/>',apps:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',pad:'<path d="M6 8h12c4 0 6 9 3 11-1 1-3 0-6-3H9c-3 3-5 4-6 3-3-2-1-11 3-11z"/><path d="M6 12h5m-2.5-2.5v5M16 11h.01M19 14h.01"/>',terminal:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m5 0h5"/>',file:'<path d="M6 2h9l4 4v16H6zM15 2v5h4M9 12h6M9 16h7"/>',music:'<path d="M9 18V5l12-2v13M9 9l12-2"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',book:'<path d="M3 5a4 4 0 0 1 4-1l5 2 5-2a4 4 0 0 1 4 1v15a4 4 0 0 0-4-1l-5 2-5-2a4 4 0 0 0-4 1zM12 6v15"/>',layers:'<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 18l9 5 9-5"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m16 16 5 5"/>',wifi:'<path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="20" r="1"/>',shield:'<path d="m12 2 9 4v6c0 5-4 8-9 10-5-2-9-5-9-10V6z"/>',spark:'<path d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/>',chevron:'<path d="m9 18 6-6-6-6"/>',plus:'<path d="M12 5v14M5 12h14"/>',activity:'<path d="M2 12h5l3-7 4 14 3-7h5"/>',x:'<path d="M5 5l14 14M19 5L5 19"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/>',mic:'<rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"/>',database:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 4 18 4 18 0V5M3 12c0 4 18 4 18 0"/>'};
 const I=n=>`<span class="i"><svg viewBox="0 0 24 24" aria-hidden="true">${paths[n]||paths.apps}</svg></span>`;
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const appDefs=[{id:'welcome',name:'Overview',ico:'home',shade:'purple'},{id:'files',name:'Files',ico:'folder',shade:'amber'},{id:'engine',name:'Engine Hub',ico:'apps',shade:'purple'},{id:'helen',name:'Helen',ico:'brain',shade:'rose'},{id:'notes',name:'Helen Notes',ico:'file',shade:'amber'},{id:'pastchats',name:'Past Chats',ico:'clock',shade:'purple'},{id:'memory',name:'Helen Memory',ico:'database',shade:'purple'},{id:'journal',name:'Journal',ico:'book',shade:'rose'},{id:'goals',name:'Goals & Projects',ico:'activity',shade:'teal'},{id:'preferences',name:'Preferences',ico:'spark',shade:'slate'},{id:'knowledge',name:'Knowledge Base',ico:'book',shade:'amber'},{id:'system',name:'System',ico:'monitor',shade:'teal'},{id:'controller',name:'Controller Lab',ico:'pad',shade:'slate'},{id:'settings',name:'Appearance',ico:'settings',shade:'slate'}];
@@ -115,19 +138,128 @@ function taskbar(){let ids=['welcome','files','helen','pastchats','memory','engi
 function toast(t){let el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(el.timer);el.timer=setTimeout(()=>el.hidden=true,2600)}
 // Handheld chat UI; messages remain in memory while the page is open. PC keeps a separate mirrored log.
 let phoneChat=[],chatBusy=false,chatDraft='',chatHistoryLoaded=false,chatHistoryRequest=0,chatError='';
+// Speech settings stay on this phone only. Actual Helen messages still use the existing PC chat route.
+let voiceSession=null;
+let speechReplies=store('helen-handheld-speak-replies')==='true';
+let voiceLanguage=store('helen-handheld-voice-lang')||(navigator.language?.toLowerCase().startsWith('es')?'es-ES':'en-US');
 const chatPreview=location.search.includes('preview=chat');
 if(chatPreview){phoneChat=[{role:'helen',content:'Hello! The handheld conversation window is ready. This is a visual preview, not an AI response.'},{role:'user',content:'Can we work from the phone desktop?'},{role:'helen',content:'The phone is the interface, and Windows hosts the original Helen engine. Pair them to start a real conversation.'}];chatHistoryLoaded=true}
 function helenChatMarkup(){
   const ready=mode==='live';
   const feed=phoneChat.length?phoneChat.map(m=>`<div class="helen-bubble ${m.role==='user'?'user':m.role==='error'?'error':''}"><span class="who">${m.role==='user'?'YOU':m.role==='error'?'STATUS':'HELEN'}</span>${esc(m.content)}</div>`).join(''):`<div class="helen-empty"><span style="font-size:25px">✧</span><strong>Your conversation with Helen</strong>${ready?'Type below to speak with the original Helen running on your computer.':'Connect to your computer to talk to Helen. You can still explore the desktop offline.'}</div>`;
-  return `<section class="helen-chat" aria-label="Helen conversation"><div class="helen-chat-top"><div class="labelblock"><span class="helen-presence" aria-hidden="true"></span><div><h1>Helen</h1><p class="small muted">${chatPreview?'VISUAL PREVIEW':ready?'Original engine · Windows PC':'Waiting for Windows host'}</p></div></div><span class="helen-status ${ready?'live':''}" id="helen-presence-state">${chatBusy?'Thinking…':ready?'● Connected':'○ Offline'}</span></div><div class="helen-feed" id="helen-feed" aria-live="polite">${feed}</div><div class="helen-chat-bottom"><div class="helen-tools"><button type="button" data-helen-refresh="1">↻ Sync conversation</button><button type="button" data-open="pastchats">Past Chats</button><button type="button" data-open="notes">Notes</button><span class="small muted" id="helen-chat-warning">${esc(chatError||(chatHistoryLoaded?'Phone conversation log':'History loads when connected'))}</span></div><form class="helen-composer" id="helen-compose-form"><textarea id="helen-message-input" rows="1" maxlength="1500" placeholder="${ready?'Message Helen…':'Connect to PC to message Helen…'}" aria-label="Message Helen">${esc(chatDraft)}</textarea><button class="helen-send" id="helen-send-button" type="submit" ${chatBusy||!ready?'disabled':''} title="Send message">➤</button></form><div class="helen-composer-help"><span>Enter to send · Shift+Enter for newline</span><span id="helen-count">${chatDraft.length}/1500</span></div></div></section>`;
+  return `<section class="helen-chat" aria-label="Helen conversation"><div class="helen-chat-top"><div class="labelblock"><span class="helen-presence" aria-hidden="true"></span><div><h1>Helen</h1><p class="small muted">${chatPreview?'VISUAL PREVIEW':ready?'Original engine · Windows PC':'Waiting for Windows host'}</p></div></div><span class="helen-status ${ready?'live':''}" id="helen-presence-state">${voiceSession?'● Listening…':chatBusy?'Thinking…':ready?'● Connected':'○ Offline'}</span></div><div class="helen-feed" id="helen-feed" aria-live="polite">${feed}</div><div class="helen-chat-bottom"><div class="helen-tools"><button type="button" data-helen-refresh="1">↻ Sync conversation</button><button type="button" data-open="pastchats">Past Chats</button><button type="button" data-open="notes">Notes</button><button type="button" data-helen-speak="1" class="${speechReplies?'speech-enabled':''}" title="Phone reads Helen’s replies aloud">${speechReplies?'🔊 Voice on':'🔇 Voice off'}</button><select class="voice-lang" id="helen-voice-lang" aria-label="Dictation language"><option value="en-US" ${voiceLanguage==='en-US'?'selected':''}>English</option><option value="es-ES" ${voiceLanguage==='es-ES'?'selected':''}>Español</option></select><span class="small muted" id="helen-chat-warning">${esc(chatError||(chatHistoryLoaded?'Phone conversation log':'History loads when connected'))}</span></div><div class="helen-voice-state" id="helen-voice-state" role="status" aria-live="polite">Hold the desktop orb to speak · release to send</div><form class="helen-composer" id="helen-compose-form"><textarea id="helen-message-input" rows="1" maxlength="1500" placeholder="${ready?'Message Helen…':'Connect to PC to message Helen…'}" aria-label="Message Helen">${esc(chatDraft)}</textarea><button class="helen-mic ${voiceSession?'listening':''}" type="button" id="helen-mic" data-voice-toggle="1" title="Tap to speak · tap again to send" aria-label="Start or stop microphone dictation" ${chatBusy||!ready?'disabled':''}>${I('mic')}</button><button class="helen-send" id="helen-send-button" type="submit" ${chatBusy||!ready?'disabled':''} title="Send message">➤</button></form><div class="helen-composer-help"><span>Enter to send · Shift+Enter for newline</span><span id="helen-count">${chatDraft.length}/1500</span></div></div></section>`;
 }
 function paintHelenChat({preserveInput=true}={}){
   const body=document.querySelector('#win-helen .winbody');if(!body)return;
   if(preserveInput){const input=document.getElementById('helen-message-input');if(input)chatDraft=input.value}
   body.innerHTML=helenChatMarkup();
   const feed=document.getElementById('helen-feed');if(feed)feed.scrollTop=feed.scrollHeight;
+  updateVoiceUI();
 }
+
+// Push-to-talk deliberately uses the browser's Web Speech API on the phone.
+// Mic audio is NEVER sent via our PC pairing layer: only the transcribed text uses /api/helen/chat.
+const RecognitionAPI=window.SpeechRecognition||window.webkitSpeechRecognition;
+function updateVoiceUI(message='',isError=false){
+ const state=document.getElementById('helen-voice-state');
+ const text=message||(voiceSession?(voiceSession.stopRequested?'Finishing transcription…':voiceSession.started?'Listening — release or tap again to send':'Starting microphone…'):'Hold the desktop orb to speak · release to send');
+ if(state){state.textContent=text;state.classList.toggle('listening',!!voiceSession&&!isError);state.classList.toggle('error',isError)}
+ const orbwrap=$('#orbwrap');if(orbwrap){orbwrap.classList.toggle('listening',!!voiceSession&&voiceSession.started&&!voiceSession.stopRequested);orbwrap.classList.toggle('requesting',!!voiceSession&&!voiceSession.started)}
+ const label=$('#orb-label');if(label)label.textContent=voiceSession?(voiceSession.stopRequested?'SENDING…':voiceSession.started?'LISTENING':'MIC STARTING'):'HELEN';
+ const mic=document.getElementById('helen-mic');if(mic){mic.classList.toggle('listening',!!voiceSession);mic.title=voiceSession?'Tap again to send':'Tap to speak · tap again to send'}
+ const badge=document.getElementById('helen-presence-state');if(badge)badge.textContent=voiceSession?'● Listening…':chatBusy?'Thinking…':mode==='live'?'● Connected':'○ Offline';
+}
+function putVoiceDraft(s){
+ chatDraft=s.slice(0,1500);
+ const field=document.getElementById('helen-message-input');
+ if(field){field.value=chatDraft;field.dispatchEvent(new Event('input',{bubbles:true}))}
+}
+function speakHelenReply(message){
+ if(!speechReplies||!('speechSynthesis' in window)||typeof window.SpeechSynthesisUtterance==='undefined')return;
+ try{
+  speechSynthesis.cancel();const speech=new SpeechSynthesisUtterance(String(message).slice(0,3500));
+  speech.lang=voiceLanguage;speech.rate=1;speech.pitch=1;
+  speechSynthesis.speak(speech);
+ }catch{toast('Phone voice output unavailable')}
+}
+function startVoice(source){
+ if(voiceSession||chatBusy){toast('Helen is busy or already listening');return false}
+ if(mode!=='live'){showWindow('helen');toast('Connect to your Windows PC before talking');return false}
+ if(!RecognitionAPI){showWindow('helen');toast('Speech recognition not available. Try Chrome or your keyboard microphone.');return false}
+ if(!window.isSecureContext){showWindow('helen');toast('Microphone needs HTTPS (or localhost)');return false}
+ showWindow('helen');
+ try{speechSynthesis?.cancel()}catch{}
+ const field=document.getElementById('helen-message-input');
+ const s={source,recognition:new RecognitionAPI(),started:false,stopRequested:false,sendOnEnd:false,recognized:'',lastPartial:'',base:(field?.value||chatDraft).trim(),failed:false,done:false,timeout:null};
+ voiceSession=s;
+ const r=s.recognition;
+ r.lang=voiceLanguage;r.continuous=false;r.interimResults=true;r.maxAlternatives=1;
+ r.onstart=()=>{if(voiceSession!==s)return;s.started=true;updateVoiceUI();if(s.stopRequested)try{r.stop()}catch{}};
+ r.onresult=e=>{
+  if(voiceSession!==s)return;
+  const confirmed=[],tentative=[];
+  for(let i=0;i<e.results.length;i++){
+   const text=String(e.results[i][0]?.transcript||'').trim();if(!text)continue;
+   (e.results[i].isFinal?confirmed:tentative).push(text);
+  }
+  s.recognized=confirmed.join(' ').trim();s.lastPartial=tentative.join(' ').trim();
+  const words=[s.recognized,s.lastPartial].filter(Boolean).join(' ').trim();
+  if(words)putVoiceDraft([s.base,words].filter(Boolean).join(' '));
+  updateVoiceUI(words?'Heard: '+words.slice(-125):'Listening…');
+ };
+ r.onerror=e=>{
+  if(voiceSession!==s)return;
+  s.failed=true;
+  const explanations={'not-allowed':'Microphone permission denied. Allow it in your browser settings.','service-not-allowed':'Speech recognition is disabled in this browser.','network':'Speech recognition network error.','no-speech':'No speech detected. Try holding longer.','audio-capture':'No microphone available.','language-not-supported':'Selected speech language is unavailable.'};
+  const detail=explanations[e.error]||('Speech recognition failed: '+(e.error||'unknown'));
+  updateVoiceUI(detail,true);toast(detail);
+ };
+ r.onend=()=>{
+  if(voiceSession!==s)return;
+  voiceSession=null;clearTimeout(s.timeout);updateVoiceUI();
+  const recognized=s.recognized.trim();
+  if(recognized){putVoiceDraft([s.base,recognized].filter(Boolean).join(' '))}
+  else if(s.lastPartial){putVoiceDraft([s.base,s.lastPartial].filter(Boolean).join(' '))}
+  else{putVoiceDraft(s.base)}
+  // Never auto-send silence, an error, or interim-only recognition.
+  if(s.sendOnEnd&&!s.failed&&recognized&&mode==='live'&&!chatBusy)sendHelenChat();
+  else if(!s.failed&&!recognized&&s.sendOnEnd)toast('No final speech recognized — text kept for review');
+ };
+ try{r.start()}catch(e){voiceSession=null;updateVoiceUI();toast('Could not start microphone: '+(e?.message||'browser restriction'));return false}
+ updateVoiceUI();
+ s.timeout=setTimeout(()=>{if(voiceSession!==s)return;if(!s.started){try{r.abort()}catch{};voiceSession=null;updateVoiceUI();toast('Microphone did not start; please retry')}},25000);
+ return true;
+}
+function stopVoice(send=true){
+ const s=voiceSession;if(!s||s.stopRequested)return;
+ s.stopRequested=true;s.sendOnEnd=send;updateVoiceUI();
+ if(s.started){try{send?s.recognition.stop():s.recognition.abort()}catch{}}
+ // On first permission grant, onstart can be delayed; it will stop as soon as it starts.
+}
+function cancelVoice(){const s=voiceSession;if(!s)return;s.sendOnEnd=false;voiceSession=null;clearTimeout(s.timeout);try{s.recognition.abort()}catch{};updateVoiceUI()}
+// Short tap on the orb opens Helen. Holding for 280ms begins microphone dictation.
+let orbPress=null,suppressOrbClick=false;
+function installOrbPress(){
+ const orb=$('#orb');
+ orb.addEventListener('pointerdown',e=>{
+  if(e.button!==0&&e.pointerType==='mouse')return;
+  if(orbPress)return;
+  const p={id:e.pointerId,long:false,timer:null};orbPress=p;
+  try{orb.setPointerCapture(e.pointerId)}catch{}
+  p.timer=setTimeout(()=>{if(orbPress!==p)return;p.long=true;startVoice('orb')},280);
+ });
+ orb.addEventListener('pointerup',e=>{
+  const p=orbPress;if(!p||p.id!==e.pointerId)return;
+  clearTimeout(p.timer);orbPress=null;
+  if(p.long){suppressOrbClick=true;stopVoice(true)}
+ });
+ orb.addEventListener('pointercancel',()=>{if(!orbPress)return;clearTimeout(orbPress.timer);orbPress=null;cancelVoice();suppressOrbClick=false});
+ orb.addEventListener('contextmenu',e=>e.preventDefault());
+ orb.onclick=()=>{if(suppressOrbClick){suppressOrbClick=false;return}showWindow('helen')};
+}
+function toggleChatMicrophone(){if(voiceSession){stopVoice(true);return}startVoice('chat')}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelVoice()});
+
 async function loadPhoneChat(){
   if(mode!=='live'){toast('Connect to your computer to sync chat');return;}
   if(chatBusy)return;
@@ -155,15 +287,15 @@ async function sendHelenChat(){
   if(!message||chatBusy)return;
   if(mode!=='live'){toast('Connect to the Windows host first');return}
   if(message.length>1500){toast('Message exceeds 1500 characters');return}
-  chatBusy=true;chatError='';chatDraft='';phoneChat.push({role:'user',content:message});paintHelenChat(false);
+  chatBusy=true;chatError='';chatDraft='';phoneChat.push({role:'user',content:message});paintHelenChat({preserveInput:false});
   try{
     const answer=await request('/api/helen/chat',{method:'POST',body:{message}});
-    if(answer.reply){phoneChat.push({role:'helen',content:answer.reply});}
+    if(answer.reply){phoneChat.push({role:'helen',content:answer.reply});if(speechReplies)speakHelenReply(answer.reply);}
     else{phoneChat.push({role:'error',content:'Helen received your message, but no text reply was captured. Check her original window on the PC.'});}
     if(answer.warning)chatError=answer.warning;
     // Keep this response visible. Fresh history can be fetched after processing finishes.
   }catch(err){if(phoneChat.at(-1)?.role==='user'&&phoneChat.at(-1)?.content===message)phoneChat.pop();phoneChat.push({role:'error',content:'Message not confirmed: '+err.message});chatDraft=message;}
-  finally{chatBusy=false;paintHelenChat(false);const input=document.getElementById('helen-message-input');if(input&&chatDraft)input.value=chatDraft;}
+  finally{chatBusy=false;paintHelenChat({preserveInput:false});const input=document.getElementById('helen-message-input');if(input&&chatDraft)input.value=chatDraft;}
 }
 
 // HELEN Workspace: the original AI page is the source of truth. No copy of her notes is stored on the phone.
@@ -364,7 +496,7 @@ async function refreshSystem(){if(mode!=='live')return;try{let d=await request('
 function startMenu(){const el=$('#startpanel');if(!el.hidden){el.hidden=true;return}el.innerHTML=`<div class="head">HELEN OS <span class="tiny" style="float:right">HANDHELD</span></div><input class="textinput" id="start-search" placeholder="Search applications…" autocomplete="off"><h2 style="font-size:11px">Applications</h2><div id="start-items" class="grid">${appDefs.map(a=>`<button class="tile" data-open="${a.id}">${I(a.ico)} ${a.name}</button>`).join('')}</div><div class="actions"><button class="btn" data-connect="1">${I('wifi')} Connect PC</button><button class="btn" data-open="settings">Customize</button></div>`;el.hidden=false;$('#start-search').focus()}
 function connectDialog(){if(mode==='live'){openDialog(`<h2>Connected PC</h2><p class="small">Connected to ${esc(host||'Windows PC')}</p><button class="btn" data-disconnect="1">Disconnect</button>`);return}openDialog(`<h2>Connect to your computer</h2><p class="small muted">Enter the 10-digit code generated by your existing Windows HELEN host, then approve the connection on the PC. Demo works without pairing.</p><label class="label">Pairing code</label><input class="textinput" id="pair-code" inputmode="numeric" maxlength="11" placeholder="00000 00000"><p class="small muted" id="pair-status">No code saved on this phone.</p><div class="actions"><button class="btn primary" data-pair="1">Connect</button><button class="btn" data-dismiss="1">Cancel</button></div>`) }
 // Original v0.3 pairing transport compatibility: 10-digit PC code; approval; request/response messages.
-let peer=null,conn=null,seq=0;const waiting=new Map();function disconnect(){for(const [id,r] of waiting){clearTimeout(r.timer);r.reject(Error('Disconnected'))}waiting.clear();try{conn?.close()}catch{}try{peer?.destroy()}catch{}conn=null;peer=null;mode='demo';host='';
+let peer=null,conn=null,seq=0;const waiting=new Map();function disconnect(){cancelVoice();for(const [id,r] of waiting){clearTimeout(r.timer);r.reject(Error('Disconnected'))}waiting.clear();try{conn?.close()}catch{}try{peer?.destroy()}catch{}conn=null;peer=null;mode='demo';host='';
 // Keep sensitive original-Helen data from surviving a disconnect in open windows.
 ++notesLoad;++chatsLoad;++loadNum;++chatHistoryRequest;
 helenNotes=[];helenSessions=[];
@@ -380,7 +512,7 @@ function updateStatus(){
  $('#connection-state').textContent=mode==='live'?'PC CONNECTED':'VISUAL DEMO';
  $('#statusdot').className='dot '+mode;$('#live-name').textContent=mode==='live'?'PC ONLINE':'DEMO';
  for(const kind of ['welcome','system','files','notes','pastchats'])if(windows.has(kind))repaint(kind);
- if(windows.has('helen'))paintHelenChat();
+ if(windows.has('helen'))paintHelenChat();updateVoiceUI();
  // Refresh every open window after mode changes, not just newly opened apps.
  if(windows.has('files'))refreshFiles();
  if(windows.has('notes'))fetchNotes();
@@ -395,6 +527,8 @@ function orbPulse(){let el=$('#orbwrap');el.classList.add('pulse');setTimeout(()
 let drag=null;document.addEventListener('pointerdown',e=>{let bar=e.target.closest('[data-drag]');if(!bar||e.target.closest('button'))return;let id=bar.dataset.drag,win=windows.get(id);if(!win||win.max)return;focus(id);drag={id,x:e.clientX,y:e.clientY,l:win.left,t:win.top,pointer:e.pointerId,element:bar};try{bar.setPointerCapture(e.pointerId)}catch{}});
 document.addEventListener('pointermove',e=>{if(!drag||drag.pointer!==e.pointerId)return;let data=windows.get(drag.id);if(!data)return;data.left=Math.max(0,Math.min(innerWidth-90,drag.l+e.clientX-drag.x));data.top=Math.max(0,Math.min(innerHeight-135,drag.t+e.clientY-drag.y));syncWindow(drag.id)});document.addEventListener('pointerup',e=>{if(drag&&e.pointerId===drag.pointer)drag=null});document.addEventListener('pointercancel',()=>drag=null);
 document.addEventListener('click',async e=>{const el=e.target.closest('button');if(!el)return;let a=el.dataset;
+ if(a.voiceToggle){toggleChatMicrophone();return}
+ if(a.helenSpeak){speechReplies=!speechReplies;save('helen-handheld-speak-replies',String(speechReplies));if(!speechReplies)try{speechSynthesis.cancel()}catch{};paintHelenChat();toast(speechReplies?'Helen replies will be read aloud':'Helen voice output off');return}
  if(a.deleteCancel){closeDeleteConfirm();return}
  if(a.deleteApprove){await approveDeleteConfirm();return}
  if(a.hsNew){editService(a.hsNew);return}
@@ -420,7 +554,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('button');
  if(a.helenchatContinue){activateHelenChat(Number(a.helenchatContinue));return}
  if(a.open){$('#startpanel').hidden=true;showWindow(a.open);return}if(a.taskwin){toggleTask(a.taskwin);return}if(a.op){operate(a.target,a.op);return}if(a.toast){toast(a.toast);return}if(a.connect){$('#startpanel').hidden=true;connectDialog();return}if(a.dismiss){closeDialog();return}if(a.fullscreen){doFullscreen();return}if(a.orbPulse){orbPulse();return}if(a.newfolder){createItem('folder');return}if(a.newnote){createItem('file');return}if(a.refreshFiles){refreshFiles();return}if(a.fileBack){currentFolder=currentFolder.split('/').slice(0,-1).join('/');refreshFiles();return}if(a.filePath){openFile(a.filePath,a.fileType);return}if(a.savefile){try{let content=$('#file-editor').value;if(mode==='live')await request('/api/file/save',{method:'POST',body:{path:a.savefile,content}});else filesDemo[a.savefile]=content;closeDialog();toast('Saved')}catch(err){toast(err.message)}return}if(a.pair){const code=$('#pair-code').value.replace(/\D/g,'');try{setPairText('Connecting…');await pair(code);let d=await request('/api/status');mode='live';host=d.host||'PC';updateStatus();closeDialog();toast('Windows PC connected');chatHistoryLoaded=false;loadPhoneChat()}catch(err){setPairText(err.message)}return}if(a.disconnect){disconnect();closeDialog();toast('Disconnected');return}if(a.togglecursor){gamepadCursor=!gamepadCursor;$('#pointer').classList.toggle('visible',gamepadCursor);toast(gamepadCursor?'Test cursor enabled':'Test cursor hidden');return}});
 document.addEventListener('submit',e=>{if(e.target.id==='helen-compose-form'){e.preventDefault();sendHelenChat()}});document.addEventListener('click',e=>{if(e.target.closest('[data-helen-refresh]'))loadPhoneChat()});
-$('#orb').onclick=()=>{showWindow('helen')};$('#start-button').onclick=startMenu;$('#dialog').onclick=e=>{if(e.target.id==='dialog'&&$('#delete-confirm').hidden)closeDialog()};$('#delete-confirm').onclick=e=>{if(e.target.id==='delete-confirm')closeDeleteConfirm()};document.addEventListener('input',e=>{if(e.target.dataset?.hsFilter){const kind=e.target.dataset.hsFilter;serviceFilters[kind]=e.target.value;paintService(kind)}if(e.target.id==='start-search'){$$('#start-items button').forEach(b=>b.hidden=!b.textContent.toLowerCase().includes(e.target.value.toLowerCase()))}if(e.target.id==='helen-notes-filter'){notesFilter=e.target.value;paintNotes()}if(e.target.id==='helen-chats-filter'){chatsFilter=e.target.value;paintChats()}if(e.target.id==='helen-message-input'){chatDraft=e.target.value;const count=$('#helen-count');if(count)count.textContent=chatDraft.length+'/1500';e.target.style.height='auto';e.target.style.height=Math.min(95,e.target.scrollHeight)+'px'}});const $$=s=>[...document.querySelectorAll(s)];document.addEventListener('change',e=>{if(e.target.dataset?.todoToggle){const el=e.target,goalId=el.dataset.goalId,todoId=el.dataset.todoId;const stored=goalItems.find(g=>g.id===goalId)?.todos.find(t=>t.id===todoId);const wanted=el.checked;if(stored)el.checked=!!stored.completed;else paintGoals();if(mode!=='live'||goalBusy){toast(mode!=='live'?'Connect PC before editing goals':'A goal change is still saving');paintGoals();return}if(!stored){toast('To-do not found. Refresh first');return}modifyGoal('todo/toggle',goalId,todoId,wanted);return}if(e.target.id==='theme-select'){theme=e.target.value;save('helen-handheld-theme',theme);applyTheme()}if(e.target.id==='motion-select'){motion=e.target.value;save('helen-handheld-motion',motion);applyTheme()}});document.addEventListener('keydown',e=>{if(e.target.id==='helen-message-input'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendHelenChat();return}if(e.key==='Escape'){if(!$('#delete-confirm').hidden)closeDeleteConfirm();else if(!$('#dialog').hidden)closeDialog();else if(!$('#startpanel').hidden)$('#startpanel').hidden=true;else if(focused)operate(focused,'min')}if(e.key==='F11')doFullscreen()});
+installOrbPress();$('#start-button').onclick=startMenu;$('#dialog').onclick=e=>{if(e.target.id==='dialog'&&$('#delete-confirm').hidden)closeDialog()};$('#delete-confirm').onclick=e=>{if(e.target.id==='delete-confirm')closeDeleteConfirm()};document.addEventListener('input',e=>{if(e.target.dataset?.hsFilter){const kind=e.target.dataset.hsFilter;serviceFilters[kind]=e.target.value;paintService(kind)}if(e.target.id==='start-search'){$$('#start-items button').forEach(b=>b.hidden=!b.textContent.toLowerCase().includes(e.target.value.toLowerCase()))}if(e.target.id==='helen-notes-filter'){notesFilter=e.target.value;paintNotes()}if(e.target.id==='helen-chats-filter'){chatsFilter=e.target.value;paintChats()}if(e.target.id==='helen-message-input'){chatDraft=e.target.value;const count=$('#helen-count');if(count)count.textContent=chatDraft.length+'/1500';e.target.style.height='auto';e.target.style.height=Math.min(95,e.target.scrollHeight)+'px'}});const $$=s=>[...document.querySelectorAll(s)];document.addEventListener('change',e=>{if(e.target.id==='helen-voice-lang'){voiceLanguage=e.target.value;save('helen-handheld-voice-lang',voiceLanguage);toast('Microphone language: '+(voiceLanguage==='es-ES'?'Español':'English'));return}if(e.target.dataset?.todoToggle){const el=e.target,goalId=el.dataset.goalId,todoId=el.dataset.todoId;const stored=goalItems.find(g=>g.id===goalId)?.todos.find(t=>t.id===todoId);const wanted=el.checked;if(stored)el.checked=!!stored.completed;else paintGoals();if(mode!=='live'||goalBusy){toast(mode!=='live'?'Connect PC before editing goals':'A goal change is still saving');paintGoals();return}if(!stored){toast('To-do not found. Refresh first');return}modifyGoal('todo/toggle',goalId,todoId,wanted);return}if(e.target.id==='theme-select'){theme=e.target.value;save('helen-handheld-theme',theme);applyTheme()}if(e.target.id==='motion-select'){motion=e.target.value;save('helen-handheld-motion',motion);applyTheme()}});document.addEventListener('keydown',e=>{if(e.target.id==='helen-message-input'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendHelenChat();return}if(e.key==='Escape'){if(!$('#delete-confirm').hidden)closeDeleteConfirm();else if(!$('#dialog').hidden)closeDialog();else if(!$('#startpanel').hidden)$('#startpanel').hidden=true;else if(focused)operate(focused,'min')}if(e.key==='F11')doFullscreen()});
 // Generic Gamepad API: detect controller, show actual mappings and use provisional browser button indices.
 let lastPad=null,gamepadCursor=false,px=innerWidth*.55,py=innerHeight*.55,lastFrame=performance.now(),lastPadButtons=[],lastTrigger=0,padDirection=0,padSwitch=0;
 function padOf(){try{return [...(navigator.getGamepads?.()||[])].find(g=>g&&g.connected)||null}catch{return null}}
