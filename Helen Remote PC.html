@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1226"><meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="description" content="HELEN OS v1.1 — push-to-talk and spoken replies">
-<link rel="manifest" href="./manifest.webmanifest?v=110"><link rel="icon" href="./icon-192.png?v=110">
+<meta name="description" content="HELEN OS v1.3 — handheld desktop navigation and controller keyboard">
+<link rel="manifest" href="./manifest.webmanifest?v=130"><link rel="icon" href="./icon-192.png?v=130">
 <title>HELEN OS — Handheld Workspace</title>
 <style>
 :root{font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color-scheme:dark;--ink:#eaf3ff;--muted:#9eaecd;--dim:#758bb1;--line:rgba(194,220,255,.16);--glass:rgba(16,30,57,.81);--glass2:rgba(20,34,61,.96);--desktop:#091122;--bright:#8cbdff;--cyan:#57d3ec;--blue:#7389fa;--pink:#ce97ef;--shadow:0 24px 80px #0008}
@@ -130,6 +130,24 @@
 @media(max-height:420px){.wheel-item .i{width:14px;height:14px}.wheel-item{border-radius:9px;font-size:9px}.wheel-close{width:22px;height:22px}}
 @media(max-width:420px){.pad-row{grid-template-columns:1fr 1fr;}.pad-row label{grid-column:1/-1}.pad-settings{grid-template-columns:1fr}}
 
+
+/* v1.3 HANDHELD: button targeting, controller keyboard and window adjustment */
+#virtual-board[hidden]{display:none!important}
+#virtual-board{position:absolute;inset:0;z-index:110;background:rgba(3,9,22,.74);backdrop-filter:blur(8px);display:flex;align-items:end;justify-content:center;padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+.virtual-shell{width:min(850px,100%);border:1px solid rgba(150,194,255,.35);border-radius:15px;padding:8px;background:linear-gradient(145deg,rgba(27,44,80,.98),rgba(12,22,42,.98));box-shadow:0 18px 70px #000a}
+.virtual-top{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-bottom:6px;font-size:10px;color:#e0edff}
+.virtual-top strong{font-size:12px}.virtual-top .hint{color:#a6bedf;font-size:10px}.virtual-close{padding:5px 9px;border-radius:7px;background:#2b4163}
+.virtual-rows{display:flex;flex-direction:column;gap:4px}.virtual-row{display:flex;gap:4px;justify-content:center}
+.vkey{min-width:0;flex:1;height:clamp(28px,8.5vh,39px);border-radius:7px;border:1px solid rgba(169,203,255,.23);background:#31496d;color:#f0f6ff;font-size:clamp(11px,2vw,15px);font-weight:700;display:grid;place-items:center;padding:0 2px}
+.vkey.special{background:#415784;color:#e6efff}.vkey.space{flex:4}.vkey.selected,.vkey:hover{background:#557ac6;border-color:#dbf0ff;box-shadow:0 0 0 2px #90d6ff8f,0 0 14px #5eacff87}
+.virtual-info{font-size:9px;color:#b5c5e3;margin-top:6px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+#handheld-mode[hidden]{display:none!important}#handheld-mode{position:absolute;left:50%;top:41px;transform:translateX(-50%);z-index:92;border:1px solid #9bd8ff8c;border-radius:10px;background:#172e51ed;padding:9px 14px;color:#e3f5ff;font-size:11px;box-shadow:0 10px 25px #0008;white-space:nowrap;pointer-events:none}
+#shell.adjusting .win.focused{border:2px solid #6de0d3;box-shadow:0 0 0 5px #6de0d334,0 15px 60px #000a}
+.gp-target{outline:2px solid #88edda!important;outline-offset:3px!important;box-shadow:0 0 15px #57c6d0a3!important}
+.task-kbd{width:35px;height:36px;flex-shrink:0;border-radius:10px;background:rgba(103,147,221,.13);border:1px solid rgba(145,188,255,.25);font-size:15px;color:#aed1ff}
+@media(max-height:420px){.virtual-shell{padding:5px}.virtual-top{margin-bottom:4px}.vkey{height:29px}.virtual-info{margin-top:4px}.virtual-rows{gap:3px}}
+@media(orientation:portrait) and (max-width:550px){#virtual-board{padding:4px}.vkey{height:44px}.virtual-row{gap:2px}.virtual-shell{padding:5px}.virtual-info{font-size:9px}}
+
 </style>
 </head>
 <body>
@@ -139,8 +157,8 @@
 <div class="icons" id="desktop-icons"></div>
 <div id="win-layer"></div>
 <div class="orbwrap" id="orbwrap"><button class="orb" id="orb" title="Open Helen"><span class="orb-ring"></span></button><div class="orb-label" id="orb-label">HELEN</div></div>
-<nav class="taskbar"><button class="start" id="start-button" title="Start Menu">H</button><button class="wheel-taskbtn" data-wheel-open="1" title="Quick Command Wheel">◎</button><div class="taskpins" id="taskpins"></div><div class="tasktray"><span id="live-name">DEMO</span><span class="i" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12l5 5L21 4"/></svg></span><div class="timebox"><strong id="taskclock">12:00</strong><span id="taskdate">Oct 21</span></div></div></nav>
-<div id="startpanel" hidden></div><div id="dialog" hidden><div id="dialogbox"></div></div><div id="delete-confirm" hidden role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title"><div id="delete-confirm-box"></div></div><div id="toast" role="status" hidden></div><div id="quick-wheel" hidden role="dialog" aria-modal="true" aria-label="Controller quick commands"></div><div id="pointer" aria-hidden="true"><svg viewBox="0 0 24 28"><path d="M2 2v22l6-6 4 9 5-2-4-9 9-1z"/></svg></div>
+<nav class="taskbar"><button class="start" id="start-button" title="Start Menu">H</button><button class="wheel-taskbtn" data-wheel-open="1" title="Quick Command Wheel">◎</button><button class="task-kbd" data-keyboard-open="1" title="Controller keyboard">⌨</button><div class="taskpins" id="taskpins"></div><div class="tasktray"><span id="live-name">DEMO</span><span class="i" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12l5 5L21 4"/></svg></span><div class="timebox"><strong id="taskclock">12:00</strong><span id="taskdate">Oct 21</span></div></div></nav>
+<div id="startpanel" hidden></div><div id="dialog" hidden><div id="dialogbox"></div></div><div id="delete-confirm" hidden role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title"><div id="delete-confirm-box"></div></div><div id="toast" role="status" hidden></div><div id="quick-wheel" hidden role="dialog" aria-modal="true" aria-label="Controller quick commands"></div><div id="virtual-board" hidden role="dialog" aria-modal="true" aria-label="Controller on-screen keyboard"></div><div id="handheld-mode" hidden role="status"></div><div id="pointer" aria-hidden="true"><svg viewBox="0 0 24 28"><path d="M2 2v22l6-6 4 9 5-2-4-9 9-1z"/></svg></div>
 </div>
 <script>
 (()=>{'use strict';
@@ -466,12 +484,13 @@ async function modifyGoal(action,id='',todoId='',completed=false,fields={}){
 
 
 // v1.2: configurable Gamepad API mappings. Settings remain local to the phone; no new PC permissions.
-const padActions=[['click','Click / select'],['back','Back / close panel'],['keyboard','Focus chat composer'],['openHelen','Open Helen chat'],['previous','Previous application'],['next','Next application'],['voice','Hold to speak'],['wheel','Hold for command wheel'],['menu','Start menu'],['openNotes','Open Notes']];
-const defaultPadMap={desktop:{click:0,back:1,keyboard:2,openHelen:3,previous:4,next:5,voice:6,wheel:7,menu:9,openNotes:8},helen:{click:0,back:1,keyboard:2,openHelen:3,previous:4,next:5,voice:6,wheel:7,menu:9,openNotes:8}};
+const padActions=[['click','Click / select'],['back','Back / close panel'],['keyboard','Controller keyboard'],['openHelen','Open Helen chat'],['previous','Previous application'],['next','Next application'],['voice','Hold to speak'],['wheel','Hold for command wheel'],['menu','Start menu'],['openNotes','Open Notes'],['windowMode','Move / resize window']];
+const defaultPadMap={desktop:{click:0,back:1,keyboard:2,openHelen:3,previous:4,next:5,voice:6,wheel:7,menu:9,openNotes:8,windowMode:null},helen:{click:0,back:1,keyboard:2,openHelen:3,previous:4,next:5,voice:6,wheel:7,menu:9,openNotes:8,windowMode:null}};
 function safePadCfg(data){
- const cfg={speed:.7,deadzone:.16,mode:'auto',mappings:{desktop:{...defaultPadMap.desktop},helen:{...defaultPadMap.helen}}};
+ const cfg={speed:.7,deadzone:.16,mode:'auto',snap:true,mappings:{desktop:{...defaultPadMap.desktop},helen:{...defaultPadMap.helen}}};
  if(!data||typeof data!=='object')return cfg;
  if([.4,.7,1.1,1.55].includes(Number(data.speed)))cfg.speed=Number(data.speed);
+ if(typeof data.snap==='boolean')cfg.snap=data.snap;
  if(Number.isFinite(data.deadzone))cfg.deadzone=Math.min(.35,Math.max(.08,Number(data.deadzone)));
  if(['auto','desktop','helen'].includes(data.mode))cfg.mode=data.mode;
  for(const profile of ['desktop','helen'])if(data.mappings?.[profile]&&typeof data.mappings[profile]==='object'){
@@ -522,18 +541,128 @@ function aimWheel(x,y){
  const index=((Math.round((rad+Math.PI/2)/(Math.PI/4))%8)+8)%8;
  selectWheel(index);
 }
-function focusChatComposer(){showWindow('helen');const field=$('#helen-message-input');if(field){field.focus();if(document.activeElement!==field)toast('Tap the message field to open the phone keyboard')}else toast('Open Helen and tap the message field')}
-function controllerBack(){if(wheelOpen){closeWheel();return}if(!$('#delete-confirm').hidden){closeDeleteConfirm();return}if(!$('#dialog').hidden){closeDialog();return}if(!$('#startpanel').hidden){$('#startpanel').hidden=true;return}if(focused)operate(focused,'min')}
+function focusChatComposer(){
+ showWindow('helen');openVirtualBoard(document.getElementById('helen-message-input'));
+}
+
+// v1.3: all of these controls are local to the phone web page.
+let virtualTarget=null,virtualRow=0,virtualCol=0,virtualShift=false,virtualNumeric=false,virtualLastNavigate=0;
+const alphaKeys=[
+ ['q','w','e','r','t','y','u','i','o','p'],
+ ['a','s','d','f','g','h','j','k','l'],
+ ['SHIFT','z','x','c','v','b','n','m','⌫'],
+ ['123','SPACE',',','.','?','↵','DONE']
+];
+const numericKeys=[['1','2','3','4','5','6','7','8','9','0'],['@','#','$','%','&','-','+','(',')'],['*','\"',':',';','!','/','_','?','⌫'],['ABC','SPACE',',','.','↵','DONE']];
+let virtualKeys=alphaKeys;
+function virtualEditingTarget(){return virtualTarget?.isConnected?virtualTarget:null}
+function nearestTextTarget(){
+ const overlay= !$('#dialog').hidden?$('#dialog'):!$('#startpanel').hidden?$('#startpanel'):null;
+ const overlayInput=overlay?.querySelector('input:not([type=checkbox]):not([type=range]),textarea');if(overlayInput)return overlayInput;
+ const el=hoveredControllerElement||document.elementFromPoint(px+2,py+2);
+ const field=el?.closest?.('input:not([type=checkbox]):not([type=range]),textarea');
+ if(field)return field;
+ if(focused){const box=document.querySelector('#win-'+focused+' .winbody');const active=box?.querySelector('input:not([type=checkbox]):not([type=range]),textarea');if(active)return active}
+ return document.getElementById('helen-message-input');
+}
+function openVirtualBoard(input=null){
+ if(wheelOpen)closeWheel();if(adjustWindowId)stopWindowAdjust();
+ virtualTarget=input||nearestTextTarget();
+ if(!virtualTarget){showWindow('helen');virtualTarget=document.getElementById('helen-message-input')}
+ virtualRow=0;virtualCol=0;virtualShift=false;virtualNumeric=false;virtualKeys=alphaKeys;
+ $('#virtual-board').hidden=false;paintVirtualBoard();
+}
+function closeVirtualBoard(){const el=$('#virtual-board');el.hidden=true;el.innerHTML='';virtualTarget=null;updateControllerHover()}
+function paintVirtualBoard(){
+ const box=$('#virtual-board');if(box.hidden)return;
+ box.innerHTML=`<div class="virtual-shell"><div class="virtual-top"><div><strong>HELEN // CONTROLLER KEYBOARD</strong><div class="hint">${esc(virtualEditingTarget()?.getAttribute('placeholder')||'Type with your controller')}</div></div><button class="virtual-close" data-board-close="1">Close ✕</button></div><div class="virtual-rows">${virtualKeys.map((row,r)=>`<div class="virtual-row">${row.map((key,c)=>`<button type="button" class="vkey ${key.length>1||'⌫↵'.includes(key)?'special':''} ${key==='SPACE'?'space':''} ${r===virtualRow&&c===virtualCol?'selected':''}" data-vkey="${esc(key)}" data-key-r="${r}" data-key-c="${c}" aria-label="${key==='SPACE'?'Space':esc(key)}">${key==='SPACE'?'Space':key==='SHIFT'?(virtualShift?'⇧ CAPS':'⇧ Shift'):key==='123'?'123':virtualShift&&key.length===1?key.toUpperCase():key}</button>`).join('')}</div>`).join('')}</div><div class="virtual-info"><span>Left stick / D-pad: aim · Click: type</span><span>Back: close · ↵: new line or send</span></div></div>`;
+}
+function selectVirtualKey(row,col){if($('#virtual-board').hidden)return;virtualRow=Math.max(0,Math.min(virtualKeys.length-1,row));virtualCol=Math.max(0,Math.min(virtualKeys[virtualRow].length-1,col));const all=$('#virtual-board').querySelectorAll('[data-vkey]');all.forEach(b=>b.classList.toggle('selected',Number(b.dataset.keyR)===virtualRow&&Number(b.dataset.keyC)===virtualCol))}
+function navigateVirtual(dx,dy,t=performance.now()){
+ if($('#virtual-board').hidden||t-virtualLastNavigate<170)return;
+ virtualLastNavigate=t;
+ const nextRow=Math.max(0,Math.min(virtualKeys.length-1,virtualRow+dy));
+ const nextCol=dx?Math.max(0,Math.min(virtualKeys[nextRow].length-1,virtualCol+dx)):Math.min(virtualCol,virtualKeys[nextRow].length-1);
+ selectVirtualKey(nextRow,nextCol);
+}
+function typeVirtualKey(key){
+ if($('#virtual-board').hidden)return;
+ const field=virtualEditingTarget();if(!field){toast('Text field closed — open a field again');closeVirtualBoard();return}
+ if(key==='DONE'){closeVirtualBoard();return}
+ if(key==='SHIFT'){virtualShift=!virtualShift;paintVirtualBoard();return}
+ if(key==='123'||key==='ABC'){virtualNumeric=key==='123';virtualKeys=virtualNumeric?numericKeys:alphaKeys;virtualRow=0;virtualCol=0;virtualShift=false;paintVirtualBoard();return}
+ if(key==='↵'&&field.id==='helen-message-input'){if(mode==='live'){closeVirtualBoard();sendHelenChat()}else toast('Connect your PC before sending to Helen');return}
+ let ins=key==='SPACE'?' ':key==='↵'?'\n':key;
+ let from=typeof field.selectionStart==='number'?field.selectionStart:field.value.length;
+ let to=typeof field.selectionEnd==='number'?field.selectionEnd:field.value.length;
+ if(key==='⌫'){if(from===to&&from>0)from--;ins=''}
+ else if(virtualShift&&ins.length===1){ins=ins.toUpperCase();virtualShift=false}
+ const max=field.maxLength>=0?field.maxLength:Infinity;
+ if(field.value.length-(to-from)+ins.length>max){toast('Text limit reached');return}
+ field.setRangeText(ins,from,to,'end');field.dispatchEvent(new Event('input',{bubbles:true}));
+ // Browser default soft keyboard is not required; controller can keep typing.
+ if(!$('#virtual-board').hidden)paintVirtualBoard();
+}
+let adjustWindowId='';
+function stopWindowAdjust(){adjustWindowId='';$('#handheld-mode').hidden=true;$('#shell').classList.remove('adjusting')}
+function toggleWindowAdjust(id=focused){
+ if(adjustWindowId){stopWindowAdjust();return}
+ if(!id||!windows.has(id)){toast('Open a window first');return}
+ if(windows.get(id).max){toast('Restore the window before moving it');return}
+ if(!$('#virtual-board').hidden)closeVirtualBoard();if(wheelOpen)closeWheel();
+ focus(id);adjustWindowId=id;$('#shell').classList.add('adjusting');
+ $('#handheld-mode').hidden=false;$('#handheld-mode').textContent='WINDOW ADJUST • left stick: move  • right stick: resize  • Click: done';
+}
+function applyWindowAdjust(lx,ly,rx,ry,dt){
+ const id=adjustWindowId,w=windows.get(id);if(!w||w.min||w.max){stopWindowAdjust();return}
+ const dz=controllerCfg.deadzone;
+ const scale=n=>Math.abs(n)>dz?Math.sign(n)*(Math.abs(n)-dz)/(1-dz):0;
+ w.left=Math.max(0,Math.min(innerWidth-85,w.left+scale(lx)*dt*.75));
+ w.top=Math.max(0,Math.min(innerHeight-110,w.top+scale(ly)*dt*.75));
+ w.width=Math.max(240,Math.min(innerWidth-w.left-5,w.width+scale(rx)*dt*.48));
+ w.height=Math.max(160,Math.min(innerHeight-w.top-55,w.height+scale(ry)*dt*.48));
+ syncWindow(id);
+}
+function controllerDpad(pad,rising,t){
+ const keys=[12,13,14,15],dir=[[0,-1],[0,1],[-1,0],[1,0]];
+ for(let i=0;i<4;i++){
+  if(!rising[keys[i]])continue;
+  if(!$('#virtual-board').hidden){navigateVirtual(...dir[i],t);return true}
+  const taken=Object.values(controllerCfg.mappings[controllerActiveProfile()]).includes(keys[i]);
+  if(!wheelOpen&&!adjustWindowId&&!taken){targetDirectional(...dir[i]);return true}
+ }
+ return false;
+}
+function targetDirectional(dx,dy){
+ const candidates=visibleControllerTargets();const angle=candidates.map(el=>{const r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,a=x-px,b=y-py;const forward=a*dx+b*dy;return{el,x,y,score:forward>4?forward+Math.abs(a*dy-b*dx)*2:Infinity}}).sort((a,b)=>a.score-b.score);
+ const best=angle[0];if(!best||!Number.isFinite(best.score))return;
+ px=Math.max(1,Math.min(innerWidth-20,best.x));py=Math.max(1,Math.min(innerHeight-25,best.y));gamepadCursor=true;
+ best.el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});updateControllerHover();
+}
+function visibleControllerTargets(){
+ const selector='button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[role="button"]';
+ let root= !$('#delete-confirm').hidden?$('#delete-confirm'):
+  !$('#dialog').hidden?$('#dialog'):
+  !$('#startpanel').hidden?$('#startpanel'):
+  focused&&!windows.get(focused)?.min?document.getElementById('win-'+focused):document;
+ if(!root)root=document;
+ const els=[...root.querySelectorAll(selector)].slice(0,220);
+ return els.filter(el=>{if(el.hidden||el.closest('[hidden]'))return false;const r=el.getBoundingClientRect();if(!r.width||!r.height||r.bottom<35||r.top>innerHeight-48||r.right<0||r.left>innerWidth)return false;const x=Math.max(1,Math.min(innerWidth-1,r.left+r.width/2)),y=Math.max(1,Math.min(innerHeight-1,r.top+r.height/2));const top=document.elementFromPoint(x,y);return top&&(el===top||el.contains(top))});
+}
+
+function controllerBack(){if(!$('#virtual-board').hidden){closeVirtualBoard();return}if(adjustWindowId){stopWindowAdjust();return}if(wheelOpen){closeWheel();return}if(!$('#delete-confirm').hidden){closeDeleteConfirm();return}if(!$('#dialog').hidden){closeDialog();return}if(!$('#startpanel').hidden){$('#startpanel').hidden=true;return}if(focused)operate(focused,'min')}
 function controllerSwitch(forward){const visible=[...windows.keys()].filter(k=>!windows.get(k).min);if(!visible.length){showWindow('welcome');return}let index=visible.indexOf(focused);index=(index+(forward?1:-1)+visible.length)%visible.length;showWindow(visible[index])}
 function controllerActivate(action,pressed){
- if(action==='wheel'){if(pressed)openWheel(true);else if(wheelOpen&&wheelGamepadHeld)closeWheel(true);return}
+ if(action==='wheel'){if(pressed){if(!$('#virtual-board').hidden)closeVirtualBoard();if(adjustWindowId)stopWindowAdjust();openWheel(true)}else if(wheelOpen&&wheelGamepadHeld)closeWheel(true);return}
  if(action==='voice'){if(pressed){if(!startVoice('controller'))toast('For microphone permission, use the touch orb if needed');}else if(voiceSession?.source==='controller')stopVoice(true);return}
  if(wheelOpen&&pressed&&action==='click'){closeWheel(true);return}
+ if(pressed&&!$('#virtual-board').hidden){if(action==='click')typeVirtualKey(virtualKeys[virtualRow][virtualCol]);else if(action==='back')closeVirtualBoard();return}
+ if(pressed&&adjustWindowId){if(action==='click'||action==='windowMode')stopWindowAdjust();else if(action==='back')stopWindowAdjust();return}
  if(!pressed||wheelOpen)return;
- switch(action){case 'click':{const hit=document.elementFromPoint(px+2,py+2);const click=hit?.closest('button,[role="button"]');if(click){click.click()}else if(hit?.matches('input,textarea,select'))hit.focus();else if(hit?.closest('.win'))focus(hit.closest('.win').dataset.win);break}
- case 'back':controllerBack();break;case 'menu':startMenu();break;case 'keyboard':focusChatComposer();break;case 'openHelen':showWindow('helen');break;case 'openNotes':showWindow('notes');break;case 'previous':controllerSwitch(false);break;case 'next':controllerSwitch(true);break;}
+ switch(action){case 'click':{updateControllerHover(true);const hit=hoveredControllerElement||document.elementFromPoint(px+2,py+2)?.closest('button,input,textarea,select,[role="button"]');if(hit?.matches('input:not([type=checkbox]):not([type=range]),textarea'))openVirtualBoard(hit);else if(hit?.matches('select')){hit.focus();toast('Use touch to change this selector if Android blocks controller input')}else if(hit){hit.click()}else {const el=document.elementFromPoint(px+2,py+2);if(el?.closest('.win'))focus(el.closest('.win').dataset.win)}break}
+ case 'windowMode':toggleWindowAdjust();break;case 'back':controllerBack();break;case 'menu':startMenu();break;case 'keyboard':focusChatComposer();break;case 'openHelen':showWindow('helen');break;case 'openNotes':showWindow('notes');break;case 'previous':controllerSwitch(false);break;case 'next':controllerSwitch(true);break;}
 }
-function contents(id){if(id==='welcome')return `<div class="tiny">HELEN / HANDHELD EDITION · V1.2.2</div><h1>Your PC. In your hands.</h1><p class="muted small">A real desktop-style experience on your phone, designed for touch and controller navigation.</p><div class="panel" style="margin-bottom:9px;display:flex;align-items:center;justify-content:space-between;gap:8px"><div><div class="tiny">CONNECTION STATUS</div><div style="font-size:13px;font-weight:750;margin-top:5px">${mode==='live'?'Connected to '+esc(host||'PC'):'Demo workspace'}</div><div class="muted small">${mode==='live'?'Phone-to-PC bridge is active':'Explore without your computer'}</div></div><span class="chip ${mode==='live'?'success':''}">${mode==='live'?'LIVE':'DEMO'}</span></div><div class="grid"><button class="tile" data-open="controller">${I('pad')} Controller Lab</button><button class="tile" data-open="files">${I('folder')} File Explorer</button><button class="tile" data-open="notes">${I('file')} Helen Notes</button><button class="tile" data-open="pastchats">${I('clock')} Past Chats</button><button class="tile" data-open="memory">${I('brain')} Memory</button><button class="tile" data-open="journal">${I('book')} Journal</button><button class="tile" data-open="goals">${I('activity')} Goals</button><button class="tile" data-open="engine">${I('apps')} Engine Hub</button></div><div class="actions"><button class="btn primary" data-connect="1">${I('wifi')} Connect PC</button><button class="btn" data-wheel-open="1">${I('apps')} Command wheel</button><button class="btn" data-fullscreen="1">${I('monitor')} Full screen</button></div><div class="small muted">Tip: turn your phone sideways for the full handheld layout. Your Windows host is not modified by this preview.</div>`;
+function contents(id){if(id==='welcome')return `<div class="tiny">HELEN / HANDHELD EDITION · V1.3</div><h1>Your PC. In your hands.</h1><p class="muted small">A real desktop-style experience on your phone, designed for touch and controller navigation.</p><div class="panel" style="margin-bottom:9px;display:flex;align-items:center;justify-content:space-between;gap:8px"><div><div class="tiny">CONNECTION STATUS</div><div style="font-size:13px;font-weight:750;margin-top:5px">${mode==='live'?'Connected to '+esc(host||'PC'):'Demo workspace'}</div><div class="muted small">${mode==='live'?'Phone-to-PC bridge is active':'Explore without your computer'}</div></div><span class="chip ${mode==='live'?'success':''}">${mode==='live'?'LIVE':'DEMO'}</span></div><div class="grid"><button class="tile" data-open="controller">${I('pad')} Controller Lab</button><button class="tile" data-open="files">${I('folder')} File Explorer</button><button class="tile" data-open="notes">${I('file')} Helen Notes</button><button class="tile" data-open="pastchats">${I('clock')} Past Chats</button><button class="tile" data-open="memory">${I('brain')} Memory</button><button class="tile" data-open="journal">${I('book')} Journal</button><button class="tile" data-open="goals">${I('activity')} Goals</button><button class="tile" data-open="engine">${I('apps')} Engine Hub</button></div><div class="actions"><button class="btn primary" data-connect="1">${I('wifi')} Connect PC</button><button class="btn" data-wheel-open="1">${I('apps')} Command wheel</button><button class="btn" data-fullscreen="1">${I('monitor')} Full screen</button></div><div class="small muted">Tip: turn your phone sideways for the full handheld layout. Your Windows host is not modified by this preview.</div>`;
 if(id==='files')return `<div class="row between"><div><div class="tiny">STORAGE</div><h1>File Explorer</h1></div><span class="chip">${mode==='live'?'LIVE WORKSPACE':'DEMO FILES'}</span></div><div class="actions"><button class="btn" data-newfolder="1">${I('plus')} New folder</button><button class="btn" data-newnote="1">${I('file')} New note</button><button class="btn" data-refresh-files="1">Refresh</button></div><div id="filecrumb" class="muted small">HELEN Workspace</div><div id="filelist" class="list"><div class="small muted">Loading files…</div></div>`;
 if(id==='engine')return `<div class="tiny">APPLICATIONS / SERVICES</div><h1>Engine Hub</h1><p class="small muted">Live original Helen capabilities now connect directly to the handheld desktop. More engines will join later.</p><div class="list"><button class="listitem" data-open="helen">${I('brain')} <span class="grow"><strong>Helen Chat</strong><br><small>CONNECTED · original Helen engine</small></span>${I('chevron')}</button><button class="listitem" data-open="notes">${I('file')} <span class="grow"><strong>Helen Notes</strong><br><small>INTEGRATED · original notes storage</small></span>${I('chevron')}</button><button class="listitem" data-open="pastchats">${I('clock')} <span class="grow"><strong>Past Chats</strong><br><small>INTEGRATED · original conversations</small></span>${I('chevron')}</button>${[['memory','Memory','Original Helen memories'],['journal','Journal','Original Helen journal'],['goals','Goals & Projects','Original goals and to-dos'],['preferences','Preferences','Saved personal preferences'],['knowledge','Knowledge Base','Helen reference facts']].map(x=>`<button class="listitem" data-open="${x[0]}">${I('brain')} <span class="grow"><strong>${x[1]}</strong><br><small>INTEGRATED · ${x[2]}</small></span>${I('chevron')}</button>`).join('')}${[['BuildView XR','layers','Integration planned'],['Bible Workbench','book','Integration planned'],['Music Studio','music','Integration planned']].map(x=>`<button class="listitem" data-toast="${x[0]} will be connected later"><span class="app-icon ${x[1]==='brain'?'rose':'purple'}" style="width:33px;height:33px">${I(x[1])}</span><span class="grow"><strong>${x[0]}</strong><br><small>${x[2]}</small></span>${I('chevron')}</button>`).join('')}</div>`;
 if(id==='helen')return helenChatMarkup();
@@ -542,20 +671,20 @@ if(id==='pastchats')return showChatsMarkup();
 if(Object.hasOwn(serviceDefs,id))return serviceWindow(id);
 if(id==='goals')return goalsWindow();
 if(id==='system')return `<div class="tiny">MONITOR / HOST</div><h1>System</h1><p class="small muted">Live computer details are available when paired with the existing host.</p><div class="grid" id="sysgrid"><div class="panel">${I('monitor')}<div class="tiny">HOST</div><strong>${mode==='live'?esc(host):'Demo mode'}</strong></div><div class="panel">${I('shield')}<div class="tiny">MEMORY</div><strong>Planned</strong></div><div class="panel">${I('wifi')}<div class="tiny">CONNECTION</div><strong>${mode==='live'?'Live':'Not paired'}</strong></div></div><div class="actions"><button class="btn" data-connect="1">Pair with PC</button><button class="btn" data-open="settings">Appearance</button></div>`;
-if(id==='controller')return `<div class="row between"><div><div class="tiny">INPUT DEVICES / v1.2</div><h1>Controller Command Center</h1></div><span class="chip" id="pad-chip">SCANNING</span></div><p class="small muted">Your Play force controller can navigate the entire phone desktop. Learn its actual button numbers, then choose what each button does.</p>
+if(id==='controller')return `<div class="row between"><div><div class="tiny">INPUT DEVICES / v1.3</div><h1>Controller Command Center</h1></div><span class="chip" id="pad-chip">SCANNING</span></div><p class="small muted">Your Play force controller can navigate the entire phone desktop. Learn its actual button numbers, then choose what each button does.</p>
 <div class="panel" style="display:flex;align-items:center;gap:12px"><div style="font-size:25px;color:var(--bright)">${I('pad')}</div><div style="min-width:0"><strong id="pad-name">Searching for gamepad…</strong><div class="small muted" id="pad-extra">Press any controller button to wake it.</div></div></div>
 <div class="actions"><button class="btn primary" data-wheel-open="1">${I('apps')} Quick command wheel</button><button class="btn" data-togglecursor="1">Toggle cursor</button></div>
 <div class="pad-settings"><label>Profile selection<select class="textinput" id="pad-profile-mode"><option value="auto" ${controllerMode==='auto'?'selected':''}>Automatic · desktop / Helen</option><option value="desktop" ${controllerMode==='desktop'?'selected':''}>Desktop always</option><option value="helen" ${controllerMode==='helen'?'selected':''}>Helen always</option></select></label><label>Edit button layout<select class="textinput" id="pad-edit-profile"><option value="desktop" ${editControllerProfile==='desktop'?'selected':''}>Desktop</option><option value="helen" ${editControllerProfile==='helen'?'selected':''}>Helen</option></select></label><label>Cursor speed<select class="textinput" id="pad-speed"><option value="0.4" ${controllerCfg.speed===.4?'selected':''}>Slow</option><option value="0.7" ${controllerCfg.speed===.7?'selected':''}>Normal</option><option value="1.1" ${controllerCfg.speed===1.1?'selected':''}>Fast</option><option value="1.55" ${controllerCfg.speed===1.55?'selected':''}>Very fast</option></select></label><label>Joystick deadzone <span id="pad-deadzone-value">${Math.round(controllerCfg.deadzone*100)}%</span><input type="range" id="pad-deadzone" min="8" max="35" step="1" value="${Math.round(controllerCfg.deadzone*100)}" style="width:100%"></label></div>
 <h2>Button assignments</h2><div id="pad-profile-current" class="pad-note">Active: ${controllerActiveProfile()==='helen'?'Helen':'Desktop'} profile. To map a key, press Learn, then press that button on your controller.</div><div id="pad-mapping">${controllerMappingMarkup()}</div>
 <div class="actions"><button class="btn" data-pad-reset="1">Reset default buttons</button><button class="btn" data-pad-cancel="1">Cancel learning</button></div>
 <div class="pad-note" id="pad-learn-status" role="status">Buttons are saved on this phone. Hold Wheel + aim stick, then release Wheel. Or tap the wheel icon, aim, and release the joystick.</div>
-<h2>Live inputs</h2><div id="pad-inputs" class="panel small muted">Connect a controller and press a button.</div><div class="small muted" style="margin-top:10px">A controller cannot reliably open Android's keyboard or microphone in every browser. If Android blocks it, tap Helen's mic or use the touchscreen keyboard. Button indices depend on your controller's Bluetooth mode.</div>`
+<h2>Handheld navigation</h2><div class="panel" style="margin:9px 0"><label class="row" style="justify-content:space-between;gap:8px;font-size:11px;font-weight:700">Nearby-button aim assist<input id="pad-snap" type="checkbox" style="width:20px;height:20px" ${controllerCfg.snap?'checked':''}></label><p class="small muted">Within 42 pixels of a visible button, the cursor will highlight it and Click will select it.</p><div class="actions"><button class="btn" data-keyboard-open="1">⌨ Controller keyboard</button><button class="btn" data-windowmode="1">↗ Move / resize focused window</button></div><p class="small muted">While the keyboard is open: move the left stick or D-pad to choose a key; Click inserts it. While moving a window: left stick moves, right stick resizes, Click ends.</p></div><h2>Live inputs</h2><div id="pad-inputs" class="panel small muted">Connect a controller and press a button.</div><div class="small muted" style="margin-top:10px">A controller cannot reliably open Android's keyboard or microphone in every browser. If Android blocks it, tap Helen's mic or use the touchscreen keyboard. Button indices depend on your controller's Bluetooth mode.</div>`
 if(id==='settings')return `<div class="tiny">PERSONALIZATION</div><h1>Appearance</h1><p class="small muted">Make this handheld desktop feel like yours.</p><label class="label" for="theme-select">Glass finish</label><select id="theme-select"><option value="aurora" ${theme==='aurora'?'selected':''}>Aurora · deep blue</option><option value="silver" ${theme==='silver'?'selected':''}>Silver · bright glass</option><option value="obsidian" ${theme==='obsidian'?'selected':''}>Obsidian · dark violet</option></select><label class="label" for="motion-select">Animation level</label><select id="motion-select"><option value="flow" ${motion==='flow'?'selected':''}>Flow · normal</option><option value="calm" ${motion==='calm'?'selected':''}>Calm · subtle</option><option value="off" ${motion==='off'?'selected':''}>Off · reduce motion</option></select><div class="actions"><button class="btn" data-fullscreen="1">${I('monitor')} Full screen</button></div><p class="small muted">For app-like full-screen on Android, host over HTTPS and add to your home screen. Chrome's browser controls cannot always be hidden from a normal tab.</p>`;
 return '<p>Unknown application.</p>'}
 function showWindow(id){if(!appDefs.some(a=>a.id===id))return;if(windows.has(id)){const w=windows.get(id);w.min=false;focus(id);syncWindow(id);return}const pos=panelPos(id);if(id==='helen'){pos.left=Math.max(7,innerWidth*.085);pos.top=5;pos.width=Math.min(850,innerWidth*.83);pos.height=Math.max(190,innerHeight-106)}windows.set(id,{...pos,z:++z,min:false,max:false});focus(id);syncWindow(id);taskbar();if(id==='files')refreshFiles();if(id==='system')refreshSystem();if(id==='controller')refreshPadUI();if(id==='helen'){paintHelenChat();if(mode==='live'&&!chatHistoryLoaded)loadPhoneChat()}if(id==='notes')fetchNotes();if(id==='pastchats')fetchChats();if(Object.hasOwn(serviceDefs,id))fetchService(id);if(id==='goals')fetchGoals();}
-function syncWindow(id){let data=windows.get(id),area=$('#win-layer');if(!data)return;let win=document.getElementById('win-'+id);let def=appDefs.find(a=>a.id===id);if(!win){win=document.createElement('section');win.className='win';win.id='win-'+id;win.dataset.win=id;win.innerHTML=`<div class="winbar" data-drag="${id}"><div class="winbar-title">${I(def.ico)} ${esc(def.name)}</div><div class="wincontrols"><button class="wincontrol" data-op="min" data-target="${id}" title="Minimize">—</button><button class="wincontrol" data-op="max" data-target="${id}" title="Maximize">□</button><button class="wincontrol" data-op="close" data-target="${id}" title="Close">×</button></div></div><div class="winbody">${contents(id)}</div>`;area.append(win)}win.style.left=data.left+'px';win.style.top=data.top+'px';win.style.width=data.width+'px';win.style.height=data.height+'px';win.style.zIndex=data.z;win.classList.toggle('focused',id===focused);win.classList.toggle('maximized',!!data.max);win.style.display=data.min?'none':'flex'}
+function syncWindow(id){let data=windows.get(id),area=$('#win-layer');if(!data)return;let win=document.getElementById('win-'+id);let def=appDefs.find(a=>a.id===id);if(!win){win=document.createElement('section');win.className='win';win.id='win-'+id;win.dataset.win=id;win.innerHTML=`<div class="winbar" data-drag="${id}"><div class="winbar-title">${I(def.ico)} ${esc(def.name)}</div><div class="wincontrols"><button class="wincontrol" data-windowmode="1" data-target="${id}" title="Move or resize with controller">⤧</button><button class="wincontrol" data-op="min" data-target="${id}" title="Minimize">—</button><button class="wincontrol" data-op="max" data-target="${id}" title="Maximize">□</button><button class="wincontrol" data-op="close" data-target="${id}" title="Close">×</button></div></div><div class="winbody">${contents(id)}</div>`;area.append(win)}win.style.left=data.left+'px';win.style.top=data.top+'px';win.style.width=data.width+'px';win.style.height=data.height+'px';win.style.zIndex=data.z;win.classList.toggle('focused',id===focused);win.classList.toggle('maximized',!!data.max);win.style.display=data.min?'none':'flex'}
 function focus(id){focused=id;let win=windows.get(id);if(win)win.z=++z;for(let k of windows.keys()){let el=document.getElementById('win-'+k);if(el){el.classList.toggle('focused',k===id);el.style.zIndex=windows.get(k).z}}taskbar()}
-function operate(id,op){let w=windows.get(id);if(!w)return;if(op==='close'){windows.delete(id);document.getElementById('win-'+id)?.remove();focused='';const others=[...windows.keys()];if(others.length)focus(others.at(-1))}else if(op==='min'){w.min=true;w.max=false;syncWindow(id)}else if(op==='max'){w.max=!w.max;w.min=false;syncWindow(id)}taskbar()}
+function operate(id,op){let w=windows.get(id);if(!w)return;if(adjustWindowId===id)stopWindowAdjust();if(op==='close'){windows.delete(id);document.getElementById('win-'+id)?.remove();focused='';const others=[...windows.keys()];if(others.length)focus(others.at(-1))}else if(op==='min'){w.min=true;w.max=false;syncWindow(id)}else if(op==='max'){w.max=!w.max;w.min=false;syncWindow(id)}taskbar()}
 function toggleTask(id){if(!windows.has(id))return showWindow(id);const w=windows.get(id);if(id===focused&&!w.min){operate(id,'min');return}w.min=false;focus(id);syncWindow(id)}
 let currentFolder='';function getDemoFiles(path){const prefix=path?path+'/':'';let out=new Map;for(let filename of Object.keys(filesDemo)){if(!filename.startsWith(prefix))continue;let rest=filename.slice(prefix.length);if(!rest)continue;let part=rest.split('/')[0],folder=rest.includes('/');if(!out.has(part))out.set(part,{name:part,path:prefix+part,type:folder?'folder':'file'})}return [...out.values()]}
 let loadNum=0;async function refreshFiles(){const root=$('#filelist');if(!root)return;const current=++loadNum;$('#filecrumb').textContent='HELEN Workspace'+(currentFolder?' / '+currentFolder:'');root.innerHTML='<div class="small muted">Loading…</div>';try{let entries;if(mode==='live'){const r=await request('/api/files?path='+encodeURIComponent(currentFolder));entries=r.entries||[]}else entries=getDemoFiles(currentFolder);if(current!==loadNum||!$('#filelist'))return;root.innerHTML=entries.length?entries.map(e=>`<button class="listitem" data-file-path="${esc(e.path)}" data-file-type="${esc(e.type)}">${I(e.type==='folder'?'folder':'file')}<div class="grow"><strong>${esc(e.name)}</strong><br><small>${e.type==='folder'?'Folder':'Document'}</small></div>${I('chevron')}</button>`).join(''):'<div class="panel muted small">No items in this folder.</div>';if(currentFolder)root.insertAdjacentHTML('afterbegin',`<button class="listitem" data-file-back="1">${I('chevron')} .. Back</button>`)}catch(e){if(current===loadNum&&$('#filelist'))$('#filelist').textContent='Unable to load: '+e.message}}
@@ -623,7 +752,11 @@ function orbPulse(){let el=$('#orbwrap');el.classList.add('pulse');setTimeout(()
 let drag=null;document.addEventListener('pointerdown',e=>{let bar=e.target.closest('[data-drag]');if(!bar||e.target.closest('button'))return;let id=bar.dataset.drag,win=windows.get(id);if(!win||win.max)return;focus(id);drag={id,x:e.clientX,y:e.clientY,l:win.left,t:win.top,pointer:e.pointerId,element:bar};try{bar.setPointerCapture(e.pointerId)}catch{}});
 document.addEventListener('pointermove',e=>{if(!drag||drag.pointer!==e.pointerId)return;let data=windows.get(drag.id);if(!data)return;data.left=Math.max(0,Math.min(innerWidth-90,drag.l+e.clientX-drag.x));data.top=Math.max(0,Math.min(innerHeight-135,drag.t+e.clientY-drag.y));syncWindow(drag.id)});document.addEventListener('pointerup',e=>{if(drag&&e.pointerId===drag.pointer)drag=null});document.addEventListener('pointercancel',()=>drag=null);
 document.addEventListener('click',async e=>{const el=e.target.closest('button');if(!el)return;let a=el.dataset;
- if(a.wheelOpen){openWheel(false);return}
+ if(a.keyboardOpen){openVirtualBoard();return}
+ if(a.windowmode){toggleWindowAdjust(a.target||focused);return}
+ if(a.vkey){selectVirtualKey(Number(a.keyR),Number(a.keyC));typeVirtualKey(a.vkey);return}
+ if(a.boardClose){closeVirtualBoard();return}
+ if(a.wheelOpen){closeVirtualBoard();stopWindowAdjust();openWheel(false);return}
  if(a.wheelClose){closeWheel();return}
  if(a.wheelChoice!==undefined){const choice=Number(a.wheelChoice);if(Number.isInteger(choice)&&choice>=0&&choice<wheelItems.length){selectWheel(choice);closeWheel(true)}return}
  if(a.padLearn){padLearnAction=a.padLearn;refreshControllerMappings('Press your desired physical controller button now; existing assignments are ignored while learning.');return}
@@ -657,21 +790,30 @@ document.addEventListener('click',async e=>{const el=e.target.closest('button');
  if(a.helenchatContinue){activateHelenChat(Number(a.helenchatContinue));return}
  if(a.open){$('#startpanel').hidden=true;showWindow(a.open);return}if(a.taskwin){toggleTask(a.taskwin);return}if(a.op){operate(a.target,a.op);return}if(a.toast){toast(a.toast);return}if(a.connect){$('#startpanel').hidden=true;connectDialog();return}if(a.dismiss){closeDialog();return}if(a.fullscreen){doFullscreen();return}if(a.orbPulse){orbPulse();return}if(a.newfolder){createItem('folder');return}if(a.newnote){createItem('file');return}if(a.refreshFiles){refreshFiles();return}if(a.fileBack){currentFolder=currentFolder.split('/').slice(0,-1).join('/');refreshFiles();return}if(a.filePath){openFile(a.filePath,a.fileType);return}if(a.savefile){try{let content=$('#file-editor').value;if(mode==='live')await request('/api/file/save',{method:'POST',body:{path:a.savefile,content}});else filesDemo[a.savefile]=content;closeDialog();toast('Saved')}catch(err){toast(err.message)}return}if(a.pair){const code=$('#pair-code').value.replace(/\D/g,'');try{setPairText('Connecting…');await pair(code);let d=await request('/api/status');mode='live';host=d.host||'PC';updateStatus();closeDialog();toast('Windows PC connected');chatHistoryLoaded=false;loadPhoneChat()}catch(err){setPairText(err.message)}return}if(a.disconnect){disconnect();closeDialog();toast('Disconnected');return}if(a.togglecursor){gamepadCursor=!gamepadCursor;$('#pointer').classList.toggle('visible',gamepadCursor);toast(gamepadCursor?'Test cursor enabled':'Test cursor hidden');return}});
 document.addEventListener('submit',e=>{if(e.target.id==='helen-compose-form'){e.preventDefault();sendHelenChat()}});document.addEventListener('click',e=>{if(e.target.closest('[data-helen-refresh]'))loadPhoneChat()});
-installOrbPress();$('#start-button').onclick=startMenu;$('#dialog').onclick=e=>{if(e.target.id==='dialog'&&$('#delete-confirm').hidden)closeDialog()};$('#delete-confirm').onclick=e=>{if(e.target.id==='delete-confirm')closeDeleteConfirm()};document.addEventListener('input',e=>{if(e.target.id==='pad-deadzone'){controllerCfg.deadzone=Number(e.target.value)/100;savePadCfg();const num=$('#pad-deadzone-value');if(num)num.textContent=Math.round(controllerCfg.deadzone*100)+'%';return}if(e.target.dataset?.hsFilter){const kind=e.target.dataset.hsFilter;serviceFilters[kind]=e.target.value;paintService(kind)}if(e.target.id==='start-search'){$$('#start-items button').forEach(b=>b.hidden=!b.textContent.toLowerCase().includes(e.target.value.toLowerCase()))}if(e.target.id==='helen-notes-filter'){notesFilter=e.target.value;paintNotes()}if(e.target.id==='helen-chats-filter'){chatsFilter=e.target.value;paintChats()}if(e.target.id==='helen-message-input'){chatDraft=e.target.value;const count=$('#helen-count');if(count)count.textContent=chatDraft.length+'/1500';e.target.style.height='auto';e.target.style.height=Math.min(95,e.target.scrollHeight)+'px'}});const $$=s=>[...document.querySelectorAll(s)];document.addEventListener('change',e=>{if(e.target.id==='pad-profile-mode'){controllerMode=e.target.value;savePadCfg();refreshControllerMappings();return}if(e.target.id==='pad-edit-profile'){editControllerProfile=e.target.value;padLearnAction=null;refreshControllerMappings();return}if(e.target.id==='pad-speed'){controllerCfg.speed=Number(e.target.value);savePadCfg();return}if(e.target.dataset?.padMap){const value=e.target.value;assignPadButton(e.target.dataset.padMap,value===''?null:Number(value));return}if(e.target.id==='helen-voice-lang'){voiceLanguage=e.target.value;save('helen-handheld-voice-lang',voiceLanguage);toast('Microphone language: '+(voiceLanguage==='es-ES'?'Español':'English'));return}if(e.target.dataset?.todoToggle){const el=e.target,goalId=el.dataset.goalId,todoId=el.dataset.todoId;const stored=goalItems.find(g=>g.id===goalId)?.todos.find(t=>t.id===todoId);const wanted=el.checked;if(stored)el.checked=!!stored.completed;else paintGoals();if(mode!=='live'||goalBusy){toast(mode!=='live'?'Connect PC before editing goals':'A goal change is still saving');paintGoals();return}if(!stored){toast('To-do not found. Refresh first');return}modifyGoal('todo/toggle',goalId,todoId,wanted);return}if(e.target.id==='theme-select'){theme=e.target.value;save('helen-handheld-theme',theme);applyTheme()}if(e.target.id==='motion-select'){motion=e.target.value;save('helen-handheld-motion',motion);applyTheme()}});document.addEventListener('keydown',e=>{if(e.target.id==='helen-message-input'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendHelenChat();return}if(e.key==='Escape'){if(wheelOpen){closeWheel();return}if(!$('#delete-confirm').hidden)closeDeleteConfirm();else if(!$('#dialog').hidden)closeDialog();else if(!$('#startpanel').hidden)$('#startpanel').hidden=true;else if(focused)operate(focused,'min')}if(e.altKey&&e.key.toLowerCase()==='q'){e.preventDefault();wheelOpen?closeWheel():openWheel();return}if(e.key==='F11')doFullscreen()});
+installOrbPress();$('#start-button').onclick=startMenu;$('#dialog').onclick=e=>{if(e.target.id==='dialog'&&$('#delete-confirm').hidden)closeDialog()};$('#delete-confirm').onclick=e=>{if(e.target.id==='delete-confirm')closeDeleteConfirm()};document.addEventListener('input',e=>{if(e.target.id==='pad-deadzone'){controllerCfg.deadzone=Number(e.target.value)/100;savePadCfg();const num=$('#pad-deadzone-value');if(num)num.textContent=Math.round(controllerCfg.deadzone*100)+'%';return}if(e.target.dataset?.hsFilter){const kind=e.target.dataset.hsFilter;serviceFilters[kind]=e.target.value;paintService(kind)}if(e.target.id==='start-search'){$$('#start-items button').forEach(b=>b.hidden=!b.textContent.toLowerCase().includes(e.target.value.toLowerCase()))}if(e.target.id==='helen-notes-filter'){notesFilter=e.target.value;paintNotes()}if(e.target.id==='helen-chats-filter'){chatsFilter=e.target.value;paintChats()}if(e.target.id==='helen-message-input'){chatDraft=e.target.value;const count=$('#helen-count');if(count)count.textContent=chatDraft.length+'/1500';e.target.style.height='auto';e.target.style.height=Math.min(95,e.target.scrollHeight)+'px'}});const $$=s=>[...document.querySelectorAll(s)];document.addEventListener('change',e=>{if(e.target.id==='pad-snap'){controllerCfg.snap=e.target.checked;savePadCfg();updateControllerHover();return}if(e.target.id==='pad-profile-mode'){controllerMode=e.target.value;savePadCfg();refreshControllerMappings();return}if(e.target.id==='pad-edit-profile'){editControllerProfile=e.target.value;padLearnAction=null;refreshControllerMappings();return}if(e.target.id==='pad-speed'){controllerCfg.speed=Number(e.target.value);savePadCfg();return}if(e.target.dataset?.padMap){const value=e.target.value;assignPadButton(e.target.dataset.padMap,value===''?null:Number(value));return}if(e.target.id==='helen-voice-lang'){voiceLanguage=e.target.value;save('helen-handheld-voice-lang',voiceLanguage);toast('Microphone language: '+(voiceLanguage==='es-ES'?'Español':'English'));return}if(e.target.dataset?.todoToggle){const el=e.target,goalId=el.dataset.goalId,todoId=el.dataset.todoId;const stored=goalItems.find(g=>g.id===goalId)?.todos.find(t=>t.id===todoId);const wanted=el.checked;if(stored)el.checked=!!stored.completed;else paintGoals();if(mode!=='live'||goalBusy){toast(mode!=='live'?'Connect PC before editing goals':'A goal change is still saving');paintGoals();return}if(!stored){toast('To-do not found. Refresh first');return}modifyGoal('todo/toggle',goalId,todoId,wanted);return}if(e.target.id==='theme-select'){theme=e.target.value;save('helen-handheld-theme',theme);applyTheme()}if(e.target.id==='motion-select'){motion=e.target.value;save('helen-handheld-motion',motion);applyTheme()}});document.addEventListener('keydown',e=>{if(e.target.id==='helen-message-input'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendHelenChat();return}if(e.key==='Escape'){if(!$('#virtual-board').hidden){closeVirtualBoard();return}if(adjustWindowId){stopWindowAdjust();return}if(wheelOpen){closeWheel();return}if(!$('#delete-confirm').hidden)closeDeleteConfirm();else if(!$('#dialog').hidden)closeDialog();else if(!$('#startpanel').hidden)$('#startpanel').hidden=true;else if(focused)operate(focused,'min')}if(e.altKey&&e.key.toLowerCase()==='q'){e.preventDefault();wheelOpen?closeWheel():openWheel();return}if(e.key==='F11')doFullscreen()});
 // Gamepad API: button learning, named profiles, analogue cursor, real wheel selection and feedback.
 let lastPad=null,gamepadCursor=false,px=innerWidth*.55,py=innerHeight*.55,lastFrame=performance.now(),lastPadButtons=[],lastTrigger=0,heldControllerActions=new Map(),hoveredControllerElement=null;
 function padOf(){try{return [...(navigator.getGamepads?.()||[])].find(g=>g&&g.connected)||null}catch{return null}}
-function updateControllerHover(){
+let controllerHoverAt=0;
+function updateControllerHover(force=false){
+ const now=performance.now();if(!force&&now-controllerHoverAt<115)return;controllerHoverAt=now;
  if(hoveredControllerElement){hoveredControllerElement.classList.remove('gp-target');hoveredControllerElement=null}
- if(!gamepadCursor||wheelOpen||!lastPad)return;
- const target=document.elementFromPoint(px+2,py+2)?.closest('button,input,select,textarea,[role="button"]');
- if(target&&target.id!=='pointer'&&!target.closest('#quick-wheel')){hoveredControllerElement=target;target.classList.add('gp-target')}
+ if(!gamepadCursor||wheelOpen||!$('#virtual-board').hidden||!lastPad)return;
+ const direct=document.elementFromPoint(px+2,py+2)?.closest('button,input,select,textarea,[role="button"]');
+ let target=direct;
+ if((!target||target.disabled)&&controllerCfg.snap){
+  let best=42;for(const el of visibleControllerTargets()){
+   const r=el.getBoundingClientRect(),cx=Math.max(r.left,Math.min(px,r.right)),cy=Math.max(r.top,Math.min(py,r.bottom));
+   const distance=Math.hypot(cx-px,cy-py);if(distance<best){best=distance;target=el}
+  }
+ }
+ if(target&&!target.disabled&&target.id!=='pointer'&&!target.closest('#quick-wheel')){hoveredControllerElement=target;target.classList.add('gp-target')}
 }
 function gameLoop(t){
  const dt=Math.max(0,Math.min(50,t-lastFrame));lastFrame=t;
  const pad=padOf();
  if(pad){
-  if(!lastPad||lastPad.id!==pad.id||lastPad.index!==pad.index){lastPad=pad;lastPadButtons=pad.buttons.map(v=>!!v.pressed);heldControllerActions.clear();gamepadCursor=true;toast('Controller connected · v1.2.2');$('#pointer').classList.add('visible')}
+  if(!lastPad||lastPad.id!==pad.id||lastPad.index!==pad.index){lastPad=pad;lastPadButtons=pad.buttons.map(v=>!!v.pressed);heldControllerActions.clear();gamepadCursor=true;toast('Controller connected · v1.3');$('#pointer').classList.add('visible')}
   const ax=pad.axes||[],b=pad.buttons||[];
   const values=b.map(button=>!!button.pressed||button.value>.55);
   const rising=values.map((state,i)=>state&&!lastPadButtons[i]);
@@ -683,8 +825,15 @@ function gameLoop(t){
      if(rising[n]){const hit=padActions.find(([key])=>cfg[key]===n);if(hit){const action=hit[0];if(action==='wheel'||action==='voice')heldControllerActions.set(n,action);controllerActivate(action,true)}}
    }
   }
-  // The wheel uses either right or left stick, independent of cursor motion.
   const lx=ax[0]||0,ly=ax[1]||0,rx=ax[2]||0,ry=ax[3]||0;
+  // D-pad is optional: it acts as focus navigation when no explicit mapping uses it.
+  if(!padLearnAction)controllerDpad(pad,rising,t);
+  // Controller keyboard: left-stick navigation is intentionally isolated from the desktop cursor.
+  if(!$('#virtual-board').hidden){
+   const hor=Math.abs(lx)>.58?Math.sign(lx):0,ver=Math.abs(ly)>.58?Math.sign(ly):0;
+   if(hor||ver)navigateVirtual(hor,ver,t);
+  }
+  // The wheel uses either right or left stick, independent of cursor motion.
   if(wheelOpen){
    // A touch-opened wheel is a latched menu: either stick aims, and releasing
    // it toward the position sampled at open confirms the selection.
@@ -701,14 +850,15 @@ function gameLoop(t){
     const action=heldControllerActions.get(n);heldControllerActions.delete(n);controllerActivate(action,false);
    }
   }
-  if(!wheelOpen){
+  if(!wheelOpen&&$('#virtual-board').hidden&&!adjustWindowId){
    const dz=controllerCfg.deadzone;
    const adjusted=(n)=>Math.abs(n)<dz?0:Math.sign(n)*(Math.abs(n)-dz)/(1-dz);
    const dx=adjusted(lx),dy=adjusted(ly);
    if(dx||dy){px=Math.max(1,Math.min(innerWidth-23,px+dx*dt*controllerCfg.speed));py=Math.max(1,Math.min(innerHeight-29,py+dy*dt*controllerCfg.speed));gamepadCursor=true}
-   if(Math.abs(ry)>dz){const win=document.querySelector('#win-'+focused+' .winbody');if(win)win.scrollTop+=adjusted(ry)*dt*.55}
+   if(Math.abs(ry)>dz){const under=document.elementFromPoint(px+2,py+2)?.closest('.winbody,.helen-feed,.list,.icons');const win=under||document.querySelector('#win-'+focused+' .winbody');if(win)win.scrollTop+=adjusted(ry)*dt*.55}
   }
-  const cur=$('#pointer');cur.classList.toggle('visible',gamepadCursor&&!wheelOpen);cur.style.left=px+'px';cur.style.top=py+'px';
+  if(adjustWindowId)applyWindowAdjust(lx,ly,rx,ry,dt);
+  const cur=$('#pointer');cur.classList.toggle('visible',gamepadCursor&&!wheelOpen&&$('#virtual-board').hidden&&!adjustWindowId);cur.style.left=px+'px';cur.style.top=py+'px';
   updateControllerHover();lastPadButtons=values;lastPad=pad;
   $('#controller-status').classList.add('detected');$('#gamepad-status-icon').textContent='●';$('#gamepad-status-text').textContent='Pad ready';
   if(windows.has('controller')&&t-lastTrigger>180){lastTrigger=t;refreshPadUI(pad)}
