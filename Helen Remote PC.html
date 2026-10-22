@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1226"><meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="description" content="HELEN OS v1.3 — handheld desktop navigation and controller keyboard">
-<link rel="manifest" href="./manifest.webmanifest?v=130"><link rel="icon" href="./icon-192.png?v=130">
+<meta name="description" content="HELEN OS v1.4 — handheld desktop sign-in, PIN and lock screen">
+<link rel="manifest" href="./manifest.webmanifest?v=140"><link rel="icon" href="./icon-192.png?v=140">
 <title>HELEN OS — Handheld Workspace</title>
 <style>
 :root{font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color-scheme:dark;--ink:#eaf3ff;--muted:#9eaecd;--dim:#758bb1;--line:rgba(194,220,255,.16);--glass:rgba(16,30,57,.81);--glass2:rgba(20,34,61,.96);--desktop:#091122;--bright:#8cbdff;--cyan:#57d3ec;--blue:#7389fa;--pink:#ce97ef;--shadow:0 24px 80px #0008}
@@ -148,6 +148,46 @@
 @media(max-height:420px){.virtual-shell{padding:5px}.virtual-top{margin-bottom:4px}.vkey{height:29px}.virtual-info{margin-top:4px}.virtual-rows{gap:3px}}
 @media(orientation:portrait) and (max-width:550px){#virtual-board{padding:4px}.vkey{height:44px}.virtual-row{gap:2px}.virtual-shell{padding:5px}.virtual-info{font-size:9px}}
 
+
+/* v1.4: Phone desktop sign-in screen. It is a local interface lock, NOT PC-side authentication. */
+html:not(.helen-unlocked) #shell{visibility:hidden;pointer-events:none}
+#authscreen[hidden]{display:none!important}
+#authscreen{position:fixed;inset:0;z-index:9999;background:#070e1c;color:#eaf2ff;overflow-y:auto;overscroll-behavior:contain;isolation:isolate;font-family:Inter,"Segoe UI",system-ui,sans-serif;min-height:100dvh}
+#authscreen .auth-wallpaper{position:fixed;inset:0;z-index:-2;background:radial-gradient(ellipse 48% 80% at 22% 62%,#254c9375,transparent 76%),radial-gradient(ellipse 48% 64% at 80% 15%,#9068c448,transparent 74%),linear-gradient(125deg,#061021,#101d38 56%,#081322)}
+#authscreen .auth-wallpaper:before{content:"";position:absolute;left:9%;top:-57%;width:min(85vw,680px);aspect-ratio:1;border-radius:50%;border:1px solid #a2c7ff33;box-shadow:0 0 0 58px #b2bfff08,0 0 0 135px #a4bfff09,0 0 0 218px #e8d7ff06;transform:rotate(-20deg)}
+#authscreen .auth-wallpaper:after{content:"";position:absolute;bottom:-42%;right:-18%;width:70vw;aspect-ratio:1;border-radius:50%;background:#53bffb16;filter:blur(65px)}
+.auth-layout{min-height:100dvh;display:grid;grid-template-columns:minmax(180px,1fr) minmax(290px,390px);align-items:center;gap:clamp(18px,4vw,65px);padding:28px max(24px,env(safe-area-inset-right)) 28px max(24px,env(safe-area-inset-left));max-width:1100px;margin:auto}
+.auth-hero{align-self:center;min-width:0;padding-left:clamp(0px,3vw,32px)}
+.auth-logo{display:inline-flex;gap:9px;align-items:center;letter-spacing:2px;font-size:11px;color:#d8e8ff;font-weight:850;opacity:.9}
+.auth-logo-mark{display:grid;place-items:center;width:28px;height:28px;border-radius:10px;background:linear-gradient(135deg,#88bfff,#595cc6);font:italic 20px Georgia,serif;color:white;box-shadow:0 5px 23px #7ea0ff45}
+.auth-clock{font-size:clamp(65px,11vw,132px);font-weight:270;letter-spacing:-7px;line-height:1;margin:clamp(10px,3vh,36px) 0 6px;text-shadow:0 10px 45px #0005;font-variant-numeric:tabular-nums;white-space:nowrap}
+.auth-date{font-size:clamp(15px,2.4vw,23px);font-weight:450;color:#c8dbf4;letter-spacing:.15px}
+.auth-caption{color:#8fa9cf;font-size:12px;margin-top:30px}
+.auth-card{background:#152542d9;border:1px solid #b0d3ff2d;border-radius:22px;padding:clamp(16px,3vw,30px);box-shadow:0 26px 80px #010612b6,inset 0 1px 0 #ffffff19;backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);max-width:100%}
+.auth-avatar{margin:0 auto 13px;width:60px;height:60px;display:grid;place-items:center;border-radius:22px;background:linear-gradient(145deg,#779eef,#555bb4 65%,#3f4e9d);color:#fff;font:italic 40px Georgia,serif;box-shadow:0 10px 30px #6a8bf14d,inset 0 2px 0 #ffffff39}
+.auth-title{font-size:21px;font-weight:770;text-align:center;margin:2px 0 4px}.auth-subtitle{font-size:11px;color:#9eb4d6;text-align:center;margin:0 0 17px;line-height:1.5}
+.auth-label{display:block;font-size:10px;color:#bed2ef;font-weight:750;margin:11px 0 5px}
+.auth-input{height:43px;width:100%;border-radius:11px;border:1px solid #b8d7ff36;background:#13213bcc;color:#f1f7ff;font-size:14px;padding:10px 12px;outline:none}.auth-input:focus{border-color:#96c6ff;box-shadow:0 0 0 3px #82b7ff23}.auth-input::placeholder{color:#728fb4}
+.auth-pin{letter-spacing:5px;font-weight:700;font-size:20px;font-variant-numeric:tabular-nums;text-align:center}
+.auth-btn{border-radius:11px;border:1px solid #9bcaff45;background:#243a61;color:#eaf4ff;min-height:42px;padding:9px 14px;font-weight:750;font-size:12px;cursor:pointer}.auth-btn.main{background:linear-gradient(120deg,#5579dc,#4d86d3);border-color:#a5c5ff5c;color:white;width:100%;margin-top:13px;box-shadow:0 8px 24px #5075dc36}.auth-btn.secondary{background:transparent;border-color:transparent;color:#c0d5f4}.auth-btn[disabled]{opacity:.5;cursor:wait}
+.auth-actions{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.auth-message{min-height:16px;font-size:11px;text-align:center;margin:9px 0 0;line-height:1.45;color:#f9b6b5}.auth-message.good{color:#88e3c8}
+.auth-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px auto 0;max-width:270px}.auth-key{border:1px solid #d1e3ff22;background:#1b3050;border-radius:11px;min-height:39px;color:#eaf3ff;font-weight:740;font-size:16px;touch-action:manipulation}.auth-key:active{background:#456ca5}.auth-key.blank{visibility:hidden}.auth-key.iconkey{font-size:13px;color:#afcdf3}
+.auth-foot{color:#7b96bc;text-align:center;font-size:10px;line-height:1.5;margin-top:14px}.auth-foot strong{color:#aec6e6;font-weight:630}
+.auth-top-status{position:absolute;right:max(18px,env(safe-area-inset-right));top:max(16px,env(safe-area-inset-top));font-size:10px;letter-spacing:1.2px;font-weight:780;color:#b8c8e7;opacity:.8}
+@media (max-width:650px),(max-height:440px){.auth-layout{grid-template-columns:minmax(0,1fr) minmax(255px,1fr);gap:16px;padding:15px 18px}.auth-clock{font-size:clamp(48px,11vw,85px);letter-spacing:-4px}.auth-caption{margin-top:13px}.auth-card{padding:13px 15px}.auth-avatar{width:44px;height:44px;border-radius:15px;font-size:29px;margin-bottom:7px}.auth-title{font-size:17px}.auth-subtitle{margin-bottom:6px}.auth-label{margin:6px 0 3px}.auth-input{height:35px;font-size:12px}.auth-pin{font-size:16px}.auth-btn{min-height:33px}.auth-keypad{gap:4px;margin-top:6px;max-width:230px}.auth-key{min-height:29px;font-size:14px}.auth-foot{margin-top:6px}.auth-btn.main{margin-top:7px}}
+@media (orientation:landscape) and (max-height:440px){
+ .auth-layout{padding:9px 18px;gap:14px;grid-template-columns:minmax(0,1fr) minmax(270px,370px)}
+ .auth-hero{padding-left:0}.auth-clock{font-size:clamp(55px,8vw,85px);letter-spacing:-3px;margin:18px 0 0}.auth-date{font-size:13px}
+ .auth-card{padding:10px 18px;border-radius:15px}.auth-avatar{display:none}.auth-title{font-size:16px;margin:0}.auth-subtitle{font-size:10px;margin:2px 0 5px}
+ .auth-label{font-size:9px;margin:5px 0 2px}.auth-input{height:30px;font-size:12px;padding:5px 9px}.auth-pin{font-size:15px;letter-spacing:3px}
+ .auth-btn{min-height:30px;font-size:11px;padding:5px 10px}.auth-btn.main{margin-top:6px}.auth-actions{margin-top:2px}
+ .auth-keypad{grid-template-columns:repeat(6,1fr);max-width:100%;margin-top:5px;gap:3px}.auth-key{min-height:27px;font-size:13px}.auth-key.blank{display:none}
+ .auth-message{margin:3px 0 0;min-height:11px;font-size:10px}.auth-foot{font-size:9px;line-height:1.2;margin-top:4px}
+}
+@media (orientation:portrait) and (max-width:650px){.auth-layout{display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:14px;padding:30px 18px max(22px,env(safe-area-inset-bottom));min-height:100dvh}.auth-hero{padding:0;text-align:center;align-self:stretch}.auth-logo{justify-content:center}.auth-clock{font-size:clamp(56px,17vw,90px);margin:8px 0 0}.auth-date{font-size:14px}.auth-caption{display:none}.auth-card{width:min(100%,410px);align-self:center;padding:18px 22px}.auth-keypad{max-width:255px}.auth-key{min-height:44px}.auth-input{height:42px}.auth-btn{min-height:40px}}
+@media (prefers-reduced-motion:reduce){#authscreen *{animation:none!important;transition:none!important}}
+
 </style>
 </head>
 <body>
@@ -160,6 +200,20 @@
 <nav class="taskbar"><button class="start" id="start-button" title="Start Menu">H</button><button class="wheel-taskbtn" data-wheel-open="1" title="Quick Command Wheel">◎</button><button class="task-kbd" data-keyboard-open="1" title="Controller keyboard">⌨</button><div class="taskpins" id="taskpins"></div><div class="tasktray"><span id="live-name">DEMO</span><span class="i" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12l5 5L21 4"/></svg></span><div class="timebox"><strong id="taskclock">12:00</strong><span id="taskdate">Oct 21</span></div></div></nav>
 <div id="startpanel" hidden></div><div id="dialog" hidden><div id="dialogbox"></div></div><div id="delete-confirm" hidden role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title"><div id="delete-confirm-box"></div></div><div id="toast" role="status" hidden></div><div id="quick-wheel" hidden role="dialog" aria-modal="true" aria-label="Controller quick commands"></div><div id="virtual-board" hidden role="dialog" aria-modal="true" aria-label="Controller on-screen keyboard"></div><div id="handheld-mode" hidden role="status"></div><div id="pointer" aria-hidden="true"><svg viewBox="0 0 24 28"><path d="M2 2v22l6-6 4 9 5-2-4-9 9-1z"/></svg></div>
 </div>
+
+<div id="authscreen" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+  <div class="auth-wallpaper"></div>
+  <div class="auth-top-status">HELEN // HANDHELD</div>
+  <div class="auth-layout">
+    <section class="auth-hero" aria-label="Lock screen clock">
+      <div class="auth-logo"><span class="auth-logo-mark">H</span><span>HELEN /OS</span></div>
+      <div class="auth-clock" id="auth-clock">08:30</div>
+      <div class="auth-date" id="auth-date">Thursday, October 22</div>
+      <div class="auth-caption">Your handheld desktop. Your workspace.</div>
+    </section>
+    <section class="auth-card" id="auth-card" aria-live="polite"></section>
+  </div>
+</div>
 <script>
 (()=>{'use strict';
 const paths={home:'<path d="m3 10 9-7 9 7v10H3z"/><path d="M9 21v-8h6v8"/>',folder:'<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',monitor:'<rect x="2" y="3" width="20" height="15" rx="2"/><path d="M8 22h8m-4-4v4"/>',brain:'<path d="M12 6a4 4 0 0 0-7-1 4 4 0 0 0-2 7 4 4 0 0 0 4 7c1 3 5 2 5-1V6zM12 6a4 4 0 0 1 7-1 4 4 0 0 1 2 7 4 4 0 0 1-4 7c-1 3-5 2-5-1"/><path d="M8 9v5m8-5v5"/>',settings:'<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor"/><circle cx="15" cy="17" r="3" fill="currentColor"/>',apps:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',pad:'<path d="M6 8h12c4 0 6 9 3 11-1 1-3 0-6-3H9c-3 3-5 4-6 3-3-2-1-11 3-11z"/><path d="M6 12h5m-2.5-2.5v5M16 11h.01M19 14h.01"/>',terminal:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m5 0h5"/>',file:'<path d="M6 2h9l4 4v16H6zM15 2v5h4M9 12h6M9 16h7"/>',music:'<path d="M9 18V5l12-2v13M9 9l12-2"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',book:'<path d="M3 5a4 4 0 0 1 4-1l5 2 5-2a4 4 0 0 1 4 1v15a4 4 0 0 0-4-1l-5 2-5-2a4 4 0 0 0-4 1zM12 6v15"/>',layers:'<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 18l9 5 9-5"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m16 16 5 5"/>',wifi:'<path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="20" r="1"/>',shield:'<path d="m12 2 9 4v6c0 5-4 8-9 10-5-2-9-5-9-10V6z"/>',spark:'<path d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/>',chevron:'<path d="m9 18 6-6-6-6"/>',plus:'<path d="M12 5v14M5 12h14"/>',activity:'<path d="M2 12h5l3-7 4 14 3-7h5"/>',x:'<path d="M5 5l14 14M19 5L5 19"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/>',mic:'<rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"/>',database:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 4 18 4 18 0V5M3 12c0 4 18 4 18 0"/>'};
@@ -169,6 +223,100 @@ const appDefs=[{id:'welcome',name:'Overview',ico:'home',shade:'purple'},{id:'fil
 const store=k=>{try{return localStorage.getItem(k)}catch{return null}};
 const save=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};
 let theme=store('helen-handheld-theme')||'aurora',motion=store('helen-handheld-motion')||'flow';function applyTheme(){document.documentElement.dataset.theme=theme;document.documentElement.dataset.motion=motion}applyTheme();
+
+// Local HELEN profile/lock screen. This is NOT a substitute for the PC's pairing approval.
+// Only a salted PBKDF2 verifier is saved on the handset; never a raw PIN.
+const AUTH_KEY='helen-handheld-auth-v1', AUTH_NAME_KEY='helen-handheld-profile-name';
+let authLocked=true,authMode='setup',authChanging=false,authFailures=0,authCooldownUntil=0,authAwayAt=0;
+const readAuth=()=>{try{let a=JSON.parse(store(AUTH_KEY)||'null');return a?.salt&&a?.proof&&Number.isInteger(a.iter)?a:null}catch{return null}};
+const profileName=()=>store(AUTH_NAME_KEY)||'HELEN Operator';
+const authByteHex=bytes=>[...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('');
+function authClock(){const now=new Date();const c=$('#auth-clock'),d=$('#auth-date');if(c)c.textContent=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});if(d)d.textContent=now.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})}
+async function pinProof(pin,salt,iter){
+ if(!crypto?.subtle)throw Error('Secure PIN setup requires an HTTPS website or localhost.');
+ const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveBits']);
+ const bytes=await crypto.subtle.deriveBits({name:'PBKDF2',salt:Uint8Array.from(salt.match(/../g).map(n=>parseInt(n,16))),iterations:iter,hash:'SHA-256'},key,256);
+ return authByteHex(bytes);
+}
+function authFeedback(msg,good=false){const el=$('#auth-message');if(el){el.textContent=msg;el.classList.toggle('good',good)}}
+function showAuth(mode=readAuth()?'login':'setup',changing=false){
+ authLocked=true;authChanging=changing;authMode=mode;document.documentElement.classList.remove('helen-unlocked');$('#authscreen').hidden=false;authClock();
+ const exists=!!readAuth();
+ const setup=mode==='setup',change=mode==='change';
+ const title=setup?'Create your profile':change?'Account settings':'Welcome back';
+ const subtitle=setup?'Set a local 4–8 digit PIN for your handheld desktop.':change?'Verify your current PIN to update your profile.':'Enter your PIN to unlock HELEN OS.';
+ const name=profileName();
+ $('#auth-card').innerHTML=`<div class="auth-avatar" aria-hidden="true">H</div><h1 class="auth-title" id="auth-title">${title}</h1><p class="auth-subtitle">${subtitle}</p>
+ <form id="auth-form" autocomplete="off">
+ ${setup||change?`<label class="auth-label" for="auth-name">PROFILE NAME</label><input id="auth-name" class="auth-input" maxlength="28" autocomplete="off" value="${esc(name)}" placeholder="HELEN Operator">`: `<p style="text-align:center;color:#c4d5f1;font-size:13px;margin:0 0 11px;font-weight:700">${esc(name)}</p>`}
+ ${change?`<label class="auth-label" for="auth-old">CURRENT PIN</label><input id="auth-old" class="auth-input auth-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="Current PIN">`:''}
+ <label class="auth-label" for="auth-pin">${setup?'NEW PIN':change?'NEW PIN (OPTIONAL)':'PIN'}</label>
+ <input id="auth-pin" class="auth-input auth-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="${change?'Leave blank to keep PIN':'4–8 digits'}" aria-required="${!change}">
+ ${setup||change?`<label class="auth-label" for="auth-confirm">CONFIRM ${change?'NEW ':''}PIN</label><input id="auth-confirm" class="auth-input auth-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="${change?'Confirm if changing':'Repeat your PIN'}">`:''}
+ <p class="auth-message" role="status" id="auth-message"></p>
+ ${mode==='login'?`<div class="auth-keypad" aria-label="PIN keypad">${['1','2','3','4','5','6','7','8','9','','0','⌫'].map(v=>v?`<button type="button" class="auth-key ${v==='⌫'?'iconkey':''}" data-auth-digit="${v}" aria-label="${v==='⌫'?'Backspace':v}">${v}</button>`:'<span class="auth-key blank"></span>').join('')}</div>`:''}
+ <button type="submit" class="auth-btn main" id="auth-submit">${setup?'Create profile':change?'Save settings':'Unlock desktop'}</button>
+ </form><div class="auth-actions">${change?'<button type="button" class="auth-btn secondary" data-auth-cancel>Cancel</button>':''}${setup&&!exists?'<button type="button" class="auth-btn secondary" data-auth-guest>Preview without PIN</button>':''}</div>
+ <div class="auth-foot">${setup?'Saved on this phone only. Your PC keeps its own authentication.':change?'Changing your PIN does not change PC pairing.':'Device lock · PC pairing requires separate approval'}</div>`;
+ $('#auth-form').addEventListener('submit',authSubmit);
+ $('#auth-card').querySelectorAll('[data-auth-digit]').forEach(b=>b.addEventListener('click',()=>{const input=$('#auth-pin');const digit=b.dataset.authDigit;input.value=digit==='⌫'?input.value.slice(0,-1):input.value+digit;input.value=input.value.slice(0,8);input.focus()}));
+ $('#auth-card').querySelector('[data-auth-cancel]')?.addEventListener('click',authUnlock);
+ $('#auth-card').querySelector('[data-auth-guest]')?.addEventListener('click',()=>authUnlock());
+}
+function authUnlock(){authLocked=false;authChanging=false;authFailures=0;document.documentElement.classList.add('helen-unlocked');$('#authscreen').hidden=true;}
+async function authSubmit(event){
+ event.preventDefault();const button=$('#auth-submit');if(button.disabled)return;
+ const exists=readAuth(),currentMode=authMode;
+ if(Date.now()<authCooldownUntil){authFeedback('Try again in a few seconds.');return}
+ const pin=$('#auth-pin').value;
+ if((currentMode!=='change'||pin)&&!/^[0-9]{4,8}$/.test(pin)){authFeedback('Use a PIN of 4–8 numbers.');return}
+ const confirm=$('#auth-confirm')?.value;
+ if((currentMode==='setup'||(currentMode==='change'&&pin))&&pin!==confirm){authFeedback('The PINs do not match.');return}
+ button.disabled=true;button.textContent='Checking…';
+ try{
+   if(currentMode==='login'||currentMode==='change'){
+     const candidate=currentMode==='change'?$('#auth-old').value:pin;
+     if(!/^[0-9]{4,8}$/.test(candidate))throw Error('Enter your current PIN.');
+     const proof=await pinProof(candidate,exists.salt,exists.iter);
+     // Compare all hex characters without early return.
+     let diff=0;for(let i=0;i<exists.proof.length;i++)diff|=exists.proof.charCodeAt(i)^proof.charCodeAt(i);
+     if(diff||exists.proof.length!==proof.length){authFailures++;if(authFailures>=5){authCooldownUntil=Date.now()+20000;authFailures=0;throw Error('Too many attempts. Try again in 20 seconds.')}throw Error('Incorrect PIN. Please try again.');}
+   }
+   if(currentMode==='setup'||currentMode==='change'){
+     const display=$('#auth-name').value.trim().slice(0,28)||'HELEN Operator';
+     if(currentMode==='setup'||pin){
+       const saltBytes=new Uint8Array(16);crypto.getRandomValues(saltBytes);const salt=authByteHex(saltBytes),iter=170000;
+       const proof=await pinProof(pin,salt,iter);
+       localStorage.setItem(AUTH_KEY,JSON.stringify({salt,proof,iter}));
+     }
+     localStorage.setItem(AUTH_NAME_KEY,display);
+   }
+   authUnlock();
+ }catch(error){authFeedback(error.message||'Could not unlock.');}
+ finally{button.disabled=false;button.textContent=currentMode==='setup'?'Create profile':currentMode==='change'?'Save settings':'Unlock desktop'}
+}
+function lockHandheld(){
+ try{cancelVoice()}catch{}try{if(wheelOpen)closeWheel()}catch{}try{if(!$('#virtual-board').hidden)closeVirtualBoard()}catch{}
+ try{if(adjustWindowId)stopWindowAdjust()}catch{}
+ $('#startpanel').hidden=true;$('#dialog').hidden=true;
+ if(hoveredControllerElement){hoveredControllerElement.classList.remove('gp-target');hoveredControllerElement=null}
+ $('#pointer').classList.remove('visible');
+ showAuth();
+}
+authClock();setInterval(authClock,30000);
+showAuth();
+document.addEventListener('click',event=>{
+ const b=event.target.closest('[data-lock-handheld],[data-auth-settings]');if(!b)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ if(b.hasAttribute('data-lock-handheld'))lockHandheld();else {$('#startpanel').hidden=true;showAuth('change',true)}
+},true);
+window.addEventListener('pagehide',()=>{if(!authLocked)lockHandheld()});
+window.addEventListener('pageshow',()=>{if(!authLocked&&$('#authscreen').hidden&&document.documentElement.classList.contains('helen-unlocked'))return;if($('#authscreen').hidden)showAuth()});
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){authAwayAt=Date.now();try{cancelVoice()}catch{}}
+ else if(!authLocked&&authAwayAt&&Date.now()-authAwayAt>120000)lockHandheld();
+});
+
 let mode='demo',host='',windows=new Map(),z=10,focused='';const filesDemo={'Welcome.txt':'HELEN Handheld Edition\n\nThis is a visual demo. No PC access is required.','Projects/Ideas.txt':'- Helen Engine integration\n- Shared Python memory\n- BuildView XR\n- Bible Workbench','Notes.md':'# My notes\n\nAn AI-centered handheld computer.'};
 const panelPos=(id)=>{let n=windows.size;const vw=innerWidth,vh=innerHeight;const landscape=vw>vh;return{left:landscape?Math.min(vw*.275,260)+n*14:vw*.06,top:landscape?11+n*10:vh*.30,width:landscape?Math.min(640,Math.max(340,vw*.62)):vw*.88,height:landscape?Math.min(365,Math.max(190,vh-116)):Math.min(500,vh*.55)}};
 function buildIcons(){$('#desktop-icons').innerHTML=appDefs.slice(1).map(a=>`<button class="desktop-icon" data-open="${a.id}" title="${a.name}"><span class="app-icon ${a.shade}">${I(a.ico)}</span><span>${a.name}</span></button>`).join('')}
@@ -718,7 +866,7 @@ async function approveDeleteConfirm(){
 }
 async function createItem(kind){const name=prompt(kind==='folder'?'Name your new folder':'Name your new note (e.g. Ideas.txt)');if(!name)return;if(!/^[^/\\]{1,80}$/.test(name)){toast('Invalid name');return}const path=(currentFolder?currentFolder+'/':'')+name;try{if(mode==='live'){if(kind==='folder')await request('/api/folder/create',{method:'POST',body:{path}});else await request('/api/file/save',{method:'POST',body:{path,content:''}})}else filesDemo[kind==='folder'?path+'/.keep.txt':path]='';refreshFiles();toast('Created '+name)}catch(e){toast(e.message)}}
 async function refreshSystem(){if(mode!=='live')return;try{let d=await request('/api/system');const box=$('#sysgrid');if(box)box.innerHTML=[['HOST',d.host],['OS',d.os],['PYTHON',d.python],['CPU CORES',d.cpu_cores]].map(([a,b])=>`<div class="panel"><div class="tiny">${a}</div><strong>${esc(b||'—')}</strong></div>`).join('')}catch(e){toast(e.message)}}
-function startMenu(){const el=$('#startpanel');if(!el.hidden){el.hidden=true;return}el.innerHTML=`<div class="head">HELEN OS <span class="tiny" style="float:right">HANDHELD</span></div><input class="textinput" id="start-search" placeholder="Search applications…" autocomplete="off"><h2 style="font-size:11px">Applications</h2><div id="start-items" class="grid">${appDefs.map(a=>`<button class="tile" data-open="${a.id}">${I(a.ico)} ${a.name}</button>`).join('')}</div><div class="actions"><button class="btn" data-connect="1">${I('wifi')} Connect PC</button><button class="btn" data-open="settings">Customize</button></div>`;el.hidden=false;$('#start-search').focus()}
+function startMenu(){const el=$('#startpanel');if(!el.hidden){el.hidden=true;return}el.innerHTML=`<div class="head">HELEN OS <span class="tiny" style="float:right">HANDHELD</span></div><input class="textinput" id="start-search" placeholder="Search applications…" autocomplete="off"><h2 style="font-size:11px">Applications</h2><div id="start-items" class="grid">${appDefs.map(a=>`<button class="tile" data-open="${a.id}">${I(a.ico)} ${a.name}</button>`).join('')}</div><div class="actions"><button class="btn" data-connect="1">${I('wifi')} Connect PC</button><button class="btn" data-open="settings">Customize</button><button class="btn" data-auth-settings="1">Account / PIN</button><button class="btn" data-lock-handheld="1">Lock screen</button></div>`;el.hidden=false;$('#start-search').focus()}
 function connectDialog(){if(mode==='live'){openDialog(`<h2>Connected PC</h2><p class="small">Connected to ${esc(host||'Windows PC')}</p><button class="btn" data-disconnect="1">Disconnect</button>`);return}openDialog(`<h2>Connect to your computer</h2><p class="small muted">Enter the 10-digit code generated by your existing Windows HELEN host, then approve the connection on the PC. Demo works without pairing.</p><label class="label">Pairing code</label><input class="textinput" id="pair-code" inputmode="numeric" maxlength="11" placeholder="00000 00000"><p class="small muted" id="pair-status">No code saved on this phone.</p><div class="actions"><button class="btn primary" data-pair="1">Connect</button><button class="btn" data-dismiss="1">Cancel</button></div>`) }
 // Original v0.3 pairing transport compatibility: 10-digit PC code; approval; request/response messages.
 let peer=null,conn=null,seq=0;const waiting=new Map();function disconnect(){cancelVoice();for(const [id,r] of waiting){clearTimeout(r.timer);r.reject(Error('Disconnected'))}waiting.clear();try{conn?.close()}catch{}try{peer?.destroy()}catch{}conn=null;peer=null;mode='demo';host='';
@@ -812,6 +960,7 @@ function updateControllerHover(force=false){
 function gameLoop(t){
  const dt=Math.max(0,Math.min(50,t-lastFrame));lastFrame=t;
  const pad=padOf();
+ if(authLocked){lastPadButtons=pad?.buttons.map(b=>!!b.pressed||b.value>.55)||[];requestAnimationFrame(gameLoop);return;}
  if(pad){
   if(!lastPad||lastPad.id!==pad.id||lastPad.index!==pad.index){lastPad=pad;lastPadButtons=pad.buttons.map(v=>!!v.pressed);heldControllerActions.clear();gamepadCursor=true;toast('Controller connected · v1.3');$('#pointer').classList.add('visible')}
   const ax=pad.axes||[],b=pad.buttons||[];
