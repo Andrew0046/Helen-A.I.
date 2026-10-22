@@ -488,23 +488,52 @@ function refreshControllerMappings(message=''){const root=$('#pad-mapping');if(r
 function assignPadButton(action,number){if(!padActions.some(([key])=>key===action))return;const map=controllerCfg.mappings[editControllerProfile];for(const [key] of padActions)if(key!==action&&map[key]===number)map[key]=null;map[action]=number;savePadCfg();refreshControllerMappings(`${padActions.find(x=>x[0]===action)[1]}: ${number===null?'Disabled':'Button '+number} · saved on this phone`)}
 // Controller wheel supports BOTH finger taps and stick-direction selection; hold-and-release executes choice.
 const wheelItems=[{name:'Helen',icon:'brain',id:'helen'},{name:'Notes',icon:'file',id:'notes'},{name:'Memory',icon:'database',id:'memory'},{name:'Past Chats',icon:'clock',id:'pastchats'},{name:'Files',icon:'folder',id:'files'},{name:'Engine Hub',icon:'apps',id:'engine'},{name:'Controller',icon:'pad',id:'controller'},{name:'Speak',icon:'mic',id:'voice'}];
-let wheelOpen=false,wheelIndex=-1,wheelGamepadHeld=false,wheelWasHeld=false;
-function openWheel(fromGamepad=false){if(wheelOpen)return;wheelOpen=true;wheelGamepadHeld=fromGamepad;wheelIndex=-1;$('#quick-wheel').hidden=false;paintWheel()}
-function paintWheel(){const root=$('#quick-wheel');if(!root)return;root.innerHTML=`<div class="wheel-shell">${wheelItems.map((w,i)=>{const angle=(-90+i*45)*Math.PI/180;const x=50+37*Math.cos(angle),y=50+37*Math.sin(angle);return `<button class="wheel-item ${wheelIndex===i?'selected':''}" data-wheel-choice="${i}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" title="${w.name}">${I(w.icon)}<span>${w.name}</span></button>`}).join('')}<div class="wheel-core">HELEN<small>QUICK ACCESS</small></div><button class="wheel-close" data-wheel-close="1" aria-label="Close quick wheel">×</button></div><div id="quick-wheel-hint">${wheelIndex===-1?'Aim joystick at an app, release to open · or tap an icon':wheelItems[wheelIndex].name+' · release to select'}</div>`}
-function selectWheel(i){if(!wheelOpen||i===wheelIndex)return;wheelIndex=i;const root=$('#quick-wheel');root.querySelectorAll('[data-wheel-choice]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.wheelChoice)===i));const hint=$('#quick-wheel-hint');if(hint)hint.textContent=i<0?'Move joystick to select':wheelItems[i].name+' · release to open'}
-function closeWheel(execute=false){if(!wheelOpen)return;const item=execute&&wheelIndex>=0?wheelItems[wheelIndex]:null;wheelOpen=false;wheelGamepadHeld=false;wheelIndex=-1;$('#quick-wheel').hidden=true;$('#quick-wheel').innerHTML='';if(item){if(item.id==='voice'){if(!startVoice('wheel'))toast('Tap Helen’s orb to talk if Android blocks controller microphone');}else showWindow(item.id)}}
-function aimWheel(x,y){const dead=Math.max(.32,controllerCfg.deadzone+.12);if(Math.hypot(x,y)<dead){selectWheel(-1);return}const rad=Math.atan2(y,x);const index=((Math.round((rad+Math.PI/2)/(Math.PI/4))%8)+8)%8;selectWheel(index)}
+let wheelOpen=false,wheelIndex=-1,wheelGamepadHeld=false;
+// A brief neutral position must NOT erase the last highlighted choice.
+let wheelStickWasAimed=false,wheelNeutralSince=0;
+// The controller may rest slightly off-center. Sample its neutral position when
+// opening by touch, so a physical stick release is recognized reliably.
+let wheelStickCenter=[0,0,0,0];
+function openWheel(fromGamepad=false){
+ if(wheelOpen)return;
+ wheelOpen=true;wheelGamepadHeld=fromGamepad;wheelIndex=-1;
+ wheelStickWasAimed=false;wheelNeutralSince=0;
+ const axes=padOf()?.axes||[];
+ wheelStickCenter=[0,1,2,3].map(i=>Number.isFinite(axes[i])?axes[i]:0);
+ $('#quick-wheel').hidden=false;paintWheel();
+}
+function paintWheel(){const root=$('#quick-wheel');if(!root)return;root.innerHTML=`<div class="wheel-shell">${wheelItems.map((w,i)=>{const angle=(-90+i*45)*Math.PI/180;const x=50+37*Math.cos(angle),y=50+37*Math.sin(angle);return `<button class="wheel-item ${wheelIndex===i?'selected':''}" data-wheel-choice="${i}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" title="${w.name}">${I(w.icon)}<span>${w.name}</span></button>`}).join('')}<div class="wheel-core">HELEN<small>QUICK ACCESS</small></div><button class="wheel-close" data-wheel-close="1" aria-label="Close quick wheel">×</button></div><div id="quick-wheel-hint">${wheelIndex===-1?(wheelGamepadHeld?'Hold Wheel button · aim stick · release button':'Aim stick · release to open (or press Click)'):(wheelItems[wheelIndex].name+(wheelGamepadHeld?' · release Wheel button to open':' · release stick or press Click'))}</div>`}
+function selectWheel(i){if(!wheelOpen||i===wheelIndex)return;wheelIndex=i;const root=$('#quick-wheel');root.querySelectorAll('[data-wheel-choice]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.wheelChoice)===i));const hint=$('#quick-wheel-hint');if(hint)hint.textContent=i<0?'Move joystick to select':wheelItems[i].name+(wheelGamepadHeld?' · release Wheel button to open':' · release stick or press Click')}
+function closeWheel(execute=false){if(!wheelOpen)return;const item=execute&&wheelIndex>=0?wheelItems[wheelIndex]:null;wheelOpen=false;wheelGamepadHeld=false;wheelIndex=-1;wheelStickWasAimed=false;wheelNeutralSince=0;$('#quick-wheel').hidden=true;$('#quick-wheel').innerHTML='';if(item){if(item.id==='voice'){if(!startVoice('wheel'))toast('Tap Helen’s orb to talk if Android blocks controller microphone');}else showWindow(item.id)}}
+function aimWheel(x,y){
+ const dead=Math.max(.31,controllerCfg.deadzone+.12),power=Math.hypot(x,y);
+ if(power<dead){
+  // Keep the last aimed choice highlighted, even when the stick springs back.
+  if(wheelStickWasAimed&&!wheelGamepadHeld&&wheelIndex>=0){
+   // Touch-opened wheel: a deliberate stick return to center confirms the choice.
+   // Debounce neutral so crossing the center doesn't launch something accidentally.
+   if(!wheelNeutralSince)wheelNeutralSince=performance.now();
+   if(performance.now()-wheelNeutralSince>=125)closeWheel(true);
+  }
+  return;
+ }
+ wheelStickWasAimed=true;wheelNeutralSince=0;
+ const rad=Math.atan2(y,x);
+ const index=((Math.round((rad+Math.PI/2)/(Math.PI/4))%8)+8)%8;
+ selectWheel(index);
+}
 function focusChatComposer(){showWindow('helen');const field=$('#helen-message-input');if(field){field.focus();if(document.activeElement!==field)toast('Tap the message field to open the phone keyboard')}else toast('Open Helen and tap the message field')}
 function controllerBack(){if(wheelOpen){closeWheel();return}if(!$('#delete-confirm').hidden){closeDeleteConfirm();return}if(!$('#dialog').hidden){closeDialog();return}if(!$('#startpanel').hidden){$('#startpanel').hidden=true;return}if(focused)operate(focused,'min')}
 function controllerSwitch(forward){const visible=[...windows.keys()].filter(k=>!windows.get(k).min);if(!visible.length){showWindow('welcome');return}let index=visible.indexOf(focused);index=(index+(forward?1:-1)+visible.length)%visible.length;showWindow(visible[index])}
 function controllerActivate(action,pressed){
  if(action==='wheel'){if(pressed)openWheel(true);else if(wheelOpen&&wheelGamepadHeld)closeWheel(true);return}
  if(action==='voice'){if(pressed){if(!startVoice('controller'))toast('For microphone permission, use the touch orb if needed');}else if(voiceSession?.source==='controller')stopVoice(true);return}
+ if(wheelOpen&&pressed&&action==='click'){closeWheel(true);return}
  if(!pressed||wheelOpen)return;
  switch(action){case 'click':{const hit=document.elementFromPoint(px+2,py+2);const click=hit?.closest('button,[role="button"]');if(click){click.click()}else if(hit?.matches('input,textarea,select'))hit.focus();else if(hit?.closest('.win'))focus(hit.closest('.win').dataset.win);break}
  case 'back':controllerBack();break;case 'menu':startMenu();break;case 'keyboard':focusChatComposer();break;case 'openHelen':showWindow('helen');break;case 'openNotes':showWindow('notes');break;case 'previous':controllerSwitch(false);break;case 'next':controllerSwitch(true);break;}
 }
-function contents(id){if(id==='welcome')return `<div class="tiny">HELEN / HANDHELD EDITION · V1.2</div><h1>Your PC. In your hands.</h1><p class="muted small">A real desktop-style experience on your phone, designed for touch and controller navigation.</p><div class="panel" style="margin-bottom:9px;display:flex;align-items:center;justify-content:space-between;gap:8px"><div><div class="tiny">CONNECTION STATUS</div><div style="font-size:13px;font-weight:750;margin-top:5px">${mode==='live'?'Connected to '+esc(host||'PC'):'Demo workspace'}</div><div class="muted small">${mode==='live'?'Phone-to-PC bridge is active':'Explore without your computer'}</div></div><span class="chip ${mode==='live'?'success':''}">${mode==='live'?'LIVE':'DEMO'}</span></div><div class="grid"><button class="tile" data-open="controller">${I('pad')} Controller Lab</button><button class="tile" data-open="files">${I('folder')} File Explorer</button><button class="tile" data-open="notes">${I('file')} Helen Notes</button><button class="tile" data-open="pastchats">${I('clock')} Past Chats</button><button class="tile" data-open="memory">${I('brain')} Memory</button><button class="tile" data-open="journal">${I('book')} Journal</button><button class="tile" data-open="goals">${I('activity')} Goals</button><button class="tile" data-open="engine">${I('apps')} Engine Hub</button></div><div class="actions"><button class="btn primary" data-connect="1">${I('wifi')} Connect PC</button><button class="btn" data-wheel-open="1">${I('apps')} Command wheel</button><button class="btn" data-fullscreen="1">${I('monitor')} Full screen</button></div><div class="small muted">Tip: turn your phone sideways for the full handheld layout. Your Windows host is not modified by this preview.</div>`;
+function contents(id){if(id==='welcome')return `<div class="tiny">HELEN / HANDHELD EDITION · V1.2.2</div><h1>Your PC. In your hands.</h1><p class="muted small">A real desktop-style experience on your phone, designed for touch and controller navigation.</p><div class="panel" style="margin-bottom:9px;display:flex;align-items:center;justify-content:space-between;gap:8px"><div><div class="tiny">CONNECTION STATUS</div><div style="font-size:13px;font-weight:750;margin-top:5px">${mode==='live'?'Connected to '+esc(host||'PC'):'Demo workspace'}</div><div class="muted small">${mode==='live'?'Phone-to-PC bridge is active':'Explore without your computer'}</div></div><span class="chip ${mode==='live'?'success':''}">${mode==='live'?'LIVE':'DEMO'}</span></div><div class="grid"><button class="tile" data-open="controller">${I('pad')} Controller Lab</button><button class="tile" data-open="files">${I('folder')} File Explorer</button><button class="tile" data-open="notes">${I('file')} Helen Notes</button><button class="tile" data-open="pastchats">${I('clock')} Past Chats</button><button class="tile" data-open="memory">${I('brain')} Memory</button><button class="tile" data-open="journal">${I('book')} Journal</button><button class="tile" data-open="goals">${I('activity')} Goals</button><button class="tile" data-open="engine">${I('apps')} Engine Hub</button></div><div class="actions"><button class="btn primary" data-connect="1">${I('wifi')} Connect PC</button><button class="btn" data-wheel-open="1">${I('apps')} Command wheel</button><button class="btn" data-fullscreen="1">${I('monitor')} Full screen</button></div><div class="small muted">Tip: turn your phone sideways for the full handheld layout. Your Windows host is not modified by this preview.</div>`;
 if(id==='files')return `<div class="row between"><div><div class="tiny">STORAGE</div><h1>File Explorer</h1></div><span class="chip">${mode==='live'?'LIVE WORKSPACE':'DEMO FILES'}</span></div><div class="actions"><button class="btn" data-newfolder="1">${I('plus')} New folder</button><button class="btn" data-newnote="1">${I('file')} New note</button><button class="btn" data-refresh-files="1">Refresh</button></div><div id="filecrumb" class="muted small">HELEN Workspace</div><div id="filelist" class="list"><div class="small muted">Loading files…</div></div>`;
 if(id==='engine')return `<div class="tiny">APPLICATIONS / SERVICES</div><h1>Engine Hub</h1><p class="small muted">Live original Helen capabilities now connect directly to the handheld desktop. More engines will join later.</p><div class="list"><button class="listitem" data-open="helen">${I('brain')} <span class="grow"><strong>Helen Chat</strong><br><small>CONNECTED · original Helen engine</small></span>${I('chevron')}</button><button class="listitem" data-open="notes">${I('file')} <span class="grow"><strong>Helen Notes</strong><br><small>INTEGRATED · original notes storage</small></span>${I('chevron')}</button><button class="listitem" data-open="pastchats">${I('clock')} <span class="grow"><strong>Past Chats</strong><br><small>INTEGRATED · original conversations</small></span>${I('chevron')}</button>${[['memory','Memory','Original Helen memories'],['journal','Journal','Original Helen journal'],['goals','Goals & Projects','Original goals and to-dos'],['preferences','Preferences','Saved personal preferences'],['knowledge','Knowledge Base','Helen reference facts']].map(x=>`<button class="listitem" data-open="${x[0]}">${I('brain')} <span class="grow"><strong>${x[1]}</strong><br><small>INTEGRATED · ${x[2]}</small></span>${I('chevron')}</button>`).join('')}${[['BuildView XR','layers','Integration planned'],['Bible Workbench','book','Integration planned'],['Music Studio','music','Integration planned']].map(x=>`<button class="listitem" data-toast="${x[0]} will be connected later"><span class="app-icon ${x[1]==='brain'?'rose':'purple'}" style="width:33px;height:33px">${I(x[1])}</span><span class="grow"><strong>${x[0]}</strong><br><small>${x[2]}</small></span>${I('chevron')}</button>`).join('')}</div>`;
 if(id==='helen')return helenChatMarkup();
@@ -519,7 +548,7 @@ if(id==='controller')return `<div class="row between"><div><div class="tiny">INP
 <div class="pad-settings"><label>Profile selection<select class="textinput" id="pad-profile-mode"><option value="auto" ${controllerMode==='auto'?'selected':''}>Automatic · desktop / Helen</option><option value="desktop" ${controllerMode==='desktop'?'selected':''}>Desktop always</option><option value="helen" ${controllerMode==='helen'?'selected':''}>Helen always</option></select></label><label>Edit button layout<select class="textinput" id="pad-edit-profile"><option value="desktop" ${editControllerProfile==='desktop'?'selected':''}>Desktop</option><option value="helen" ${editControllerProfile==='helen'?'selected':''}>Helen</option></select></label><label>Cursor speed<select class="textinput" id="pad-speed"><option value="0.4" ${controllerCfg.speed===.4?'selected':''}>Slow</option><option value="0.7" ${controllerCfg.speed===.7?'selected':''}>Normal</option><option value="1.1" ${controllerCfg.speed===1.1?'selected':''}>Fast</option><option value="1.55" ${controllerCfg.speed===1.55?'selected':''}>Very fast</option></select></label><label>Joystick deadzone <span id="pad-deadzone-value">${Math.round(controllerCfg.deadzone*100)}%</span><input type="range" id="pad-deadzone" min="8" max="35" step="1" value="${Math.round(controllerCfg.deadzone*100)}" style="width:100%"></label></div>
 <h2>Button assignments</h2><div id="pad-profile-current" class="pad-note">Active: ${controllerActiveProfile()==='helen'?'Helen':'Desktop'} profile. To map a key, press Learn, then press that button on your controller.</div><div id="pad-mapping">${controllerMappingMarkup()}</div>
 <div class="actions"><button class="btn" data-pad-reset="1">Reset default buttons</button><button class="btn" data-pad-cancel="1">Cancel learning</button></div>
-<div class="pad-note" id="pad-learn-status" role="status">Buttons are saved on this phone. Press and hold your assigned Wheel button, aim the stick, then release to select. Touch works too.</div>
+<div class="pad-note" id="pad-learn-status" role="status">Buttons are saved on this phone. Hold Wheel + aim stick, then release Wheel. Or tap the wheel icon, aim, and release the joystick.</div>
 <h2>Live inputs</h2><div id="pad-inputs" class="panel small muted">Connect a controller and press a button.</div><div class="small muted" style="margin-top:10px">A controller cannot reliably open Android's keyboard or microphone in every browser. If Android blocks it, tap Helen's mic or use the touchscreen keyboard. Button indices depend on your controller's Bluetooth mode.</div>`
 if(id==='settings')return `<div class="tiny">PERSONALIZATION</div><h1>Appearance</h1><p class="small muted">Make this handheld desktop feel like yours.</p><label class="label" for="theme-select">Glass finish</label><select id="theme-select"><option value="aurora" ${theme==='aurora'?'selected':''}>Aurora · deep blue</option><option value="silver" ${theme==='silver'?'selected':''}>Silver · bright glass</option><option value="obsidian" ${theme==='obsidian'?'selected':''}>Obsidian · dark violet</option></select><label class="label" for="motion-select">Animation level</label><select id="motion-select"><option value="flow" ${motion==='flow'?'selected':''}>Flow · normal</option><option value="calm" ${motion==='calm'?'selected':''}>Calm · subtle</option><option value="off" ${motion==='off'?'selected':''}>Off · reduce motion</option></select><div class="actions"><button class="btn" data-fullscreen="1">${I('monitor')} Full screen</button></div><p class="small muted">For app-like full-screen on Android, host over HTTPS and add to your home screen. Chrome's browser controls cannot always be hidden from a normal tab.</p>`;
 return '<p>Unknown application.</p>'}
@@ -642,7 +671,7 @@ function gameLoop(t){
  const dt=Math.max(0,Math.min(50,t-lastFrame));lastFrame=t;
  const pad=padOf();
  if(pad){
-  if(!lastPad||lastPad.id!==pad.id||lastPad.index!==pad.index){lastPad=pad;lastPadButtons=pad.buttons.map(v=>!!v.pressed);heldControllerActions.clear();gamepadCursor=true;toast('Controller connected · v1.2');$('#pointer').classList.add('visible')}
+  if(!lastPad||lastPad.id!==pad.id||lastPad.index!==pad.index){lastPad=pad;lastPadButtons=pad.buttons.map(v=>!!v.pressed);heldControllerActions.clear();gamepadCursor=true;toast('Controller connected · v1.2.2');$('#pointer').classList.add('visible')}
   const ax=pad.axes||[],b=pad.buttons||[];
   const values=b.map(button=>!!button.pressed||button.value>.55);
   const rising=values.map((state,i)=>state&&!lastPadButtons[i]);
@@ -652,13 +681,27 @@ function gameLoop(t){
    const cfg=controllerCfg.mappings[controllerActiveProfile()];
    for(let n=0;n<values.length;n++){
      if(rising[n]){const hit=padActions.find(([key])=>cfg[key]===n);if(hit){const action=hit[0];if(action==='wheel'||action==='voice')heldControllerActions.set(n,action);controllerActivate(action,true)}}
-     if(!values[n]&&lastPadButtons[n]&&heldControllerActions.has(n)){const action=heldControllerActions.get(n);heldControllerActions.delete(n);controllerActivate(action,false)}
    }
   }
   // The wheel uses either right or left stick, independent of cursor motion.
   const lx=ax[0]||0,ly=ax[1]||0,rx=ax[2]||0,ry=ax[3]||0;
-  if(wheelOpen){const right=Math.hypot(rx,ry),left=Math.hypot(lx,ly);aimWheel(right>left?rx:lx,right>left?ry:ly)}
-  else{
+  if(wheelOpen){
+   // A touch-opened wheel is a latched menu: either stick aims, and releasing
+   // it toward the position sampled at open confirms the selection.
+   // A button-held wheel keeps the original raw-axis behavior unchanged.
+   const axWheel=[lx,ly,rx,ry].map((v,i)=>wheelGamepadHeld?v:Math.max(-1,Math.min(1,v-wheelStickCenter[i])));
+   const [wlx,wly,wrx,wry]=axWheel;
+   const right=Math.hypot(wrx,wry),left=Math.hypot(wlx,wly);
+   aimWheel(right>left?wrx:wlx,right>left?wry:wly);
+  }
+  // Apply releases AFTER aiming so the wheel uses the most recent stick position.
+  // A release triggers the selected choice even if the joystick has centered.
+  for(let n=0;n<values.length;n++){
+   if(!values[n]&&lastPadButtons[n]&&heldControllerActions.has(n)){
+    const action=heldControllerActions.get(n);heldControllerActions.delete(n);controllerActivate(action,false);
+   }
+  }
+  if(!wheelOpen){
    const dz=controllerCfg.deadzone;
    const adjusted=(n)=>Math.abs(n)<dz?0:Math.sign(n)*(Math.abs(n)-dz)/(1-dz);
    const dx=adjusted(lx),dy=adjusted(ly);
