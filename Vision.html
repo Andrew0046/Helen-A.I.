@@ -1392,6 +1392,27 @@
       <!-- Additive Fusion Lab scene: all geometry is simulated, never inferred from Wi-Fi. -->
       <a-entity id="fusion-room" visible="false" position="0 -1.6 -2.5">
         <a-entity id="fusion-grid"></a-entity>
+        <!-- V2 animated wavefronts: illustrative propagation, not physical RF simulation -->
+        <a-entity id="fusion-transmitter" position="-1.6 1.15 -1.7">
+          <a-sphere radius=".10" color="#52ddff" material="shader:flat;emissive:#32ccff;emissiveIntensity:1"></a-sphere>
+          <a-text value="Wi-Fi TX (SIM)" position="-.45 .28 0" width="2" color="#75efff"></a-text>
+          <a-light type="point" color="#35baff" intensity=".65" distance="3"></a-light>
+          <a-entity id="fusion-waves">
+            <a-torus radius="1" radius-tubular=".012" rotation="-90 0 0" material="color:#4cefff;shader:flat;transparent:true;opacity:.8;side:double"
+              animation__grow="property:scale;from:.12 .12 .12;to:3.6 3.6 3.6;dur:3200;loop:true;easing:linear"
+              animation__fade="property:material.opacity;from:.85;to:0;dur:3200;loop:true;easing:linear"></a-torus>
+            <a-torus radius="1" radius-tubular=".012" rotation="-90 0 0" material="color:#4cefff;shader:flat;transparent:true;opacity:.8;side:double"
+              animation__grow="property:scale;from:.12 .12 .12;to:3.6 3.6 3.6;dur:3200;delay:1050;loop:true;easing:linear"
+              animation__fade="property:material.opacity;from:.85;to:0;dur:3200;delay:1050;loop:true;easing:linear"></a-torus>
+            <a-torus radius="1" radius-tubular=".012" rotation="-90 0 0" material="color:#4cefff;shader:flat;transparent:true;opacity:.8;side:double"
+              animation__grow="property:scale;from:.12 .12 .12;to:3.6 3.6 3.6;dur:3200;delay:2100;loop:true;easing:linear"
+              animation__fade="property:material.opacity;from:.85;to:0;dur:3200;delay:2100;loop:true;easing:linear"></a-torus>
+            <a-torus radius=".55" radius-tubular=".009" rotation="0 0 0" material="color:#9df7ff;shader:flat;transparent:true;opacity:.5;side:double"
+              animation__grow="property:scale;from:.3 .3 .3;to:4 4 4;dur:2700;loop:true;easing:linear"
+              animation__fade="property:material.opacity;from:.6;to:0;dur:2700;loop:true;easing:linear"></a-torus>
+          </a-entity>
+        </a-entity>
+
         <a-box position="0 1.45 -2.8" width="5.6" height="2.9" depth=".045" material="color:#35ffc4;wireframe:true;transparent:true;opacity:.42"></a-box>
         <a-box position="-2.8 1.45 0" width=".045" height="2.9" depth="5.6" material="color:#35ffc4;wireframe:true;transparent:true;opacity:.32"></a-box>
         <a-box position="2.8 1.45 0" width=".045" height="2.9" depth="5.6" material="color:#35ffc4;wireframe:true;transparent:true;opacity:.32"></a-box>
@@ -1399,7 +1420,7 @@
         <a-box position="-1.2 .45 -1.7" width="1" height=".9" depth=".65" material="color:#80bfff;wireframe:true;transparent:true;opacity:.5"></a-box>
         <a-sphere id="fusion-target" position="1 1 -1.5" radius=".25" material="color:#ffba57;wireframe:true;transparent:true;opacity:.8"
           animation="property:position;from:1 1 -1.5;to:1.5 1 -1.5;dir:alternate;dur:2300;loop:true;easing:easeInOutSine"></a-sphere>
-        <a-text value="SIMULATED ROOM - NOT A SCAN" position="-1.8 2.6 -2.7" width="3.2" color="#8affda"></a-text>
+        <a-text value="SIMULATED ROOM / WAVES - NOT A SCAN" position="-1.8 2.6 -2.7" width="3.2" color="#8affda"></a-text>
       </a-entity>
 
       <a-camera
